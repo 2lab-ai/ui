@@ -79,7 +79,7 @@ export function formatToolMs(ms: number, live = false): string {
 /** Clock time HH:MM:SS (24h) in the card's language; empty for a missing or invalid time. */
 export function formatToolClock(at: number | undefined, lang: 'en' | 'ko' = 'en'): string {
   const v = Number(at);
-  if (at === undefined || at === null || !Number.isFinite(v)) return '';
+  if (at === undefined || at === null || !Number.isFinite(v) || Number.isNaN(new Date(v).getTime())) return '';
   try {
     return new Date(v).toLocaleTimeString(lang === 'ko' ? 'ko-KR' : 'en-GB', {
       hour: '2-digit',

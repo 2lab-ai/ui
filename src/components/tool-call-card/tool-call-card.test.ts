@@ -83,6 +83,8 @@ describe('formatToolClock', () => {
     expect(formatToolClock(new Date(2026, 9, 27, 0, 0, 1).getTime())).toBe('00:00:01');
     expect(formatToolClock(undefined)).toBe('');
     expect(formatToolClock(Number.NaN)).toBe('');
+    // Finite but outside the Date range (review R1): no time rather than "Invalid Date".
+    expect(formatToolClock(8.64e15 + 1)).toBe('');
   });
 });
 
@@ -549,6 +551,34 @@ describe('<ui-tool-call-card>', () => {
     expect(q(el, '.tc-pending')?.textContent).toBe('입력과 결과 없음');
     set(el, { loading: true });
     expect(q(el, '.tc-loading')?.textContent).toBe('불러오는 중…');
+  });
+});
+
+describe('<ui-tool-call-card> focus and big output (review R1)', () => {
+  it('a card with an out-of-range start time still renders (no RangeError)', () => {
+    const el = mount({ name: 'Read', status: 'success', at: 8.64e15 + 1, defaultOpen: true, args: { a: 1 } });
+    expect(el.shadowRoot?.querySelector('.tc-head')).not.toBeNull();
+    expect(el.shadowRoot?.querySelector('time.tc-at')).toBeNull();
+  });
+
+  it('Retry goes away with the new run: focus stays on the card header, not <body>', () => {
+    const el = mount({ name: 'WebFetch', status: 'error', error: 'timeout', canRetry: true, open: true });
+    const retry = el.shadowRoot?.querySelector<HTMLButtonElement>('[data-act="retry"]');
+    expect(retry).toBeTruthy();
+    retry?.focus();
+    expect(el.shadowRoot?.activeElement).toBe(retry);
+    el.data = { ...(el.data as ToolCallData), status: 'running' };
+    el.renderNow();
+    expect(el.shadowRoot?.querySelector('[data-act="retry"]')).toBeNull();
+    expect((el.shadowRoot?.activeElement as HTMLElement | null)?.classList.contains('tc-head')).toBe(true);
+  });
+
+  it('a 200 KB single-line result renders only its first screen until Show all', () => {
+    const long = 'x'.repeat(200_000);
+    const el = mount({ name: 'Bash', status: 'success', result: long, open: true });
+    const code = el.shadowRoot?.querySelector('pre.tc-code[data-part="result"] > code');
+    expect(code?.hasAttribute('data-partial')).toBe(true);
+    expect((code?.textContent ?? '').length).toBeLessThan(long.length);
   });
 });
 
