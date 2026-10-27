@@ -8,10 +8,11 @@ cp "$here/scripts/consumer/check.ts" "$here/scripts/consumer/tsconfig.json" "$he
 cd "$work"
 printf '{"name":"consumer","private":true,"type":"module"}\n' > package.json
 printf 'registry=https://registry.npmjs.org/\n' > .npmrc
-for i in 1 2 3 4 5 6; do
-  npm i --no-audit --no-fund --loglevel=error "@2lab.ai/ui@$version" happy-dom@20 typescript@5.9 && break
-  [ "$i" = 6 ] && { echo "registry-check: install failed"; exit 1; }
-  sleep 20
+# A just-published version can take minutes to reach the registry CDN: retry for ~10 min, never from npm's cache.
+for i in $(seq 1 20); do
+  npm i --prefer-online --no-audit --no-fund --loglevel=error "@2lab.ai/ui@$version" happy-dom@20 typescript@5.9 && break
+  [ "$i" = 20 ] && { echo "registry-check: install failed"; exit 1; }
+  sleep 30
 done
 echo "registry-check: installed $(node -p "require('@2lab.ai/ui/package.json').name + '@' + require('@2lab.ai/ui/package.json').version") from $(npm config get registry)"
 npm ls @2lab.ai/ui
