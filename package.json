@@ -57,7 +57,7 @@
   },
   "scripts": {
     "dev": "vite --config vite.site.config.ts",
-    "build": "vite build --config vite.lib.config.ts && tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "build": "vite build --config vite.lib.config.ts && tsc -p tsconfig.build.json && node scripts/fix-dts.mjs && node scripts/copy-assets.mjs",
     "build:site": "npm run build && vite build --config vite.site.config.ts && node scripts/copy-lib.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
