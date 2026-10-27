@@ -9,6 +9,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Agent Run (screen) | `<ui-agent-run>` | What the agent is doing now, its plan, and what it needs from you |
 | Agent Inbox | `<ui-agent-inbox>` | Which runs need you, which are running, which are done |
 | AI Answer | `<ui-ai-answer>` | The answer, the links in it, copy, response time |
+| Tool Call Card | `<ui-tool-call-card>`, `<ui-tool-call-group>` | What the agent called, with what, what came back, and how long it took |
 | Agent Queue | `<ui-agent-queue>` | Provider capacity, rate limits, and the scheduled-job lane |
 | Context Window | `<ui-context-window>` | How full the context is and how far auto-compaction is |
 | Memory Panel | `<ui-memory-panel>` | What the agent remembers about you — search, edit, delete with undo |

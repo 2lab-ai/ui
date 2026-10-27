@@ -74,7 +74,7 @@ function homePage(): string {
   return `<section class="hero">
     <div class="crumb">@2lab.ai/ui</div>
     <h1>Agent UI components that show what the agent is doing — and what it needs from you.</h1>
-    <p class="lede">Seven Web Components lifted from the 2lab soma-work dashboard: the run screen, the inbox board, answer cards, provider capacity, context usage, memory and the model picker. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
+    <p class="lede">Eight Web Components lifted from the 2lab soma-work dashboard: the run screen, the inbox board, answer cards, tool calls, provider capacity, context usage, memory and the model picker. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
     <div class="cta"><a class="btn primary" href="/components/${DOCS[0]?.slug ?? ''}" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
   </section>
   <h2 id="components">Components <span class="chip">${DOCS.length}</span></h2>

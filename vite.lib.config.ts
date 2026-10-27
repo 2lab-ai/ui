@@ -9,6 +9,7 @@ const COMPONENTS = [
   'model-picker',
   'memory-panel',
   'agent-queue',
+  'tool-call-card',
 ];
 
 export default defineConfig({
