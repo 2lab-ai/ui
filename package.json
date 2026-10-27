@@ -63,7 +63,8 @@
     "typecheck": "tsc --noEmit",
     "check": "biome check .",
     "verify": "npm run check && npm run typecheck && npm test && npm run build:site && npm run consumer-check",
-    "consumer-check": "bash scripts/consumer-check.sh"
+    "consumer-check": "bash scripts/consumer-check.sh",
+    "registry-check": "bash scripts/registry-check.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",

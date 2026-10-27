@@ -1,0 +1,28 @@
+name: Verify package
+# Installs the published @2lab-ai/ui from GitHub Packages into a fresh project, typechecks it and registers every element.
+on:
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to verify (default = package.json)
+        required: false
+permissions:
+  contents: read
+  packages: read
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install from GitHub Packages, typecheck, register
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/registry-check.sh "${VERSION:-}"
