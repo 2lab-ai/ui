@@ -5,6 +5,7 @@ export const ORDER = [
   'agent-run',
   'agent-inbox',
   'ai-answer',
+  'tool-call-card',
   'agent-queue',
   'context-window',
   'memory-panel',
