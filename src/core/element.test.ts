@@ -33,4 +33,20 @@ describe('UiElement', () => {
     el.renderNow();
     expect(el.shadowRoot!.activeElement?.textContent).toBe('2');
   });
+  it('data set before the element is defined is not lost once it upgrades (a late module script)', async () => {
+    const el = document.createElement('ui-late-probe') as HTMLElement & { data?: { n: number } };
+    el.data = { n: 7 }; // plain own property: the class does not exist yet
+    document.body.append(el);
+    class UiLateProbe extends UiElement<{ n: number }> {
+      protected render(): string {
+        return `<b>${this.data?.n ?? 'none'}</b>`;
+      }
+    }
+    define('ui-late-probe', UiLateProbe);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(Object.hasOwn(el, 'data')).toBe(false);
+    expect((el as UiLateProbe).data).toEqual({ n: 7 });
+    expect(el.shadowRoot?.querySelector('b')?.textContent).toBe('7');
+  });
 });

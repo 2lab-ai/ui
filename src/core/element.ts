@@ -41,6 +41,14 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
   }
 
   connectedCallback(): void {
+    // `data` set before this element was defined (its module loaded after the host's script ran) is an own
+    // property that shadows the accessor: move it through the setter. Here, not in the constructor — a subclass
+    // setter may use private fields that only exist once construction is done.
+    if (Object.hasOwn(this, 'data')) {
+      const early = (this as { data?: D }).data;
+      delete (this as { data?: D }).data;
+      this.data = early;
+    }
     this.requestRender();
   }
 
