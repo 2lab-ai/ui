@@ -74,22 +74,30 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
   }
 
   protected update(): void {
-    const key = this.#focusedKey();
+    const focus = this.#focusState();
     this.content.innerHTML = this.render();
-    if (key) {
-      // Compare dataset values instead of building a selector: keys may hold any characters.
-      const next = Array.from(this.content.querySelectorAll<HTMLElement>('[data-key]')).find(
-        (el) => el.dataset.key === key,
-      );
-      next?.focus({ preventScroll: true });
-    }
+    // After updated(): a subclass may unhide or move what was focused there (a display:none element takes no focus).
     this.updated();
+    if (!focus) return;
+    // Compare dataset values instead of building a selector: keys may hold any characters.
+    const next =
+      focus.key === undefined
+        ? undefined
+        : Array.from(this.content.querySelectorAll<HTMLElement>('[data-key]')).find(
+            (el) => el.dataset.key === focus.key,
+          );
+    (next ?? this.focusFallback())?.focus({ preventScroll: true });
   }
 
-  #focusedKey(): string | undefined {
+  /** Where focus goes when the focused element is gone after a render (its key no longer rendered). Default: nowhere. */
+  protected focusFallback(): HTMLElement | null {
+    return null;
+  }
+
+  #focusState(): { key: string | undefined } | undefined {
     try {
       const active = this.root.activeElement as HTMLElement | null;
-      return active && this.content.contains(active) ? active.dataset?.key : undefined;
+      return active && this.content.contains(active) ? { key: active.dataset?.key } : undefined;
     } catch {
       return undefined;
     }

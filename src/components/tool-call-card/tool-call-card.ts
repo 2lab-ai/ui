@@ -86,6 +86,9 @@ interface Code {
 }
 
 /** Index of the n-th line break (the end of line n), or the text length when there are fewer lines. */
+/** Characters a first-screen line may hold before the head stops (wide panels, wrapped text). */
+const HEAD_CHARS_PER_LINE = 240;
+
 function cutAfterLines(text: string, n: number): number {
   let i = -1;
   for (let k = 0; k < n; k++) {
@@ -144,6 +147,11 @@ export class UiToolCallCard extends UiElement<ToolCallData> {
   }
 
   /** Focus the header button (the card's one tab stop). */
+  /** Retry, Try again, a Show all that went away, an auto-closed body: focus stays on the card's header. */
+  protected override focusFallback(): HTMLElement | null {
+    return this.$<HTMLButtonElement>('.tc-head');
+  }
+
   override focus(options?: FocusOptions): void {
     if (!this.$('.tc-head') && this.data && this.isConnected) this.renderNow();
     const head = this.$<HTMLButtonElement>('.tc-head');
@@ -355,9 +363,11 @@ export class UiToolCallCard extends UiElement<ToolCallData> {
    */
   #codeHtml(c: Code, full: boolean, cap: number): { html: string; partial: boolean } {
     const keep = Math.ceil((cap + 24) / LINE_PX) + 20;
-    if (!full && c.lines > keep) {
+    // Lines wrap, so a block with few newlines can still be huge: cap the first screen by characters as well.
+    const maxChars = keep * HEAD_CHARS_PER_LINE;
+    if (!full && (c.lines > keep || c.text.length > maxChars)) {
       if (c.head?.keep !== keep) {
-        const head = c.text.slice(0, cutAfterLines(c.text, keep));
+        const head = c.text.slice(0, Math.min(cutAfterLines(c.text, keep), maxChars));
         c.head = { keep, html: c.json ? highlightJson(head) : esc(head) };
       }
       return { html: c.head.html, partial: true };
