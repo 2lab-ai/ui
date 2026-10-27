@@ -1,2 +1,25 @@
-// Placeholder — replaced by the model-picker port.
-export {};
+export type {
+  AnchorSpot,
+  ModelMenuSide,
+  ModelMeters,
+  ModelPickerChange,
+  ModelPickerData,
+  ModelPickerValue,
+  ModelPrice,
+  PickerModel,
+} from './model-picker';
+export {
+  anchorMoved,
+  anchorSpot,
+  fmtModelPrice,
+  fmtModelTokens,
+  MODEL_EFFORT_LEVELS,
+  meterSegments,
+  modelEffortLabel,
+  modelEffortLevels,
+  modelGlyph,
+  modelMeters,
+  placeModelMenu,
+  UiModelPicker,
+  validModelPrice,
+} from './model-picker';
