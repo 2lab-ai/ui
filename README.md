@@ -1,4 +1,4 @@
-# @2lab-ai/ui
+# @2lab.ai/ui
 
 Agent UI components from the 2lab soma-work dashboard, as **Web Components** with zero runtime dependencies.
 
@@ -14,20 +14,15 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Memory Panel | `<ui-memory-panel>` | What the agent remembers about you — search, edit, delete with undo |
 | Model Picker | `<ui-model-picker>` | Which model and effort to run, with window, compaction and price |
 
-## Install (GitHub Packages)
+## Install
 
 ```
-# .npmrc
-@2lab-ai:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}   # token with read:packages
-```
-```
-npm i @2lab-ai/ui
+npm i @2lab.ai/ui
 ```
 ```js
-import '@2lab-ai/ui';                 // registers every element
-import '@2lab-ai/ui/context-window';  // or just one
-import '@2lab-ai/ui/tokens.css';      // optional page tokens (data-theme="dark" switches)
+import '@2lab.ai/ui';                 // registers every element
+import '@2lab.ai/ui/context-window';  // or just one
+import '@2lab.ai/ui/tokens.css';      // optional page tokens (data-theme="dark" switches)
 ```
 No build step: `<script type="module" src="https://ui.2lab.ai/lib/index.js"></script>`.
 

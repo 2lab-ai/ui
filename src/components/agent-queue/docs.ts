@@ -313,7 +313,7 @@ export const doc: ComponentDoc = {
   ],
   usage: `<ui-agent-queue lang="en"></ui-agent-queue>
 <script type="module">
-  import '@2lab-ai/ui/agent-queue';
+  import '@2lab.ai/ui/agent-queue';
   const el = document.querySelector('ui-agent-queue');
   el.data = {
     timeUnit: 's',                       // llmux speaks epoch seconds — converted once here

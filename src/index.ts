@@ -1,6 +1,6 @@
 /**
- * @2lab-ai/ui — agent UI Web Components. Importing this module registers every element.
- * Import a single component with `@2lab-ai/ui/<slug>` to register only that one.
+ * @2lab.ai/ui — agent UI Web Components. Importing this module registers every element.
+ * Import a single component with `@2lab.ai/ui/<slug>` to register only that one.
  */
 export * from './components/agent-inbox';
 export * from './components/agent-queue';

@@ -220,7 +220,7 @@ export const doc: ComponentDoc = {
   ],
   usage: `<ui-model-picker></ui-model-picker>
 <script type="module">
-  import '@2lab-ai/ui/model-picker';
+  import '@2lab.ai/ui/model-picker';
   const picker = document.querySelector('ui-model-picker');
   picker.data = {
     models: [

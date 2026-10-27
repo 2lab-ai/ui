@@ -3,7 +3,7 @@ import tokens from './tokens.json';
 /**
  * Design tokens. Inside every component's shadow root the dashboard names (`--text`, `--surface`, `--st-run` …)
  * are defined on `:host` and read the public `--ui-*` property first, so a page themes every component by
- * setting `--ui-text` etc. (or loading `@2lab-ai/ui/tokens.css`). Without any page tokens a component follows
+ * setting `--ui-text` etc. (or loading `@2lab.ai/ui/tokens.css`). Without any page tokens a component follows
  * `prefers-color-scheme`, and the `theme="light|dark"` attribute pins it.
  */
 export type TokenSet = Record<string, string>;
@@ -45,8 +45,8 @@ button { cursor: pointer; }
 }
 `;
 
-/** Optional page-level tokens (`@2lab-ai/ui/tokens.css`): `data-theme="dark|light"` on any ancestor switches. */
-export const tokensCss = `/* @2lab-ai/ui design tokens */
+/** Optional page-level tokens (`@2lab.ai/ui/tokens.css`): `data-theme="dark|light"` on any ancestor switches. */
+export const tokensCss = `/* @2lab.ai/ui design tokens */
 :root, [data-theme="light"] { ${pageVars(SHARED)} ${pageVars(LIGHT)} color-scheme: light; }
 [data-theme="dark"] { ${pageVars(DARK)} color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${pageVars(DARK)} color-scheme: dark; } }

@@ -1,7 +1,7 @@
-import '@2lab-ai/ui';
-import { DARK, LIGHT, tokensCss } from '@2lab-ai/ui/core/tokens';
-import { DOCS, docBySlug } from '@2lab-ai/ui/docs/registry';
-import type { ComponentDoc, DemoDoc } from '@2lab-ai/ui/docs/types';
+import '@2lab.ai/ui';
+import { DARK, LIGHT, tokensCss } from '@2lab.ai/ui/core/tokens';
+import { DOCS, docBySlug } from '@2lab.ai/ui/docs/registry';
+import type { ComponentDoc, DemoDoc } from '@2lab.ai/ui/docs/types';
 import pkg from '../package.json';
 import './style.css';
 
@@ -56,7 +56,7 @@ function shell(active: string, body: string): string {
     ${comps.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
   </aside>
   <main id="main" tabindex="-1"><div class="page">${body}
-    <div class="foot">@2lab-ai/ui v${esc(pkg.version)} · Web Components, zero runtime dependencies · built from the soma-work dashboard · interaction patterns studied from <a href="https://www.affectui.com" target="_blank" rel="noopener">affectUI</a> (no code or assets copied)</div>
+    <div class="foot">@2lab.ai/ui v${esc(pkg.version)} · Web Components, zero runtime dependencies · built from the soma-work dashboard · interaction patterns studied from <a href="https://www.affectui.com" target="_blank" rel="noopener">affectUI</a> (no code or assets copied)</div>
   </div></main>
 </div>`;
 }
@@ -72,7 +72,7 @@ function homePage(): string {
       <div class="meta"><em>${d.group === 'Screens' ? 'Screen' : 'Component'}</em><b>${esc(d.name)}</b><span>${esc(d.summary)}</span></div></a>`,
   ).join('');
   return `<section class="hero">
-    <div class="crumb">@2lab-ai/ui</div>
+    <div class="crumb">@2lab.ai/ui</div>
     <h1>Agent UI components that show what the agent is doing — and what it needs from you.</h1>
     <p class="lede">Seven Web Components lifted from the 2lab soma-work dashboard: the run screen, the inbox board, answer cards, provider capacity, context usage, memory and the model picker. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
     <div class="cta"><a class="btn primary" href="/components/${DOCS[0]?.slug ?? ''}" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
@@ -144,7 +144,7 @@ function componentPage(d: ComponentDoc): string {
   </section>
   <p class="desc" style="margin-top:22px">${esc(d.description)}</p>
   <h2>Usage</h2>
-  ${codeBlock(`npm i @2lab-ai/ui   # GitHub Packages — see Installation\nimport '@2lab-ai/ui/${d.slug}';`, 'inst')}
+  ${codeBlock(`npm i @2lab.ai/ui\nimport '@2lab.ai/ui/${d.slug}';`, 'inst')}
   <div style="height:12px"></div>
   ${codeBlock(d.usage, 'usage')}
   <h2>Properties</h2>${props}
@@ -157,14 +157,11 @@ function componentPage(d: ComponentDoc): string {
 function installPage(): string {
   const origin = location.origin;
   return `<div class="crumb">Getting started</div><h1>Installation</h1>
-  <p class="lede">The package is published to GitHub Packages under the <code>@2lab-ai</code> scope. For a page without a build step, load the same files from this site.</p>
-  <h2>npm (GitHub Packages)</h2>
-  <p class="desc">Add the scope to <code>.npmrc</code> and use a GitHub token with <code>read:packages</code>.</p>
-  ${codeBlock(`# .npmrc\n@2lab-ai:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=\${GITHUB_TOKEN}`, 'npmrc')}
-  <div style="height:12px"></div>
-  ${codeBlock(`npm i @2lab-ai/ui`, 'npmi')}
+  <p class="lede">The package is published to npm as <a href="https://www.npmjs.com/package/@2lab.ai/ui"><code>@2lab.ai/ui</code></a>. For a page without a build step, load the same files from this site.</p>
+  <h2>npm</h2>
+  ${codeBlock(`npm i @2lab.ai/ui`, 'npmi')}
   <h2>Import</h2>
-  ${codeBlock(`// everything\nimport '@2lab-ai/ui';\n\n// or one component (registers only that element)\nimport '@2lab-ai/ui/context-window';\n\n// optional page tokens (data-theme="dark" on any ancestor switches)\nimport '@2lab-ai/ui/tokens.css';`, 'imp')}
+  ${codeBlock(`// everything\nimport '@2lab.ai/ui';\n\n// or one component (registers only that element)\nimport '@2lab.ai/ui/context-window';\n\n// optional page tokens (data-theme="dark" on any ancestor switches)\nimport '@2lab.ai/ui/tokens.css';`, 'imp')}
   <h2>No build step</h2>
   ${codeBlock(`<script type="module" src="${origin}/lib/index.js"></script>\n<link rel="stylesheet" href="${origin}/lib/tokens.css">\n\n<ui-context-window lang="en"></ui-context-window>`, 'cdn')}
   <h2>Data in, events out</h2>
@@ -184,7 +181,7 @@ function themingPage(): string {
   return `<div class="crumb">Getting started</div><h1>Theming</h1>
   <p class="lede">Components follow <code>prefers-color-scheme</code> out of the box. Pin one with <code>theme="light|dark"</code>, or theme the whole page with <code>--ui-*</code> custom properties.</p>
   <h2>Three ways</h2>
-  <ul class="plain"><li><b>Nothing</b> — each element follows the OS theme.</li><li><b>Attribute</b> — <code>&lt;ui-agent-inbox theme="dark"&gt;</code>.</li><li><b>Page tokens</b> — load <code>@2lab-ai/ui/tokens.css</code> and set <code>data-theme="dark"</code> on any ancestor, or override single tokens.</li></ul>
+  <ul class="plain"><li><b>Nothing</b> — each element follows the OS theme.</li><li><b>Attribute</b> — <code>&lt;ui-agent-inbox theme="dark"&gt;</code>.</li><li><b>Page tokens</b> — load <code>@2lab.ai/ui/tokens.css</code> and set <code>data-theme="dark"</code> on any ancestor, or override single tokens.</li></ul>
   ${codeBlock(`:root {\n  --ui-accent: #7c3aed;\n  --ui-st-run: #7c3aed;\n}\n[data-theme="dark"] {\n  --ui-surface: #111113;\n}`, 'ov')}
   <div class="callout">Language: every component speaks English by default and Korean with <code>lang="ko"</code>.</div>
   <h2>Tokens <span class="chip">light · dark</span></h2>

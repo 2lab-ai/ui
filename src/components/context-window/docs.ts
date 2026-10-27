@@ -101,7 +101,7 @@ export const doc: ComponentDoc = {
   ],
   usage: `<ui-context-window lang="en"></ui-context-window>
 <script type="module">
-  import '@2lab-ai/ui/context-window';
+  import '@2lab.ai/ui/context-window';
   const el = document.querySelector('ui-context-window');
   el.data = {
     model: 'opus-4-5[1m]', window: 1_000_000, autoCompactAt: 750_000,

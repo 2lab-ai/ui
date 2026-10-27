@@ -21,10 +21,10 @@ const slugs = [
 ];
 const missing = [];
 for (const slug of slugs) {
-  await import(`@2lab-ai/ui/${slug}`);
+  await import(`@2lab.ai/ui/${slug}`);
   if (!customElements.get(`ui-${slug}`)) missing.push(slug);
 }
-await import('@2lab-ai/ui');
+await import('@2lab.ai/ui');
 const el = document.createElement('ui-context-window');
 document.body.append(el);
 el.data = { window: 1_000_000, autoCompactAt: 750_000, parts: { cacheRead: 272_300, output: 10 } };

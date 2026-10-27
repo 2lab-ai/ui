@@ -504,7 +504,7 @@ export const doc: ComponentDoc = {
   ],
   usage: `<ui-agent-run></ui-agent-run>
 <script type="module">
-  import '@2lab-ai/ui/agent-run';
+  import '@2lab.ai/ui/agent-run';
   const run = document.querySelector('ui-agent-run');
   const t0 = Date.now() - 252_000;
   run.data = {
