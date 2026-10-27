@@ -1,7 +1,7 @@
 # AGENTS.md — how to work in 2lab-ai/ui
 
-`@2lab-ai/ui` ships the agent UI of the soma-work dashboard as Web Components. One folder per component, a demo site
-(`site/`) that renders each component's `docs.ts`, published to GitHub Packages, demo at https://ui.2lab.ai.
+`@2lab.ai/ui` ships the agent UI of the soma-work dashboard as Web Components. One folder per component, a demo site
+(`site/`) that renders each component's `docs.ts`, published to npm as `@2lab.ai/ui`, demo at https://ui.2lab.ai.
 
 ## Gates (run before every commit)
 ```

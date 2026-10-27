@@ -382,7 +382,7 @@ export const doc: ComponentDoc = {
   ],
   usage: `<ui-agent-inbox lang="en"></ui-agent-inbox>
 <script type="module">
-  import { columnsByStatus } from '@2lab-ai/ui/agent-inbox';
+  import { columnsByStatus } from '@2lab.ai/ui/agent-inbox';
   const el = document.querySelector('ui-agent-inbox');
   const render = (runs) => (el.data = { columns: columnsByStatus(runs) });
   render([

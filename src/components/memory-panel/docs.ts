@@ -205,7 +205,7 @@ export const doc: ComponentDoc = {
   ],
   usage: `<ui-memory-panel lang="en"></ui-memory-panel>
 <script type="module">
-  import '@2lab-ai/ui/memory-panel';
+  import '@2lab.ai/ui/memory-panel';
   const el = document.querySelector('ui-memory-panel');
   // { stores: [{ id: 'memory', label: 'Agent notes', file: 'MEMORY.md', limit: 2200,
   //              perEntryLimit: 660, separator: '\\n§\\n', entries: ['…'] }, …] }

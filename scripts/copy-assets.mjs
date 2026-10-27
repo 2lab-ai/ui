@@ -6,7 +6,7 @@ const vars = (set) =>
   Object.entries(set)
     .map(([k, v]) => `--ui-${k}: ${v};`)
     .join(' ');
-const css = `/* @2lab-ai/ui design tokens — data-theme="dark|light" on any ancestor switches */
+const css = `/* @2lab.ai/ui design tokens — data-theme="dark|light" on any ancestor switches */
 :root, [data-theme="light"] { ${vars(t.shared)} ${vars(t.light)} color-scheme: light; }
 [data-theme="dark"] { ${vars(t.dark)} color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${vars(t.dark)} color-scheme: dark; } }

@@ -1,7 +1,7 @@
 import { baseCss } from './tokens';
 
 /**
- * Base class for every @2lab-ai/ui component.
+ * Base class for every @2lab.ai/ui component.
  *
  * - Open shadow root with `baseCss` + the subclass's `static styles`.
  * - Data in, events out: set `el.data = {...}` (or the component's own properties) → one batched render;

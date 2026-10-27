@@ -13,7 +13,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "types": ["vite/client"],
-    "paths": { "@2lab-ai/ui": ["./src/index.ts"], "@2lab-ai/ui/*": ["./src/*"] }
+    "paths": { "@2lab.ai/ui": ["./src/index.ts"], "@2lab.ai/ui/*": ["./src/*"] }
   },
   "include": ["src", "site", "*.config.ts"]
 }

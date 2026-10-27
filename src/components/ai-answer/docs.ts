@@ -189,7 +189,7 @@ export const doc: ComponentDoc = {
   ],
   usage: `<ui-ai-answer lang="en"></ui-ai-answer>
 <script type="module">
-  import '@2lab-ai/ui/ai-answer';
+  import '@2lab.ai/ui/ai-answer';
   const el = document.querySelector('ui-ai-answer');
   el.data = { markdown: '', streaming: true };
   for await (const chunk of stream) el.data = { markdown: (text += chunk), streaming: true };
