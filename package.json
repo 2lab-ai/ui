@@ -57,12 +57,13 @@
   },
   "scripts": {
     "dev": "vite --config vite.site.config.ts",
-    "build": "vite build --config vite.lib.config.ts && tsc -p tsconfig.build.json && node scripts/fix-dts.mjs && node scripts/copy-assets.mjs",
+    "build": "vite build --config vite.lib.config.ts && tsc -p tsconfig.build.json && node scripts/fix-dts.mjs && node scripts/copy-assets.mjs && node scripts/check-dist.mjs",
     "build:site": "npm run build && vite build --config vite.site.config.ts && node scripts/copy-lib.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check": "biome check .",
-    "verify": "npm run check && npm run typecheck && npm test && npm run build && npm run build:site"
+    "verify": "npm run check && npm run typecheck && npm test && npm run build:site && npm run consumer-check",
+    "consumer-check": "bash scripts/consumer-check.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
