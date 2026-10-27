@@ -1,0 +1,23 @@
+import type { ComponentDoc } from './types';
+
+/** Sidebar order (affectui-style: the screen first, then components). */
+export const ORDER = [
+  'agent-run',
+  'agent-inbox',
+  'ai-answer',
+  'agent-queue',
+  'context-window',
+  'memory-panel',
+  'model-picker',
+];
+
+const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });
+
+export const DOCS: ComponentDoc[] = Object.values(modules)
+  .map((m) => m.doc)
+  .filter(Boolean)
+  .sort((a, b) => ORDER.indexOf(a.slug) - ORDER.indexOf(b.slug));
+
+export function docBySlug(slug: string): ComponentDoc | undefined {
+  return DOCS.find((d) => d.slug === slug);
+}
