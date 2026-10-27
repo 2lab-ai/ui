@@ -17,8 +17,11 @@ jobs:
           registry-url: https://npm.pkg.github.com
           scope: '@2lab-ai'
       - run: npm ci
+      - run: npm run check
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run consumer-check
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
