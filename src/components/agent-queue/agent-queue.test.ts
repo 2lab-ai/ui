@@ -1,0 +1,698 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { capacityNews, laneNews, type UiAgentQueue } from './agent-queue';
+import {
+  type AgentQueueData,
+  type AqJob,
+  type AqProvider,
+  advanceProvider,
+  dayRuns,
+  fmtCount,
+  fmtPct,
+  nextRefill,
+  niceMax,
+  normalize,
+  orderJobs,
+  plain,
+  poolState,
+  runBins,
+  runKind,
+  scheduleLabel,
+  timelineMarks,
+  toMs,
+  upNext,
+} from './logic';
+import { STRINGS, timeText } from './strings';
+
+const NOW = Date.UTC(2026, 9, 27, 3, 0, 0);
+const S = 1000;
+const M = 60_000;
+const H = 3_600_000;
+const D = 86_400_000;
+const XSS = '<img src=x onerror=alert(1)>';
+const XSS_ATTR = '"><img src=x onerror=alert(1)>';
+
+function claude(over: Partial<AqProvider> = {}): AqProvider {
+  return {
+    id: 'claude',
+    name: 'Claude',
+    source: 'llmux',
+    total: 4,
+    fiveHour: 1.5,
+    weekly: 2,
+    measuredAt: NOW - 4 * H - 5 * M,
+    accounts: [
+      { id: 'ai7', name: 'ai7', state: 'available', binding: '5h', tier: 'Max x20', fiveHour: 0.4, weekly: 0.6 },
+      { id: 'ai3', name: 'ai3', state: 'available', binding: '7d', fiveHour: 0.9, weekly: 0.5 },
+      { id: 'ai43', name: 'ai43', state: 'limited', reason: 'weekly', returnAt: NOW + 7 * H + 22 * M + 30 * S },
+      { id: 'icedac', name: 'icedac', state: 'paused', reason: 'paused' },
+    ],
+    refills: [
+      { at: NOW + 22 * M + 30 * S, cause: '5h', fiveHour: 0.4, weekly: 0, account: 'ai7' },
+      { at: NOW + 7 * H + 22 * M + 30 * S, cause: '7d', fiveHour: 1, weekly: 1, account: 'ai43' },
+    ],
+    ...over,
+  };
+}
+
+function jobs(): AqJob[] {
+  return [
+    {
+      id: 'audit',
+      name: 'dependency-audit',
+      expression: '0 */6 * * *',
+      nextRunAt: NOW + 2 * H + 12 * M + 30 * S,
+      runs: [
+        { at: NOW - 3 * H, status: 'ok' },
+        { at: NOW - 9 * H, status: 'failed', error: 'npm audit timed out' },
+      ],
+    },
+    {
+      id: 'sweep',
+      name: 'pr-sweeper',
+      schedule: 'Every 30 min',
+      nextRunAt: NOW + 18 * M + 30 * S,
+      state: 'running',
+      runs: [
+        { at: NOW - 4 * M, status: 'running' },
+        { at: NOW - 34 * M, status: 'ok' },
+        { at: NOW - 64 * M, status: 'unknown', label: 'DM sent (no session)' },
+      ],
+    },
+    {
+      id: 'digest',
+      name: 'morning-digest',
+      nextRunAt: NOW + 21 * H,
+      state: 'waiting',
+      runs: [{ at: NOW - 3 * H, status: 'waiting' }],
+    },
+  ];
+}
+
+function mount(data: AgentQueueData, attrs: Record<string, string> = {}): UiAgentQueue {
+  const el = document.createElement('ui-agent-queue') as UiAgentQueue;
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  document.body.append(el);
+  el.data = data;
+  el.renderNow();
+  return el;
+}
+const q = (el: UiAgentQueue, s: string) => el.shadowRoot!.querySelector<HTMLElement>(s);
+const qa = (el: UiAgentQueue, s: string) => Array.from(el.shadowRoot!.querySelectorAll<HTMLElement>(s));
+const text = (el: UiAgentQueue, s: string) => q(el, s)?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+const key = (k: string) => new KeyboardEvent('keydown', { key: k, bubbles: true, composed: true });
+
+beforeEach(() => {
+  document.body.innerHTML = '';
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('units and time text', () => {
+  it('converts epoch seconds once, at the boundary', () => {
+    expect(toMs(1_793_000_000, 's')).toBe(1_793_000_000_000);
+    expect(toMs(5, 'ms')).toBe(5);
+    expect(toMs('x')).toBeUndefined();
+    const sec = normalize({
+      timeUnit: 's',
+      now: NOW / 1000,
+      providers: [claude({ refills: [{ at: (NOW + H) / 1000, cause: '5h', fiveHour: 1 }] })].map((p) => ({
+        ...p,
+        measuredAt: (p.measuredAt as number) / 1000,
+        accounts: p.accounts?.map((a) => ({ ...a, returnAt: a.returnAt && a.returnAt / 1000 })),
+      })),
+      lane: {
+        jobs: [{ id: 'a', name: 'a', nextRunAt: (NOW + M) / 1000, runs: [{ at: (NOW - M) / 1000, status: 'ok' }] }],
+      },
+    });
+    expect(sec.now).toBe(NOW);
+    expect(sec.providers?.[0].refills?.[0].at).toBe(NOW + H);
+    expect(sec.providers?.[0].accounts?.[2].returnAt).toBe(NOW + 7 * H + 22 * M + 30 * S);
+    expect(sec.lane?.jobs[0].nextRunAt).toBe(NOW + M);
+    expect(sec.lane?.jobs[0].runs?.[0].at).toBe(NOW - M);
+  });
+
+  it('renders the same countdown from seconds and from milliseconds', () => {
+    const ms = mount({ now: NOW, providers: [claude()] });
+    const p = claude();
+    const s = mount({
+      now: NOW / 1000,
+      timeUnit: 's',
+      providers: [
+        {
+          ...p,
+          measuredAt: (p.measuredAt as number) / 1000,
+          refills: p.refills?.map((e) => ({ ...e, at: e.at / 1000 })),
+          accounts: p.accounts?.map((a) => ({ ...a, returnAt: a.returnAt && a.returnAt / 1000 })),
+        },
+      ],
+    });
+    expect(text(ms, '.aq-pill')).toBe('⏸ Limited 1 · back in 7h 22m');
+    expect(text(s, '.aq-pill')).toBe(text(ms, '.aq-pill'));
+    expect(text(s, '.cap-disc')).toBe(text(ms, '.cap-disc'));
+  });
+
+  it('floors time left and never says “in soon”', () => {
+    const en = STRINGS.en;
+    const ko = STRINGS.ko;
+    expect(timeText('left', NOW + D + 5 * H + 59 * M, NOW, en)).toBe('1d 5h');
+    expect(timeText('left', NOW + H + 20 * M + 59 * S, NOW, en)).toBe('1h 20m');
+    expect(timeText('left', NOW + 24 * M + 59 * S, NOW, en)).toBe('24m');
+    expect(timeText('left', NOW + 42 * S, NOW, en)).toBe('42s');
+    expect(timeText('in', NOW, NOW, en)).toBe('soon');
+    expect(timeText('back', NOW + 24 * M, NOW, en)).toBe('back in 24m');
+    expect(timeText('back', NOW - 1, NOW, en)).toBe('back soon');
+    expect(timeText('back', NOW + 24 * M, NOW, ko)).toBe('24분 후 복귀');
+    expect(timeText('back', NOW, NOW, ko)).toBe('곧 복귀');
+    expect(timeText('in', NOW + D + 5 * H, NOW, ko)).toBe('1일 5시간 후');
+    expect(timeText('since', NOW - 11 * M, NOW, en)).toBe('11m ago');
+    expect(timeText('fetched', NOW - 12 * S, NOW, ko)).toBe('12초 전 갱신');
+  });
+});
+
+describe('capacity math', () => {
+  it('derives the pool state from the primary measure (5-hour, else weekly)', () => {
+    expect(poolState({ id: 'a', name: 'a', total: 0, weekly: 0 })).toBe('unknown');
+    expect(poolState({ id: 'a', name: 'a', total: 4, fiveHour: 0, weekly: 3 })).toBe('empty');
+    expect(poolState({ id: 'a', name: 'a', total: 4, fiveHour: 0.7, weekly: 3 })).toBe('low');
+    expect(poolState({ id: 'a', name: 'a', total: 4, weekly: 0.9 })).toBe('ok');
+    expect(poolState({ id: 'a', name: 'a', total: 4, weekly: 0.9, state: 'low' })).toBe('low');
+  });
+
+  it('folds refills whose time has come into the measures', () => {
+    const p = advanceProvider(claude(), NOW + 30 * M);
+    expect(p.fiveHour).toBeCloseTo(1.9);
+    expect(p.weekly).toBe(2);
+    expect(p.refills).toHaveLength(1);
+  });
+
+  it('finds the next gain ≥ 0.05 within 7 days', () => {
+    const p = claude({
+      refills: [
+        { at: NOW + M, cause: '5h', fiveHour: 0.01 },
+        { at: NOW + 2 * M, cause: '5h', fiveHour: 0.3 },
+        { at: NOW + 8 * D, cause: '7d', weekly: 1 },
+      ],
+    });
+    expect(nextRefill(p, 'fiveHour', NOW)?.at).toBe(NOW + 2 * M);
+    expect(nextRefill(p, 'weekly', NOW)).toBeNull();
+  });
+
+  it('keeps counts honest: never “2.4 / 2.4 99%”', () => {
+    expect(fmtCount(2.37, 2.4)).toBe('2.37');
+    expect(fmtCount(3.5, 16)).toBe('3.5');
+    expect(fmtPct(3.5, 16)).toBe('22%');
+    expect(fmtPct(2.39, 2.4)).toBe('99%');
+    expect(fmtPct(2.399, 2.4)).toBe('100%');
+    expect(fmtPct(2.4, 2.4)).toBe('100%');
+    expect(fmtPct(1, 0)).toBe('—');
+  });
+
+  it('merges close timeline marks of one kind', () => {
+    const p = claude({
+      refills: [
+        { at: NOW + 20 * M, cause: '5h', fiveHour: 0.4, account: 'a' },
+        { at: NOW + 25 * M, cause: '5h', fiveHour: 0.2, account: 'b' },
+        { at: NOW + 3 * D, cause: '7d', weekly: 1, account: 'c' },
+      ],
+    });
+    const marks = timelineMarks(p, 900, NOW);
+    expect(marks.map((m) => [m.c, Number(m.gain.toFixed(1)), m.names.join(',')])).toEqual([
+      ['h5', 0.6, 'a,b'],
+      ['wk', 1, 'c'],
+    ]);
+  });
+});
+
+describe('lane math', () => {
+  it('counts run records only; unknown results apart, never as success', () => {
+    const d = dayRuns({ jobs: jobs() }, NOW);
+    expect([d.n, d.ok, d.fail, d.run, d.unknown]).toEqual([5, 2, 1, 2, 1]);
+    expect(runKind('unknown')).toBe('unknown');
+    expect(runKind('whatever')).toBe('unknown');
+    const bins = runBins(d, NOW);
+    expect(bins).toHaveLength(24);
+    expect(bins.reduce((t, b) => t + b.ok + b.run + b.fail, 0)).toBe(d.n);
+  });
+
+  it('turns counts into lower bounds when a capped history starts inside the window', () => {
+    const runs = Array.from({ length: 20 }, (_, i) => ({ at: NOW - i * 15 * M, status: 'ok' as const }));
+    const d = dayRuns({ jobs: [{ id: 'p', name: 'poll', historyCap: 20, runs }] }, NOW);
+    expect(d.cut).toHaveLength(1);
+    expect(d.cutFrom).toBe(NOW - 19 * 15 * M);
+    expect(dayRuns({ jobs: [{ id: 'p', name: 'poll', runs }] }, NOW).cut).toHaveLength(0);
+  });
+
+  it('uses runs24h when given', () => {
+    const d = dayRuns({ jobs: jobs(), runs24h: [{ at: NOW - H, status: 'failed' }] }, NOW);
+    expect([d.n, d.fail]).toEqual([1, 1]);
+  });
+
+  it('orders the lane and the up-next queue', () => {
+    expect(orderJobs(jobs()).map((j) => j.id)).toEqual(['digest', 'sweep', 'audit']);
+    expect(upNext(jobs()).map((j) => j.id)).toEqual(['sweep', 'audit', 'digest']);
+    expect(niceMax(0)).toBe(4);
+    expect(niceMax(13)).toBe(16);
+  });
+
+  it('says common schedules in words', () => {
+    expect(scheduleLabel('*/15 * * * *', undefined)).toBe('Every 15 min');
+    expect(scheduleLabel('*/15 * * * *', undefined, 'ko')).toBe('15분마다');
+    expect(scheduleLabel('0 */6 * * *', undefined, 'ko')).toBe('6시간마다');
+    expect(scheduleLabel('0 12-20 25 10 *', undefined)).toBe('0 12-20 25 10 *');
+  });
+
+  it('makes one plain line for the live region', () => {
+    expect(plain('a\n\tb\u0007  c', 0)).toBe('a b c');
+    expect(plain('x'.repeat(100), 10)).toBe(`${'x'.repeat(9)}…`);
+  });
+});
+
+describe('<ui-agent-queue> capacity', () => {
+  it('renders nothing without data and hides an absent section', () => {
+    const el = mount(undefined as unknown as AgentQueueData);
+    expect(q(el, '.aq')).toBeNull();
+    const lane = mount({ now: NOW, lane: { jobs: jobs() } });
+    expect(q(lane, '.capacity')).toBeNull();
+    expect(q(lane, '.aq-lane')).not.toBeNull();
+  });
+
+  it('draws the provider card: head, disclosure, two bars, marks, timeline', () => {
+    const el = mount({ now: NOW, providers: [claude()], fetchedAt: NOW - 12 * S });
+    expect(text(el, '.cap-sub')).toBe('updated 12s ago');
+    expect(text(el, '.cap-pname')).toBe('Claude');
+    expect(text(el, '.aq-name')).toBe('llmux · 4 accounts');
+    expect(text(el, '.cap-disc')).toBe('3/4 reflected (1 limited incl.) · excluded 1 (held) · measured 4h ago');
+    const rows = qa(el, '.cap-bar-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].querySelector('.cap-bar-val')?.textContent).toBe('1.5 / 4.0 accounts 38%');
+    expect(rows[0].querySelector('.cap-bar-next')?.textContent).toBe('next +0.4 · in 22m');
+    expect(rows[1].querySelector('.cap-bar-next')?.textContent).toBe('next +1.0 · in 7h 22m');
+    expect(qa(el, '.cap-low')).toHaveLength(2);
+    expect(q(el, '.cap-bar')?.getAttribute('aria-label')).toBe('5-hour 1.5 of 4.0 accounts, 38%');
+    expect(text(el, '.aq-workers .aq-col-head')).toBe('Accounts 2/4');
+    const marks = qa(el, '.aq-mark');
+    expect(marks.map((m) => m.className)).toEqual([
+      'aq-mark is-available',
+      'aq-mark is-available',
+      'aq-mark is-limited',
+      'aq-mark is-paused',
+    ]);
+    expect(marks[2].textContent?.replace(/\s+/g, ' ').trim()).toBe('⏸ai43 · weekly limit · 7h 22m');
+    expect(marks[2].getAttribute('aria-label')).toBe('ai43, weekly limit, back in 7h 22m');
+    expect(marks[3].textContent).toBe('icedac · paused');
+    expect(q(el, '.aq-wdot.is-h5')).not.toBeNull();
+    expect(qa(el, '.cap-tl circle')).toHaveLength(1);
+    expect(qa(el, '.cap-tl-mk rect')).toHaveLength(1);
+    expect(qa(el, '.cap-tl-ax').map((t) => t.textContent)).toEqual(['now', '1h', '6h', '24h', '3d', '5d', '7d']);
+  });
+
+  it('shows one bar for a weekly-only provider and flags a reading over a day old', () => {
+    const el = mount({
+      now: NOW,
+      providers: [{ id: 'codex', name: 'Codex', total: 3.2, weekly: 2.4, measuredAt: NOW - 6 * D }],
+    });
+    expect(qa(el, '.cap-bar-row')).toHaveLength(1);
+    expect(text(el, '.cap-stale')).toBe('⚠ measured 6d ago');
+    expect(text(el, '.aq-pill')).toBe('● Available');
+  });
+
+  it('says all limited, counts down to the first return and shades the timeline', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'c',
+          name: 'Claude',
+          total: 2,
+          fiveHour: 0,
+          weekly: 0.3,
+          accounts: [
+            { id: 'a', name: 'a', state: 'limited', reason: '5h', returnAt: NOW + 22 * M + 30 * S },
+            { id: 'b', name: 'b', state: 'limited', reason: 'cooldown', returnAt: NOW + 2 * H },
+          ],
+          refills: [{ at: NOW + 22 * M + 30 * S, cause: 'release', fiveHour: 0.8 }],
+        },
+      ],
+    });
+    expect(text(el, '.aq-pill')).toBe('✗ All limited · back in 22m');
+    expect(q(el, '.cap-prov')?.classList.contains('is-empty')).toBe(true);
+    expect(q(el, '.cap-tl-lim title')?.textContent).toMatch(/^All limited — until /);
+  });
+
+  it("says it can't compute a pool with no countable account", () => {
+    const el = mount({
+      now: NOW,
+      providers: [{ id: 'g', name: 'Gemini', total: 0, accounts: [{ id: 'g1', name: 'g1', state: 'excluded' }] }],
+    });
+    expect(text(el, '.aq-pill')).toBe('◌ Can’t compute');
+    expect(text(el, '.cap-bar-next')).toBe('Can’t compute — no countable accounts');
+    expect(qa(el, '.cap-bar')).toHaveLength(0);
+  });
+
+  it('shows the capacity error instead of the cards', () => {
+    const el = mount({ capacityError: 'ECONNREFUSED', providers: [claude()] });
+    expect(text(el, '.cap-off')).toBe('Couldn’t load capacity — ECONNREFUSED');
+    expect(q(el, '.cap-prov')).toBeNull();
+  });
+});
+
+describe('<ui-agent-queue> lane', () => {
+  it('draws four stats, the queue, job cards and a 24-hour chart', () => {
+    const el = mount({ now: NOW, lane: { jobs: jobs() } });
+    expect(text(el, '.aq-lane-title')).toBe('CRON');
+    expect(text(el, '.aq-count')).toBe('3');
+    expect(qa(el, '.aq-lane-head .aq-pill').map((p) => p.textContent)).toEqual(['● Running 1', '▲ Needs reply 1']);
+    const dd = qa(el, '.aq-stat dd').map((d) => d.textContent);
+    expect(dd).toEqual(['in 18mpr-sweeper', '1/3', '5+1 unknown', '1']);
+    expect(q(el, '.aq-stat[data-kind="failed"]')).not.toBeNull();
+    expect(qa(el, '.aq-q .aq-q-name').map((n) => n.textContent)).toEqual([
+      'pr-sweeper',
+      'dependency-audit',
+      'morning-digest',
+    ]);
+    expect(qa(el, '.cron-group .cron-name').map((n) => n.textContent)).toEqual([
+      'morning-digest',
+      'pr-sweeper',
+      'dependency-audit',
+    ]);
+    expect(q(el, '.cron-group')?.classList.contains('is-waiting')).toBe(true);
+    const audit = qa(el, '.cron-group')[2];
+    expect(audit.querySelector('.cron-expr')?.textContent).toBe('Every 6 h');
+    expect(audit.querySelector('.cron-history-btn')?.textContent).toBe('Past runs 2');
+    expect(Array.from(audit.querySelectorAll('.cr-tick')).map((t) => t.className)).toEqual([
+      'cr-tick is-fail',
+      'cr-tick is-ok',
+    ]);
+    const sweep = qa(el, '.cron-group')[1];
+    expect(Array.from(sweep.querySelectorAll('.cr-tick')).map((t) => t.className)).toEqual([
+      'cr-tick is-none',
+      'cr-tick is-ok',
+      'cr-tick is-run',
+    ]);
+    expect(sweep.querySelector('.cron-strip')?.getAttribute('aria-label')).toBe(
+      'pr-sweeper: last 3 runs (1 ok, 1 in progress, 1 unknown) — show past runs',
+    );
+    expect(qa(el, '.aq-ch-col')).toHaveLength(24);
+    const said = q(el, '.aq-plot')?.getAttribute('aria-label') ?? '';
+    expect(said).toContain('5 cron run records in the last 24 hours: 2 ok, 1 failed, 2 in progress');
+    expect(said).toContain('1 runs with an unknown result are not counted.');
+  });
+
+  it('shows +N past four queued jobs', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ id: `j${i}`, name: `job-${i}`, nextRunAt: NOW + (i + 1) * M }));
+    const el = mount({ now: NOW, lane: { jobs: many } });
+    expect(qa(el, '.aq-q')).toHaveLength(4);
+    expect(text(el, '.aq-more')).toBe('+2');
+    expect(text(el, '.aq-queue .aq-col-head b')).toBe('6');
+  });
+
+  it('marks lower bounds and hatches the truncated stretch', () => {
+    const runs = Array.from({ length: 20 }, (_, i) => ({ at: NOW - i * 15 * M - S, status: 'ok' as const }));
+    const el = mount({ now: NOW, lane: { jobs: [{ id: 'p', name: 'poll', historyCap: 20, runs }] } });
+    expect(qa(el, '.aq-stat dd')[2].textContent).toBe('≥20');
+    expect(q(el, '.aq-ch-cut')).not.toBeNull();
+  });
+
+  it('says so when nothing is scheduled', () => {
+    const el = mount({ now: NOW, lane: { jobs: [] } });
+    expect(text(el, '.aq-empty')).toBe('Nothing scheduled');
+    expect(qa(el, '.aq-stat dd')[0].textContent).toBe('—');
+    expect(q(el, '.cron-groups')).toBeNull();
+  });
+});
+
+describe('escaping', () => {
+  it('escapes every host-written string, in text and in attributes', () => {
+    const p = claude({
+      id: XSS_ATTR,
+      name: XSS,
+      source: XSS,
+      accounts: [
+        {
+          id: XSS_ATTR,
+          name: XSS,
+          state: 'limited',
+          reason: XSS,
+          tier: XSS,
+          returnAt: NOW + H,
+        },
+        { id: 'ok', name: XSS_ATTR, state: 'available' },
+      ],
+      refills: [{ at: NOW + H, cause: '5h', fiveHour: 1, account: XSS }],
+    });
+    const el = mount({
+      now: NOW,
+      capacityNote: XSS,
+      providers: [p],
+      lane: {
+        title: XSS,
+        jobs: [
+          {
+            id: XSS_ATTR,
+            name: XSS,
+            schedule: XSS,
+            expression: XSS_ATTR,
+            nextRunAt: NOW + M,
+            runs: [{ at: NOW - M, status: 'failed', label: XSS, error: XSS }],
+          },
+          { id: 'b', name: XSS_ATTR, expression: XSS, nextRunAt: NOW + 2 * M },
+        ],
+      },
+    });
+    (qa(el, '.aq-mark')[0] as HTMLButtonElement).click();
+    expect(q(el, '.aq-pop')).not.toBeNull();
+    // No element was injected and no handler attribute exists (attribute values may contain a literal `<`).
+    expect(q(el, 'img')).toBeNull();
+    expect(q(el, '[onerror]')).toBeNull();
+    expect(qa(el, '*').every((n) => ['img', 'script'].indexOf(n.localName) < 0)).toBe(true);
+    expect(text(el, '.cap-pname')).toBe(XSS);
+    expect(text(el, '.cap-sub')).toBe(XSS);
+    expect(text(el, '.aq-lane-title')).toBe(XSS);
+    expect(text(el, '.aq-pop-name')).toBe(XSS);
+    expect(qa(el, '.aq-q')[0].dataset.job).toBe(XSS_ATTR);
+    // happy-dom's ShadowRoot.activeElement throws while focus sits in another component's shadow root.
+    (el.shadowRoot!.activeElement as HTMLElement | null)?.blur();
+    const errEl = mount({ capacityError: XSS });
+    expect(q(errEl, 'img')).toBeNull();
+    expect(text(errEl, '.cap-off')).toContain(XSS);
+  });
+
+  it('writes the live region as text only', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const el = mount({ providers: [claude({ name: `<b>${XSS}</b>` })] });
+    el.data = { providers: [claude({ name: `<b>${XSS}</b>`, fiveHour: 0, weekly: 0, state: 'empty' })] };
+    el.renderNow();
+    vi.advanceTimersByTime(80);
+    const live = el.shadowRoot!.querySelector('[aria-live="polite"]')!;
+    expect(live.children).toHaveLength(0);
+    expect(live.textContent).toContain('<b><img src=x onerror=alert(1)></b>: all accounts limited — back in 7h 22m');
+  });
+});
+
+describe('events', () => {
+  it('emits ui-job-open from a queue chip, the past-runs button and the run strip', () => {
+    const el = mount({ now: NOW, lane: { jobs: jobs() } });
+    const got: string[] = [];
+    el.addEventListener('ui-job-open', (e) => got.push((e as CustomEvent<{ jobId: string }>).detail.jobId));
+    q(el, '.aq-q')!.click();
+    qa(el, '.cron-history-btn')[2].click();
+    qa(el, '.cron-strip')[1].click();
+    expect(got).toEqual(['sweep', 'audit', 'sweep']);
+  });
+
+  it('emits ui-account-open and opens the account card; Esc closes and refocuses the mark', () => {
+    const el = mount({ now: NOW, providers: [claude()] });
+    const fired = vi.fn();
+    el.addEventListener('ui-account-open', (e) => fired((e as CustomEvent).detail));
+    const mark = qa(el, '.aq-mark')[2];
+    mark.focus();
+    mark.click();
+    expect(fired).toHaveBeenCalledWith({ providerId: 'claude', accountId: 'ai43' });
+    const pop = q(el, '.aq-pop[role="dialog"]');
+    expect(pop?.getAttribute('aria-label')).toBe('ai43 details');
+    expect(qa(el, '.aq-pop-stats dt').map((d) => d.textContent)).toEqual([
+      'Available now',
+      'Left this week',
+      'State',
+      'Returns',
+    ]);
+    expect(qa(el, '.aq-mark')[2].getAttribute('aria-expanded')).toBe('true');
+    q(el, '.aq-pop-close')!.focus();
+    q(el, '.aq-pop-close')!.dispatchEvent(key('Escape'));
+    expect(q(el, '.aq-pop')).toBeNull();
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai43');
+  });
+
+  it('keeps the built-in card closed when ui-account-open is cancelled', () => {
+    const el = mount({ now: NOW, providers: [claude()] });
+    el.addEventListener('ui-account-open', (e) => e.preventDefault());
+    qa(el, '.aq-mark')[0].click();
+    expect(q(el, '.aq-pop')).toBeNull();
+  });
+
+  it('closes the card from its close button, a second press, and an outside click', () => {
+    const el = mount({ now: NOW, providers: [claude()] });
+    qa(el, '.aq-mark')[0].click();
+    q(el, '.aq-pop-close')!.click();
+    expect(q(el, '.aq-pop')).toBeNull();
+    qa(el, '.aq-mark')[0].click();
+    qa(el, '.aq-mark')[0].click();
+    expect(q(el, '.aq-pop')).toBeNull();
+    qa(el, '.aq-mark')[0].click();
+    document.body.click();
+    expect(q(el, '.aq-pop')).toBeNull();
+  });
+
+  it('closes the card when its account leaves the data', () => {
+    const el = mount({ now: NOW, providers: [claude()] });
+    qa(el, '.aq-mark')[2].click();
+    expect(q(el, '.aq-pop')).not.toBeNull();
+    const p = claude();
+    el.data = { now: NOW, providers: [{ ...p, accounts: p.accounts?.filter((a) => a.id !== 'ai43') }] };
+    el.renderNow();
+    expect(q(el, '.aq-pop')).toBeNull();
+  });
+});
+
+describe('keyboard', () => {
+  it('roves the account marks with one tab stop; arrows, Home and End', () => {
+    const el = mount({ now: NOW, providers: [claude()] });
+    const tabs = () => qa(el, '.aq-mark').map((m) => m.getAttribute('tabindex'));
+    expect(tabs()).toEqual(['0', '-1', '-1', '-1']);
+    qa(el, '.aq-mark')[0].focus();
+    qa(el, '.aq-mark')[0].dispatchEvent(key('ArrowRight'));
+    expect(tabs()).toEqual(['-1', '0', '-1', '-1']);
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai3');
+    qa(el, '.aq-mark')[1].dispatchEvent(key('End'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('icedac');
+    qa(el, '.aq-mark')[3].dispatchEvent(key('Home'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai7');
+    qa(el, '.aq-mark')[0].dispatchEvent(key('ArrowUp'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai7');
+  });
+
+  it('keeps the roving stop across a re-render', () => {
+    const el = mount({ now: NOW, lane: { jobs: jobs() } });
+    qa(el, '.aq-q')[0].focus();
+    qa(el, '.aq-q')[0].dispatchEvent(key('ArrowDown'));
+    el.data = { now: NOW, lane: { jobs: jobs() } };
+    el.renderNow();
+    expect(qa(el, '.aq-q').map((m) => m.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-job')).toBe('audit');
+  });
+
+  it('folds the usable accounts into one mark when narrow, with a list card', () => {
+    const el = document.createElement('ui-agent-queue') as UiAgentQueue;
+    Object.defineProperty(el, 'clientWidth', { value: 390 });
+    document.body.append(el);
+    el.data = { now: NOW, providers: [claude()] };
+    el.renderNow();
+    const marks = qa(el, '.aq-mark');
+    expect(marks.map((m) => m.textContent?.trim().slice(0, 13))).toEqual([
+      '● Available 2',
+      '⏸ai43 · weekl',
+      'icedac · paus',
+    ]);
+    marks[0].click();
+    expect(q(el, '.aq-pop')?.getAttribute('aria-label')).toBe('Available accounts');
+    expect(qa(el, '.aq-pop-stats dd').map((d) => d.textContent)).toEqual(['now 40% · week 60%', 'now 90% · week 50%']);
+  });
+});
+
+describe('live time and announcements', () => {
+  it('ticks countdowns in place once a second, without re-rendering', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const el = mount({ providers: [claude()], lane: { jobs: jobs() } });
+    const pill = q(el, '.aq-pill time')!;
+    const chip = q(el, '.aq-q time')!;
+    expect(pill.textContent).toBe('back in 7h 22m');
+    expect(chip.textContent).toBe('18m');
+    vi.advanceTimersByTime(2 * M);
+    expect(q(el, '.aq-pill time')).toBe(pill);
+    expect(pill.textContent).toBe('back in 7h 20m');
+    expect(chip.textContent).toBe('16m');
+  });
+
+  it('repaints once when a countdown reaches zero, folding the refill in', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const el = mount({ providers: [claude()] });
+    expect(qa(el, '.cap-bar-val')[0].textContent).toBe('1.5 / 4.0 accounts 38%');
+    vi.advanceTimersByTime(23 * M);
+    await Promise.resolve();
+    expect(qa(el, '.cap-bar-val')[0].textContent).toBe('1.9 / 4.0 accounts 48%');
+  });
+
+  it('announces state changes once, never the first data', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const el = mount({ providers: [claude()], lane: { jobs: jobs() } });
+    const live = el.shadowRoot!.querySelector('[aria-live="polite"]')!;
+    vi.advanceTimersByTime(100);
+    expect(live.textContent).toBe('');
+    const next = jobs();
+    next[0].runs = [{ at: NOW - M, status: 'failed', error: 'npm audit\ntimed out' }, ...(next[0].runs ?? [])];
+    el.data = { providers: [claude({ fiveHour: 0.5 })], lane: { jobs: next } };
+    el.renderNow();
+    vi.advanceTimersByTime(100);
+    expect(live.textContent).toBe(
+      'Claude below 20% now — 0.5/4.0 accounts · Cron dependency-audit failed: npm audit timed out',
+    );
+  });
+
+  it('stops ticking when disconnected', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const el = mount({ providers: [claude()] });
+    const pill = q(el, '.aq-pill time')!;
+    el.remove();
+    vi.advanceTimersByTime(5 * M);
+    expect(pill.textContent).toBe('back in 7h 22m');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('builds announcement sentences from data changes', () => {
+    const empty = claude({ fiveHour: 0, state: 'empty' });
+    expect(capacityNews([claude()], [empty], NOW)).toBe('Claude: all accounts limited — back in 7h 22m');
+    expect(capacityNews([empty], [claude()], NOW)).toBe('Claude available again — 2/4 accounts');
+    expect(capacityNews(undefined, [empty], NOW)).toBe('');
+    expect(capacityNews([claude()], [empty], NOW, STRINGS.ko)).toBe('Claude 계정이 모두 막힘 — 7시간 22분 후 복귀');
+    const a = jobs();
+    const b = jobs();
+    b[1].state = 'idle';
+    b[0].state = 'waiting';
+    expect(laneNews({ jobs: a }, { jobs: b })).toBe('Cron dependency-audit needs a reply');
+    expect(laneNews({ jobs: a }, { jobs: [...b, { id: 'new', name: 'new', state: 'waiting' }] })).toBe(
+      'Cron dependency-audit needs a reply',
+    );
+  });
+});
+
+describe('lang="ko"', () => {
+  it('speaks Korean the way the dashboard does', () => {
+    const el = mount({ now: NOW, providers: [claude()], lane: { jobs: jobs() } }, { lang: 'ko' });
+    expect(text(el, '.cap-title')).toBe('LLM 가용량');
+    expect(text(el, '.aq-name')).toBe('llmux · 계정 4');
+    expect(text(el, '.aq-pill')).toBe('⏸ 제한 1 · 7시간 22분 후 복귀');
+    expect(text(el, '.cap-disc')).toBe('3/4 반영(차단 1 포함) · 제외 1(보류) · 측정 4시간 전');
+    expect(qa(el, '.cap-bar-next')[0].textContent).toBe('다음 +0.4계정 · 22분 후');
+    expect(qa(el, '.cap-bar-val')[0].textContent).toBe('1.5 / 4.0 계정 38%');
+    expect(text(el, '.aq-workers .aq-col-head')).toBe('계정 2/4');
+    expect(qa(el, '.aq-mark')[2].textContent?.replace(/\s+/g, ' ').trim()).toBe('⏸ai43 · 주간 한도 · 7시간 22분');
+    expect(qa(el, '.aq-stat dt').map((d) => d.textContent)).toEqual([
+      '다음 실행',
+      '실행 중',
+      '24시간 실행 기록',
+      '실패 · 24시간',
+    ]);
+    expect(qa(el, '.aq-stat dd')[0].textContent).toBe('18분 후pr-sweeper');
+    expect(qa(el, '.aq-stat dd')[2].textContent).toBe('5+미확인 1');
+    expect(qa(el, '.cron-history-btn')[0].textContent).toBe('지난 실행 1');
+    expect(qa(el, '.cron-group')[2].querySelector('.cron-expr')?.textContent).toBe('6시간마다');
+    expect(text(el, '.aq-chart-title')).toBe('실행 기록 · 24시간');
+    expect(qa(el, '.aq-ch-axis span').map((s) => s.textContent)).toEqual(['24시간 전', '12시간 전', '지금']);
+  });
+});
