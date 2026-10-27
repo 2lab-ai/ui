@@ -629,3 +629,5 @@ ul.plain li {
     animation-duration: 0.01ms !important;
   }
 }
+
+[data-theme='dark'] .brand img { filter: invert(1); }
