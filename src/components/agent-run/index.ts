@@ -1,2 +1,27 @@
-// Placeholder — replaced by the agent-run port.
-export {};
+export type {
+  AgentRunAnswerDetail,
+  AgentRunApproval,
+  AgentRunApproveDetail,
+  AgentRunChoice,
+  AgentRunData,
+  AgentRunDecision,
+  AgentRunDetailValue,
+  AgentRunPlanPhase,
+  AgentRunQuestion,
+  AgentRunRule,
+  AgentRunStatus,
+  AgentRunStep,
+  AgentRunStepStatus,
+} from './agent-run';
+export {
+  runApprovalFields,
+  runChoiceOrder,
+  runDomKey,
+  runFieldText,
+  runFoldedSteps,
+  runNeedsCount,
+  runPlanPhase,
+  runQuestionKey,
+  runTimeOfDay,
+  UiAgentRun,
+} from './agent-run';
