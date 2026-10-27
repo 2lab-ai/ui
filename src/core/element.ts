@@ -17,6 +17,7 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
   protected readonly content: HTMLElement;
   #data: D | undefined;
   #queued = false;
+  #gen = 0;
 
   constructor() {
     super();
@@ -49,27 +50,41 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
   requestRender(): void {
     if (this.#queued) return;
     this.#queued = true;
+    const gen = this.#gen;
     queueMicrotask(() => {
+      if (!this.#queued || gen !== this.#gen) return;
       this.#queued = false;
       if (this.isConnected) this.update();
     });
   }
 
-  /** Render synchronously (tests, or right before measuring). */
+  /** Render synchronously (tests, or right before measuring). Cancels a queued render. */
   renderNow(): void {
     this.#queued = false;
+    this.#gen++;
     this.update();
   }
 
   protected update(): void {
-    const active = this.root.activeElement as HTMLElement | null;
-    const key = active?.dataset?.key;
+    const key = this.#focusedKey();
     this.content.innerHTML = this.render();
     if (key) {
-      const next = this.content.querySelector<HTMLElement>(`[data-key="${cssEscape(key)}"]`);
+      // Compare dataset values instead of building a selector: keys may hold any characters.
+      const next = Array.from(this.content.querySelectorAll<HTMLElement>('[data-key]')).find(
+        (el) => el.dataset.key === key,
+      );
       next?.focus({ preventScroll: true });
     }
     this.updated();
+  }
+
+  #focusedKey(): string | undefined {
+    try {
+      const active = this.root.activeElement as HTMLElement | null;
+      return active && this.content.contains(active) ? active.dataset?.key : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /** The component's markup. */
@@ -91,10 +106,6 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
   protected $$<E extends Element = HTMLElement>(selector: string): E[] {
     return Array.from(this.root.querySelectorAll<E>(selector));
   }
-}
-
-function cssEscape(s: string): string {
-  return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
 }
 
 /** Register a custom element once (safe to import twice). */
