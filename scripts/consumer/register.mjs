@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: every subpath registers its element, the root registers all 7.
+// Runtime smoke test against the installed package: each of the 8 subpaths registers its element(s) (9 in all).
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -18,11 +18,14 @@ const slugs = [
   'context-window',
   'memory-panel',
   'model-picker',
+  'tool-call-card',
 ];
+// Subpaths that register more than their own tag.
+const extra = { 'tool-call-card': ['ui-tool-call-group'] };
 const missing = [];
 for (const slug of slugs) {
   await import(`@2lab.ai/ui/${slug}`);
-  if (!customElements.get(`ui-${slug}`)) missing.push(slug);
+  for (const tag of [`ui-${slug}`, ...(extra[slug] ?? [])]) if (!customElements.get(tag)) missing.push(tag);
 }
 await import('@2lab.ai/ui');
 const el = document.createElement('ui-context-window');
@@ -34,4 +37,5 @@ if (missing.length || !rendered) {
   console.error(`register: missing=[${missing.join(',')}] rendered=${rendered}`);
   process.exit(1);
 }
-console.log(`register: ${slugs.length}/7 elements defined from their subpaths; <ui-context-window> rendered`);
+const tags = slugs.length + Object.values(extra).flat().length;
+console.log(`register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window> rendered`);
