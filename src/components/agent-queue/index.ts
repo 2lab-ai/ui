@@ -18,6 +18,7 @@ export type {
   TimeUnit,
 } from './logic';
 export {
+  accountState,
   advanceProvider,
   axisPos,
   dayRuns,

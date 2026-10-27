@@ -562,7 +562,10 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     if (!o.listed || d.busy?.model) return;
     this.#setOpen(false, { user: true, returnFocus: true });
     const detail: ModelPickerChange = { model: o.model.id, effort: d.value?.effort, changed: 'model' };
-    if (this.emit('ui-change', detail)) this.data = { ...d, value: { model: o.model.id, effort: d.value?.effort } };
+    // Optimistic value on top of the LATEST data: a listener may have set busy/error synchronously; if it set a
+    // value of its own, that value wins.
+    if (this.emit('ui-change', detail) && this.data && this.data.value === d.value)
+      this.data = { ...this.data, value: { model: o.model.id, effort: d.value?.effort } };
   }
 
   /** A level keeps the menu open (it is a setting of the same choice). */
@@ -571,7 +574,8 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     if (!d || this.#off() || d.busy?.effort || !level || level === d.value?.effort) return;
     const model = d.value?.model ?? '';
     const detail: ModelPickerChange = { model, effort: level, changed: 'effort' };
-    if (this.emit('ui-change', detail)) this.data = { ...d, value: { model, effort: level } };
+    if (this.emit('ui-change', detail) && this.data && this.data.value === d.value)
+      this.data = { ...this.data, value: { model, effort: level } };
   }
 
   // ── input ─────────────────────────────────────────────────────────────────

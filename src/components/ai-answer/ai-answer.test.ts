@@ -84,6 +84,18 @@ describe('answerMarkdown (dashboard renderMarkdownDoc)', () => {
     expect(html).toContain('<hr>');
     expect(html).toContain('<pre class="md-code"><code data-lang="ts">const x = 1 &lt; 2;</code></pre>');
   });
+  it('a code span inside a link target cannot break out of the href (review P1)', () => {
+    const md = '[x](https://example.com/`"onmouseover="globalThis.__x=1"data-x="`)';
+    const host = document.createElement('div');
+    host.innerHTML = answerMarkdown(md);
+    const a = host.querySelector('a');
+    expect(host.querySelector('[onmouseover]')).toBeNull();
+    expect(a?.getAttributeNames().sort()).toEqual(['href', 'rel', 'target']);
+    expect(a?.getAttribute('href')).toContain('example.com/');
+    const el = mount({ markdown: md });
+    expect(el.shadowRoot!.querySelector('[onmouseover]')).toBeNull();
+  });
+
   it('escapes raw HTML and links only http(s)', () => {
     const html = answerMarkdown(`**a** <script>x</script> [x](javascript:alert(1)) [y](https://y.dev) ${XSS}`);
     expect(html).not.toContain('<script');

@@ -222,18 +222,23 @@ function marks(t: string): string {
 /** Inline marks on one line: escape first, then code spans, links (http(s) only), bold, italic, strike. */
 function mdInline(s: string, link: LinkRenderer): string {
   const codes: string[] = [];
+  const rawCodes: string[] = [];
   const links: string[] = [];
+  // Code HTML goes back only into text/label positions; a URL gets the raw backtick text back instead, so a code
+  // span inside a link target can never place markup (or a quote) into the href attribute.
   const restoreCodes = (x: string) => x.replace(/\uE000(\d+)\uE000/g, (_m, i) => codes[Number(i)] ?? '');
+  const restoreRaw = (x: string) => x.replace(/\uE000(\d+)\uE000/g, (_m, i) => `\`${rawCodes[Number(i)] ?? ''}\``);
   let t = String(s ?? '')
     .replace(/[\uE000\uE001]/g, '')
     .replace(/`([^`]+)`/g, (_m, c: string) => {
-      codes.push(`<code>${esc(c)}</code>`);
+      codes.push(`<code>${escAttr(c)}</code>`);
+      rawCodes.push(c);
       return `${CODE}${codes.length - 1}${CODE}`;
     });
   t = esc(t);
   // Links become placeholders so emphasis never reaches into an href.
   t = t.replace(/!?\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, href: string) => {
-    const url = unesc(href);
+    const url = restoreRaw(unesc(href));
     if (!HTTP.test(url)) return label;
     links.push(link(url, restoreCodes(marks(label))));
     return `${LINK}${links.length - 1}${LINK}`;

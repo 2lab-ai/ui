@@ -37,10 +37,14 @@ No build step: `<script type="module" src="https://ui.2lab.ai/lib/index.js"></sc
 <script type="module">
   const el = document.querySelector('ui-context-window');
   el.data = { window: 1_000_000, autoCompactAt: 750_000, parts: { cacheRead: 272300, output: 10 }, canCompact: true };
-  el.addEventListener('ui-compact', () => { /* call your API, then set el.data.compactState */ });
+  el.addEventListener('ui-compact', async () => {
+    el.data = { ...el.data, compactState: 'sending' };   // assign a new object — in-place mutation does not re-render
+    await fetch('/compact', { method: 'POST' });
+    el.data = { ...el.data, compactState: 'sent' };
+  });
 </script>
 ```
-Data in (`el.data`), events out (`ui-*`, bubbling + composed). Elements never fetch. English by default, Korean with
+Data in (`el.data = {...}` — always assign a new object), events out (`ui-*`, bubbling + composed). Elements never fetch. English by default, Korean with
 `lang="ko"`. Light/dark follow the OS, `theme="light|dark"` pins one, `--ui-*` custom properties theme a page.
 
 ## Develop

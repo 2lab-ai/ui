@@ -297,6 +297,30 @@ describe('<ui-model-picker>', () => {
     expect(q(el, '.mp-name')!.textContent).toBe('Fable 5.1 (1M)');
   });
 
+  it('keeps busy/error the host set synchronously inside ui-change (review P2)', () => {
+    const el = mount(BASE);
+    el.addEventListener('ui-change', () => {
+      el.data = { ...el.data!, busy: { model: 'Switching…' }, error: 'new host state' };
+    });
+    const list = openByKey(el);
+    key(list, 'ArrowDown');
+    key(list, 'Enter');
+    expect(el.data!.value.model).toBe('fable');
+    expect(el.data!.busy).toEqual({ model: 'Switching…' });
+    expect(el.data!.error).toBe('new host state');
+  });
+
+  it('a value the host set inside ui-change wins over the optimistic one', () => {
+    const el = mount(BASE);
+    el.addEventListener('ui-change', () => {
+      el.data = { ...el.data!, value: { model: 'opus', effort: 'max', effectiveEffort: 'high' } };
+    });
+    const list = openByKey(el);
+    key(list, 'ArrowDown');
+    key(list, 'Enter');
+    expect(el.data!.value).toEqual({ model: 'opus', effort: 'max', effectiveEffort: 'high' });
+  });
+
   it('keeps data.value when the host prevents ui-change', () => {
     const el = mount(BASE);
     el.addEventListener('ui-change', (e) => e.preventDefault());

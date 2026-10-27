@@ -423,6 +423,27 @@ describe('<ui-agent-queue> lane', () => {
 });
 
 describe('escaping', () => {
+  it('rejects host enum values it does not know (state cannot inject attributes)', () => {
+    const p = claude({
+      state: XSS_ATTR as never,
+      accounts: [{ id: 'a1', name: 'acct', state: XSS_ATTR as never }],
+    });
+    const el = mount({ now: NOW, providers: [p] });
+    const root = el.shadowRoot!;
+    expect(root.querySelector('[onerror], [onmouseover], img')).toBeNull();
+    expect(root.querySelector('.cap-prov')?.className).not.toContain('"');
+    expect(root.querySelector('.aq-mark')?.className).toBe('aq-mark is-unmeasured');
+  });
+
+  it('drops timestamps outside the Date range instead of throwing', () => {
+    expect(() =>
+      mount({
+        now: NOW,
+        providers: [claude({ measuredAt: 9e15, accounts: [{ id: 'x', name: 'x', state: 'limited', returnAt: 9e15 }] })],
+      }),
+    ).not.toThrow();
+  });
+
   it('escapes every host-written string, in text and in attributes', () => {
     const p = claude({
       id: XSS_ATTR,

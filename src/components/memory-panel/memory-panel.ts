@@ -1347,6 +1347,13 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     item.innerHTML = s.html;
     cap.append(item);
     this.#trayItem = item;
+    // Drop roll state of count nodes that left the DOM (each tray swap replaces its node).
+    for (const [node, st] of this.#rolls) {
+      if (!node.isConnected) {
+        cancelAnimationFrame(st.raf);
+        this.#rolls.delete(node);
+      }
+    }
     const nb = item.querySelector('.mm-n');
     if (nb) this.#rolls.set(nb, { n: s.total ?? 0, raf: 0 });
   }

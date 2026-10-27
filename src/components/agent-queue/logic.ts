@@ -178,7 +178,9 @@ export function toMs(v: unknown, unit: TimeUnit = 'ms'): number | undefined {
   if (v === undefined || v === null || v === '') return undefined;
   const n = Number(v);
   if (!Number.isFinite(n)) return undefined;
-  return unit === 's' ? n * 1000 : n;
+  const ms = unit === 's' ? n * 1000 : n;
+  // Outside the Date range (±8.64e15 ms) toISOString() throws and would blank the whole element.
+  return Math.abs(ms) <= 8.64e15 ? ms : undefined;
 }
 
 /** A copy of the data with every epoch in milliseconds — the one place units are converted. */
@@ -197,7 +199,7 @@ export function normalize(d: AgentQueueData): AgentQueueData {
         .map((e) => ({ ...e, at: ms(e.at) ?? Number.NaN }))
         .filter((e) => Number.isFinite(e.at))
         .sort((a, b) => a.at - b.at),
-      accounts: p.accounts?.map((a) => ({ ...a, returnAt: ms(a.returnAt) })),
+      accounts: p.accounts?.map((a) => ({ ...a, state: accountState(a.state), returnAt: ms(a.returnAt) })),
     })),
     lane: d.lane && {
       ...d.lane,
@@ -283,8 +285,16 @@ export function primaryKey(p: AqProvider): MeasureKey {
 }
 
 /** The pool's state: given, else ok / low (< 20%) / empty / unknown from the primary measure. */
+const POOL_STATES: readonly AqPoolState[] = ['ok', 'low', 'empty', 'unknown'];
+const ACCOUNT_STATES: readonly AqAccountState[] = ['available', 'limited', 'paused', 'spent', 'unmeasured', 'excluded'];
+
+/** Host-supplied enums are checked at the boundary: an unknown value never reaches markup. */
+export function accountState(v: unknown): AqAccountState {
+  return ACCOUNT_STATES.includes(v as AqAccountState) ? (v as AqAccountState) : 'unmeasured';
+}
+
 export function poolState(p: AqProvider): AqPoolState {
-  if (p.state) return p.state;
+  if (p.state && POOL_STATES.includes(p.state)) return p.state;
   const total = Number(p.total) || 0;
   const primary = Number(p[primaryKey(p)]) || 0;
   if (total <= EPS) return 'unknown';
