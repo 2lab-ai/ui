@@ -183,6 +183,8 @@ function themingPage(): string {
   <h2>Three ways</h2>
   <ul class="plain"><li><b>Nothing</b> — each element follows the OS theme.</li><li><b>Attribute</b> — <code>&lt;ui-agent-inbox theme="dark"&gt;</code>.</li><li><b>Page tokens</b> — load <code>@2lab.ai/ui/tokens.css</code> and set <code>data-theme="dark"</code> on any ancestor, or override single tokens.</li></ul>
   ${codeBlock(`:root {\n  --ui-accent: #7c3aed;\n  --ui-st-run: #7c3aed;\n}\n[data-theme="dark"] {\n  --ui-surface: #111113;\n}`, 'ov')}
+  <p class="desc">Set <code>--ui-*</code> on an ancestor (<code>:root</code>, a wrapper), not on the element itself. Inside, each element defines <code>--border: var(--ui-border, …)</code> on its host, so a page that maps <code>--ui-border: var(--border)</code> on that same element makes a cycle and every token goes blank. On a wrapper the values arrive already resolved:</p>
+  ${codeBlock(`/* the page already has --surface, --border, --text … */\n.tool-calls {\n  --ui-surface: var(--surface);\n  --ui-border: var(--border);\n  --ui-text: var(--text);\n}`, 'map')}
   <div class="callout">Language: every component speaks English by default and Korean with <code>lang="ko"</code>.</div>
   <h2>Tokens <span class="chip">light · dark</span></h2>
   <div class="swatches">${rows}</div>`;
