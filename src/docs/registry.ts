@@ -8,6 +8,7 @@ export const ORDER = [
   'tool-call-card',
   'agent-queue',
   'context-window',
+  'compact-breakdown',
   'memory-panel',
   'model-picker',
 ];

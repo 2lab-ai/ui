@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 8 subpaths registers its element(s) (9 in all).
+// Runtime smoke test against the installed package: each of the 9 subpaths registers its element(s) (10 in all).
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -16,6 +16,7 @@ const slugs = [
   'ai-answer',
   'agent-queue',
   'context-window',
+  'compact-breakdown',
   'memory-panel',
   'model-picker',
   'tool-call-card',
@@ -32,10 +33,18 @@ const el = document.createElement('ui-context-window');
 document.body.append(el);
 el.data = { window: 1_000_000, autoCompactAt: 750_000, parts: { cacheRead: 272_300, output: 10 } };
 el.renderNow();
-const rendered = (el.shadowRoot?.innerHTML ?? '').length > 0;
+const cb = document.createElement('ui-compact-breakdown');
+document.body.append(cb);
+cb.data = { title: 'Spend by model', unit: 'usd', parts: [{ key: 'opus', label: 'claude-opus-4-7', value: 12.5 }] };
+cb.renderNow();
+const rendered =
+  (el.shadowRoot?.innerHTML ?? '').length > 0 &&
+  (cb.shadowRoot?.querySelector('.cb-item')?.textContent ?? '').includes('$12.50');
 if (missing.length || !rendered) {
   console.error(`register: missing=[${missing.join(',')}] rendered=${rendered}`);
   process.exit(1);
 }
 const tags = slugs.length + Object.values(extra).flat().length;
-console.log(`register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window> rendered`);
+console.log(
+  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window> and <ui-compact-breakdown> rendered`,
+);
