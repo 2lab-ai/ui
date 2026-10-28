@@ -4,6 +4,7 @@ import { UiAgentInbox } from '@2lab.ai/ui/agent-inbox';
 import { UiAgentQueue } from '@2lab.ai/ui/agent-queue';
 import { UiAgentRun } from '@2lab.ai/ui/agent-run';
 import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
+import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
 import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-window';
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
@@ -22,11 +23,14 @@ const split: CompactBreakdownData = {
   parts: [{ key: 'a', label: 'a', value: 1 }],
 };
 const card: HTMLElementTagNameMap['ui-compact-breakdown'] = document.createElement('ui-compact-breakdown');
+const ask: ApprovalCardData = { kind: 'permission', id: 'ap1', tool: 'Bash', input: { command: 'ls' } };
+const approval: HTMLElementTagNameMap['ui-approval-card'] = document.createElement('ui-approval-card');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
   UiAgentRun,
   UiAiAnswer,
+  UiApprovalCard,
   UiCompactBreakdown,
   UiContextWindowSub,
   UiMemoryPanel,
@@ -46,4 +50,7 @@ console.log(
   split.parts.length,
   card.tagName,
   fmtShare(0.4),
+  ask.id,
+  approval.tagName,
+  toPreview({ command: 'ls' }).command,
 );

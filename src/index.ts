@@ -6,6 +6,7 @@ export * from './components/agent-inbox';
 export * from './components/agent-queue';
 export * from './components/agent-run';
 export * from './components/ai-answer';
+export * from './components/approval-card';
 export * from './components/compact-breakdown';
 export * from './components/context-window';
 export * from './components/memory-panel';
