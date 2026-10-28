@@ -13,6 +13,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Agent Queue | `<ui-agent-queue>` | Provider capacity, rate limits, and the scheduled-job lane |
 | Context Window | `<ui-context-window>` | How full the context is and how far auto-compaction is |
 | Approval Card | `<ui-approval-card>` | What the agent wants to do and how risky it is — Approve / Deny, or answer its question, before it expires |
+| Toaster | `<ui-toaster>` + `toast()` | Whether what you just did worked — results, failures with Retry, promise spinners, Undo |
 | Compact Breakdown | `<ui-compact-breakdown>` | One number and what it is made of — spend and tokens by model or by user |
 | Memory Panel | `<ui-memory-panel>` | What the agent remembers about you — search, edit, delete with undo |
 | Model Picker | `<ui-model-picker>` | Which model and effort to run, with window, compaction and price |

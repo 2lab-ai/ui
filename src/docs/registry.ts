@@ -10,6 +10,7 @@ export const ORDER = [
   'agent-queue',
   'context-window',
   'compact-breakdown',
+  'toaster',
   'memory-panel',
   'model-picker',
 ];

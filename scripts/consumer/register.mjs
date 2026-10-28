@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 10 subpaths registers its element(s) (11 in all).
+// Runtime smoke test against the installed package: each of the 11 subpaths registers its element(s) (12 in all).
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -21,6 +21,7 @@ const slugs = [
   'memory-panel',
   'model-picker',
   'tool-call-card',
+  'toaster',
 ];
 // Subpaths that register more than their own tag.
 const extra = { 'tool-call-card': ['ui-tool-call-group'] };

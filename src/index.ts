@@ -11,6 +11,7 @@ export * from './components/compact-breakdown';
 export * from './components/context-window';
 export * from './components/memory-panel';
 export * from './components/model-picker';
+export * from './components/toaster';
 export * from './components/tool-call-card';
 export { define, prefersReducedMotion, UiElement } from './core/element';
 export { clamp, fmtAgo, fmtClock, fmtDuration, fmtInt, fmtTokens, fmtUsd } from './core/format';
