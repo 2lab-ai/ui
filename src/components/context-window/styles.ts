@@ -1,7 +1,9 @@
 /** Ported from the soma-work dashboard (.prd/affectui/re-context-window.md D5–D19). */
 export const styles = `
 :host { --cw-c1: var(--accent); --cw-c2: color-mix(in srgb, var(--accent) 42%, var(--ib-pill)); --cw-c3: var(--purple); --cw-c4: var(--green);
-  --cw-free: var(--ib-pill); --cw-warn: var(--st-wait); --cw-warn-bg: color-mix(in srgb, var(--st-wait) 14%, transparent);
+  --cw-free: var(--ib-pill);
+  /* Warn text: st-wait pulled toward the text colour — ≥4.5:1 on the surface and on the warn tint in light (#c2780a alone is ≈3.5:1). */
+  --cw-warn: color-mix(in srgb, var(--st-wait) 70%, var(--text)); --cw-warn-bg: color-mix(in srgb, var(--st-wait) 14%, transparent);
   --cw-full-bg: color-mix(in srgb, var(--st-fail) 12%, transparent); --cw-ok: var(--green); }
 .cw { container: cw / inline-size; max-width: 640px; position: relative; padding-bottom: 2px; font-size: 12.5px; color: var(--text-secondary); }
 .cw-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 22px; }
