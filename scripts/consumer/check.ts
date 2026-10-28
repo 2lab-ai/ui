@@ -3,6 +3,7 @@ import { type ContextWindowData, fmtTokens, UiContextWindow } from '@2lab.ai/ui'
 import { UiAgentInbox } from '@2lab.ai/ui/agent-inbox';
 import { UiAgentQueue } from '@2lab.ai/ui/agent-queue';
 import { UiAgentRun } from '@2lab.ai/ui/agent-run';
+import { type AgentTreeData, buildTree, UiAgentTree } from '@2lab.ai/ui/agent-tree';
 import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
 import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
@@ -28,10 +29,13 @@ const ask: ApprovalCardData = { kind: 'permission', id: 'ap1', tool: 'Bash', inp
 const approval: HTMLElementTagNameMap['ui-approval-card'] = document.createElement('ui-approval-card');
 const stackCfg: ToasterData = { placement: 'bottom-right', visible: 3 };
 const stack: HTMLElementTagNameMap['ui-toaster'] = document.createElement('ui-toaster');
+const run: AgentTreeData = { nodes: [{ id: 'm', name: 'Main', status: 'running' }], density: 'compact' };
+const agents: HTMLElementTagNameMap['ui-agent-tree'] = document.createElement('ui-agent-tree');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
   UiAgentRun,
+  UiAgentTree,
   UiAiAnswer,
   UiApprovalCard,
   UiCompactBreakdown,
@@ -60,4 +64,6 @@ console.log(
   stackCfg.visible,
   stack.tagName,
   typeof toast.success,
+  buildTree(run.nodes).all.length,
+  agents.tagName,
 );
