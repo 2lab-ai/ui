@@ -11,6 +11,7 @@ const COMPONENTS = [
   'agent-queue',
   'tool-call-card',
   'compact-breakdown',
+  'approval-card',
 ];
 
 export default defineConfig({
