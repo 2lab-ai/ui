@@ -182,6 +182,25 @@ describe('<ui-toaster>', () => {
     expect(more?.textContent).toContain('+2');
   });
 
+  it('toasts waiting behind “+N” keep their time: the shown ones time out first, then the waiting ones (review)', () => {
+    vi.useFakeTimers();
+    const el = mount();
+    el.data = { duration: 1000, visible: 3 };
+    el.renderNow();
+    const gone: string[] = [];
+    el.addEventListener('ui-dismiss', (e) => gone.push((e as CustomEvent).detail.id));
+    for (const id of ['T0', 'T1', 'T2', 'T3', 'T4']) el.show({ id, title: id });
+    const waiting = items(el)
+      .filter((li) => li.hasAttribute('inert'))
+      .map((li) => li.dataset.id);
+    expect(waiting).toEqual(['T1', 'T0']);
+    vi.advanceTimersByTime(1100);
+    expect(gone).toEqual(['T2', 'T3', 'T4']);
+    expect(el.toasts.map((t) => t.id)).toEqual(['T1', 'T0']);
+    vi.advanceTimersByTime(1500);
+    expect(gone.slice(3).sort()).toEqual(['T0', 'T1']);
+  });
+
   it('timers stop when the toaster leaves the page', () => {
     vi.useFakeTimers();
     const el = mount();

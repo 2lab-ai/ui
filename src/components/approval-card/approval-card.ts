@@ -88,6 +88,8 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
   /** An answer emitted and not settled by the host yet, and the host state it was emitted under. */
   #sent: Intent | null = null;
   #sentKey = '';
+  /** The host's `state` value the answer was emitted under — a new value (even with the same content) settles it. */
+  #sentRef: unknown = undefined;
   #last: Intent | null = null;
   #always = false;
   /** Selected option id, or OTHER. */
@@ -196,16 +198,18 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
       this.#seenStatus = '';
       this.#seenError = '';
     }
-    if (this.#sent && stateKey(d.state) !== this.#sentKey) this.#sent = null;
+    if (this.#sent && (stateKey(d.state) !== this.#sentKey || d.state !== this.#sentRef)) this.#sent = null;
   }
 
   #eff(d: ApprovalCardData): Eff {
     const st = normState(d.state);
     if (st.status === 'resolved') return { status: 'resolved', resolved: st };
-    if (st.status === 'error') return { status: 'error', message: st.message, retry: st.retry !== false };
     const until = num(d.expiresAt);
     if (until && this.#expiredFor === until)
       return { status: 'resolved', resolved: { status: 'resolved', outcome: 'expired', at: until } };
+    // A Retry in flight while the host still shows the old error: locked until the host answers it (review).
+    if (st.status === 'error' && this.#sent) return { status: 'sending', busy: this.#sent };
+    if (st.status === 'error') return { status: 'error', message: st.message, retry: st.retry !== false };
     if (st.status === 'sending') {
       const busy: Intent = { ...(this.#sent ?? {}) };
       if (st.decision) busy.decision = st.decision;
@@ -218,6 +222,9 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
 
   /** Answers are live: pending (or a failed answer that may be retried) and the host lets this person answer. */
   #canAct(d: ApprovalCardData, eff: Eff): boolean {
+    // Past expiresAt nobody can answer — a hovered (paused) card included: the pause only holds the clock text.
+    const until = num(d.expiresAt);
+    if (until && Date.now() >= until) return false;
     return (eff.status === 'pending' || (eff.status === 'error' && eff.retry)) && answerable(d.canAnswer);
   }
 
@@ -306,6 +313,7 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     this.#sent = intent;
     this.#last = intent;
     this.#sentKey = stateKey(this.data?.state);
+    this.#sentRef = this.data?.state;
     this.requestRender();
   }
 
@@ -431,9 +439,7 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
 
   #canExpire(d: ApprovalCardData, eff: Eff): boolean {
     const until = num(d.expiresAt);
-    return (
-      !!until && (eff.status === 'pending' || eff.status === 'error') && !this.#paused && this.#expireFired !== until
-    );
+    return !!until && (eff.status === 'pending' || eff.status === 'error') && this.#expireFired !== until;
   }
 
   /** One wake-up per second boundary while a countdown shows, every 30 s for a resolved row's “2m ago”. */
