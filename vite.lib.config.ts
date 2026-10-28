@@ -13,6 +13,7 @@ const COMPONENTS = [
   'compact-breakdown',
   'approval-card',
   'toaster',
+  'agent-tree',
 ];
 
 export default defineConfig({

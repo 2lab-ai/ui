@@ -69,6 +69,10 @@
       "types": "./dist/components/toaster/index.d.ts",
       "import": "./dist/toaster.js"
     },
+    "./agent-tree": {
+      "types": "./dist/components/agent-tree/index.d.ts",
+      "import": "./dist/agent-tree.js"
+    },
     "./tokens.css": "./dist/tokens.css",
     "./package.json": "./package.json"
   },
