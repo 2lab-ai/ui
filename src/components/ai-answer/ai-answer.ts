@@ -23,6 +23,11 @@ export interface AiAnswerData {
   canRetry?: boolean;
   /** Titles the host already knows for some URLs (e.g. the PR this session opened). Beat labels and URL-derived titles. */
   linkTitles?: Record<string, string>;
+  /**
+   * Play the entry motion (fade + card pop) when this text first shows. Default true. Set false when a new element
+   * repaints an answer the person already saw (e.g. from the host's cache after a re-render).
+   */
+  animate?: boolean;
 }
 
 /** A link found in the answer, numbered by first appearance (one per URL; a trailing slash is the same URL). */
@@ -580,7 +585,7 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
     // Entry motion runs once per answer — not for a streamed continuation, not for a re-render of the same text.
     const prev = this.#shownMd;
     this.#shownMd = md;
-    const enter = has && !streaming && !(prev && md.startsWith(prev));
+    const enter = d.animate !== false && has && !streaming && !(prev && md.startsWith(prev));
 
     if (!has && !streaming) {
       this.#links = [];
@@ -592,7 +597,13 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
       return `<section class="ans-card" aria-label="${escAttr(t.label(0))}"${d.loading && !error ? ' aria-busy="true"' : ''}>${title}${state}</section>`;
     }
 
-    const a = has ? renderAnswer(md, { lang, titles: d.linkTitles }) : { html: '', links: [] };
+    // Streaming with no text yet: only the writing row — no label, no empty body, no footer rule.
+    if (!has) {
+      this.#links = [];
+      return `<section class="ans-card is-pending" aria-label="${escAttr(t.label(0))}" aria-busy="true">${title}${this.#writing(t)}</section>`;
+    }
+
+    const a = renderAnswer(md, { lang, titles: d.linkTitles });
     this.#links = a.links;
     const n = a.links.length;
     const srcs = n
@@ -607,12 +618,10 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
           )
           .join('')}</ol>`
       : '';
-    const body = has ? `<div class="ans-body md-doc">${a.html}</div>` : '';
+    const body = `<div class="ans-body md-doc">${a.html}</div>`;
     let foot: string;
     if (streaming) {
-      foot = `<div class="ans-foot is-writing"><span class="ans-writing"><span class="ans-shimmer">${esc(
-        t.writing,
-      )}</span><i class="ans-dot" aria-hidden="true"></i></span></div>`;
+      foot = `<div class="ans-foot is-writing">${this.#writing(t)}</div>`;
     } else {
       const took = answerTookLabel(Number(d.responseMs), lang);
       const right = error ? `${failed}${retry}` : took ? `<span class="ans-took">${esc(took)}</span>` : '';
@@ -625,6 +634,10 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
     return `<section class="ans-card${enter ? ' is-in' : ''}" aria-labelledby="ans-label"${streaming ? ' aria-busy="true"' : ''}>${title}${srcs}<div class="ans-label" id="ans-label">${esc(
       t.label(n),
     )}</div>${body}${foot}</section>`;
+  }
+
+  #writing(t: Strings): string {
+    return `<span class="ans-writing"><span class="ans-shimmer">${esc(t.writing)}</span><i class="ans-dot" aria-hidden="true"></i></span>`;
   }
 
   #copyLabel(t: Strings): string {
