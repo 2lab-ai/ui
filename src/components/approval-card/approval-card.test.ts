@@ -208,6 +208,52 @@ describe('<ui-approval-card> permission', () => {
     ]);
   });
 
+  it('Retry locks the answers until the host changes state — no duplicate or conflicting answers (review P1)', () => {
+    const el = mount(perm({ id: 'r1' }));
+    const got = events(el, 'ui-decide');
+    q<HTMLButtonElement>(el, '[data-act="deny"]')?.click();
+    const err = { status: 'error' as const, message: 'HTTP 502' };
+    set(el, { state: err });
+    q<HTMLButtonElement>(el, '[data-act="retry"]')?.click();
+    el.renderNow();
+    expect(el.status).toBe('sending');
+    q<HTMLButtonElement>(el, '[data-act="retry"]')?.click();
+    q<HTMLButtonElement>(el, '[data-act="approve"]')?.click();
+    q<HTMLButtonElement>(el, '[data-act="deny"]')?.click();
+    expect(got).toEqual([
+      { id: 'r1', decision: 'deny' },
+      { id: 'r1', decision: 'deny' },
+    ]);
+    // The host answers the retry with the same failure (a new state value): Retry is offered again.
+    set(el, { state: { status: 'error', message: 'HTTP 502' } });
+    expect(el.status).toBe('error');
+    q<HTMLButtonElement>(el, '[data-act="retry"]')?.click();
+    expect(got).toHaveLength(3);
+  });
+
+  it('past expiresAt nobody can answer, even while hovered; ui-expire still fires (review P2)', () => {
+    vi.useFakeTimers();
+    const el = mount(perm({ id: 'h1', expiresAt: Date.now() + 2_000 }));
+    const decided = events(el, 'ui-decide');
+    const expired = events(el, 'ui-expire');
+    el.dispatchEvent(new Event('pointerenter'));
+    vi.advanceTimersByTime(3_000);
+    q<HTMLButtonElement>(el, '[data-act="approve"]')?.click();
+    expect(decided).toHaveLength(0);
+    expect(expired).toEqual([{ id: 'h1' }]);
+  });
+
+  it('a failed answer that runs out of time becomes the Expired row (review P3)', () => {
+    vi.useFakeTimers();
+    const el = mount(
+      perm({ id: 'x1', expiresAt: Date.now() + 1_000, state: { status: 'error', message: 'HTTP 502' } }),
+    );
+    vi.advanceTimersByTime(2_100);
+    el.renderNow();
+    expect(q(el, '.ac-row')).not.toBeNull();
+    expect(el.shadowRoot?.textContent).toContain('Expired');
+  });
+
   it('canAnswer false / string locks the answers and says why', () => {
     const el = mount(perm({ canAnswer: 'Only the session owner can answer.' }));
     const got = events(el, 'ui-decide');

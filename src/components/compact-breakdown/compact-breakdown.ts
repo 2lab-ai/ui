@@ -416,6 +416,8 @@ ${this.#list(d, mode, t)}
     for (const li of this.$$<HTMLElement>('.cb-row[data-id]')) {
       const old = from.get(li.dataset.id ?? '');
       if (old === undefined || typeof li.animate !== 'function') continue;
+      // A rank change mid-slide: drop the running slide first, so two offsets never add up.
+      for (const a of li.getAnimations?.() ?? []) a.cancel();
       const dy = old - li.getBoundingClientRect().top;
       if (Math.abs(dy) < 0.5) continue;
       this.#anims.push(
