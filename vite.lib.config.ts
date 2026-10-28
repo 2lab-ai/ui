@@ -12,6 +12,7 @@ const COMPONENTS = [
   'tool-call-card',
   'compact-breakdown',
   'approval-card',
+  'toaster',
 ];
 
 export default defineConfig({

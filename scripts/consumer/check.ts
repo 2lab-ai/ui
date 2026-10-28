@@ -10,6 +10,7 @@ import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-windo
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
+import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
 
 const d: ContextWindowData = { window: 1000 };
@@ -25,6 +26,8 @@ const split: CompactBreakdownData = {
 const card: HTMLElementTagNameMap['ui-compact-breakdown'] = document.createElement('ui-compact-breakdown');
 const ask: ApprovalCardData = { kind: 'permission', id: 'ap1', tool: 'Bash', input: { command: 'ls' } };
 const approval: HTMLElementTagNameMap['ui-approval-card'] = document.createElement('ui-approval-card');
+const stackCfg: ToasterData = { placement: 'bottom-right', visible: 3 };
+const stack: HTMLElementTagNameMap['ui-toaster'] = document.createElement('ui-toaster');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
@@ -35,6 +38,7 @@ const classes = [
   UiContextWindowSub,
   UiMemoryPanel,
   UiModelPicker,
+  UiToaster,
   UiToolCallCard,
   UiToolCallGroup,
 ];
@@ -53,4 +57,7 @@ console.log(
   ask.id,
   approval.tagName,
   toPreview({ command: 'ls' }).command,
+  stackCfg.visible,
+  stack.tagName,
+  typeof toast.success,
 );
