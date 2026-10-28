@@ -4,10 +4,13 @@ import type { ComponentDoc } from './types';
 export const ORDER = [
   'agent-run',
   'agent-inbox',
+  'approval-card',
   'ai-answer',
   'tool-call-card',
   'agent-queue',
   'context-window',
+  'compact-breakdown',
+  'toaster',
   'memory-panel',
   'model-picker',
 ];

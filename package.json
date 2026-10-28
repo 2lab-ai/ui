@@ -1,7 +1,7 @@
 {
   "name": "@2lab.ai/ui",
   "version": "0.2.0",
-  "description": "Agent UI components for 2lab \u2014 Web Components, zero runtime dependencies. Agent Inbox, Agent Run, AI Answer, Tool Call Card, Context Window, Model Picker, Memory Panel, Agent Queue.",
+  "description": "Agent UI components for 2lab \u2014 Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster.",
   "type": "module",
   "license": "UNLICENSED",
   "repository": {
@@ -56,6 +56,18 @@
     "./tool-call-card": {
       "types": "./dist/components/tool-call-card/index.d.ts",
       "import": "./dist/tool-call-card.js"
+    },
+    "./compact-breakdown": {
+      "types": "./dist/components/compact-breakdown/index.d.ts",
+      "import": "./dist/compact-breakdown.js"
+    },
+    "./approval-card": {
+      "types": "./dist/components/approval-card/index.d.ts",
+      "import": "./dist/approval-card.js"
+    },
+    "./toaster": {
+      "types": "./dist/components/toaster/index.d.ts",
+      "import": "./dist/toaster.js"
     },
     "./tokens.css": "./dist/tokens.css",
     "./package.json": "./package.json"

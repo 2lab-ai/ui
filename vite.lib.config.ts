@@ -10,6 +10,9 @@ const COMPONENTS = [
   'memory-panel',
   'agent-queue',
   'tool-call-card',
+  'compact-breakdown',
+  'approval-card',
+  'toaster',
 ];
 
 export default defineConfig({
