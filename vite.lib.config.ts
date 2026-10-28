@@ -14,6 +14,7 @@ const COMPONENTS = [
   'approval-card',
   'toaster',
   'agent-steering',
+  'agent-tree',
 ];
 
 export default defineConfig({
