@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 12 subpaths registers its element(s) (13 in all).
+// Runtime smoke test against the installed package: each of the 13 subpaths registers its element(s) (14 in all).
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -14,6 +14,7 @@ const slugs = [
   'agent-run',
   'agent-inbox',
   'agent-steering',
+  'agent-tree',
   'ai-answer',
   'approval-card',
   'agent-queue',
@@ -45,6 +46,20 @@ const rendered =
   (cb.shadowRoot?.querySelector('.cb-item')?.textContent ?? '').includes('$12.50');
 if (missing.length || !rendered) {
   console.error(`register: missing=[${missing.join(',')}] rendered=${rendered}`);
+  process.exit(1);
+}
+const at = document.createElement('ui-agent-tree');
+document.body.append(at);
+at.data = {
+  nodes: [
+    { id: 'm', name: 'Main', status: 'running' },
+    { id: 'a', parentId: 'm', name: 'A1', status: 'done' },
+  ],
+  now: 1,
+};
+at.renderNow();
+if (at.shadowRoot?.querySelectorAll('[role="treeitem"]').length !== 2) {
+  console.error('register: <ui-agent-tree> did not render its two agents');
   process.exit(1);
 }
 const tags = slugs.length + Object.values(extra).flat().length;

@@ -4,6 +4,7 @@ import { UiAgentInbox } from '@2lab.ai/ui/agent-inbox';
 import { UiAgentQueue } from '@2lab.ai/ui/agent-queue';
 import { UiAgentRun } from '@2lab.ai/ui/agent-run';
 import { type AgentSteeringData, steerEnterAction, UiAgentSteering } from '@2lab.ai/ui/agent-steering';
+import { type AgentTreeData, buildTree, UiAgentTree } from '@2lab.ai/ui/agent-tree';
 import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
 import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
@@ -31,11 +32,14 @@ const stackCfg: ToasterData = { placement: 'bottom-right', visible: 3 };
 const stack: HTMLElementTagNameMap['ui-toaster'] = document.createElement('ui-toaster');
 const steer: AgentSteeringData = { running: true, items: [{ id: 'q1', text: 'note', state: 'queued' }] };
 const composer: HTMLElementTagNameMap['ui-agent-steering'] = document.createElement('ui-agent-steering');
+const run: AgentTreeData = { nodes: [{ id: 'm', name: 'Main', status: 'running' }], density: 'compact' };
+const agents: HTMLElementTagNameMap['ui-agent-tree'] = document.createElement('ui-agent-tree');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
   UiAgentRun,
   UiAgentSteering,
+  UiAgentTree,
   UiAiAnswer,
   UiApprovalCard,
   UiCompactBreakdown,
@@ -67,4 +71,6 @@ console.log(
   steer.items?.length,
   composer.tagName,
   steerEnterAction({ key: 'Enter', shiftKey: false, metaKey: false, ctrlKey: false, altKey: false }),
+  buildTree(run.nodes).all.length,
+  agents.tagName,
 );

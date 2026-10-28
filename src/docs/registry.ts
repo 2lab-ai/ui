@@ -4,6 +4,7 @@ import type { ComponentDoc } from './types';
 export const ORDER = [
   'agent-run',
   'agent-inbox',
+  'agent-tree',
   'approval-card',
   'agent-steering',
   'ai-answer',
