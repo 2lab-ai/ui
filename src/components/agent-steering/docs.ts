@@ -1,0 +1,452 @@
+import type { ComponentDoc } from '../../docs/types';
+import './agent-steering';
+import type {
+  AgentSteeringData,
+  SteeringEditDetail,
+  SteeringItem,
+  SteeringItemDetail,
+  SteeringSubmitDetail,
+} from './logic';
+
+type El = HTMLElementTagNameMap['ui-agent-steering'];
+
+const MIN = 60_000;
+const now = () => Date.now();
+
+function steering(data: AgentSteeringData, attrs: Record<string, string> = {}): El {
+  const el = document.createElement('ui-agent-steering');
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  el.data = data;
+  return el;
+}
+
+function stage(...els: HTMLElement[]): HTMLElement {
+  const box = document.createElement('div');
+  box.style.cssText = 'display:grid;gap:28px;max-width:520px;margin:0 auto';
+  box.append(...els);
+  return box;
+}
+
+interface HostOpts {
+  /** Refuse the first Send now (another dispatch is in flight). */
+  refuseOnce?: boolean;
+  /** Refuse every edit (the note was handed over meanwhile). */
+  refuseEdit?: boolean;
+  /** The first message fails to reach the session; Retry works. */
+  failFirst?: boolean;
+  ko?: boolean;
+}
+
+/**
+ * Plays the host: the dashboard over soma-work's FollowupQueue. A note sent while the agent runs shows up in the
+ * list half a second later (queued, or steered for ⌘↵); Send now hands it to the running turn (steered, then the
+ * agent reads it and it leaves); Edit and Cancel are confirmed by the next list.
+ */
+function host(el: El, opts: HostOpts = {}): El {
+  let seq = 40;
+  let refused = false;
+  let failed = false;
+  const later = (ms: number, fn: () => void) => window.setTimeout(() => el.isConnected && fn(), ms);
+  const patch = (fn: (items: SteeringItem[]) => SteeringItem[]) => {
+    if (!el.data) return;
+    el.data = { ...el.data, items: fn([...(el.data.items ?? [])]) };
+  };
+  const without = (id: string) => patch((items) => items.filter((i) => i.id !== id));
+  const steer = (id: string) => {
+    patch((items) => items.map((i) => (i.id === id ? { ...i, state: 'steered', reason: undefined } : i)));
+    later(2800, () => without(id));
+  };
+  el.addEventListener('ui-submit', (e) => {
+    const { text, mode, ref } = (e as CustomEvent<SteeringSubmitDetail>).detail;
+    if (opts.failFirst && !failed) {
+      failed = true;
+      later(700, () =>
+        el.setItemState(
+          ref,
+          'failed',
+          opts.ko ? 'HTTP 502 — 세션에 닿지 못했습니다' : 'HTTP 502 — the session could not be reached',
+        ),
+      );
+      return;
+    }
+    if (!el.data?.running) return; // Idle: the message starts a turn; the transcript shows it, not the queue.
+    const id = `C0AKY7W2UGZ:1793008217#${++seq}`;
+    later(500, () => {
+      patch((items) => [...items, { id, text, at: now(), state: mode === 'steer' ? 'steered' : 'queued' }]);
+      if (mode === 'steer') later(2800, () => without(id));
+    });
+  });
+  el.addEventListener('ui-promote', (e) => {
+    const { id } = (e as CustomEvent<SteeringItemDetail>).detail;
+    if (opts.refuseOnce && !refused) {
+      refused = true;
+      later(700, () =>
+        el.setItemState(
+          id,
+          'queued',
+          opts.ko
+            ? '다른 메시지를 보내는 중입니다 — 잠시 후 다시'
+            : 'Another message is being sent — try again in a moment',
+        ),
+      );
+      return;
+    }
+    if (el.data?.running) later(600, () => steer(id));
+    else later(700, () => without(id));
+  });
+  el.addEventListener('ui-edit', (e) => {
+    const { id, text } = (e as CustomEvent<SteeringEditDetail>).detail;
+    if (opts.refuseEdit) {
+      later(700, () =>
+        el.setItemState(
+          id,
+          'queued',
+          opts.ko ? '이미 에이전트에 전달되어 수정할 수 없습니다' : 'Already handed to the agent — it can’t be edited',
+        ),
+      );
+      return;
+    }
+    later(600, () =>
+      patch((items) => items.map((i) => (i.id === id ? { ...i, text, reason: opts.ko ? '편집됨' : 'edited' } : i))),
+    );
+  });
+  el.addEventListener('ui-cancel', (e) => {
+    const { id } = (e as CustomEvent<SteeringItemDetail>).detail;
+    later(300, () => without(id));
+  });
+  return el;
+}
+
+const queue = (): SteeringItem[] => [
+  {
+    id: 'C0AKY7W2UGZ:1793008217#31',
+    text: 'Use Postgres 16 syntax — prod isn’t on 17 yet',
+    at: now() - 3 * MIN,
+    state: 'queued',
+  },
+  {
+    id: 'C0AKY7W2UGZ:1793008217#32',
+    text: 'Run npm run verify once more before opening the PR',
+    at: now() - 40_000,
+    state: 'queued',
+    reason: 'edited',
+  },
+];
+
+/** Inline-styled light-DOM tools, the way the dashboard slots its attach / image / mic buttons. */
+function tools(): HTMLElement {
+  const box = document.createElement('span');
+  box.slot = 'tools';
+  const tool = (label: string, d: string) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', label);
+    b.title = label;
+    b.style.cssText =
+      'display:inline-grid;place-items:center;width:28px;height:28px;border:0;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer';
+    b.innerHTML = `<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+    return b;
+  };
+  box.append(
+    tool(
+      'Attach a file',
+      'M15.5 9.5l-5.8 5.8a3.5 3.5 0 0 1-5-5l6.3-6.3a2.3 2.3 0 0 1 3.3 3.3l-6.2 6.2a1.1 1.1 0 0 1-1.6-1.6l5.6-5.6',
+    ),
+    tool('Record a voice note', 'M7.5 4.5a2.5 2.5 0 0 1 5 0v5a2.5 2.5 0 0 1-5 0zM4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5'),
+  );
+  return box;
+}
+
+function chip(name: string): HTMLElement {
+  const c = document.createElement('div');
+  c.slot = 'attachments';
+  c.style.cssText =
+    'display:inline-flex;align-items:center;gap:6px;margin:0 0 8px 2px;padding:3px 10px;border-radius:999px;font-size:12px;background:color-mix(in srgb,currentColor 8%,transparent)';
+  c.textContent = `📎 ${name}`;
+  return c;
+}
+
+export const doc: ComponentDoc = {
+  slug: 'agent-steering',
+  name: 'Agent Steering',
+  tag: 'ui-agent-steering',
+  group: 'Components',
+  summary: 'Step into a running agent without stopping it — queue a note for its next step, or hand it over now.',
+  description:
+    'The composer plus the agent’s follow-up queue. While the agent works, Enter queues a note for its next step and ' +
+    '⌘/Ctrl+Enter hands it to the running turn now; when it is idle, Enter simply sends. Queued notes are listed in ' +
+    'order with Send now, Edit (inline: Enter saves, Esc cancels) and Cancel, and say what happened to them: sending, ' +
+    'delivered (the agent reads it at its next tool call), or failed with Retry. Every action shows at once and the ' +
+    'host confirms it with its next list or rolls it back with setItemState(). Owner-only like Stop: canAct: false ' +
+    'leaves a read-only list. The field never resets under a host update, so an IME composition survives a live queue.',
+  usedIn:
+    'soma-work dashboard — the session panel composer (renderPanelComposer / sendCommand, .panel-command, #cmd-input) ' +
+    'with the session’s FollowupQueue (list / promote / steer / editQueued / cancelItem) that Slack shows as Send now / Cancel.',
+  reference: { name: 'affectUI Agent Steering', url: 'https://www.affectui.com/components/agent-steering' },
+  props: [
+    {
+      name: 'data.running',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'The agent is working: Enter queues for its next step, ⌘/Ctrl+Enter steers now, and a note sent shows in the queue until the list has it. Idle: Enter sends.',
+    },
+    {
+      name: 'data.items',
+      type: 'SteeringItem[]',
+      description:
+        '{ id, text, at?, state, author?, reason?, files?, canEdit? } in queue order. state: queued | sending | steered | failed | cancelled (hidden). FollowupQueue: paused → queued, reserved / claimed / dispatched → sending, uncertain → failed.',
+    },
+    {
+      name: 'data.canAct',
+      type: 'boolean',
+      default: 'true',
+      description: 'false (not the owner): read-only list, no buttons, the field is off.',
+    },
+    {
+      name: 'data.disabled',
+      type: 'boolean',
+      default: 'false',
+      description: 'The session ended: the field and the notes’ buttons are off.',
+    },
+    {
+      name: 'data.placeholder',
+      type: 'string',
+      description: 'Field placeholder while it is open. Default “Steer the agent…” running, “Send a message…” idle.',
+    },
+    {
+      name: 'data.attachments',
+      type: 'number',
+      default: '0',
+      description: 'Files the host holds for the next message; above 0 a note with no text can be sent.',
+    },
+    { name: 'value', type: 'string', description: 'The field’s text — read it, or prefill it (e.g. to resend).' },
+    {
+      name: 'slot="tools" / slot="attachments"',
+      type: 'elements',
+      description: 'The host’s own buttons inside the field (attach, voice) and its file chips above it.',
+    },
+    { name: 'lang', type: "'en' | 'ko'", default: 'en', description: 'Korean follows the dashboard and Slack queue.' },
+  ],
+  events: [
+    {
+      name: 'ui-submit',
+      detail: "{ text, mode: 'queue' | 'steer', ref }",
+      description:
+        'A note from the field (or Retry). Cancelable: cancelled → the text stays. ref names the row it shows as until the list has it: setItemState(ref, "failed", why) offers Retry.',
+    },
+    {
+      name: 'ui-promote',
+      detail: '{ id }',
+      description:
+        'Send now (or Retry on a failed note): hand it to the running turn, or run it now when idle. Cancelable; shows Sending… until the list changes.',
+    },
+    {
+      name: 'ui-edit',
+      detail: '{ id, text }',
+      description: 'A queued note’s new text. Cancelable (the box stays open); shows the new text, Saving…',
+    },
+    {
+      name: 'ui-cancel',
+      detail: '{ id }',
+      description: 'Cancel a queued or failed note (id may be a submit ref). Cancelable; the note leaves at once.',
+    },
+  ],
+  keyboard: [
+    ['Enter', 'Queue the note for the next step (running) or send it (idle). Never on an IME composition Enter'],
+    ['⌘/Ctrl + Enter', 'Hand the note to the running turn now (idle: send)'],
+    ['Shift + Enter', 'New line (on touch screens Enter is a new line too; the button sends)'],
+    ['Esc', 'Clear the field (an empty field lets Esc reach the page); in an edit box: stop editing'],
+    ['Enter / Esc (editing)', 'Save the edit / keep the original'],
+    ['Tab', 'The host’s tools, the field, Send, then each note’s Send now, Edit and Cancel'],
+  ],
+  a11y: [
+    'The field is labelled (“Steer the agent” / “Message the session”) and described by the key hints.',
+    'The queue is a list named by its heading and count; every button names its note (“Cancel “Use Postgres 16…””).',
+    'Queuing, steering, sending, delivery, cancelling and failures are announced in a polite live region.',
+    'Focus survives host updates; when a note’s control goes away it moves to the next note, the one before, or the field.',
+    'Touch targets are 44px on coarse pointers; reduced motion drops the enter/leave motion and the spinners.',
+  ],
+  usage: `<ui-agent-steering lang="ko"></ui-agent-steering>
+<script type="module">
+  import '@2lab.ai/ui/agent-steering';
+  const el = document.querySelector('ui-agent-steering');
+  // FollowupQueue.list(sessionKey) → items (paused → queued, reserved/claimed/dispatched → sending, uncertain → failed)
+  el.data = { running: session.activityState === 'working', canAct: session.ownerId === me, items };
+  el.addEventListener('ui-submit', async (e) => {
+    const res = await post('/session/' + key + '/command', { message: e.detail.text, mode: e.detail.mode });
+    if (!res.ok) el.setItemState(e.detail.ref, 'failed', 'Could not send (' + res.status + ')');
+  });
+  el.addEventListener('ui-promote', async (e) => {
+    const res = await post('/session/' + key + '/followup/' + e.detail.id + '/send-now');
+    if (!res.ok) el.setItemState(e.detail.id, 'queued', await res.text());   // roll back and say why
+  });
+  // ui-edit { id, text } → editQueued, ui-cancel { id } → cancelItem. The pushed list confirms each one.
+</script>`,
+  demos: [
+    {
+      id: 'running',
+      title: 'While the agent works',
+      description:
+        'Two notes wait for the next step. Type one and press Enter to queue it, ⌘/Ctrl+Enter to hand it over now; Send now, Edit and Cancel on a note.',
+      height: 380,
+      create: () => stage(host(steering({ running: true, items: queue() }))),
+    },
+    {
+      id: 'states',
+      title: 'Every state',
+      description:
+        'Queued, being sent, delivered to the running turn, failed (cut off by Stop — Retry runs it again), and one from Slack with a file.',
+      height: 560,
+      create: () =>
+        stage(
+          host(
+            steering({
+              running: true,
+              items: [
+                {
+                  id: 'q1',
+                  text: 'Keep the old users view for a week',
+                  at: now() - 6 * MIN,
+                  state: 'queued',
+                },
+                {
+                  id: 'q2',
+                  text: 'Skip the e2e suite, CI is down — unit tests only',
+                  at: now() - 2 * MIN,
+                  state: 'sending',
+                },
+                {
+                  id: 'q3',
+                  text: 'Also update the README table row',
+                  at: now() - MIN,
+                  state: 'steered',
+                },
+                {
+                  id: 'q4',
+                  text: 'Re-run the migration dry run on staging',
+                  at: now() - 14 * MIN,
+                  state: 'failed',
+                  reason: 'Interrupted by Stop — it may have run partly',
+                },
+                {
+                  id: 'q5',
+                  text: 'Here is the schema dump from prod',
+                  at: now() - 9 * MIN,
+                  state: 'queued',
+                  author: 'Slack · Zhuge',
+                  files: ['schema-prod-2026-10-29.sql'],
+                  canEdit: false,
+                },
+              ],
+            }),
+          ),
+        ),
+    },
+    {
+      id: 'idle',
+      title: 'Not running',
+      description:
+        'Idle, Enter just sends — no queue to show. Below: notes a Stop held back; Send now runs one, Cancel drops it.',
+      height: 420,
+      create: () =>
+        stage(
+          host(steering({ running: false, items: [] })),
+          host(
+            steering({
+              running: false,
+              items: [
+                {
+                  id: 'h1',
+                  text: 'Then open the PR against main',
+                  at: now() - 25 * MIN,
+                  state: 'queued',
+                  reason: 'Held after Stop — Send now runs it',
+                },
+                {
+                  id: 'h2',
+                  text: 'And post the summary in the thread',
+                  at: now() - 24 * MIN,
+                  state: 'queued',
+                  reason: 'Held after Stop — Send now runs it',
+                },
+              ],
+            }),
+          ),
+        ),
+    },
+    {
+      id: 'refused',
+      title: 'Refused and failed',
+      description:
+        'The host says no: the first Send now is refused (another dispatch is in flight), edits are refused (already handed over), and the first message fails — Retry sends it.',
+      height: 420,
+      create: () =>
+        stage(
+          host(steering({ running: true, items: queue() }), { refuseOnce: true, refuseEdit: true, failFirst: true }),
+        ),
+    },
+    {
+      id: 'tools',
+      title: 'With the host’s tools',
+      description:
+        'The dashboard keeps its attach and voice buttons (slot="tools") and file chips (slot="attachments"); with a file held, an empty note can be sent.',
+      height: 360,
+      create: () => {
+        const el = host(steering({ running: true, attachments: 1, items: queue().slice(0, 1) }));
+        el.append(tools(), chip('screenshot-panel.png'));
+        el.addEventListener('ui-submit', () => {
+          for (const c of Array.from(el.querySelectorAll('[slot="attachments"]'))) c.remove();
+          if (el.data) el.data = { ...el.data, attachments: 0 };
+        });
+        return stage(el);
+      },
+    },
+    {
+      id: 'readonly',
+      title: 'Read-only · ended',
+      description: 'Someone else’s session: the queue shows, nothing can be done (like Stop). Below: an ended session.',
+      height: 420,
+      create: () =>
+        stage(
+          steering({ running: true, canAct: false, items: queue() }),
+          steering({ running: false, disabled: true, items: [] }),
+        ),
+    },
+    {
+      id: 'ko',
+      title: '한국어 (lang="ko")',
+      description:
+        '대시보드와 Slack 큐 문구 — 다음 단계에 전달 대기, 지금 보내기, 전달됨 · 모델이 다음 툴 호출에서 읽음.',
+      height: 460,
+      create: () =>
+        stage(
+          host(
+            steering(
+              {
+                running: true,
+                items: [
+                  {
+                    id: 'k1',
+                    text: '대시보드 패널 컴포저를 <ui-agent-steering>으로 바꿔줘',
+                    at: now() - 4 * MIN,
+                    state: 'queued',
+                  },
+                  {
+                    id: 'k2',
+                    text: '커밋 메시지는 conventional commits로',
+                    at: now() - 2 * MIN,
+                    state: 'queued',
+                    reason: '편집됨',
+                  },
+                  { id: 'k3', text: '테스트는 happy-dom으로 돌려', at: now() - MIN, state: 'steered' },
+                ],
+              },
+              { lang: 'ko' },
+            ),
+            { ko: true },
+          ),
+        ),
+    },
+  ],
+};
