@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CELLS, cellMap, contextLevel, markIndex, type UiContextWindow } from './context-window';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import tokens from '../../core/tokens.json';
+import { CELLS, cellMap, contextLevel, LEAVE_MS, markIndex, type UiContextWindow } from './context-window';
+import { styles } from './styles';
 
 function mount(data: UiContextWindow['data'], attrs: Record<string, string> = {}): UiContextWindow {
   const el = document.createElement('ui-context-window') as UiContextWindow;
@@ -106,5 +108,156 @@ describe('<ui-context-window>', () => {
     const el = mount(BASE, { lang: 'ko' });
     expect(q(el, '.cw-title')?.textContent).toBe('컨텍스트');
     expect(q(el, '.cw-say-t')?.textContent).toContain('자동 압축까지');
+  });
+
+  it('says “timeout” in the fail tone, announces it, and lets the action be pressed again', () => {
+    const el = mount({ ...BASE, canCompact: true, compactState: 'timeout' });
+    const say = q(el, '.cw-say-t');
+    expect(say?.textContent).toBe('No compaction result yet');
+    expect(say?.classList.contains('is-fail')).toBe(true);
+    expect(q(el, '.cw-live')?.textContent).toBe('No compaction result yet');
+    const b = q(el, '.cw-compact') as HTMLButtonElement;
+    expect(b.getAttribute('data-state')).toBe('idle');
+    expect(b.disabled).toBe(false);
+    const ko = mount({ ...BASE, compactState: 'timeout' }, { lang: 'ko' });
+    expect(q(ko, '.cw-say-t')?.textContent).toBe('압축 결과를 아직 받지 못함');
+  });
+});
+
+describe('<ui-context-window> host gaps', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('clears the hover when the pointer leaves the element (pointerleave does not bubble to the shadow root)', () => {
+    const el = mount(BASE);
+    const cell = q(el, '.cw-cell[data-part="read"]')!;
+    cell.dispatchEvent(new PointerEvent('pointerover', { pointerType: 'mouse', bubbles: true, composed: true }));
+    expect(q(el, '.cw-field')?.hasAttribute('data-hot')).toBe(true);
+    expect(q(el, '.cw-part[data-part="read"]')?.hasAttribute('data-hot')).toBe(true);
+    el.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
+    expect(q(el, '.cw-field')?.hasAttribute('data-hot')).toBe(false);
+    expect(q(el, '.cw-part[data-hot]')).toBeNull();
+    expect(q(el, '.cw-of')?.textContent).toBe('/ 1M tokens');
+  });
+
+  it('disarms when focus leaves the armed button, so a later press only arms again', () => {
+    const el = mount({ ...BASE, canCompact: true });
+    const fired = vi.fn();
+    el.addEventListener('ui-compact', fired);
+    const b = q(el, '.cw-compact') as HTMLButtonElement;
+    b.focus();
+    b.click();
+    el.renderNow();
+    expect(q(el, '.cw-compact')?.getAttribute('data-state')).toBe('armed');
+    q(el, '.cw-compact')!.dispatchEvent(
+      new FocusEvent('focusout', { bubbles: true, composed: true, relatedTarget: document.body }),
+    );
+    el.renderNow();
+    expect(q(el, '.cw-compact')?.getAttribute('data-state')).toBe('idle');
+    (q(el, '.cw-compact') as HTMLButtonElement).click();
+    expect(fired).not.toHaveBeenCalled();
+  });
+
+  it('keeps the armed state when focus moves within the button itself', () => {
+    const el = mount({ ...BASE, canCompact: true });
+    const b = q(el, '.cw-compact') as HTMLButtonElement;
+    b.click();
+    el.renderNow();
+    b.dispatchEvent(new FocusEvent('focusout', { bubbles: true, composed: true, relatedTarget: b }));
+    el.renderNow();
+    expect(q(el, '.cw-compact')?.getAttribute('data-state')).toBe('armed');
+  });
+
+  it('lets the done button leave for 400 ms (data-leaving) before it disappears', () => {
+    vi.useFakeTimers();
+    const el = mount({ ...BASE, canCompact: true, compactState: 'observed' });
+    const done = q(el, '.cw-compact')!;
+    expect(done.getAttribute('data-state')).toBe('done');
+    el.data = { ...BASE, canCompact: false, compactState: 'idle' };
+    el.renderNow();
+    const leaving = q(el, '.cw-compact')!;
+    expect(leaving).toBe(done);
+    expect(leaving.hasAttribute('data-leaving')).toBe(true);
+    expect((leaving as HTMLButtonElement).disabled).toBe(true);
+    vi.advanceTimersByTime(LEAVE_MS);
+    el.renderNow();
+    expect(q(el, '.cw-compact')).toBeNull();
+  });
+
+  it('leaves, then shows the idle action when it may compact again', () => {
+    vi.useFakeTimers();
+    const el = mount({ ...BASE, canCompact: true, compactState: 'observed' });
+    el.data = { ...BASE, canCompact: true, compactState: 'idle' };
+    el.renderNow();
+    expect(q(el, '.cw-compact')?.hasAttribute('data-leaving')).toBe(true);
+    // A same-state update during the exit does not restart it.
+    el.data = { ...BASE, canCompact: true, compactState: 'idle', model: 'x' };
+    el.renderNow();
+    vi.advanceTimersByTime(LEAVE_MS);
+    el.renderNow();
+    const b = q(el, '.cw-compact')!;
+    expect(b.hasAttribute('data-leaving')).toBe(false);
+    expect(b.getAttribute('data-state')).toBe('idle');
+  });
+
+  it('renders in place: a same-state usage update keeps the tray line, the live node and the cells', () => {
+    const el = mount({ ...BASE, canCompact: true });
+    const say = q(el, '.cw-say-t');
+    const live = q(el, '.cw-live');
+    const cell = q(el, '.cw-cell');
+    const btn = q(el, '.cw-compact');
+    const label = q(el, '.cw-ct');
+    el.data = { ...BASE, canCompact: true, parts: { ...BASE.parts, cacheRead: 300_000 } };
+    el.renderNow();
+    expect(q(el, '.cw-say-t')).toBe(say);
+    expect(say?.textContent).toContain('until auto-compact');
+    expect(q(el, '.cw-live')).toBe(live);
+    expect(q(el, '.cw-cell')).toBe(cell);
+    expect(q(el, '.cw-compact')).toBe(btn);
+    expect(q(el, '.cw-ct')).toBe(label);
+    expect(q(el, '.cw-big')?.getAttribute('data-to')).toBe('300482');
+  });
+
+  it('swaps the tray line and the button label in only when their state changes; the live node stays', () => {
+    const el = mount({ ...BASE, canCompact: true });
+    const say = q(el, '.cw-say-t');
+    const live = q(el, '.cw-live');
+    const btn = q(el, '.cw-compact') as HTMLButtonElement;
+    const label = q(el, '.cw-ct');
+    btn.click();
+    el.renderNow();
+    expect(q(el, '.cw-say-t')).not.toBe(say);
+    expect(q(el, '.cw-say-t')?.getAttribute('data-mk')).toBe('say-armed');
+    expect(q(el, '.cw-ct')).not.toBe(label);
+    expect(q(el, '.cw-compact')).toBe(btn);
+    expect(q(el, '.cw-live')).toBe(live);
+    expect(live?.textContent).toContain('Press again to compact');
+  });
+
+  it('keeps warn text at ≥4.5:1 in light, on the surface and on the warn tint', () => {
+    const m = /--cw-warn: color-mix\(in srgb, var\(--st-wait\) (\d+)%, var\(--text\)\)/.exec(styles);
+    expect(m).not.toBeNull();
+    const pct = Number(m![1]) / 100;
+    const rgb = (h: string) => [1, 3, 5].map((i) => Number.parseInt(h.slice(i, i + 2), 16));
+    const mix = (a: number[], b: number[], p: number) => a.map((v, i) => v * p + b[i] * (1 - p));
+    const lum = (c: number[]) => {
+      const [r, g, b] = c.map((v) => {
+        const s = v / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (a: number[], b: number[]) => {
+      const [x, y] = [lum(a), lum(b)].sort((p, q2) => q2 - p);
+      return (x + 0.05) / (y + 0.05);
+    };
+    const L = tokens.light;
+    const warn = mix(rgb(L['st-wait']), rgb(L.text), pct);
+    const surface = rgb(L.surface);
+    const tint = mix(rgb(L['st-wait']), surface, 0.14);
+    expect(ratio(warn, surface)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(warn, tint)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(warn, rgb(L['surface-raised']))).toBeGreaterThanOrEqual(4.5);
   });
 });

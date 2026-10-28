@@ -1,6 +1,6 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
-import { morphInto } from './morph';
+import { morphInto } from '../../core/morph';
 import { styles } from './styles';
 
 /** USD per million tokens. */

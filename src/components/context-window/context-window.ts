@@ -1,6 +1,7 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { fmtTokens } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
+import { morphInto } from '../../core/morph';
 import { styles } from './styles';
 
 /** What fills a model's context window, in prompt order. Tokens of the last request. */
@@ -15,8 +16,12 @@ export interface ContextParts {
   output?: number;
 }
 
-/** Host-owned state of a compaction request. The component adds the two-press confirm itself. */
-export type CompactState = 'idle' | 'sending' | 'sent' | 'queued' | 'observed' | 'failed';
+/**
+ * Host-owned state of a compaction request. The component adds the two-press confirm itself.
+ * `timeout`: the request was taken but no compaction showed up in time (the host decides how long, e.g. 5 min);
+ * the action is pressable again.
+ */
+export type CompactState = 'idle' | 'sending' | 'sent' | 'queued' | 'observed' | 'failed' | 'timeout';
 
 export interface ContextWindowData {
   /** Model id shown as a chip (e.g. `opus-4-5[1m]`). */
@@ -42,6 +47,8 @@ export type ContextLevel = 'ok' | 'warn' | 'full';
 export const CELLS = 216;
 const ARM_MS = 4000;
 const ROLL_MS = 640;
+/** The done button's exit (`cw-leave`) before it disappears. */
+export const LEAVE_MS = 400;
 
 const STRINGS = {
   en: {
@@ -69,6 +76,7 @@ const STRINGS = {
     observed: 'Compaction observed',
     saved: (n: string, a: string, b: string) => `Compaction observed · saved <b>${n}</b> (${a} → ${b})`,
     failed: 'Compact request failed',
+    timeout: 'No compaction result yet',
     armed: 'Earlier turns become a summary',
     armedSr: 'Press again to compact — earlier turns become a summary',
     act: { idle: 'Compact now', armed: 'Press again', sending: 'Sending', sent: 'Requested', done: 'Compacted' },
@@ -99,6 +107,7 @@ const STRINGS = {
     observed: '새 압축 관측됨',
     saved: (n: string, a: string, b: string) => `새 압축 관측됨 · <b>${n}</b> 줄임 (${a} → ${b})`,
     failed: '압축 요청 실패',
+    timeout: '압축 결과를 아직 받지 못함',
     armed: '지난 대화가 요약으로 줄어듭니다',
     armedSr: '한 번 더 누르면 압축 — 지난 대화가 요약으로 줄어듭니다',
     act: {
@@ -201,6 +210,10 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
   #hot = '';
   #shown = -1;
   #raf = 0;
+  /** Action state drawn last ('' = none), and whether the done button is playing its exit. */
+  #prevAct = '';
+  #leaving = false;
+  #leaveTimer = 0;
 
   attributeChangedCallback(): void {
     this.requestRender();
@@ -222,7 +235,8 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
         this.#applyHot();
       }
     });
-    this.root.addEventListener('pointerleave', () => {
+    // On the host, not the shadow root: pointerleave does not bubble, so the root never hears it.
+    this.addEventListener('pointerleave', () => {
       if (!this.#hot) return;
       this.#hot = '';
       this.#applyHot();
@@ -237,10 +251,18 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
         this.#disarm();
       }
     });
+    // Focus leaving the armed button disarms it (Tab away, a click elsewhere): a later Enter must not compact.
+    this.root.addEventListener('focusout', (e) => {
+      if (!this.#armedAt || !(e.target as Element | null)?.closest?.('.cw-compact')) return;
+      if (((e as FocusEvent).relatedTarget as Element | null)?.closest?.('.cw-compact')) return;
+      this.#disarm();
+    });
   }
 
   override disconnectedCallback(): void {
     clearTimeout(this.#armTimer);
+    clearTimeout(this.#leaveTimer);
+    this.#leaving = false;
     cancelAnimationFrame(this.#raf);
   }
 
@@ -267,11 +289,24 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
     if (render) this.requestRender();
   }
 
+  /**
+   * Patch the live tree instead of replacing it: cells keep their node, so a usage change sweeps their colour;
+   * the tray line and the button's icon/label carry `data-mk` keys and swap in only when their state changes;
+   * the aria-live node stays, so it speaks once per transition.
+   */
+  protected override update(): void {
+    morphInto(this.content, this.render());
+    this.updated();
+  }
+
   protected render(): string {
     const d = this.data;
     const t = this.#t;
     const win = num(d?.window);
-    if (!d || !(win > 0)) return '';
+    if (!d || !(win > 0)) {
+      this.#prevAct = '';
+      return '';
+    }
     const parts = contextParts(d, t);
     const used = parts.reduce((s, p) => s + p.tokens, 0);
     const auto = num(d.autoCompactAt);
@@ -290,7 +325,7 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
     let rows = '';
     for (const p of parts) {
       const share = (p.tokens / win) * 100;
-      rows += `<li class="cw-part" data-part="${p.key}" data-tok="${p.tokens}" data-of="${escAttr(
+      rows += `<li class="cw-part" data-mk="p-${p.key}" data-part="${p.key}" data-tok="${p.tokens}" data-of="${escAttr(
         t.share(p.label, share.toFixed(share < 10 ? 1 : 0)),
       )}"><i class="cw-sw" style="background:${p.color}"></i><span class="cw-label">${esc(p.label)}</span><span class="cw-val">${fmtTokens(p.tokens)}</span></li>`;
     }
@@ -304,7 +339,7 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
 <div class="cw-figure"><span class="cw-big" aria-hidden="true" data-to="${used}">${fmtTokens(this.#shown >= 0 ? this.#shown : used)}</span><span class="cw-of" aria-hidden="true" data-total="${escAttr(ofTotal)}">${esc(ofTotal)}</span><span class="cw-pill" aria-hidden="true">${pct}</span><span class="sr-only">${esc(t.sr(fmtTokens(used), short(win), pct, auto > 0 ? short(auto) : ''))}</span></div>
 <div class="cw-field" aria-hidden="true">${cells}</div>
 <ul class="cw-parts">${rows}</ul>
-<div class="cw-foot"><span class="cw-say"><span class="cw-say-t${say.tone ? ` is-${say.tone}` : ''}">${say.html}</span></span><span class="sr-only" aria-live="polite">${say.announce ? (say.sr ?? say.html) : ''}</span>${this.#action(d, state, used, t)}</div>
+<div class="cw-foot"><span class="cw-say"><span class="cw-say-t${say.tone ? ` is-${say.tone}` : ''}" data-mk="say-${say.id}">${say.html}</span></span><span class="cw-live sr-only" aria-live="polite">${say.announce ? (say.sr ?? say.html) : ''}</span>${this.#action(d, state, used, t)}</div>
 </section>`;
   }
 
@@ -316,16 +351,18 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
     level: ContextLevel,
     state: CompactState,
     t: Strings,
-  ): { tone: string; html: string; sr?: string; announce?: boolean } {
-    if (state === 'sending') return { tone: '', html: esc(t.sending), announce: true };
-    if (state === 'sent') return { tone: '', html: esc(t.sent), announce: true };
-    if (state === 'queued') return { tone: '', html: esc(t.queued), announce: true };
-    if (this.#armedAt) return { tone: 'warn', html: esc(t.armed), sr: esc(t.armedSr), announce: true };
-    if (state === 'failed') return { tone: 'fail', html: esc(t.failed), announce: true };
+  ): { id: string; tone: string; html: string; sr?: string; announce?: boolean } {
+    if (state === 'sending') return { id: 'sending', tone: '', html: esc(t.sending), announce: true };
+    if (state === 'sent') return { id: 'sent', tone: '', html: esc(t.sent), announce: true };
+    if (state === 'queued') return { id: 'queued', tone: '', html: esc(t.queued), announce: true };
+    if (this.#armedAt) return { id: 'armed', tone: 'warn', html: esc(t.armed), sr: esc(t.armedSr), announce: true };
+    if (state === 'failed') return { id: 'failed', tone: 'fail', html: esc(t.failed), announce: true };
+    if (state === 'timeout') return { id: 'timeout', tone: 'fail', html: esc(t.timeout), announce: true };
     const lc = d.lastCompact;
     if (state === 'observed') {
       if (lc && num(lc.preTokens) > num(lc.postTokens))
         return {
+          id: 'saved',
           tone: 'ok',
           html: t.saved(
             short(num(lc.preTokens) - num(lc.postTokens)),
@@ -334,29 +371,38 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
           ),
           announce: true,
         };
-      return { tone: 'ok', html: esc(t.observed), announce: true };
+      return { id: 'observed', tone: 'ok', html: esc(t.observed), announce: true };
     }
-    if (d.compactPending) return { tone: 'full', html: esc(t.pending), announce: true };
+    if (d.compactPending) return { id: 'pending', tone: 'full', html: esc(t.pending), announce: true };
     const tone = level === 'full' ? 'full' : level === 'warn' ? 'warn' : '';
     if (auto > 0) {
-      if (used >= auto) return { tone: 'full', html: esc(t.over) };
-      if (level === 'full') return { tone: 'full', html: esc(t.soon(short(auto - used))) };
-      return { tone, html: esc(t.left(short(auto - used))) };
+      if (used >= auto) return { id: 'over', tone: 'full', html: esc(t.over) };
+      if (level === 'full') return { id: 'soon', tone: 'full', html: esc(t.soon(short(auto - used))) };
+      return { id: 'left', tone, html: esc(t.left(short(auto - used))) };
     }
-    return { tone, html: esc(t.free(short(Math.max(0, win - used)))) };
+    return { id: 'free', tone, html: esc(t.free(short(Math.max(0, win - used)))) };
   }
 
   #action(d: ContextWindowData, state: CompactState, used: number, t: Strings): string {
-    if (d.canCompact === undefined || d.canCompact === false || !(used > 0)) return '';
-    const armed = !!this.#armedAt;
-    const st =
-      state === 'sending' || state === 'sent' || state === 'queued'
-        ? 'busy'
-        : state === 'observed'
-          ? 'done'
-          : armed
-            ? 'armed'
-            : 'idle';
+    const shown = !(d.canCompact === undefined || d.canCompact === false || !(used > 0));
+    const busy = state === 'sending' || state === 'sent' || state === 'queued';
+    const st = !shown ? '' : busy ? 'busy' : state === 'observed' ? 'done' : this.#armedAt ? 'armed' : 'idle';
+    // The done button leaves (`cw-leave`, 400 ms) instead of vanishing or snapping back to idle.
+    if (st === 'done' || st === 'busy') this.#endLeave();
+    else if (this.#prevAct === 'done' && !prefersReducedMotion()) {
+      this.#leaving = true;
+      clearTimeout(this.#leaveTimer);
+      this.#leaveTimer = window.setTimeout(() => {
+        this.#leaving = false;
+        this.requestRender();
+      }, LEAVE_MS);
+    }
+    this.#prevAct = st;
+    if (this.#leaving)
+      return `<button type="button" class="cw-compact" data-key="cw-compact" data-state="done" data-leaving disabled aria-label="${escAttr(
+        t.actLabel(t.act.done),
+      )}"><span class="cw-ci" data-mk="ci-done">${CHECK_SVG}</span><span class="cw-ct" data-mk="ct-done">${esc(t.act.done)}</span></button>`;
+    if (!st) return '';
     const label =
       state === 'sending'
         ? t.act.sending
@@ -371,9 +417,15 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
       st === 'busy' ? '<span class="cw-spin" aria-hidden="true"></span>' : st === 'done' ? CHECK_SVG : COMPACT_SVG;
     const why = typeof d.canCompact === 'string' ? d.canCompact : '';
     const off = st === 'busy' || st === 'done' || !!why;
+    const mk = st === 'busy' ? state : st;
     return `<button type="button" class="cw-compact" data-key="cw-compact" data-state="${st}"${off ? ' disabled' : ''}${
       st === 'busy' ? ' aria-busy="true"' : ''
-    }${why ? ` title="${escAttr(why)}"` : ''} aria-label="${escAttr(t.actLabel(label))}"><span class="cw-ci">${icon}</span><span class="cw-ct">${esc(label)}</span></button>`;
+    }${why ? ` title="${escAttr(why)}"` : ''} aria-label="${escAttr(t.actLabel(label))}"><span class="cw-ci" data-mk="ci-${st}">${icon}</span><span class="cw-ct" data-mk="ct-${mk}">${esc(label)}</span></button>`;
+  }
+
+  #endLeave(): void {
+    this.#leaving = false;
+    clearTimeout(this.#leaveTimer);
   }
 
   protected override updated(): void {
