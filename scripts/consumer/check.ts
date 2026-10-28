@@ -3,6 +3,7 @@ import { type ContextWindowData, fmtTokens, UiContextWindow } from '@2lab.ai/ui'
 import { UiAgentInbox } from '@2lab.ai/ui/agent-inbox';
 import { UiAgentQueue } from '@2lab.ai/ui/agent-queue';
 import { UiAgentRun } from '@2lab.ai/ui/agent-run';
+import { type AgentSteeringData, steerEnterAction, UiAgentSteering } from '@2lab.ai/ui/agent-steering';
 import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
 import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
@@ -28,10 +29,13 @@ const ask: ApprovalCardData = { kind: 'permission', id: 'ap1', tool: 'Bash', inp
 const approval: HTMLElementTagNameMap['ui-approval-card'] = document.createElement('ui-approval-card');
 const stackCfg: ToasterData = { placement: 'bottom-right', visible: 3 };
 const stack: HTMLElementTagNameMap['ui-toaster'] = document.createElement('ui-toaster');
+const steer: AgentSteeringData = { running: true, items: [{ id: 'q1', text: 'note', state: 'queued' }] };
+const composer: HTMLElementTagNameMap['ui-agent-steering'] = document.createElement('ui-agent-steering');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
   UiAgentRun,
+  UiAgentSteering,
   UiAiAnswer,
   UiApprovalCard,
   UiCompactBreakdown,
@@ -60,4 +64,7 @@ console.log(
   stackCfg.visible,
   stack.tagName,
   typeof toast.success,
+  steer.items?.length,
+  composer.tagName,
+  steerEnterAction({ key: 'Enter', shiftKey: false, metaKey: false, ctrlKey: false, altKey: false }),
 );
