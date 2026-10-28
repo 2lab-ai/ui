@@ -69,6 +69,10 @@
       "types": "./dist/components/toaster/index.d.ts",
       "import": "./dist/toaster.js"
     },
+    "./agent-steering": {
+      "types": "./dist/components/agent-steering/index.d.ts",
+      "import": "./dist/agent-steering.js"
+    },
     "./tokens.css": "./dist/tokens.css",
     "./package.json": "./package.json"
   },

@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 11 subpaths registers its element(s) (12 in all).
+// Runtime smoke test against the installed package: each of the 12 subpaths registers its element(s) (13 in all).
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -13,6 +13,7 @@ Object.assign(globalThis, { window: w, document: w.document });
 const slugs = [
   'agent-run',
   'agent-inbox',
+  'agent-steering',
   'ai-answer',
   'approval-card',
   'agent-queue',

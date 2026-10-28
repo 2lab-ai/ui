@@ -5,6 +5,7 @@ export const ORDER = [
   'agent-run',
   'agent-inbox',
   'approval-card',
+  'agent-steering',
   'ai-answer',
   'tool-call-card',
   'agent-queue',
