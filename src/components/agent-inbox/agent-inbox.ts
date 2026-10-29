@@ -270,6 +270,34 @@ function mergeStrings(base: Strings, over: InboxStringOverrides | undefined): St
   return out as Strings;
 }
 
+type Rec = Record<string, unknown>;
+const isRec = (v: unknown): v is Rec => !!v && typeof v === 'object';
+const sameRec = (a: Rec, b: Rec): boolean => {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => Object.is(a[k], b[k]));
+};
+
+/** `data.strings` copied one level deep (`status` two), so a change made in place is seen. */
+function copyStrings(over: unknown): Rec | null {
+  if (!isRec(over)) return null;
+  const out: Rec = { ...over };
+  if (isRec(out.status)) out.status = { ...out.status };
+  return out;
+}
+
+/** `over` still holds what `copy` holds: same keys and values (a function by identity), `status` likewise. */
+function sameStrings(copy: Rec | null, over: unknown): boolean {
+  if (!copy || !isRec(over)) return !copy && !isRec(over);
+  const keys = Object.keys(copy);
+  if (keys.length !== Object.keys(over).length) return false;
+  for (const k of keys) {
+    const a = copy[k];
+    const b = over[k];
+    if (k === 'status' && isRec(a) && isRec(b) ? !sameRec(a, b) : !Object.is(a, b)) return false;
+  }
+  return true;
+}
+
 const SPARK_SVG =
   '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7 1.5c.5 3.3 2.2 5 5.5 5.5-3.3.5-5 2.2-5.5 5.5C6.5 9.2 4.8 7.5 1.5 7c3.3-.5 5-2.2 5.5-5.5z"/><circle cx="13" cy="12.6" r="1.3"/></svg>';
 const WAIT_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.8 15 14H1z"/></svg>';
@@ -834,7 +862,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #counting = new Map<string, { el: HTMLElement; kind: string; from: number; to: number; t0: number }>();
   #raf = 0;
   #slides = new WeakMap<Element, Animation>();
-  #tCache: { lang: string; over: unknown; t: Strings } | null = null;
+  #tCache: { lang: string; over: Record<string, unknown> | null; t: Strings } | null = null;
 
   attributeChangedCallback(name: string, old: string | null, value: string | null): void {
     if (name !== 'view') {
@@ -852,14 +880,17 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return this.getAttribute('lang') === 'ko' ? 'ko' : 'en';
   }
 
-  /** The `lang` table with `data.strings` merged over it (cached while both stay the same). */
+  /**
+   * The `lang` table with `data.strings` merged over it, cached while `lang` and the overrides' values stay the
+   * same (compared shallowly, `status` one level deeper), so a host may also change `data.strings` in place.
+   */
   get #t(): Strings {
     const lang = this.#lang;
     const over = this.data?.strings;
     const c = this.#tCache;
-    if (c && c.lang === lang && c.over === over) return c.t;
+    if (c && c.lang === lang && sameStrings(c.over, over)) return c.t;
     const t = mergeStrings(STRINGS[lang], over);
-    this.#tCache = { lang, over, t };
+    this.#tCache = { lang, over: copyStrings(over), t };
     return t;
   }
 
@@ -897,7 +928,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   /**
    * Bring a card into view (a deep link): render pending data, open its closed group (`ui-group-toggle`), open the
    * card (`ui-toggle`, no transition) unless `open: false`, and scroll it to the centre unless `scroll: false`.
-   * Returns false when the card is not on the board or the host prevented the group from opening.
+   * Returns false (and does not scroll) when the card is not on the board or the host prevented its group or the
+   * card from opening.
    */
   reveal(cardId: string, opts: { open?: boolean; scroll?: boolean } = {}): boolean {
     if (!this.isConnected) return false;
@@ -909,7 +941,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     const sh = this.#cards.get(id);
     if (!sh) return false;
-    if (opts?.open !== false && !this.#open.has(id)) this.#toggle(id, true);
+    // A card with nothing to open is revealed as it is; one the host keeps closed is not.
+    const opens = opts?.open !== false && !this.#open.has(id) && sh.face.hasAttribute('aria-controls');
+    if (opens && !this.#toggle(id, true)) return false;
     if (opts?.scroll !== false && typeof sh.el.scrollIntoView === 'function') sh.el.scrollIntoView({ block: 'center' });
     return true;
   }
@@ -1428,6 +1462,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       this.#shown.delete(`${id}\u0000usd`);
       const from = firstCol.get(id) ?? '';
       if (staleKeys.has(from) && motion) {
+        sh.flip?.cancel();
+        sh.flip = null;
         sh.el.removeAttribute('data-card');
         continue;
       }
