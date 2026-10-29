@@ -1256,30 +1256,18 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   }
 
   /**
-   * How far `el`'s scrolling ancestors are scrolled, summed — its own board, the host's panels (across the shadow
-   * boundary) and the page — so a scroll between two glides does not move a remembered target.
+   * The page's scroll. A glide's target is remembered in page px, so a page scroll between the glide's start and a
+   * re-aim does not move it. Inner scrollers (the board, a host's panel) are not counted: most of their scrolls
+   * during a resize burst are layout's own (re-snap, scroll anchoring) and were never painted, so subtracting them
+   * would be wrong more often than right — a reader scrolling one within the 320 ms glide sees a start off by that.
    */
-  #scroll(el: Element): { x: number; y: number } {
-    let x = 0;
-    let y = 0;
-    let n: Node | null = el.parentNode;
-    while (n) {
-      if (n instanceof Element) {
-        x += n.scrollLeft || 0;
-        y += n.scrollTop || 0;
-        n = n.parentNode;
-      } else n = n instanceof ShadowRoot ? n.host : null;
-    }
-    if (typeof window !== 'undefined') {
-      x += window.scrollX || 0;
-      y += window.scrollY || 0;
-    }
-    return { x, y };
+  #scroll(): { x: number; y: number } {
+    return typeof window === 'undefined' ? { x: 0, y: 0 } : { x: window.scrollX || 0, y: window.scrollY || 0 };
   }
 
-  /** Remember a glide: its target (scroll-independent px, see `#scroll`) and its starting offset. */
+  /** Remember a glide: its target in page px (see `#scroll`) and its starting offset. */
   #noteGlide(el: Element, anim: Animation, to: { x: number; y: number }, dx: number, dy: number): void {
-    const s = this.#scroll(el);
+    const s = this.#scroll();
     this.#glides.set(el, { anim, x: to.x + s.x, y: to.y + s.y, dx, dy });
   }
 
@@ -1295,7 +1283,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     if (!Number.isFinite(p)) return null;
     // Not clamped: an overshooting easing token draws past the target (p > 1) and so does this.
     const left = 1 - p;
-    const s = this.#scroll(el);
+    const s = this.#scroll();
     return { x: g.x - s.x + g.dx * left, y: g.y - s.y + g.dy * left };
   }
 
