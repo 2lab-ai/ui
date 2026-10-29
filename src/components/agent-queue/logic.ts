@@ -116,6 +116,11 @@ export interface AqRun {
   label?: string;
   /** Error text of a failed run. */
   error?: string;
+  /**
+   * `false` = shown before its record exists (e.g. a live session's card drawn as a run): it is not one of the
+   * job's kept records, so it never counts toward `historyCap`. Default: a record.
+   */
+  recorded?: boolean;
 }
 
 export interface AqJob {
@@ -133,8 +138,17 @@ export interface AqJob {
   pastRuns?: number;
   /** Live state now: a running session, or one waiting for a reply. */
   state?: 'running' | 'waiting' | 'idle';
-  /** History is FIFO-capped at this many runs: counts in a window it no longer covers become “≥ n”. */
+  /**
+   * History is FIFO-capped at this many records: when the kept records (`runs`, minus `recorded: false`) reach it
+   * and the oldest is inside the last 24 hours, the 24-hour counts become “≥ n” and the chart is hatched before it —
+   * also when `lane.runs24h` supplies the counts.
+   */
   historyCap?: number;
+  /**
+   * A muted chip after the name with an optional tooltip — e.g. `{ text: 'No job info', title: 'Not a job of this
+   * instance — deleted, or another instance’s job' }` for a group whose job the host does not know.
+   */
+  note?: { text: string; title?: string };
 }
 
 export interface AqLane {
@@ -144,6 +158,9 @@ export interface AqLane {
   /** Run records of the last 24 hours for the stats and the chart. Default: every job's `runs`. */
   runs24h?: AqRun[];
 }
+
+/** A section of the element: provider capacity or the job lane. */
+export type AqSection = 'capacity' | 'lane';
 
 export interface AgentQueueData {
   /** Provider capacity. Omit to hide the section. */
@@ -160,6 +177,14 @@ export interface AgentQueueData {
   now?: number;
   /** Unit of every epoch field. Default `ms`. Capacity servers that speak epoch seconds pass `s`. */
   timeUnit?: TimeUnit;
+  /** Draw a `Expand / Collapse` toggle in each section's head row (it sends `ui-collapse`). */
+  collapsible?: boolean;
+  /**
+   * Fold state per section; a given value wins on every data set (the host keeps the reader's choice), a missing
+   * one keeps the element's own. Collapsed capacity = its head plus one summary chip per provider; collapsed lane =
+   * its head plus only the jobs waiting for a reply (no stats, queue or chart).
+   */
+  collapsed?: Partial<Record<AqSection, boolean>>;
 }
 
 // ── Units ────────────────────────────────────────────────────────────────────────────────────
@@ -446,7 +471,7 @@ export interface DayRuns {
   cutFrom: number;
 }
 
-/** The last 24 hours of run records: `lane.runs24h` when given, else every job's runs. */
+/** The last 24 hours of run records: `lane.runs24h` when given, else every job's runs; `cut` from the kept records. */
 export function dayRuns(lane: AqLane, nowMs: number): DayRuns {
   const from = nowMs - DAY;
   const src = lane.runs24h ?? (lane.jobs ?? []).flatMap((j) => j.runs ?? []);
@@ -458,15 +483,14 @@ export function dayRuns(lane: AqLane, nowMs: number): DayRuns {
     if (k === 'unknown') unknown++;
     else runs.push({ at: r.at, kind: k });
   }
+  // The kept records decide where the counts become lower bounds — also when runs24h supplies the counts.
   const cut: DayRuns['cut'] = [];
-  if (!lane.runs24h) {
-    for (const j of lane.jobs ?? []) {
-      const kept = j.runs ?? [];
-      const cap = Number(j.historyCap) || 0;
-      if (cap > 0 && kept.length >= cap) {
-        const oldest = Math.min(...kept.map((r) => r.at));
-        if (oldest > from) cut.push({ name: j.name, from: oldest, cap });
-      }
+  for (const j of lane.jobs ?? []) {
+    const kept = (j.runs ?? []).filter((r) => r.recorded !== false);
+    const cap = Number(j.historyCap) || 0;
+    if (cap > 0 && kept.length >= cap) {
+      const oldest = Math.min(...kept.map((r) => r.at));
+      if (oldest > from) cut.push({ name: j.name, from: oldest, cap });
     }
   }
   const count = (k: string) => runs.filter((r) => r.kind === k).length;

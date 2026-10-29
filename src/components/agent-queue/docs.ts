@@ -13,6 +13,22 @@ function make(data: AgentQueueData, attrs: Record<string, string> = {}): HTMLEle
   return el;
 }
 
+/** A host-drawn live card for a job (light DOM, slot="job:<id>") — the way the dashboard puts the lead run's board card under its tile. */
+function liveCard(jobId: string, title: string, ask: string, actions: string[]): HTMLElement {
+  const c = document.createElement('div');
+  c.slot = `job:${jobId}`;
+  c.setAttribute(
+    'style',
+    'display:grid;gap:8px;padding:10px 12px;border-radius:10px;background:var(--ib-card);box-shadow:inset 0 0 0 1px var(--st-wait);color:var(--ib-text);font:13px/1.45 inherit',
+  );
+  const b =
+    'min-height:30px;padding:2px 12px;border-radius:8px;border:1px solid var(--ib-card-border);background:var(--ib-col);color:var(--ib-text);font:inherit;cursor:pointer';
+  c.innerHTML = `<strong style="font-size:13px">${title}</strong><span style="color:var(--ib-text-2)">${ask}</span><span style="display:flex;gap:6px;flex-wrap:wrap">${actions
+    .map((a) => `<button type="button" style="${b}">${a}</button>`)
+    .join('')}</span>`;
+  return c;
+}
+
 const ok = (id: string, binding: '5h' | '7d', fiveHour: number, weekly: number): AqAccount => ({
   id,
   name: id,
@@ -254,13 +270,51 @@ export const doc: ComponentDoc = {
       type: 'AqJob[]',
       required: true,
       description:
-        "Scheduled jobs: `{ id, name, schedule?, expression?, nextRunAt?, runs?, pastRuns?, state?: 'running' | 'waiting' | 'idle', historyCap? }`. `schedule` is derived from a common cron `expression` when omitted. Runs: `{ at, status: 'ok' | 'running' | 'waiting' | 'failed' | 'unknown', label?, error? }`.",
+        "Scheduled jobs: `{ id, name, schedule?, expression?, nextRunAt?, runs?, pastRuns?, state?: 'running' | 'waiting' | 'idle', historyCap?, note? }`. `schedule` is derived from a common cron `expression` when omitted. Runs: `{ at, status: 'ok' | 'running' | 'waiting' | 'failed' | 'unknown', label?, error?, recorded? }`.",
+    },
+    {
+      name: 'data.lane.jobs[].historyCap',
+      type: 'number',
+      description:
+        'The job keeps at most this many run records (FIFO). When its kept records reach the cap and the oldest is inside the last 24 hours, the 24-hour counts read “≥ n”, their titles name the job and where its history starts, and the chart is hatched before it — also when `runs24h` supplies the counts.',
+    },
+    {
+      name: 'data.lane.jobs[].runs[].recorded',
+      type: 'boolean',
+      default: 'true',
+      description:
+        '`false` = a run shown before its record exists (e.g. a live session’s card drawn as a run): it never counts toward `historyCap`.',
+    },
+    {
+      name: 'data.lane.jobs[].note',
+      type: '{ text: string; title?: string }',
+      description:
+        'A muted chip after the job’s name, with an optional tooltip — e.g. “No job info” for a group whose job is not on this instance (deleted, or another instance’s job).',
     },
     {
       name: 'data.lane.runs24h',
       type: 'AqRun[]',
       description:
-        'Run records for the stats and the chart when they come from a separate log. Default: every job’s `runs`.',
+        'Run records for the stats and the chart when they come from a separate log (your own counting rules). Default: every job’s `runs`. Truncated histories still come from the jobs’ kept records.',
+    },
+    {
+      name: 'slot="job:<id>"',
+      type: 'light-DOM element',
+      description:
+        'Your live card for a job (e.g. the lead run’s board card) — appended to the element with `slot="job:" + job.id`, it sits at the foot of that job’s section, under its tile. It is yours: it survives every re-render (data, ticks, folding), keeps its focus, and its clicks and keys never reach the element (no `ui-job-open`, Esc is not swallowed). A folded lane shows only the waiting jobs’ slots.',
+    },
+    {
+      name: 'data.collapsible',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'Draws an “Expand / Collapse” toggle at the end of each section’s head row (aria-expanded). A press sends `ui-collapse`.',
+    },
+    {
+      name: 'data.collapsed',
+      type: '{ capacity?: boolean; lane?: boolean }',
+      description:
+        'Fold state per section. A given value wins on every data set (keep the reader’s choice per device, open a folded lane for a deep link); a missing one keeps the element’s own. Collapsed capacity = its title and one chip per provider (state glyph, both measures as count/total %, ⏸ limited · first return ticking, ⚠ stale / partial / assumed tier; the tooltip and accessible name add the state and the next line). Collapsed lane = its head (count, running, needs reply) and only the jobs waiting for a reply — stats, queue and chart are not drawn.',
     },
     { name: 'data.lane.title', type: 'string', default: "'CRON'", description: 'Lane title and the job badge.' },
     {
@@ -295,12 +349,18 @@ export const doc: ComponentDoc = {
       description:
         'An account mark was opened. Cancelable: `preventDefault()` keeps the built-in account card closed (use your own).',
     },
+    {
+      name: 'ui-collapse',
+      detail: "{ section: 'capacity' | 'lane'; collapsed: boolean }",
+      description:
+        'A fold toggle was pressed; `collapsed` is the state asked for. Cancelable: unless you call preventDefault() the section folds or unfolds at once (focus stays on the toggle). Save the choice and pass it back in `data.collapsed`.',
+    },
   ],
   keyboard: [
     ['Tab', 'One stop per account strip and one for the up-next list, then the job buttons'],
     ['← ↑ / → ↓', 'Previous / next account mark or up-next chip'],
     ['Home / End', 'First / last item of the strip'],
-    ['Enter / Space', 'Open or close the account card · open a job (ui-job-open)'],
+    ['Enter / Space', 'Open or close the account card · open a job (ui-job-open) · fold or unfold a section (toggle)'],
     ['Esc', 'Close the account card and return focus to its mark'],
   ],
   a11y: [
@@ -310,6 +370,8 @@ export const doc: ComponentDoc = {
     'Account marks and up-next chips are real buttons with roving tabindex; the account card is role="dialog" with a close button, Esc and outside click.',
     'Bars, the timeline and the 24-hour chart are role="img" with a sentence (value / total / %, run totals, busiest hour, truncation, unknown runs not counted).',
     'Touch targets grow to 44 px on coarse pointers; the run pulse stops under reduced motion.',
+    'Fold toggles are buttons with aria-expanded; the visible word says what a press does and the accessible name adds the section (“Expand LLM capacity”). On a narrow section the word is visually hidden, never removed.',
+    'A collapsed capacity chip draws its numbers aria-hidden and carries one sentence for screen readers: provider, both measures with totals and %, flags, state, limited count with the first return, and the next line.',
   ],
   usage: `<ui-agent-queue lang="en"></ui-agent-queue>
 <script type="module">
@@ -331,6 +393,12 @@ export const doc: ComponentDoc = {
   };
   el.addEventListener('ui-job-open', (e) => openRuns(e.detail.jobId));
   el.addEventListener('ui-account-open', (e) => console.log(e.detail.providerId, e.detail.accountId));
+  // Folding: keep the reader's choice and hand it back on every update.
+  el.data = { ...el.data, collapsible: true, collapsed: { capacity: true } };
+  el.addEventListener('ui-collapse', (e) => save(e.detail.section, e.detail.collapsed));
+  // A job's live card sits under its tile: slot="job:<id>".
+  card.slot = 'job:audit';
+  el.append(card);
 </script>`,
   demos: [
     {
@@ -341,6 +409,27 @@ export const doc: ComponentDoc = {
       height: 1680,
       frame: false,
       create: () => make(overview(Date.now())),
+    },
+    {
+      id: 'collapsed',
+      title: 'Collapsed (the dashboard’s default)',
+      description:
+        'collapsible + collapsed: capacity keeps its title and one chip per provider (Claude: ⏸ 5 limited, the first return ticking, ⚠ 16/17 reflected; Codex: ⚠ a six-day-old reading); the lane keeps its head and only the job waiting for a reply, with the host’s live card in slot="job:morning-digest". Press “Expand” — the toggle sends ui-collapse and, not prevented, unfolds in place; the card stays where it is.',
+      height: 520,
+      frame: false,
+      create: () => {
+        const now = Date.now();
+        const el = make({ ...overview(now), collapsible: true, collapsed: { capacity: true, lane: true } });
+        el.append(
+          liveCard(
+            'morning-digest',
+            'morning-digest · today’s digest',
+            'Needs a reply — send the digest to #general?',
+            ['Send', 'Reply'],
+          ),
+        );
+        return el;
+      },
     },
     {
       id: 'limited',
@@ -407,7 +496,7 @@ export const doc: ComponentDoc = {
       id: 'lane',
       title: 'Lane: failures and truncated history',
       description:
-        'A 15-minute job keeps only 20 runs, so the 24-hour counts are lower bounds (≥) and the stretch it cannot speak for is hatched. Runs with an unknown result are counted apart (+2 unknown), never as success.',
+        'A 15-minute job keeps only 20 runs, so the 24-hour counts are lower bounds (≥) and the stretch it cannot speak for is hatched. Runs with an unknown result are counted apart (+2 unknown), never as success. A group whose job this instance does not know carries a note (“No job info”) and no schedule.',
       height: 760,
       frame: false,
       create: () => {
@@ -442,6 +531,15 @@ export const doc: ComponentDoc = {
                 expression: '0 * * * *',
                 nextRunAt: nextAt(now, H),
                 runs: series(nextAt(now, H) - H + 5_000, H, 18, { 6: { status: 'unknown' } }),
+              },
+              {
+                id: 'name:release-notes',
+                name: 'release-notes',
+                note: {
+                  text: 'No job info',
+                  title: 'Not a job of this instance — deleted, or another instance’s job, so there is no schedule',
+                },
+                runs: series(now - 5 * H, D, 2),
               },
             ],
           },
