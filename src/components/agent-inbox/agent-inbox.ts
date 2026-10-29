@@ -21,6 +21,34 @@ export interface InboxDetail {
   state?: 'done' | 'current' | 'pending';
 }
 
+/** One sub-agent dot. `stopped` is drawn as a square (stopped by the person or the parent). */
+export type AgentDot = 'running' | 'done' | 'failed' | 'stopped' | 'unknown';
+
+/** Named glyphs a host can put in a face extra (no raw markup). */
+export type InboxGlyph = 'clock' | 'pr' | 'attach' | 'file' | 'tasks' | 'context' | 'agents' | 'spark';
+
+/** Colour of a host metric's text. `warn` tints only the glyph (amber text is under 4.5:1 on a light card). */
+export type InboxMetricTone = 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger';
+
+/** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
+export interface InboxMetric {
+  text: string;
+  glyph?: InboxGlyph;
+  tone?: InboxMetricTone;
+  /** Tooltip. */
+  title?: string;
+  /** Accessible name when the text alone says too little (`2` → `지시 첨부 2개`). */
+  label?: string;
+}
+
+/** A file the run made, drawn as a chip button that sends `ui-artifact` (never a toggle). */
+export interface InboxArtifact {
+  id: string;
+  name: string;
+  /** Glyph and tint. Default: from the name's extension. */
+  kind?: ArtifactKind;
+}
+
 export interface InboxCard {
   id: string;
   title: string;
@@ -38,18 +66,36 @@ export interface InboxCard {
   elapsedMs?: number;
   /** The task in progress: `#id label · 3m 12s` (live from `startedAt`, else the static `elapsedMs`). */
   task?: { id?: string; label: string; startedAt?: number; elapsedMs?: number };
-  /** Sub-agent counts. Dots are drawn from these counts only; the rest of `total` is drawn hollow (unknown). */
-  agents?: { total: number; running?: number; done?: number; failed?: number };
+  /**
+   * Sub-agent counts. Dots are drawn from these counts only; the rest of `total` is drawn hollow (unknown).
+   * `dots` draws them in the host's order instead (spawn order, with the `stopped` square).
+   */
+  agents?: { total: number; running?: number; done?: number; failed?: number; dots?: AgentDot[] };
   /** Total tokens (all kinds). Shown only when given. */
   tokens?: number;
   /** API-equivalent cost in USD. Shown only when given. */
   costUsd?: number;
-  /** Names of the files the run made (newest first). Up to four chips + `+N`. */
-  artifacts?: string[];
+  /**
+   * Files the run made (newest first). Up to four chips + `+N`. A name is an inert chip; `{ id, name, kind? }`
+   * is a chip button that sends `ui-artifact`.
+   */
+  artifacts?: Array<string | InboxArtifact>;
+  /** How many files the run made in all (the chips are the newest few). Default: `artifacts.length`. */
+  artifactsCount?: number;
   /** Tasks / steps done of total, shown in the card foot. */
   steps?: { done: number; total: number };
-  /** Context window used, 0–100. Above 60 warns, above 80 is danger. */
+  /** Context window used, 0–100. Above 60 warns, above 80 is danger — unless `contextLevel` says otherwise. */
   contextPct?: number;
+  /** The context metric's level from the host (e.g. against the auto-compact point). `''` = no level. */
+  contextLevel?: 'warn' | 'danger' | '';
+  /** Tooltips that replace the built-in ones (`총 토큰 (task 합계: …)`, `컨텍스트 72% · 자동 압축 750K까지 120K`). */
+  titles?: { tokens?: string; cost?: string; context?: string; steps?: string };
+  /** What leads the head instead of the ✦ spark (a CRON badge). */
+  lead?: { text: string; glyph?: InboxGlyph; title?: string };
+  /** A name pill at the right end of the head (the owner in an all-users board). `hue` 0–7 picks its colour. */
+  badge?: { text: string; hue?: number; title?: string };
+  /** Host metrics after tasks and context (a PR badge, a media count). */
+  metrics?: InboxMetric[];
   /** Model (agent) name, shown at the left of the open card's button row. */
   model?: string;
   /** The one decision this viewer can make here — the card's single ink button. */
@@ -58,16 +104,43 @@ export interface InboxCard {
   actions?: InboxAction[];
   /** The open card's step list, oldest first. Over five, the earliest fold into `+N earlier`. */
   details?: Array<string | InboxDetail>;
+  /**
+   * `slot`: the open card shows `<slot name="body:<id>">` — the host's own light-DOM body (its CSS, its controls,
+   * its gates) — instead of the steps and buttons. Default `steps`.
+   */
+  bodyMode?: 'steps' | 'slot';
+}
+
+/** A disclosure group inside a column (DONE by finish day). A closed group draws no cards. */
+export interface InboxGroup {
+  id: string;
+  label: string;
+  /** Open until the person toggles this group; afterwards their choice rules. Default true. */
+  open?: boolean;
+  cards: InboxCard[];
 }
 
 export interface InboxColumn {
   id: string;
   label: string;
-  /** Shown while the column draws no cards. Default `Nothing here`. */
+  /** Shown while the column draws no cards and has no groups. Default `Nothing here`. */
   emptyText?: string;
   /** Cards in display order. A card id listed twice renders once (first wins). */
   cards: InboxCard[];
+  /** Disclosure groups after `cards`. The column's count covers every group, open or closed. */
+  groups?: InboxGroup[];
+  /** Just the list: no head, no tint, no empty hint (a CRON job's card under the host's own head). */
+  bare?: boolean;
 }
+
+/** `loading`: skeletons, no counts, no empty hints. `failed`: the cards given, no counts or hints. */
+export type InboxLoad = 'loading' | 'failed' | 'ready';
+
+/** Every string the element draws; `data.strings` overrides any of them (a value of another type is ignored). */
+export type InboxStrings = (typeof STRINGS)['en'];
+export type InboxStringOverrides = Partial<Omit<InboxStrings, 'status' | 'columns'>> & {
+  status?: Partial<Record<InboxStatus, string>>;
+};
 
 export interface AgentInboxData {
   columns: InboxColumn[];
@@ -75,6 +148,17 @@ export interface AgentInboxData {
   expanded?: string[];
   /** Label of the open card's Open button (`ui-open`). `false` hides it. Default `Open` / `열기`. */
   openLabel?: string | false;
+  /** The board's load state. Default `ready`. Nothing is announced until it is ready. */
+  load?: InboxLoad;
+  /** What the live region counts: the host's own numbers (a CRON lane included), or `false` for silence. */
+  announce?: { needs: number; running: number } | false;
+  /** Strings merged over the `lang` table (status words, sub-agents, titles, clock, announcement…). */
+  strings?: InboxStringOverrides;
+}
+
+/** Where cards and heads are drawn (viewport px), from `measure()`; keys are opaque. */
+export interface InboxLayout {
+  spots: Record<string, { x: number; y: number }>;
 }
 
 export type InboxTone = 'wait' | 'run' | 'done' | 'fail' | 'rest';
@@ -133,6 +217,8 @@ const STRINGS = {
     announce: (w: number, r: number) => `${w} need${w === 1 ? 's' : ''} you, ${r} running`,
     changed: (title: string, word: string) => `${title}: ${word}.`,
     ago: (at: number, now?: number) => fmtAgo(at, now),
+    duration: (ms: number) => fmtDuration(ms),
+    artOpen: (name: string, _kind: ArtifactKind) => `Open ${name}`,
   },
   ko: {
     status: {
@@ -158,10 +244,31 @@ const STRINGS = {
     earlier: (n: number) => `이전 ${n}개 더`,
     announce: (w: number, r: number) => `응답이 필요한 세션 ${w}개, 실행 중 ${r}개`,
     changed: (title: string, word: string) => `${title}: ${word}.`,
-    ago: agoKo,
+    ago: agoKo as (at: number, now?: number) => string,
+    duration: (ms: number) => fmtDuration(ms),
+    artOpen: (name: string, _kind: ArtifactKind) => `${name} — 크게 보기`,
   },
 };
-type Strings = (typeof STRINGS)['en'];
+type Strings = InboxStrings;
+
+/**
+ * The `lang` table with the host's overrides on top. A value whose type differs from the table's (a number for a
+ * word, a string for a function) is ignored, so a bad override never breaks the board.
+ */
+function mergeStrings(base: Strings, over: InboxStringOverrides | undefined): Strings {
+  if (!over || typeof over !== 'object') return base;
+  const out: Record<string, unknown> = { ...base, status: { ...base.status } };
+  for (const k of Object.keys(base) as Array<keyof Strings>) {
+    if (k === 'status' || k === 'columns') continue;
+    const v = (over as Record<string, unknown>)[k];
+    if (v !== undefined && typeof v === typeof base[k]) out[k] = v;
+  }
+  const st = over.status;
+  if (st && typeof st === 'object')
+    for (const s of STATUSES)
+      if (typeof st[s] === 'string') (out.status as Record<string, string>)[s] = st[s] as string;
+  return out as Strings;
+}
 
 const SPARK_SVG =
   '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7 1.5c.5 3.3 2.2 5 5.5 5.5-3.3.5-5 2.2-5.5 5.5C6.5 9.2 4.8 7.5 1.5 7c3.3-.5 5-2.2 5.5-5.5z"/><circle cx="13" cy="12.6" r="1.3"/></svg>';
@@ -172,6 +279,14 @@ const TASKS_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.2l1.4 1.4 2.4-2.6M2.5 10.2l1.4 1.4 2.4-2.6M9 4.5h4.5M9 10.5h4.5"/></svg>';
 const CTX_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.6"/><path d="M8 8V2.4A5.6 5.6 0 0 1 13.6 8z" fill="currentColor" stroke="none"/></svg>';
+const CLOCK_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.3 1.5"/></svg>';
+const PR_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.6"/><circle cx="4" cy="12.5" r="1.6"/><circle cx="12" cy="12.5" r="1.6"/><path d="M4 5.1v5.8M12 10.9V6.5c0-1.1-.9-2-2-2H7.5M9 3L7.5 4.5 9 6"/></svg>';
+const ATTACH_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 7.5l-5.4 5.4a3.2 3.2 0 0 1-4.5-4.5l5.6-5.6a2.1 2.1 0 0 1 3 3L6.6 11.4a1.1 1.1 0 0 1-1.5-1.5L10.2 4.8"/></svg>';
+const CHEV_SVG =
+  '<svg class="ib-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
 const AGENTS_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.8"/><circle cx="12" cy="8" r="1.8"/><circle cx="12" cy="13" r="1.8"/><path d="M4 5.3v5.2c0 1.4 1.1 2.5 2.5 2.5h3.7M4 8h6.2"/></svg>';
 
@@ -189,6 +304,36 @@ const ART_GLYPH: Record<ArtifactKind, string> = {
 };
 const glyph = (k: ArtifactKind) =>
   `<svg class="ib-glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ART_GLYPH[k]}</svg>`;
+const ART_KINDS = Object.keys(ART_GLYPH) as ArtifactKind[];
+
+/** A host-named glyph (never host markup). */
+function hostGlyph(name: unknown): string {
+  switch (name) {
+    case 'clock':
+      return CLOCK_SVG;
+    case 'pr':
+      return PR_SVG;
+    case 'attach':
+      return ATTACH_SVG;
+    case 'file':
+      return glyph('file');
+    case 'tasks':
+      return TASKS_SVG;
+    case 'context':
+      return CTX_SVG;
+    case 'agents':
+      return AGENTS_SVG;
+    case 'spark':
+      return SPARK_SVG;
+    default:
+      return '';
+  }
+}
+const METRIC_TONES: readonly InboxMetricTone[] = ['run', 'done', 'fail', 'wait', 'warn', 'danger'];
+const DOTS: readonly AgentDot[] = ['running', 'done', 'failed', 'stopped', 'unknown'];
+/** Owner badge colour slots (`badge.hue`). */
+export const BADGE_HUES = 8;
+const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
 
 const num = (v: unknown): number => {
   const n = Number(v);
@@ -232,18 +377,20 @@ export function artifactKind(name: string): ArtifactKind {
 
 /**
  * Sub-agent dots from counts: running, failed, done, then unknown (hollow) — at most `max`, the rest as `more`.
- * Only what the counts say is drawn; nothing is invented.
+ * Only what the counts say is drawn; nothing is invented. `agents.dots` (host order) is drawn as given instead.
  */
-export function agentDots(
-  a: InboxCard['agents'],
-  max = MAX_DOTS,
-): { dots: Array<'running' | 'failed' | 'done' | 'unknown'>; more: number } {
+export function agentDots(a: InboxCard['agents'], max = MAX_DOTS): { dots: AgentDot[]; more: number } {
+  if (Array.isArray(a?.dots)) {
+    const list = a.dots.filter((d): d is AgentDot => DOTS.includes(d));
+    const total = Math.max(list.length, Math.floor(num(a?.total)));
+    return { dots: list.slice(0, max), more: Math.max(0, total - Math.min(max, list.length)) };
+  }
   const total = Math.floor(num(a?.total));
   if (!total) return { dots: [], more: 0 };
   const running = Math.min(total, Math.floor(num(a?.running)));
   const failed = Math.min(total - running, Math.floor(num(a?.failed)));
   const done = Math.min(total - running - failed, Math.floor(num(a?.done)));
-  const all: Array<'running' | 'failed' | 'done' | 'unknown'> = [
+  const all: AgentDot[] = [
     ...Array<'running'>(running).fill('running'),
     ...Array<'failed'>(failed).fill('failed'),
     ...Array<'done'>(done).fill('done'),
@@ -252,19 +399,26 @@ export function agentDots(
   return { dots: all.slice(0, max), more: Math.max(0, total - max) };
 }
 
-/** How many cards need the person (waiting + failed) and how many run — what the live region says. */
+/**
+ * How many cards need the person (waiting + failed) and how many run — what the live region says. Cards in groups
+ * count too, open or closed.
+ */
 export function boardCounts(columns: InboxColumn[]): { needs: number; running: number } {
   const seen = new Set<string>();
   let needs = 0;
   let running = 0;
-  for (const col of Array.isArray(columns) ? columns : []) {
-    for (const c of Array.isArray(col?.cards) ? col.cards : []) {
+  const count = (cards: unknown) => {
+    for (const c of Array.isArray(cards) ? (cards as InboxCard[]) : []) {
       if (!c || seen.has(String(c.id))) continue;
       seen.add(String(c.id));
       const s = statusOf(c);
       if (s === 'waiting' || s === 'failed') needs++;
       else if (s === 'running') running++;
     }
+  };
+  for (const col of Array.isArray(columns) ? columns : []) {
+    count(col?.cards);
+    for (const g of Array.isArray(col?.groups) ? col.groups : []) count(g?.cards);
   }
   return { needs, running };
 }
@@ -379,13 +533,13 @@ function renderStatus(c: InboxCard, t: Strings): string {
   if (s === 'failed') return `${icon(FAIL_SVG)}<span class="ib-tag-text">${esc(word)}${ago}</span>`;
   if (s === 'done') {
     const pre = c.statusText?.trim() ? `${esc(word)} · ` : esc(t.doneIn);
-    const text = acc ? `<span class="ib-pre">${pre}</span>${esc(fmtDuration(acc))}` : esc(word);
+    const text = acc ? `<span class="ib-pre">${pre}</span>${esc(t.duration(acc))}` : esc(word);
     return `${icon('<span class="ib-dot"></span>')}<span class="ib-tag-text">${text}${ago}</span>`;
   }
   return `${icon('<span class="ib-dot is-hollow"></span>')}<span class="ib-tag-text">${esc(word)}${ago}</span>`;
 }
 
-function renderTask(c: InboxCard): string {
+function renderTask(c: InboxCard, t: Strings): string {
   const task = c.task;
   if (!task || typeof task.label !== 'string' || !task.label) return '';
   const from = num(task.startedAt);
@@ -393,7 +547,7 @@ function renderTask(c: InboxCard): string {
   const time = from
     ? `<span class="ib-task-time" data-clock data-from="${from}" data-acc="0"></span>`
     : fixed
-      ? `<span class="ib-task-time">${esc(fmtDuration(fixed))}</span>`
+      ? `<span class="ib-task-time">${esc(t.duration(fixed))}</span>`
       : '';
   return `<div class="ib-task" title="${escAttr(task.label)}">${
     task.id ? `<span class="ib-task-id">#${esc(task.id)}</span>` : ''
@@ -403,7 +557,7 @@ function renderTask(c: InboxCard): string {
 function renderAgents(c: InboxCard, t: Strings): string {
   const { dots, more } = agentDots(c.agents);
   if (!dots.length) return '';
-  const total = Math.floor(num(c.agents?.total));
+  const total = dots.length + more;
   const running = Math.min(total, Math.floor(num(c.agents?.running)));
   const failed = Math.floor(num(c.agents?.failed));
   const parts = [`${esc(t.agents)} <b>${total}</b>`];
@@ -421,13 +575,14 @@ function renderAgents(c: InboxCard, t: Strings): string {
 
 function renderUsage(c: InboxCard, t: Strings): string {
   const parts: string[] = [];
+  const titles = c.titles && typeof c.titles === 'object' ? c.titles : {};
   if (finite(c.tokens) && c.tokens >= 0)
     parts.push(
-      `<span class="ib-use" title="${escAttr(t.tokTitle)}"><span class="ib-cnt" data-cnt="tok" data-to="${c.tokens}">${fmtInt(c.tokens)}</span><span class="ib-unit">${esc(t.tok)}</span></span>`,
+      `<span class="ib-use" title="${escAttr(str(titles.tokens) || t.tokTitle)}"><span class="ib-cnt" data-cnt="tok" data-to="${c.tokens}">${fmtInt(c.tokens)}</span><span class="ib-unit">${esc(t.tok)}</span></span>`,
     );
   if (finite(c.costUsd) && c.costUsd >= 0)
     parts.push(
-      `<span class="ib-use" title="${escAttr(t.costTitle)}"><span class="ib-cnt" data-cnt="usd" data-to="${c.costUsd}">${fmtUsd(c.costUsd)}</span></span>`,
+      `<span class="ib-use" title="${escAttr(str(titles.cost) || t.costTitle)}"><span class="ib-cnt" data-cnt="usd" data-to="${c.costUsd}">${fmtUsd(c.costUsd)}</span></span>`,
     );
   return parts.length
     ? `<div class="ib-usage">${parts.join('<span class="ib-sep" aria-hidden="true">·</span>')}</div>`
@@ -435,39 +590,97 @@ function renderUsage(c: InboxCard, t: Strings): string {
 }
 
 function renderArtifacts(c: InboxCard, t: Strings): string {
-  const names = (Array.isArray(c.artifacts) ? c.artifacts : []).filter((n) => typeof n === 'string' && n);
-  if (!names.length) return '';
-  const shown = names.slice(0, MAX_CHIPS);
-  const more = names.length - shown.length;
-  return `<div class="ib-arts"><span class="ib-arts-n" title="${escAttr(t.arts)}">${glyph('file')}${names.length}</span>${shown
-    .map((n) => {
-      const k = artifactKind(n);
-      return `<span class="ib-chip is-${k}" title="${escAttr(n)}">${glyph(k)}<span class="ib-chip-name">${esc(n)}</span></span>`;
+  const list = (Array.isArray(c.artifacts) ? c.artifacts : []).filter(
+    (a): a is string | InboxArtifact =>
+      (typeof a === 'string' && a !== '') || (!!a && typeof a === 'object' && a.id != null && !!str(a.name)),
+  );
+  const count = Math.max(list.length, Math.floor(num(c.artifactsCount)));
+  if (!count) return '';
+  const shown = list.slice(0, MAX_CHIPS);
+  const more = count - shown.length;
+  return `<div class="ib-arts"><span class="ib-arts-n" title="${escAttr(t.arts)}">${glyph('file')}${count}</span>${shown
+    .map((a) => {
+      if (typeof a === 'string') {
+        const k = artifactKind(a);
+        return `<span class="ib-chip is-${k}" title="${escAttr(a)}">${glyph(k)}<span class="ib-chip-name">${esc(a)}</span></span>`;
+      }
+      const name = str(a.name);
+      const k = ART_KINDS.includes(a.kind as ArtifactKind) ? (a.kind as ArtifactKind) : artifactKind(name);
+      return `<button type="button" class="ib-chip is-${k}" data-art="${escAttr(str(a.id))}" data-key="${escAttr(
+        `art:${c.id}:${a.id}`,
+      )}" title="${escAttr(name)}" aria-label="${escAttr(t.artOpen(name, k))}">${glyph(k)}<span class="ib-chip-name">${esc(name)}</span></button>`;
     })
     .join('')}${more > 0 ? `<span class="ib-arts-more">+${more}</span>` : ''}</div>`;
 }
 
 function renderMetrics(c: InboxCard, t: Strings): string {
   const out: string[] = [];
+  const titles = c.titles && typeof c.titles === 'object' ? c.titles : {};
   const total = Math.floor(num(c.steps?.total));
   if (total) {
     const done = Math.min(total, Math.floor(num(c.steps?.done)));
-    out.push(`<span class="ib-metric" title="${escAttr(t.steps)}">${TASKS_SVG}${done}/${total}</span>`);
+    out.push(
+      `<span class="ib-metric" title="${escAttr(str(titles.steps) || t.steps)}">${TASKS_SVG}${done}/${total}</span>`,
+    );
   }
   const pct = num(c.contextPct);
   if (pct) {
     const p = Math.round(Math.min(pct, 100));
-    const lv = pct > 80 ? ' is-danger' : pct > 60 ? ' is-warn' : '';
-    out.push(`<span class="ib-metric${lv}" title="${escAttr(t.ctx(p))}">${CTX_SVG}${p}%</span>`);
+    const level =
+      c.contextLevel === 'warn' || c.contextLevel === 'danger' || c.contextLevel === ''
+        ? c.contextLevel
+        : pct > 80
+          ? 'danger'
+          : pct > 60
+            ? 'warn'
+            : '';
+    out.push(
+      `<span class="ib-metric${level ? ` is-${level}` : ''}" title="${escAttr(str(titles.context) || t.ctx(p))}">${CTX_SVG}${p}%</span>`,
+    );
+  }
+  for (const m of Array.isArray(c.metrics) ? c.metrics : []) {
+    const text = m && typeof m === 'object' ? str(m.text) : '';
+    if (!text) continue;
+    const tone = METRIC_TONES.includes(m.tone as InboxMetricTone) ? (m.tone as InboxMetricTone) : '';
+    const title = str(m.title);
+    const label = str(m.label);
+    out.push(
+      `<span class="ib-metric is-host"${tone ? ` data-tone="${tone}"` : ''}${title ? ` title="${escAttr(title)}"` : ''}${
+        label ? ` aria-label="${escAttr(label)}"` : ''
+      }>${hostGlyph(m.glyph)}${esc(text)}</span>`,
+    );
   }
   return out.length ? `<span class="ib-metrics">${out.join('')}</span>` : '';
 }
 
-/** The collapsed face: spark + title / summary / task / sub-agents / tokens · cost / files / status tag · metrics. */
+/** The head's lead: the ✦ spark, or the host's badge (a CRON clock). */
+function renderLead(c: InboxCard): string {
+  const lead = c.lead && typeof c.lead === 'object' ? c.lead : null;
+  const text = lead ? str(lead.text) : '';
+  if (!lead || !text) return `<span class="ib-spark" aria-hidden="true">${SPARK_SVG}</span>`;
+  const title = str(lead.title);
+  return `<span class="ib-lead"${title ? ` title="${escAttr(title)}"` : ''}>${hostGlyph(lead.glyph)}<span class="ib-lead-text">${esc(
+    text,
+  )}</span></span>`;
+}
+
+function renderBadge(c: InboxCard): string {
+  const b = c.badge && typeof c.badge === 'object' ? c.badge : null;
+  const text = b ? str(b.text) : '';
+  if (!b || !text) return '';
+  const h = Math.floor(Number(b.hue));
+  const hue = Number.isFinite(h) ? ((h % BADGE_HUES) + BADGE_HUES) % BADGE_HUES : 0;
+  return `<span class="ib-badge" data-hue="${hue}" title="${escAttr(str(b.title) || text)}">${esc(text)}</span>`;
+}
+
+/**
+ * The collapsed face: spark (or the host's lead) + title + badge / summary / task / sub-agents / tokens · cost /
+ * files / status tag · metrics.
+ */
 function renderFace(c: InboxCard, t: Strings = STRINGS.en): string {
-  return `<div class="ib-head"><span class="ib-spark" aria-hidden="true">${SPARK_SVG}</span><span class="ib-title">${esc(c.title)}</span></div>${
+  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c)}</div>${
     c.summary ? `<div class="ib-summary">${esc(c.summary)}</div>` : ''
-  }${renderTask(c)}${renderAgents(c, t)}${renderUsage(c, t)}${renderArtifacts(c, t)}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
+  }${renderTask(c, t)}${renderAgents(c, t)}${renderUsage(c, t)}${renderArtifacts(c, t)}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
     statusOf(c),
   )}">${renderStatus(c, t)}</span>${renderMetrics(c, t)}</div>`;
 }
@@ -526,16 +739,43 @@ interface Shell {
   body: HTMLElement;
   faceHtml: string | null;
   bodyHtml: string | null;
+  /** The list it is drawn in: a column id, or `gkey(column, group)`. */
   col: string;
   status: InboxStatus | '';
   flip: Animation | null;
 }
+interface GroupShell {
+  el: HTMLElement;
+  head: HTMLButtonElement;
+  label: HTMLElement;
+  count: HTMLElement;
+  list: HTMLElement;
+}
 interface ColShell {
   el: HTMLElement;
+  head: HTMLElement;
   name: HTMLElement;
   count: HTMLElement;
   list: HTMLElement;
+  groupsEl: HTMLElement;
+  groups: Map<string, GroupShell>;
+  skel: HTMLElement;
+  skelN: number;
   empty: HTMLElement;
+  bare: boolean | null;
+}
+interface PlanGroup {
+  gid: string;
+  key: string;
+  label: string;
+  open: boolean;
+  /** Cards in a closed group (not drawn, still counted). */
+  closed: number;
+}
+interface PlanCol {
+  id: string;
+  col: InboxColumn;
+  groups: PlanGroup[];
 }
 type Timer = ReturnType<typeof setTimeout>;
 interface Motion {
@@ -543,6 +783,19 @@ interface Motion {
   fade: number;
   easeOut: string;
   easeInOut: string;
+}
+
+/** The list key of a group inside a column. */
+const gkey = (col: string, group: string) => `${col}\u0000${group}`;
+/** Skeleton cards per column while the board loads (the inline board's 2 · 3 · 2). */
+const SKELETONS = [2, 3, 2];
+const SKEL_CARD =
+  '<div class="ib-skel-card"><div class="ib-sk ib-sk-title"></div><div class="ib-sk ib-sk-meta"></div><div class="ib-sk ib-sk-pill"></div></div>';
+
+/** A text field, a select or an editable region keeps its own Escape (clear, cancel, IME). */
+function ownsEscape(el: HTMLElement): boolean {
+  const tag = String(el.tagName || '').toUpperCase();
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
 }
 
 /**
@@ -554,7 +807,7 @@ interface Motion {
 export class UiAgentInbox extends UiElement<AgentInboxData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang'];
+    return ['lang', 'view'];
   }
 
   #wrap: HTMLElement | null = null;
@@ -564,6 +817,10 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #cols = new Map<string, ColShell>();
   #order: Record<string, string[]> = Object.create(null);
   #open = new Set<string>();
+  /** Groups the person opened or closed (`gkey` → open); their choice rules over `group.open`. */
+  #groupOpen = new Map<string, boolean>();
+  /** Cards in a closed group this render: id → its column and group (for `reveal`). */
+  #closedHome = new Map<string, { col: string; group: string }>();
   #holds: Record<string, LaneHold> = Object.create(null);
   #lastStatus = new Map<string, InboxStatus>();
   #seq = 0;
@@ -576,23 +833,42 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #shown = new Map<string, number>();
   #counting = new Map<string, { el: HTMLElement; kind: string; from: number; to: number; t0: number }>();
   #raf = 0;
+  #slides = new WeakMap<Element, Animation>();
+  #tCache: { lang: string; over: unknown; t: Strings } | null = null;
 
-  attributeChangedCallback(): void {
-    this.requestRender();
+  attributeChangedCallback(name: string, old: string | null, value: string | null): void {
+    if (name !== 'view') {
+      this.requestRender();
+      return;
+    }
+    if (old === value || !this.#wrap) return;
+    // The layout follows `.ib[data-view]`, not the attribute: measure the old layout, switch, glide from it.
+    const before = this.#painted && this.isConnected ? this.measure() : null;
+    this.#syncView();
+    if (before) this.flipFrom(before);
   }
 
   get #lang(): 'en' | 'ko' {
     return this.getAttribute('lang') === 'ko' ? 'ko' : 'en';
   }
 
+  /** The `lang` table with `data.strings` merged over it (cached while both stay the same). */
   get #t(): Strings {
-    return STRINGS[this.#lang];
+    const lang = this.#lang;
+    const over = this.data?.strings;
+    const c = this.#tCache;
+    if (c && c.lang === lang && c.over === over) return c.t;
+    const t = mergeStrings(STRINGS[lang], over);
+    this.#tCache = { lang, over, t };
+    return t;
   }
 
   constructor() {
     super();
     this.root.addEventListener('click', (e) => this.#onClick(e as MouseEvent));
     this.root.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
+    // Esc from a host's slotted body (light DOM) reaches the host, not the shadow root's own handler.
+    this.addEventListener('keydown', (e) => this.#onHostKey(e));
   }
 
   override disconnectedCallback(): void {
@@ -616,6 +892,70 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return '';
   }
 
+  // ── Public API ──
+
+  /**
+   * Bring a card into view (a deep link): render pending data, open its closed group (`ui-group-toggle`), open the
+   * card (`ui-toggle`, no transition) unless `open: false`, and scroll it to the centre unless `scroll: false`.
+   * Returns false when the card is not on the board or the host prevented the group from opening.
+   */
+  reveal(cardId: string, opts: { open?: boolean; scroll?: boolean } = {}): boolean {
+    if (!this.isConnected) return false;
+    this.renderNow();
+    const id = String(cardId);
+    if (!this.#cards.has(id)) {
+      const home = this.#closedHome.get(id);
+      if (!home || !this.#setGroup(home.col, home.group, true)) return false;
+    }
+    const sh = this.#cards.get(id);
+    if (!sh) return false;
+    if (opts?.open !== false && !this.#open.has(id)) this.#toggle(id, true);
+    if (opts?.scroll !== false && typeof sh.el.scrollIntoView === 'function') sh.el.scrollIntoView({ block: 'center' });
+    return true;
+  }
+
+  /**
+   * Where every card (`c:<id>`), column head (`h:<column>`) and group head (`g:<column>\u0000<group>`) is drawn now.
+   * Take it before a layout change the element cannot see (a panel docks, a section folds), then `flipFrom` it.
+   */
+  measure(): InboxLayout {
+    const spots: InboxLayout['spots'] = Object.create(null);
+    for (const [id, sh] of this.#cards) if (sh.el.isConnected) spots[`c:${id}`] = this.#boxOf(sh.el);
+    for (const [k, el] of this.#heads()) spots[k] = this.#boxOf(el);
+    return { spots };
+  }
+
+  /**
+   * Glide every card and head from where `measure()` saw it to where it is now (320 ms, translate only). Nothing
+   * moves on the first paint, in a hidden tab or under reduced motion.
+   */
+  flipFrom(before: InboxLayout | null | undefined): void {
+    const spots = before && typeof before === 'object' ? before.spots : null;
+    if (!spots || typeof spots !== 'object') return;
+    if (!this.#painted || !this.isConnected || (typeof document !== 'undefined' && document.hidden)) return;
+    if (typeof HTMLElement.prototype.animate !== 'function' || prefersReducedMotion()) return;
+    const m = this.#motion();
+    for (const [id, sh] of this.#cards) {
+      const a = spots[`c:${id}`];
+      if (!a || !sh.el.isConnected) continue;
+      const wasFlying = sh.el.classList.contains('is-flying');
+      if (sh.flip) {
+        sh.flip.cancel();
+        sh.flip = null;
+      }
+      if (wasFlying) sh.el.classList.remove('is-flying');
+      const b = this.#boxOf(sh.el);
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+      this.#flip(sh, dx, dy, wasFlying, m, false);
+    }
+    for (const [k, el] of this.#heads()) {
+      const a = spots[k];
+      if (a) this.#slide(el, a, m);
+    }
+  }
+
   // ── Events ──
 
   #cardOf(el: Element | null): string | null {
@@ -623,23 +963,54 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return li ? (li.getAttribute('data-card') ?? null) : null;
   }
 
+  /** A click that ends a text selection (the person selected a title to copy) is not a toggle. */
+  #selecting(): boolean {
+    const said = (s: Selection | null | undefined) => {
+      try {
+        return !!s && String(s.toString()) !== '';
+      } catch {
+        return false;
+      }
+    };
+    const root = this.root as ShadowRoot & { getSelection?: () => Selection | null };
+    return (
+      said(typeof root.getSelection === 'function' ? root.getSelection() : null) ||
+      said(typeof document.getSelection === 'function' ? document.getSelection() : null)
+    );
+  }
+
   #onClick(e: MouseEvent): void {
     const target = e.target as Element | null;
-    const act = target?.closest?.('[data-act]');
+    // A host's slotted body is the host's: its buttons are never this element's actions.
+    if (!target || target.getRootNode?.() !== this.root) return;
+    const art = target.closest?.('[data-art]');
+    if (art) {
+      const id = this.#cardOf(art);
+      if (id !== null) this.emit('ui-artifact', { cardId: id, artifactId: art.getAttribute('data-art') ?? '' });
+      return;
+    }
+    const act = target.closest?.('[data-act]');
     if (act) {
       const id = this.#cardOf(act);
       if (id === null || act.getAttribute('aria-disabled') === 'true') return;
       this.emit('ui-action', { cardId: id, actionId: act.getAttribute('data-act') ?? '' });
       return;
     }
-    const open = target?.closest?.('[data-open]');
+    const open = target.closest?.('[data-open]');
     if (open) {
       const id = this.#cardOf(open);
       if (id !== null) this.emit('ui-open', { cardId: id });
       return;
     }
-    const face = target?.closest?.('.ib-face[role="button"]');
-    if (face) {
+    const gh = target.closest?.('.ib-group-head');
+    if (gh) {
+      const col = gh.closest('section.ib-col')?.getAttribute('data-col');
+      const group = gh.closest('.ib-group')?.getAttribute('data-group');
+      if (col != null && group != null) this.#setGroup(col, group, gh.getAttribute('aria-expanded') !== 'true');
+      return;
+    }
+    const face = target.closest?.('.ib-face[role="button"]');
+    if (face && !this.#selecting()) {
       const id = this.#cardOf(face);
       if (id !== null) this.#toggle(id, false);
     }
@@ -647,7 +1018,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
 
   #onKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
-    if (!target) return;
+    if (!target || target.getRootNode?.() !== this.root) return;
     if ((e.key === 'Enter' || e.key === ' ') && target.matches?.('.ib-face[role="button"]')) {
       e.preventDefault();
       if (e.repeat) return;
@@ -655,13 +1026,26 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       if (id !== null) this.#toggle(id, true);
       return;
     }
-    if (e.key !== 'Escape') return;
-    // A text field, a select or an editable region keeps its own Escape (clear, cancel, IME).
-    const tag = String(target.tagName || '').toUpperCase();
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+    if (e.key !== 'Escape' || ownsEscape(target)) return;
     const li = target.closest?.('li.ib-card.is-open');
     const id = li ? li.getAttribute('data-card') : null;
     if (id === null || !this.#open.has(id)) return;
+    e.stopPropagation();
+    if (this.#toggle(id, true)) this.#cards.get(id)?.face.focus({ preventScroll: true });
+  }
+
+  /** Esc inside a host's slotted body (`slot="body:<id>"`) closes that card like Esc inside a built-in body. */
+  #onHostKey(e: KeyboardEvent): void {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    const target = e.target as HTMLElement | null;
+    // From the shadow tree the target is retargeted to the host: the root's handler has it.
+    if (!target || target === this || !this.contains(target) || ownsEscape(target)) return;
+    let top: Element | null = target;
+    while (top && top.parentElement !== this) top = top.parentElement;
+    const slot = top?.getAttribute('slot') ?? '';
+    if (!slot.startsWith('body:')) return;
+    const id = slot.slice(5);
+    if (!this.#open.has(id)) return;
     e.stopPropagation();
     if (this.#toggle(id, true)) this.#cards.get(id)?.face.focus({ preventScroll: true });
   }
@@ -680,6 +1064,14 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       void sh.el.offsetHeight;
       sh.el.classList.remove('no-motion');
     }
+    return true;
+  }
+
+  /** Open / close a group (`ui-group-toggle`, cancelable). The person's choice then rules over `group.open`. */
+  #setGroup(col: string, group: string, open: boolean): boolean {
+    if (!this.emit('ui-group-toggle', { columnId: col, groupId: group, open })) return false;
+    this.#groupOpen.set(gkey(col, group), open);
+    this.renderNow();
     return true;
   }
 
@@ -709,6 +1101,16 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     this.#board = board;
   }
 
+  /** `.ib[data-view]` mirrors the `view` attribute; the CSS follows it (so a switch can be measured first). */
+  #syncView(): void {
+    const wrap = this.#wrap;
+    if (!wrap) return;
+    const v = this.getAttribute('view');
+    if (v === 'board' || v === 'list') {
+      if (wrap.getAttribute('data-view') !== v) wrap.setAttribute('data-view', v);
+    } else if (wrap.hasAttribute('data-view')) wrap.removeAttribute('data-view');
+  }
+
   #colShell(id: string): ColShell {
     const n = ++this.#seq;
     const el = document.createElement('section');
@@ -727,11 +1129,40 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const list = document.createElement('ul');
     list.className = 'ib-cards';
     list.setAttribute('role', 'list');
+    const groupsEl = document.createElement('div');
+    groupsEl.className = 'ib-groups';
+    const skel = document.createElement('div');
+    skel.className = 'ib-skel';
+    skel.setAttribute('aria-hidden', 'true');
     const empty = document.createElement('p');
     empty.className = 'ib-empty';
-    el.setAttribute('aria-labelledby', `${name.id} ${count.id}`);
-    el.append(head, list, empty);
-    return { el, name, count, list, empty };
+    el.append(list, groupsEl, skel, empty);
+    return { el, head, name, count, list, groupsEl, groups: new Map(), skel, skelN: 0, empty, bare: null };
+  }
+
+  #groupShell(gid: string): GroupShell {
+    const n = ++this.#seq;
+    const el = document.createElement('div');
+    el.className = 'ib-group';
+    el.setAttribute('data-group', gid);
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'ib-group-head';
+    head.innerHTML = CHEV_SVG;
+    const label = document.createElement('span');
+    label.className = 'ib-group-label';
+    label.id = `ib-g${n}-label`;
+    const count = document.createElement('span');
+    count.className = 'ib-count';
+    head.append(label, count);
+    const list = document.createElement('ul');
+    list.className = 'ib-cards ib-group-cards';
+    list.id = `ib-g${n}-cards`;
+    list.setAttribute('role', 'list');
+    list.setAttribute('aria-labelledby', label.id);
+    head.setAttribute('aria-controls', list.id);
+    el.append(head, list);
+    return { el, head, label, count, list };
   }
 
   #shell(id: string): Shell {
@@ -752,6 +1183,16 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return { el, face, expand, body, faceHtml: null, bodyHtml: null, col: '', status: '', flip: null };
   }
 
+  /** Column heads (`h:<column>`) and group heads (`g:<gkey>`) on screen. */
+  #heads(): Map<string, HTMLElement> {
+    const out = new Map<string, HTMLElement>();
+    for (const [id, c] of this.#cols) {
+      if (c.head.isConnected) out.set(`h:${id}`, c.head);
+      for (const [k, g] of c.groups) if (g.el.isConnected) out.set(`g:${k}`, g.head);
+    }
+    return out;
+  }
+
   #motion(): Motion {
     const cs = typeof getComputedStyle === 'function' ? getComputedStyle(this) : null;
     const ms = (name: string, fallback: number) => {
@@ -769,7 +1210,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     };
   }
 
-  /** Top-left of the card's full-size box as drawn (a move in flight included, an entrance scale not). */
+  /** Top-left of the element's full-size box as drawn (a move in flight included, an entrance scale not). */
   #boxOf(el: HTMLElement): { x: number; y: number } {
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2 - el.offsetWidth / 2, y: r.top + r.height / 2 - el.offsetHeight / 2 };
@@ -777,6 +1218,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
 
   protected override update(): void {
     this.#skeleton();
+    this.#syncView();
     const board = this.#board!;
     const t = this.#t;
     const d = this.data;
@@ -788,32 +1230,60 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const canAnimate = live && typeof HTMLElement.prototype.animate === 'function';
     const openLabel = d?.openLabel === false ? false : typeof d?.openLabel === 'string' ? d.openLabel : t.open;
     const startOpen = new Set((Array.isArray(d?.expanded) ? d.expanded : []).map(String));
+    const load: InboxLoad = d?.load === 'loading' || d?.load === 'failed' ? d.load : 'ready';
+    const ready = load === 'ready';
 
-    // 1. Columns and cards as the data puts them (first column id / card id wins).
-    const cols: Array<{ id: string; col: InboxColumn }> = [];
-    const cardById = new Map<string, InboxCard>();
+    // 1. Columns, groups and cards as the data puts them (first column / group / card id wins). Each column's own
+    //    cards and each open group are a list; a closed group's cards are counted, not drawn.
+    const cols: PlanCol[] = [];
+    const all = new Map<string, InboxCard>();
     const slots: Record<string, string[]> = Object.create(null);
     const want: Record<string, string> = Object.create(null);
+    const closedHome = new Map<string, { col: string; group: string }>();
+    const seenCols = new Set<string>();
+    const take = (cards: unknown, list: string | null, home?: { col: string; group: string }): number => {
+      let n = 0;
+      for (const card of Array.isArray(cards) ? (cards as InboxCard[]) : []) {
+        if (!card || card.id == null) continue;
+        const id = String(card.id);
+        if (all.has(id)) continue;
+        all.set(id, card);
+        n++;
+        if (list !== null) {
+          slots[list].push(id);
+          want[id] = list;
+        } else if (home) closedHome.set(id, home);
+      }
+      return n;
+    };
     for (const col of Array.isArray(d?.columns) ? d.columns : []) {
       if (!col || col.id == null) continue;
       const cid = String(col.id);
-      if (slots[cid]) continue;
+      if (seenCols.has(cid)) continue;
+      seenCols.add(cid);
       slots[cid] = [];
-      cols.push({ id: cid, col });
-      for (const card of Array.isArray(col.cards) ? col.cards : []) {
-        if (!card || card.id == null) continue;
-        const id = String(card.id);
-        if (cardById.has(id)) continue;
-        cardById.set(id, card);
-        slots[cid].push(id);
-        want[id] = cid;
+      const plan: PlanCol = { id: cid, col, groups: [] };
+      cols.push(plan);
+      take(col.cards, cid);
+      const seenGroups = new Set<string>();
+      for (const g of Array.isArray(col.groups) ? col.groups : []) {
+        if (!g || g.id == null) continue;
+        const gid = String(g.id);
+        if (seenGroups.has(gid)) continue;
+        seenGroups.add(gid);
+        const key = gkey(cid, gid);
+        const open = this.#groupOpen.get(key) ?? g.open !== false;
+        if (open) slots[key] = [];
+        const n = take(g.cards, open ? key : null, { col: cid, group: gid });
+        plan.groups.push({ gid, key, label: str(g.label), open, closed: open ? 0 : n });
       }
     }
+    this.#closedHome = closedHome;
 
     // 2. Status changes since the last data — said once, before any hold.
     const changes: InboxCard[] = [];
     const nextStatus = new Map<string, InboxStatus>();
-    for (const [id, card] of cardById) {
+    for (const [id, card] of all) {
       const s = statusOf(card);
       const prev = this.#lastStatus.get(id);
       if (prev && prev !== s) changes.push(card);
@@ -821,7 +1291,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     this.#lastStatus = nextStatus;
 
-    // 3. Status first, move later: a card whose column changed stays where it is drawn for BOARD_HOLD_MS.
+    // 3. Status first, move later: a card whose list changed stays where it is drawn for BOARD_HOLD_MS.
     const drawn: Record<string, string> = Object.create(null);
     for (const [id, sh] of this.#cards) if (want[id] && slots[sh.col]) drawn[id] = sh.col;
     const held = holdLanes(want, drawn, this.#holds, now, live && !reduced);
@@ -839,7 +1309,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
         Math.max(0, held.wakeAt - now) + 20,
       );
 
-    // 4. FLIP — first boxes.
+    // 4. FLIP — first boxes (cards and heads).
     const first = new Map<string, { x: number; y: number }>();
     const firstCol = new Map<string, string>();
     const firstStatus = new Map<string, string>();
@@ -848,9 +1318,13 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       firstStatus.set(id, sh.status);
       if (canAnimate) first.set(id, this.#boxOf(sh.el));
     }
+    const firstHeads = new Map<string, { x: number; y: number }>();
+    if (canAnimate) for (const [k, el] of this.#heads()) firstHeads.set(k, this.#boxOf(el));
+    const motion = canAnimate ? this.#motion() : null;
 
     // 5. Columns, in order.
     board.style.setProperty('--ib-cols', String(Math.max(1, cols.length)));
+    board.setAttribute('aria-busy', String(load === 'loading'));
     cols.forEach(({ id }, i) => {
       let c = this.#cols.get(id);
       if (!c) {
@@ -860,13 +1334,14 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       if (board.children[i] !== c.el) board.insertBefore(c.el, board.children[i] ?? null);
     });
 
-    // 6. Cards, in order, each patched only where its markup changed.
+    // 6. Each column: head, its own cards, its groups (head + cards when open), skeletons, the empty hint.
     const fresh = new Set<string>();
+    const freshGroups = new Set<string>();
+    const staleGroups = new Map<string, { g: GroupShell; section: HTMLElement }>();
     const order: Record<string, string[]> = Object.create(null);
-    for (const { id: colId, col } of cols) {
-      const c = this.#cols.get(colId)!;
-      const ids = placed.slots[colId];
-      order[colId] = ids;
+    const place = (list: HTMLElement, key: string) => {
+      const ids = placed.slots[key] ?? [];
+      order[key] = ids;
       ids.forEach((id, i) => {
         let sh = this.#cards.get(id);
         if (!sh) {
@@ -875,30 +1350,96 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
           fresh.add(id);
           if (startOpen.has(id)) this.#open.add(id);
         }
-        this.#patch(sh, id, cardById.get(id)!, t, openLabel, live && !reduced);
-        sh.col = colId;
-        if (c.list.children[i] !== sh.el) c.list.insertBefore(sh.el, c.list.children[i] ?? null);
+        this.#patch(sh, id, all.get(id)!, t, openLabel, live && !reduced);
+        sh.col = key;
+        if (list.children[i] !== sh.el) list.insertBefore(sh.el, list.children[i] ?? null);
       });
-      const name = String(col.label ?? '');
-      if (c.name.textContent !== name) c.name.textContent = name;
-      const count = String(ids.length);
+      return ids.length;
+    };
+    cols.forEach(({ id: colId, col, groups }, ci) => {
+      const c = this.#cols.get(colId)!;
+      const label = String(col.label ?? '');
+      const bare = col.bare === true;
+      if (c.bare !== bare) {
+        c.bare = bare;
+        c.el.classList.toggle('is-bare', bare);
+        if (bare) {
+          c.head.remove();
+          c.el.removeAttribute('aria-labelledby');
+        } else {
+          c.el.prepend(c.head);
+          c.el.removeAttribute('aria-label');
+          c.el.setAttribute('aria-labelledby', `${c.name.id} ${c.count.id}`);
+        }
+      }
+      if (bare && c.el.getAttribute('aria-label') !== label) c.el.setAttribute('aria-label', label);
+      let total = place(c.list, colId);
+      let drawnHere = total;
+      // Groups, in order; a group that left fades out where it was.
+      const keep = new Set(groups.map((g) => g.key));
+      for (const [k, g] of c.groups) {
+        if (keep.has(k)) continue;
+        c.groups.delete(k);
+        staleGroups.set(k, { g, section: c.el });
+      }
+      groups.forEach((pg, gi) => {
+        let g = c.groups.get(pg.key);
+        if (!g) {
+          g = this.#groupShell(pg.gid);
+          g.head.setAttribute('data-key', `g:${pg.key}`);
+          c.groups.set(pg.key, g);
+          freshGroups.add(pg.key);
+        }
+        if (c.groupsEl.children[gi] !== g.el) c.groupsEl.insertBefore(g.el, c.groupsEl.children[gi] ?? null);
+        if (g.label.textContent !== pg.label) g.label.textContent = pg.label;
+        const expanded = String(pg.open);
+        if (g.head.getAttribute('aria-expanded') !== expanded) g.head.setAttribute('aria-expanded', expanded);
+        if (g.list.hidden !== !pg.open) g.list.hidden = !pg.open;
+        const n = pg.open ? place(g.list, pg.key) : pg.closed;
+        if (pg.open) drawnHere += n;
+        total += n;
+        const gc = ready ? String(n) : '';
+        if (g.count.textContent !== gc) g.count.textContent = gc;
+      });
+      if (c.name.textContent !== label) c.name.textContent = label;
+      const count = ready ? String(total) : '';
       if (c.count.textContent !== count) c.count.textContent = count;
       const empty = typeof col.emptyText === 'string' && col.emptyText ? col.emptyText : t.empty;
       if (c.empty.textContent !== empty) c.empty.textContent = empty;
-      if (c.empty.hidden !== ids.length > 0) c.empty.hidden = ids.length > 0;
-    }
+      const hideEmpty = !ready || bare || drawnHere > 0 || groups.length > 0;
+      if (c.empty.hidden !== hideEmpty) c.empty.hidden = hideEmpty;
+      // Skeletons hold the place of what is coming while the board loads (only where no card is drawn yet).
+      const skelN = load === 'loading' && drawnHere === 0 ? SKELETONS[ci % SKELETONS.length] : 0;
+      if (c.skelN !== skelN) {
+        c.skelN = skelN;
+        c.skel.innerHTML = SKEL_CARD.repeat(skelN);
+      }
+    });
     this.#order = order;
 
-    // 7. Cards that left fade out where they were; then columns that left go.
-    const motion = canAnimate ? this.#motion() : null;
+    // 7. Cards no longer drawn fade out where they were (inside a group that left, they go with it); then groups
+    //    and columns that left go.
+    const staleKeys = new Set(staleGroups.keys());
     for (const [id, sh] of this.#cards) {
-      if (cardById.has(id)) continue;
+      if (want[id] !== undefined) continue;
       this.#cards.delete(id);
-      this.#open.delete(id);
+      if (!all.has(id)) this.#open.delete(id);
       this.#shown.delete(`${id}\u0000tok`);
       this.#shown.delete(`${id}\u0000usd`);
-      this.#exit(sh, first.get(id), slots[firstCol.get(id) ?? ''] ? motion : null);
+      const from = firstCol.get(id) ?? '';
+      if (staleKeys.has(from) && motion) {
+        sh.el.removeAttribute('data-card');
+        continue;
+      }
+      this.#exit(sh, first.get(id), slots[from] ? motion : null);
     }
+    for (const [k, { g, section }] of staleGroups)
+      this.#exitGroup(
+        g,
+        firstHeads.get(`g:${k}`),
+        section,
+        section.isConnected && slots[k.split('\u0000')[0]] ? motion : null,
+      );
     for (const [id, c] of this.#cols) {
       if (slots[id]) continue;
       c.el.remove();
@@ -943,23 +1484,33 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
         if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
         this.#flip(sh, dx, dy, wasFlying || firstCol.get(id) !== sh.col, motion, reduced);
       }
+      // Heads ride along: a group that opens or closes moves the heads under it.
+      for (const [k, el] of this.#heads()) {
+        const a = firstHeads.get(k);
+        if (a) {
+          if (!reduced) this.#slide(el, a, motion);
+        } else if (k.startsWith('g:') && freshGroups.has(k.slice(2)))
+          el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.fade, easing: motion.easeOut });
+      }
     }
 
-    // 9. Announce (once there is data), keep focus, start the clocks.
-    if (d)
-      this.#announce(
-        cols.map((c) => c.col),
-        changes,
-        t,
-      );
+    // 9. Announce (once the board is certified, unless the host mutes it), keep focus, start the clocks.
+    if (d && ready && d.announce !== false) {
+      const own = d.announce;
+      const counts =
+        own && typeof own === 'object'
+          ? { needs: Math.floor(num(own.needs)), running: Math.floor(num(own.running)) }
+          : boardCounts(cols.map((c) => c.col));
+      this.#announce(counts, changes, t);
+    }
     if (activeKey && (this.root.activeElement as HTMLElement | null)?.dataset?.key !== activeKey) {
       const next = this.$$<HTMLElement>('[data-key]').find((el) => el.dataset.key === activeKey);
       next?.focus({ preventScroll: true });
     }
     this.#tickIn(this.content);
     this.#syncTick();
-    // The first paint with data never animates (a render before any data does not count).
-    if (d) this.#painted = true;
+    // The first paint with data never animates (a render before any data, or skeletons only, does not count).
+    if (d && load !== 'loading') this.#painted = true;
   }
 
   #patch(sh: Shell, id: string, card: InboxCard, t: Strings, openLabel: string | false, countUp: boolean): void {
@@ -977,7 +1528,11 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       for (const s of Array.from(sh.face.querySelectorAll<HTMLElement>('.ib-spin'))) s.style.animationDelay = phase;
       this.#countUp(id, sh.face, countUp);
     }
-    const body = renderBody(card, t, openLabel);
+    // `bodyMode: 'slot'`: the host's light-DOM body is projected here; the slot node itself never changes.
+    const body =
+      card.bodyMode === 'slot'
+        ? `<slot class="ib-slot" name="${escAttr(`body:${id}`)}"></slot>`
+        : renderBody(card, t, openLabel);
     if (sh.bodyHtml !== body) {
       sh.body.innerHTML = body;
       sh.bodyHtml = body;
@@ -1015,6 +1570,27 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     };
   }
 
+  /** A head glides from `from` to where it is now; an interrupted glide restarts from where it was drawn. */
+  #slide(el: HTMLElement, from: { x: number; y: number }, m: Motion): void {
+    const prev = this.#slides.get(el);
+    if (prev) {
+      prev.cancel();
+      this.#slides.delete(el);
+    }
+    const b = this.#boxOf(el);
+    const dx = from.x - b.x;
+    const dy = from.y - b.y;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    const anim = el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }], {
+      duration: m.move,
+      easing: m.easeInOut,
+    });
+    this.#slides.set(el, anim);
+    anim.onfinish = () => {
+      if (this.#slides.get(el) === anim) this.#slides.delete(el);
+    };
+  }
+
   /** Exit = opacity only, absolutely placed in its column where it was drawn, so the rest FLIP into the gap. */
   #exit(sh: Shell, box: { x: number; y: number } | undefined, m: Motion | null): void {
     if (sh.flip) {
@@ -1044,21 +1620,41 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     anim.onfinish = anim.oncancel = () => sh.el.remove();
   }
 
+  /** A group that left fades out with its cards, absolutely placed where it was, so the rest FLIP into the gap. */
+  #exitGroup(g: GroupShell, box: { x: number; y: number } | undefined, section: HTMLElement, m: Motion | null): void {
+    if (!box || !m || !g.el.isConnected) {
+      g.el.remove();
+      return;
+    }
+    const hr = section.getBoundingClientRect();
+    const width = g.el.offsetWidth;
+    g.el.classList.add('is-stale');
+    g.el.setAttribute('aria-hidden', 'true');
+    g.el.setAttribute('inert', '');
+    g.el.style.left = `${box.x - hr.left}px`;
+    g.el.style.top = `${box.y - hr.top}px`;
+    g.el.style.width = `${width}px`;
+    section.append(g.el);
+    const anim = g.el.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: m.fade,
+      easing: m.easeOut,
+      fill: 'forwards',
+    });
+    anim.onfinish = anim.oncancel = () => g.el.remove();
+  }
+
   /**
    * The polite region says "N need you, M running" — the first sentence at once, then only real changes; a burst
    * within ANNOUNCE_MS is said once (the last text). One card changing status is named first.
    */
-  #announce(columns: InboxColumn[], changes: InboxCard[], t: Strings): void {
+  #announce(c: { needs: number; running: number }, changes: InboxCard[], t: Strings): void {
     const live = this.#live;
     if (!live) return;
-    const c = boardCounts(columns);
     const counts = t.announce(c.needs, c.running);
     if (!changes.length && counts === this.#lastCounts) return;
     this.#lastCounts = counts;
-    const text =
-      changes.length === 1
-        ? `${t.changed(String(changes[0].title ?? ''), statusWord(changes[0], t))} ${counts}`
-        : counts;
+    const lead = changes.length === 1 ? t.changed(String(changes[0].title ?? ''), statusWord(changes[0], t)) : '';
+    const text = lead ? `${lead} ${counts}` : counts;
     this.#announcePending = text;
     if (!live.textContent && !this.#announceTimer) {
       live.textContent = text;
@@ -1078,7 +1674,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     for (const el of Array.from(root.querySelectorAll<HTMLElement>('[data-clock]'))) {
       const from = Number(el.dataset.from) || 0;
       const acc = Number(el.dataset.acc) || 0;
-      const text = fmtDuration(acc + (from ? Math.max(0, now - from) : 0));
+      const text = t.duration(acc + (from ? Math.max(0, now - from) : 0));
       if (el.textContent !== text) el.textContent = text;
     }
     for (const el of Array.from(root.querySelectorAll<HTMLElement>('[data-at]'))) {
