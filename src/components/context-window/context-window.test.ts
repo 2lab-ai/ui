@@ -185,6 +185,19 @@ describe('<ui-context-window> host gaps', () => {
     expect(q(el, '.cw-compact')).toBeNull();
   });
 
+  it('does not replay the exit when a done element is detached and re-attached with idle data (R-041 P3)', () => {
+    vi.useFakeTimers();
+    const el = mount({ ...BASE, canCompact: true, compactState: 'observed' });
+    expect(q(el, '.cw-compact')?.getAttribute('data-state')).toBe('done');
+    el.remove();
+    el.data = { ...BASE, canCompact: true, compactState: 'idle' };
+    document.body.append(el);
+    el.renderNow();
+    const b = q(el, '.cw-compact')!;
+    expect(b.hasAttribute('data-leaving')).toBe(false);
+    expect(b.getAttribute('data-state')).toBe('idle');
+  });
+
   it('leaves, then shows the idle action when it may compact again', () => {
     vi.useFakeTimers();
     const el = mount({ ...BASE, canCompact: true, compactState: 'observed' });
