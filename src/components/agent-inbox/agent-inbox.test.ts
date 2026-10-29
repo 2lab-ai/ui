@@ -983,7 +983,7 @@ describe('host gaps', () => {
       rect.mockRestore();
     });
 
-    it('a re-aim mid-glide counts an inner scroll since the glide began (the board, a host panel)', () => {
+    it('a re-aim mid-glide counts a page scroll since the glide began, once', () => {
       const rect = fakeLayout();
       const el = mount(board(WAIT, RUN));
       const settled = el.measure();
@@ -1001,15 +1001,18 @@ describe('host gaps', () => {
       ib.setAttribute('data-shift', '-40');
       el.flipFrom(settled);
       anim.mockClear();
-      // The board scrolls 50px mid-glide: the card is now drawn at 310 − 50 = 260 …
-      const scroller = q(el, '.ib-board')!;
-      scroller.scrollLeft = 50;
-      // … and the layout moves again: its box is now 230 − 50 = 180.
-      ib.setAttribute('data-shift', '-150');
-      el.flipFrom(settled);
-      expect(moves(anim).find((x) => x.el === card(el, 'notes'))?.frames[0].transform).toBe('translate(80px, 0px)');
-      anim.mockRestore();
-      rect.mockRestore();
+      // The page scrolls 50px mid-glide: the card is now drawn at 310 − 50 = 260 …
+      window.scrollTo(50, 0);
+      try {
+        // … and the layout moves again: its box is now 230 − 50 = 180.
+        ib.setAttribute('data-shift', '-150');
+        el.flipFrom(settled);
+        expect(moves(anim).find((x) => x.el === card(el, 'notes'))?.frames[0].transform).toBe('translate(80px, 0px)');
+      } finally {
+        window.scrollTo(0, 0);
+        anim.mockRestore();
+        rect.mockRestore();
+      }
     });
 
     it('a card in a group that leaves stops its glide (the group fades out with it)', () => {
