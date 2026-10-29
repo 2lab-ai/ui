@@ -710,13 +710,13 @@ export const doc: ComponentDoc = {
       name: 'data.strings',
       type: 'Partial<InboxStrings>',
       description:
-        "Merged over the lang table, so a board keeps its own wording: status.{waiting,running,done,failed,idle}, doneIn, empty, open, agents, agentsRunning(n), agentsFailed(n), tok, tokTitle, costTitle, steps, ctx(p), arts, artOpen(name), earlier(n), announce(w, r), changed(title, word) (return '' to drop the prefix), ago(at, now), duration(ms). A value of the wrong type is ignored.",
+        "Merged over the lang table, so a board keeps its own wording: status.{waiting,running,done,failed,idle}, doneIn, empty, open, agents, agentsRunning(n), agentsFailed(n), tok, tokTitle, costTitle, steps, ctx(p), arts, artOpen(name), earlier(n), announce(w, r), changed(title, word) (return '' to drop the prefix), ago(at, now), duration(ms). A value of the wrong type is ignored. Compared by value (shallowly, status one level deeper) on each render and clock tick, so an object changed in place is seen too.",
     },
     {
       name: 'reveal(cardId, { open?, scroll? })',
       type: 'method → boolean',
       description:
-        'A deep link: renders pending data, opens the card’s closed group (ui-group-toggle), opens the card without transition (ui-toggle) unless open: false, and scrolls it to the centre unless scroll: false. False when the card is not on the board or the host prevented the group.',
+        'A deep link: renders pending data, opens the card’s closed group (ui-group-toggle), opens the card without transition (ui-toggle) unless open: false, and scrolls it to the centre unless scroll: false. False (no scroll) when the card is not on the board or the host prevented its group or the card from opening; a card with nothing to open is just scrolled to.',
     },
     {
       name: 'measure() / flipFrom(layout)',

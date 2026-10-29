@@ -8,6 +8,7 @@ import {
   columnsByStatus,
   holdLanes,
   type InboxCard,
+  type InboxStringOverrides,
   placeHolds,
   statusTone,
   type UiAgentInbox,
@@ -566,6 +567,22 @@ describe('host gaps', () => {
     expect(q(el, '.ib-empty')?.textContent).toBe('비어 있음');
   });
 
+  it('sees data.strings changed in place on the next render (status words too)', () => {
+    const strings: InboxStringOverrides = { empty: 'Nothing yet', status: { running: 'Busy' } };
+    const el = mount({ ...board(RUN), strings });
+    expect(q(el, '.ib-empty')?.textContent).toBe('Nothing yet');
+    expect(card(el, 'notes').querySelector('.ib-tag')?.textContent).toMatch(/^Busy · /);
+    strings.empty = 'Quiet';
+    strings.status!.running = 'Working';
+    el.data = { ...el.data!, columns: columnsByStatus([RUN]) };
+    el.renderNow();
+    expect(q(el, '.ib-empty')?.textContent).toBe('Quiet');
+    expect(card(el, 'notes').querySelector('.ib-tag')?.textContent).toMatch(/^Working · /);
+    delete strings.empty;
+    el.renderNow();
+    expect(q(el, '.ib-empty')?.textContent).toBe('Nothing here');
+  });
+
   it('draws face extras: lead, owner badge, host metrics, titles, context level, artifact count and chip buttons', () => {
     const el = mount(
       board({
@@ -793,6 +810,24 @@ describe('host gaps', () => {
     scroll.mockRestore();
   });
 
+  it('reveal() is false when the host prevents the card from opening; a card with nothing to open is revealed', () => {
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {});
+    const el = mount(grouped(true));
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-toggle', stop);
+    expect(el.reveal('old')).toBe(false);
+    expect(card(el, 'old').classList.contains('is-open')).toBe(false);
+    expect(scroll).not.toHaveBeenCalled();
+    // Not asked to open: nothing to prevent.
+    expect(el.reveal('old', { open: false })).toBe(true);
+    el.removeEventListener('ui-toggle', stop);
+    // No body (no details, no actions, no Open): nothing opens, and it is still revealed.
+    el.data = { ...grouped(true), openLabel: false };
+    expect(el.reveal('digest')).toBe(true);
+    expect(card(el, 'digest').hasAttribute('role')).toBe(false);
+    scroll.mockRestore();
+  });
+
   it('a group that leaves fades out with its cards; reveal is false when the host keeps a group closed', () => {
     const el = mount(grouped());
     const anim = vi
@@ -910,6 +945,33 @@ describe('host gaps', () => {
       // Nothing moved since: nothing to play.
       el.flipFrom(el.measure());
       expect(moves(anim)).toHaveLength(0);
+      anim.mockRestore();
+      rect.mockRestore();
+    });
+
+    it('a card in a group that leaves stops its glide (the group fades out with it)', () => {
+      const rect = fakeLayout();
+      const el = mount(grouped());
+      const node = card(el, 'digest');
+      const snap = el.measure();
+      q(el, '.ib')!.setAttribute('data-shift', '-40');
+      const anim = vi
+        .spyOn(HTMLElement.prototype, 'animate')
+        .mockImplementation(
+          () => ({ cancel: vi.fn(), finish() {}, onfinish: null, oncancel: null }) as unknown as Animation,
+        );
+      el.flipFrom(snap);
+      const i = anim.mock.contexts.indexOf(node);
+      expect(i).toBeGreaterThanOrEqual(0);
+      const glide = anim.mock.results[i].value as { cancel: ReturnType<typeof vi.fn> };
+      expect(glide.cancel).not.toHaveBeenCalled();
+      // The Today group leaves while the card still glides.
+      const next = grouped();
+      next.columns[1].groups = next.columns[1].groups!.slice(1);
+      el.data = next;
+      el.renderNow();
+      expect(node.closest('.ib-group')?.classList.contains('is-stale')).toBe(true);
+      expect(glide.cancel).toHaveBeenCalledTimes(1);
       anim.mockRestore();
       rect.mockRestore();
     });
