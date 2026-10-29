@@ -263,6 +263,8 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
     clearTimeout(this.#armTimer);
     clearTimeout(this.#leaveTimer);
     this.#leaving = false;
+    // A done button detached and re-attached with idle data must not play its exit again on the first render.
+    this.#prevAct = '';
     cancelAnimationFrame(this.#raf);
   }
 

@@ -11,6 +11,9 @@ export const styles = `
   --aq-wk: var(--ui-aq-wk, var(--purple));
   --aq-warn: var(--st-wait);
   --aq-warn-text: color-mix(in srgb, var(--st-wait) 75%, var(--text));
+  /* Chip numbers are text: the window colours pulled toward --text so they hold 4.5:1 on the card. */
+  --aq-now-text: color-mix(in srgb, var(--aq-now) 70%, var(--text));
+  --aq-wk-text: color-mix(in srgb, var(--aq-wk) 80%, var(--text));
 }
 .aq { display: grid; gap: 12px; min-width: 0; }
 
@@ -27,10 +30,42 @@ export const styles = `
 .aq-col-head { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--ib-muted); }
 .aq-col-head b { color: var(--ib-text); font-weight: 600; font-variant-numeric: tabular-nums; }
 
+/* ── Fold toggle (collapsible): in each section's head row; its word says what a press does ── */
+.aq-fold { position: relative; flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; margin-left: auto; padding: 2px 10px; border-radius: 8px; border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text-2); font: inherit; font-size: 12px; cursor: pointer; transition: border-color 150ms ease, color 150ms ease; }
+.aq-fold svg { width: 12px; height: 12px; transition: transform var(--dur-press) var(--ease-out); }
+.aq-fold[aria-expanded="true"] svg { transform: rotate(180deg); }
+.aq-fold:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .aq-fold:hover { border-color: var(--ib-muted); color: var(--ib-text); } }
+
 /* ── LLM capacity: colour is the window (teal = now · 5h, violet = this week · 7d) ── */
-.capacity { background: var(--ib-col); border-radius: 14px; padding: 12px 14px 10px; color: var(--ib-text); min-width: 0; }
+.capacity { container: aqcap / inline-size; background: var(--ib-col); border-radius: 14px; padding: 12px 14px 10px; color: var(--ib-text); min-width: 0; }
 .cap-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 4px; }
-.cap-title { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ib-muted); }
+.cap-title { flex: none; margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ib-muted); white-space: nowrap; }
+/* Collapsed: the title row keeps one chip per provider (both measures, limited · first return, ⚠ flags). */
+.capacity.is-collapsed .cap-head { flex-wrap: nowrap; align-items: center; margin-bottom: 0; min-height: 32px; }
+.cap-summary { display: flex; gap: 6px; min-width: 0; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.cap-chip { flex: none; display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 12px; line-height: 1.5; white-space: nowrap; color: var(--ib-text-2); background: var(--ib-card); box-shadow: inset 0 0 0 1px var(--ib-card-border); }
+.cap-chip-v { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
+.cap-chip i { font-style: normal; }
+.cap-chip b { font-weight: 700; color: var(--ib-text); font-variant-numeric: tabular-nums; }
+.cap-chip em { font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cap-chip .cap-m.is-now b, .cap-chip .cap-m.is-now em { color: var(--aq-now-text); }
+.cap-chip .cap-m.is-wk b, .cap-chip .cap-m.is-wk em { color: var(--aq-wk-text); }
+.cap-chip .cap-chip-lim, .cap-chip .cap-chip-flag { color: var(--aq-warn-text); font-weight: 600; white-space: nowrap; }
+.cap-chip.is-low { color: var(--aq-warn-text); box-shadow: inset 0 0 0 1px var(--st-wait); }
+.cap-chip.is-empty, .cap-chip.is-error { color: var(--st-fail-text); box-shadow: inset 0 0 0 1px var(--st-fail); }
+@container aqcap (max-width: 839.98px) {
+  /* Every chip keeps labelled counts, totals and % for both windows: the row wraps, a chip breaks between measures. */
+  .cap-chip { flex: 0 1 auto; min-width: 0; white-space: normal; }
+  .cap-chip-v { flex-wrap: wrap; column-gap: 4px; }
+  .cap-chip .cap-m, .cap-chip .cap-chip-flag { white-space: nowrap; }
+  .capacity.is-collapsed .cap-summary { flex: 1 1 auto; flex-wrap: wrap; overflow-x: visible; gap: 4px; }
+}
+@container aqcap (max-width: 639.98px) {
+  .cap-chip { padding: 2px 6px; font-size: 11px; }
+  .capacity .aq-fold { padding: 2px 8px; min-width: 44px; justify-content: center; }
+  .capacity .aq-fold-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 .cap-sub { font-size: 12px; color: var(--ib-text-2); }
 .cap-off { font-size: 13px; color: var(--ib-text-2); padding: 8px 0 10px; }
 .cap-prov { container: aqprov / inline-size; position: relative; background: var(--ib-card); border-radius: 12px; padding: 14px 18px 12px; margin-top: 10px; box-shadow: inset 0 0 0 1px var(--ib-card-border); min-width: 0; }
@@ -114,6 +149,8 @@ export const styles = `
 
 /* ── CRON lane = the queue ── */
 .aq-lane { container: aqlane / inline-size; background: var(--ib-col); border-radius: 14px; padding: 2px 4px 10px; color: var(--ib-text); min-width: 0; }
+.aq-lane.is-collapsed { padding-bottom: 4px; }
+.aq-lane.is-collapsed .aq-lane-body { display: block; padding-bottom: 6px; }
 .aq-lane-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 10px 8px 8px 10px; min-height: 40px; }
 .aq-lane-ic { display: inline-flex; color: var(--ib-muted); }
 .aq-lane-ic svg { width: 14px; height: 14px; }
@@ -151,6 +188,9 @@ export const styles = `
 .cron-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5; color: var(--st-color, var(--ib-text-2)); background: color-mix(in srgb, var(--st-color, var(--ib-muted)) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color, var(--ib-muted)) 45%, transparent); }
 .cron-badge svg { width: 12px; height: 12px; }
 .cron-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ib-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cron-note { flex-shrink: 0; padding: 0 6px; border-radius: 999px; border: 1px solid var(--ib-card-border); font-size: 11px; color: var(--ib-muted); white-space: nowrap; }
+/* The host's live card for the job (slot="job:<id>") sits under its tile. */
+.cron-group ::slotted(*) { min-width: 0; }
 .cron-history-btn { flex-shrink: 0; margin-left: auto; min-height: 28px; padding: 2px 10px; border-radius: 8px; border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text-2); font: inherit; font-size: 12px; cursor: pointer; transition: transform var(--dur-press) var(--ease-out), border-color 150ms ease; }
 .cron-history-btn:active:not(:focus-visible) { transform: scale(0.97); }
 @media (hover: hover) and (pointer: fine) { .cron-history-btn:hover { border-color: var(--ib-muted); color: var(--ib-text); } }
@@ -196,6 +236,10 @@ export const styles = `
   .aq-lane-body { grid-template-columns: minmax(0, 1fr); }
   .aq-plot { height: 88px; }
 }
+@container aqlane (max-width: 639.98px) {
+  .aq-lane .aq-fold { padding: 2px 8px; min-width: 44px; justify-content: center; }
+  .aq-lane .aq-fold-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 @container aqlane (max-width: 560px) {
   .aq-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
   .aq-stat { padding: 0 12px; }
@@ -203,10 +247,10 @@ export const styles = `
   .aq-stat dd { font-size: 15px; }
 }
 @media (pointer: coarse) {
-  .aq-mark, .aq-q, .cron-history-btn, .cron-strip { min-height: 44px; }
+  .aq-mark, .aq-q, .cron-history-btn, .cron-strip, .aq-fold { min-height: 44px; }
   .aq-pop-close { width: 44px; height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .aq-mark, .aq-q, .aq-pop, .cap-bar > span, .aq-ch-ok, .aq-ch-run, .aq-ch-fail, .cr-tick { animation: none; transition: none; }
+  .aq-mark, .aq-q, .aq-pop, .cap-bar > span, .aq-ch-ok, .aq-ch-run, .aq-ch-fail, .cr-tick, .aq-fold, .aq-fold svg { animation: none; transition: none; }
 }
 `;

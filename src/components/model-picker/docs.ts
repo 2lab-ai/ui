@@ -136,10 +136,16 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.value',
-      type: '{ model: string; effort?: string; effectiveEffort?: string }',
+      type: '{ model: string; effort?: string; effectiveEffort?: string; effortLevels?: string[] }',
       required: true,
       description:
         'The session’s model and effort. A model outside the list is shown as a first, unselectable row. `effectiveEffort` is the level that actually runs when the model caps the set one.',
+    },
+    {
+      name: 'data.value.effortLevels',
+      type: 'string[]',
+      description:
+        'The levels the session’s own model runs (e.g. its catalog entry). When given, the effort control offers these instead of the current row’s `effortLevels` — also for a model outside the list, which otherwise gets the standard five. `[]` hides the control. A model switch drops it from the optimistic value.',
     },
     {
       name: 'data.contextTokens',
@@ -205,7 +211,10 @@ export const doc: ComponentDoc = {
       'Enter / Space (list)',
       'Pick the active model → ui-change, the menu closes, focus back on the trigger (the current model just closes)',
     ],
-    ['Tab / Shift+Tab', 'Move between the model list and the checked effort level — focus stays inside the menu'],
+    [
+      'Tab / Shift+Tab',
+      'List → checked effort level (Tab) and back (Shift+Tab). Past either end — Tab from the level (or from the list without levels), Shift+Tab from the list — the menu closes and focus returns to the trigger',
+    ],
     ['← → ↑ ↓ · Home / End (effort)', 'Move and select a level at once (radio pattern); the menu stays open'],
     ['Esc', 'Close and return focus to the trigger'],
   ],
@@ -283,9 +292,16 @@ export const doc: ComponentDoc = {
       id: 'outside',
       title: 'Model outside the list',
       description:
-        'The session runs a model the switch list does not offer: it is the first row — current, not selectable, price unknown.',
+        'The session runs a model the switch list does not offer: it is the first row — current, not selectable, price unknown. `value.effortLevels` carries the levels its catalog entry runs (Low · Medium · High) instead of the standard five.',
       height: H,
-      create: () => make({ ...BASE, value: { model: 'claude-haiku-4-5-20251001', effort: 'low' } }, { open: true }),
+      create: () =>
+        make(
+          {
+            ...BASE,
+            value: { model: 'claude-haiku-4-5-20251001', effort: 'low', effortLevels: ['low', 'medium', 'high'] },
+          },
+          { open: true },
+        ),
     },
     {
       id: 'error',

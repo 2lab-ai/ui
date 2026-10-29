@@ -36,6 +36,12 @@ export interface ModelPickerValue {
   effort?: string;
   /** The level that actually runs when the model caps the set one (e.g. set Max → runs High). */
   effectiveEffort?: string;
+  /**
+   * The levels the session's model runs, in order — used by the effort control in place of the current row's
+   * `effortLevels`, also when the model is outside `models` (which otherwise offers the standard five).
+   * `[]` = no effort control. Dropped from the optimistic value of a model switch (the new model has its own).
+   */
+  effortLevels?: string[];
 }
 
 export interface ModelPickerData {
@@ -575,7 +581,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const model = d.value?.model ?? '';
     const detail: ModelPickerChange = { model, effort: level, changed: 'effort' };
     if (this.emit('ui-change', detail) && this.data && this.data.value === d.value)
-      this.data = { ...this.data, value: { model, effort: level } };
+      this.data = { ...this.data, value: { model, effort: level, effortLevels: d.value?.effortLevels } };
   }
 
   // ── input ─────────────────────────────────────────────────────────────────
@@ -615,11 +621,14 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       e.preventDefault();
       this.#setOpen(false, { user: true, returnFocus: true });
     } else if (e.key === 'Tab') {
-      // Two stops, moved by the menu itself: the list and the checked level. Tab cycles between them.
+      // Two stops, moved by the menu itself: the list, then the checked level. Past either end the menu closes,
+      // back on its trigger — a non-modal menu never keeps focus, and a later Esc still lands on the trigger.
       e.preventDefault();
       const level = this.$('.mp-seg-btn[tabindex="0"]');
       const list = this.$('.mp-list');
-      (onList ? (level ?? list) : list)?.focus();
+      if (onList && !e.shiftKey && level) level.focus();
+      else if (!onList && e.shiftKey && list) list.focus();
+      else this.#setOpen(false, { user: true, returnFocus: true });
     } else if (onList) {
       this.#listKey(e);
     } else {
@@ -814,7 +823,10 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
 
   /** Effort as a radiogroup with one tab stop; checked = the level that runs; only the model's levels. */
   #effort(d: ModelPickerData, cur: Opt | undefined, t: Strings): string {
-    const levels = modelEffortLevels(cur?.listed ? cur.model : null);
+    const own = d.value?.effortLevels;
+    const levels = modelEffortLevels(
+      Array.isArray(own) ? { id: '', label: '', effortLevels: own } : cur?.listed ? cur.model : null,
+    );
     if (!levels.length) return '';
     const v = d.value ?? { model: '' };
     const on = v.effectiveEffort || v.effort || '';
