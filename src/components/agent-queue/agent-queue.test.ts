@@ -4,6 +4,7 @@ import {
   type AgentQueueData,
   type AqJob,
   type AqProvider,
+  type AqRun,
   advanceProvider,
   dayRuns,
   fmtCount,
@@ -688,6 +689,237 @@ describe('live time and announcements', () => {
     expect(laneNews({ jobs: a }, { jobs: b })).toBe('Cron dependency-audit needs a reply');
     expect(laneNews({ jobs: a }, { jobs: [...b, { id: 'new', name: 'new', state: 'waiting' }] })).toBe(
       'Cron dependency-audit needs a reply',
+    );
+  });
+});
+
+describe('host gaps for the dashboard swap', () => {
+  const capped = () => Array.from({ length: 20 }, (_, i): AqRun => ({ at: NOW - i * 15 * M - S, status: 'ok' }));
+
+  it('keeps the lower bounds when runs24h supplies the counts (the kept records decide)', () => {
+    const runs = capped();
+    const job: AqJob = { id: 'p', name: 'poll', historyCap: 20, runs };
+    const d = dayRuns({ jobs: [job], runs24h: runs.slice(0, 5) }, NOW);
+    expect(d.n).toBe(5);
+    expect(d.cut).toEqual([{ name: 'poll', from: NOW - 19 * 15 * M - S, cap: 20 }]);
+    const el = mount({ now: NOW, lane: { jobs: [job], runs24h: runs.slice(0, 5) } });
+    const dd = qa(el, '.aq-stat dd');
+    expect(dd[2].textContent).toBe('≥5');
+    expect(dd[3].textContent).toBe('≥0');
+    expect(dd[2].getAttribute('title')).toContain('poll keeps 20 runs, so its history starts at');
+    expect(q(el, '.aq-ch-cut')).not.toBeNull();
+    expect(q(el, '.aq-plot')!.getAttribute('aria-label')).toContain('some job histories are truncated');
+  });
+
+  it('never counts a run shown before its record exists toward historyCap', () => {
+    const live: AqRun = { at: NOW - S, status: 'running', recorded: false };
+    const job: AqJob = { id: 'p', name: 'poll', historyCap: 20, runs: [live, ...capped().slice(0, 19)] };
+    expect(dayRuns({ jobs: [job], runs24h: [] }, NOW).cut).toHaveLength(0);
+    expect(dayRuns({ jobs: [job] }, NOW).cut).toHaveLength(0);
+    expect(dayRuns({ jobs: [{ ...job, runs: [live, ...capped()] }], runs24h: [] }, NOW).cut).toHaveLength(1);
+  });
+
+  it('draws a job note after the name, escaped, with its tooltip', () => {
+    const el = mount({
+      now: NOW,
+      lane: {
+        jobs: [
+          { id: 'gone', name: 'old-job', note: { text: XSS, title: XSS_ATTR } },
+          { id: 'here', name: 'plain', runs: [] },
+        ],
+      },
+    });
+    const notes = qa(el, '.cron-note');
+    expect(notes).toHaveLength(1);
+    expect(notes[0].textContent).toBe(XSS);
+    expect(notes[0].getAttribute('title')).toBe(XSS_ATTR);
+    expect(q(el, '.cron-note img')).toBeNull();
+    expect(notes[0].previousElementSibling?.classList.contains('cron-name')).toBe(true);
+    expect(notes[0].closest('.cron-group')?.getAttribute('aria-label')).toBe('old-job');
+  });
+
+  it('collapsed capacity: the head and one chip per provider — measures, ⏸ limited · first return, ⚠ flags', () => {
+    const codex: AqProvider = {
+      id: 'codex',
+      name: 'Codex',
+      total: 3.2,
+      weekly: 0.4,
+      measuredAt: NOW - 2 * D - H,
+      accounts: [
+        { id: 'c1', name: 'c1', state: 'available', tier: 'x20', tierAssumed: true },
+        { id: 'c2', name: 'c2', state: 'available' },
+      ],
+    };
+    const el = mount({ now: NOW, providers: [claude(), codex], collapsed: { capacity: true } });
+    expect(q(el, '.capacity')!.classList.contains('is-collapsed')).toBe(true);
+    expect(q(el, '.cap-prov')).toBeNull();
+    expect(q(el, '.cap-sub')).toBeNull();
+    expect(q(el, '.aq-fold')).toBeNull(); // not collapsible: folded by the host, no toggle
+    const chips = qa(el, '.cap-chip');
+    expect(chips).toHaveLength(2);
+    const vis = (c: HTMLElement) => c.querySelector('.cap-chip-v')!.textContent!.replace(/\s+/g, ' ').trim();
+    expect(vis(chips[0])).toBe('Claude now 1.5/4.0 38% · week 2.0/4.0 50% ⏸ 1 · 7h 22m ⚠ 3/4 reflected');
+    expect(chips[0].querySelector('.cap-chip-v')!.innerHTML).toMatch(
+      /<em>50%<\/em><\/span> <i class="cap-chip-lim">⏸ 1 · <time class="aq-left" role="timer"[^>]*>7h 22m<\/time><\/i> <i class="cap-chip-flag">⚠ 3\/4 reflected<\/i>$/,
+    );
+    expect(chips[0].querySelector('.cap-chip-v')!.getAttribute('aria-hidden')).toBe('true');
+    const said = chips[0].querySelector('.sr-only')!.textContent!;
+    expect(said).toMatch(
+      /^Claude 5-hour \(now\) 1\.5\/4\.0 accounts \(38%\), weekly 2\.0\/4\.0 accounts \(50%\) · 3\/4 reflected · limited 1 — first back in 7h 22m — next \+0\.4 · in 22m \(\d\d:\d\d\) · 5-hour reset · ai7$/,
+    );
+    expect(chips[0].getAttribute('title')).toBe(said.slice('Claude '.length));
+    // Weekly only, low, a reading two days old, an assumed tier.
+    expect(chips[1].classList.contains('is-low')).toBe(true);
+    expect(vis(chips[1])).toBe('▲ Codex week 0.4/3.2 13% ⚠ 2d ago · x20 assumed 1');
+    expect(chips[1].querySelector('.sr-only')!.textContent).toContain(
+      'weekly 0.4/3.2 accounts (13%) · measured 2d ago · no tier 1 (x20 assumed) · low — nothing returns within 7 days',
+    );
+  });
+
+  it('collapsed capacity: an error or an empty pool is one chip', () => {
+    const err = mount({ now: NOW, capacityError: XSS, collapsed: { capacity: true } });
+    expect(text(err, '.cap-chip.is-error')).toBe(`Capacity unknown · ${XSS}`);
+    expect(q(err, '.cap-chip img')).toBeNull();
+    expect(q(err, '.cap-off')).toBeNull();
+    const none = mount({ now: NOW, providers: [], collapsed: { capacity: true } });
+    expect(text(none, '.cap-chip.is-unknown')).toBe('No accounts');
+  });
+
+  it('collapsed lane: the head and only the jobs waiting for a reply — no stats, queue or chart', () => {
+    const el = mount({ now: NOW, lane: { jobs: jobs() }, collapsed: { lane: true } });
+    expect(q(el, '.aq-lane')!.classList.contains('is-collapsed')).toBe(true);
+    expect(text(el, '.aq-lane-head')).toBe('CRON3● Running 1▲ Needs reply 1');
+    expect(q(el, '.aq-stats')).toBeNull();
+    expect(q(el, '.aq-queue')).toBeNull();
+    expect(q(el, '.aq-chart')).toBeNull();
+    expect(qa(el, '.cron-group').map((g) => g.getAttribute('aria-label'))).toEqual(['morning-digest']);
+    expect(qa(el, 'slot').map((s) => s.getAttribute('name'))).toEqual(['job:digest']);
+    el.data = { now: NOW, lane: { jobs: jobs().filter((j) => j.state !== 'waiting') }, collapsed: { lane: true } };
+    el.renderNow();
+    expect(q(el, '.cron-group')).toBeNull();
+    expect(q(el, '.aq-lane-head')).not.toBeNull();
+  });
+
+  it('collapsible: the toggle in each head says what a press does and sends a cancelable ui-collapse', () => {
+    const el = mount({
+      now: NOW,
+      providers: [claude()],
+      lane: { jobs: jobs() },
+      collapsible: true,
+      collapsed: { capacity: true },
+    });
+    const seen: unknown[] = [];
+    el.addEventListener('ui-collapse', (e) => seen.push((e as CustomEvent).detail));
+    const cap = q(el, '.cap-head .aq-fold')!;
+    expect(cap.getAttribute('aria-expanded')).toBe('false');
+    expect(cap.textContent).toBe('Expand');
+    expect(cap.getAttribute('aria-label')).toBe('Expand LLM capacity');
+    const lane = q(el, '.aq-lane-head .aq-fold')!;
+    expect(lane.getAttribute('aria-expanded')).toBe('true');
+    expect(lane.textContent).toBe('Collapse');
+    // A press the host lets through applies at once; focus stays on the toggle.
+    cap.focus();
+    cap.click();
+    expect(seen).toEqual([{ section: 'capacity', collapsed: false }]);
+    expect(q(el, '.cap-prov')).not.toBeNull();
+    expect(q(el, '.cap-summary')).toBeNull();
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-key')).toBe('fold-capacity');
+    expect(q(el, '.cap-head .aq-fold')!.getAttribute('aria-expanded')).toBe('true');
+    // A prevented press keeps the state.
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-collapse', stop);
+    q(el, '.aq-lane-head .aq-fold')!.click();
+    expect(seen[1]).toEqual({ section: 'lane', collapsed: true });
+    expect(q(el, '.aq-stats')).not.toBeNull();
+    el.removeEventListener('ui-collapse', stop);
+    q(el, '.aq-lane-head .aq-fold')!.click();
+    expect(q(el, '.aq-stats')).toBeNull();
+    // The host's value wins on the next data set; a section it leaves out keeps the element's own.
+    el.data = {
+      now: NOW,
+      providers: [claude()],
+      lane: { jobs: jobs() },
+      collapsible: true,
+      collapsed: { capacity: true },
+    };
+    el.renderNow();
+    expect(q(el, '.capacity')!.classList.contains('is-collapsed')).toBe(true);
+    expect(q(el, '.aq-lane')!.classList.contains('is-collapsed')).toBe(true);
+    // Keyboard: the toggle is a real button (Enter / Space are its click); nothing roves on it.
+    q(el, '.cap-head .aq-fold')!.dispatchEvent(key('ArrowRight'));
+    expect(q(el, '.capacity')!.classList.contains('is-collapsed')).toBe(true);
+  });
+
+  it('per-job slot: the host’s live card sits under its tile and survives every re-render', () => {
+    const el = mount({ now: NOW, lane: { jobs: jobs() } });
+    const slots = qa(el, '.cron-group > slot');
+    expect(slots.map((s) => s.getAttribute('name'))).toEqual(['job:digest', 'job:sweep', 'job:audit']);
+    expect(slots.every((s) => s.parentElement!.lastElementChild === s)).toBe(true);
+    const card = document.createElement('article');
+    card.slot = 'job:sweep';
+    card.innerHTML = '<button type="button" data-job="x" class="aq-fold" data-fold="lane">Stop</button>';
+    el.append(card);
+    const btn = card.querySelector('button')!;
+    const assigned = () => (q(el, 'slot[name="job:sweep"]') as HTMLSlotElement).assignedElements?.() ?? [];
+    expect(assigned()).toEqual([card]);
+    btn.focus();
+    expect(document.activeElement).toBe(btn);
+    // A data update, a tick repaint and a fold all replace the shadow markup — never the host's card.
+    el.data = { now: NOW + M, lane: { jobs: jobs() } };
+    el.renderNow();
+    expect(card.isConnected && card.parentElement).toBe(el);
+    expect(assigned()).toEqual([card]);
+    expect(document.activeElement).toBe(btn);
+    // The card's own clicks and keys are the host's: no ui-job-open, no fold, Esc is not swallowed.
+    const evs = vi.fn();
+    el.addEventListener('ui-job-open', evs);
+    el.addEventListener('ui-collapse', evs);
+    btn.click();
+    expect(evs).not.toHaveBeenCalled();
+    expect(q(el, '.aq-lane')!.classList.contains('is-collapsed')).toBe(false);
+    const esc = vi.fn();
+    document.addEventListener('keydown', esc);
+    btn.dispatchEvent(key('Escape'));
+    document.removeEventListener('keydown', esc);
+    expect(esc).toHaveBeenCalledTimes(1);
+  });
+
+  it('per-job slot: a slotted card does not swallow Esc or keep the account card open on a press', () => {
+    const el = mount({ now: NOW, providers: [claude()], lane: { jobs: jobs() } });
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.slot = 'job:digest';
+    el.append(card);
+    (qa(el, '.aq-mark')[0] as HTMLElement).click();
+    expect(q(el, '.aq-pop')).not.toBeNull();
+    const outer = vi.fn();
+    document.addEventListener('keydown', outer);
+    card.dispatchEvent(key('Escape'));
+    document.removeEventListener('keydown', outer);
+    expect(outer).toHaveBeenCalledTimes(1);
+    card.click(); // a press outside the account card closes it, as anywhere else
+    expect(q(el, '.aq-pop')).toBeNull();
+  });
+
+  it('escapes a job id in its slot name', () => {
+    const el = mount({ now: NOW, lane: { jobs: [{ id: XSS_ATTR, name: 'x' }] } });
+    expect(q(el, 'slot')!.getAttribute('name')).toBe(`job:${XSS_ATTR}`);
+    expect(q(el, 'slot img')).toBeNull();
+  });
+
+  it('speaks Korean when folded: 펼치기 / 접기 and the dashboard’s chip words', () => {
+    const el = mount(
+      { now: NOW, providers: [claude()], lane: { jobs: jobs() }, collapsible: true, collapsed: { capacity: true } },
+      { lang: 'ko' },
+    );
+    expect(q(el, '.cap-head .aq-fold')!.textContent).toBe('펼치기');
+    expect(q(el, '.cap-head .aq-fold')!.getAttribute('aria-label')).toBe('LLM 가용량 펼치기');
+    expect(q(el, '.aq-lane-head .aq-fold')!.textContent).toBe('접기');
+    expect(q(el, '.cap-chip-v')!.textContent!.replace(/\s+/g, ' ').trim()).toBe(
+      'Claude 지금 1.5/4.0 38% · 주 2.0/4.0 50% ⏸ 1 · 7시간 22분 ⚠ 3/4 반영',
+    );
+    expect(q(el, '.cap-chip .sr-only')!.textContent).toContain(
+      'Claude 5시간(지금) 1.5/4.0 계정 (38%), 일주일 2.0/4.0 계정 (50%) · 3/4 반영 · 제한 1 — 7시간 22분 후 첫 복귀 — 다음 +0.4계정 · 22분 후',
     );
   });
 });

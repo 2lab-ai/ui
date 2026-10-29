@@ -383,16 +383,69 @@ describe('<ui-model-picker>', () => {
     document.removeEventListener('keydown', outer);
   });
 
-  it('Tab cycles between the list and the checked effort level, inside the menu', () => {
+  it('Tab: list → checked level, Shift+Tab back; past either end the menu closes onto the trigger (D9)', () => {
     const el = mount(BASE);
-    const list = openByKey(el);
+    const changes = vi.fn();
+    el.addEventListener('ui-open-change', (e) => changes((e as CustomEvent).detail.open));
+    let list = openByKey(el);
     key(list, 'Tab');
     expect(active(el)?.getAttribute('data-effort')).toBe('xhigh');
-    key(active(el)!, 'Tab');
+    key(active(el)!, 'Tab', { shiftKey: true });
     expect(active(el)).toBe(list);
-    key(list, 'Tab', { shiftKey: true });
-    expect(active(el)?.getAttribute('data-effort')).toBe('xhigh');
     expect(el.open).toBe(true);
+    // Tab past the level: home.
+    key(list, 'Tab');
+    key(active(el)!, 'Tab');
+    expect(el.open).toBe(false);
+    expect(active(el)?.classList.contains('mp-trigger')).toBe(true);
+    // Shift+Tab past the list: home.
+    list = openByKey(el);
+    key(list, 'Tab', { shiftKey: true });
+    expect(el.open).toBe(false);
+    expect(active(el)?.classList.contains('mp-trigger')).toBe(true);
+    expect(changes.mock.calls.map((c) => c[0])).toEqual([true, false, true, false]);
+    // A later Esc on the trigger stops there (nothing open to close, no outer handler confused).
+    const outer = vi.fn();
+    document.addEventListener('keydown', outer);
+    key(q(el, '.mp-trigger')!, 'Escape');
+    document.removeEventListener('keydown', outer);
+    expect(outer).toHaveBeenCalledTimes(1);
+  });
+
+  it('Tab from the list goes home when the model has no effort levels', () => {
+    const el = mount({ ...BASE, value: { model: 'opus', effort: 'high', effortLevels: [] } });
+    const list = openByKey(el);
+    expect(q(el, '.mp-seg-ctl')).toBeNull();
+    key(list, 'Tab');
+    expect(el.open).toBe(false);
+    expect(active(el)?.classList.contains('mp-trigger')).toBe(true);
+  });
+
+  it('value.effortLevels: the session model’s own levels win over the row’s, also outside the list', () => {
+    // Opus lists all five, but the session's catalog entry says it runs three.
+    const el = mount({ ...BASE, value: { model: 'opus', effort: 'high', effortLevels: ['low', 'medium', 'high'] } });
+    el.open = true;
+    const levels = () => qa(el, '.mp-seg-btn').map((b) => b.getAttribute('data-effort'));
+    expect(levels()).toEqual(['low', 'medium', 'high']);
+    // Outside the list: without effortLevels the standard five, with them only those (deduped).
+    el.data = { ...BASE, value: { model: 'claude-haiku-4-5', effort: 'low' } };
+    el.renderNow();
+    expect(levels()).toEqual(ALL);
+    el.data = { ...BASE, value: { model: 'claude-haiku-4-5', effort: 'low', effortLevels: ['low', 'high', 'low'] } };
+    el.renderNow();
+    expect(levels()).toEqual(['low', 'high']);
+    // An optimistic effort pick keeps them; a model switch drops them (the new model brings its own).
+    const btn = q(el, '.mp-seg-btn[data-effort="high"]')!;
+    btn.click();
+    el.renderNow();
+    expect(el.data!.value).toEqual({ model: 'claude-haiku-4-5', effort: 'high', effortLevels: ['low', 'high', 'low'] });
+    expect(levels()).toEqual(['low', 'high']);
+    el.data = { ...BASE, value: { model: 'opus', effort: 'high', effortLevels: ['low', 'high'] } };
+    el.renderNow();
+    (q(el, '.mp-opt[data-k="sonnet"]') as HTMLElement).click();
+    expect(el.data!.value).toEqual({ model: 'sonnet', effort: 'high' });
+    el.open = true;
+    expect(levels()).toEqual(['low', 'medium', 'high']);
   });
 
   it('offers only the levels the model runs; arrows select at once and keep the menu open', () => {
