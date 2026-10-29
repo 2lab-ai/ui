@@ -93,6 +93,13 @@ export const styles = `
   .ans-cite::after { content: ''; position: absolute; inset: -10px -4px; }
   .ans-btn { min-height: 44px; }
 }
+/* flat: inside a host surface that is already the card (a conversation turn) — no frame, no side padding; the
+   link row starts at the text's edge and fades only where it continues. */
+:host([flat]) .ans-card { margin-top: 2px; padding: 2px 0 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+:host([flat]) .ans-srcs { margin: -4px 0 8px; padding: 4px 0;
+  -webkit-mask: linear-gradient(90deg, black calc(100% - 12px), transparent);
+  mask: linear-gradient(90deg, black calc(100% - 12px), transparent); }
+
 /* The global rule only shortens durations, so infinite loops would flicker: stop them. */
 @media (prefers-reduced-motion: reduce) {
   .ans-shimmer, .ans-dot, .ans-src, .ans-card.is-in > * { animation: none !important; }

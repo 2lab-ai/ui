@@ -7,7 +7,9 @@ import type {
   MemoryPanelData,
   MemoryRestoreDetail,
   MemoryStore,
+  UiMemoryPanel,
 } from './memory-panel';
+import { storeUsed } from './memory-panel';
 
 const SEP = '\n§\n';
 
@@ -60,12 +62,16 @@ const profile = (entries: string[]): MemoryStore => ({
   entries,
 });
 
+/** A server check: a refusal message, or '' when the write goes through. */
+type Check = (name: string, detail: MemoryAddDetail & Partial<MemoryEditDetail>, model: MemoryPanelData) => string;
+
 /**
  * A tiny host: every event is applied to its own copy right away and the copy comes back as `data` a moment
  * later — like a server write followed by a reload. The panel shows the change optimistically in between.
+ * With `check`, a write the "server" refuses is answered with `el.refuse(event, message)` instead.
  */
-function make(data: MemoryPanelData, attrs: Record<string, string> = {}): HTMLElement {
-  const el = document.createElement('ui-memory-panel');
+function make(data: MemoryPanelData, attrs: Record<string, string> = {}, check?: Check): HTMLElement {
+  const el = document.createElement('ui-memory-panel') as UiMemoryPanel;
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   const model: MemoryPanelData = structuredClone(data);
   const store = (id: string) => model.stores.find((s) => s.id === id)!;
@@ -78,7 +84,13 @@ function make(data: MemoryPanelData, attrs: Record<string, string> = {}): HTMLEl
   };
   const on = <T>(name: string, fn: (d: T) => void) =>
     el.addEventListener(name, (e) => {
-      fn((e as CustomEvent<T>).detail);
+      const d = (e as CustomEvent<T>).detail;
+      const why = check?.(name, d as MemoryAddDetail & Partial<MemoryEditDetail>, model) ?? '';
+      if (why) {
+        window.setTimeout(() => el.refuse(e, why), 420);
+        return;
+      }
+      fn(d);
       persist();
     });
   on<MemoryAddDetail>('ui-add', (d) => store(d.store).entries.push(d.text.trim()));
@@ -140,6 +152,19 @@ export const doc: ComponentDoc = {
       type: 'string',
       default: "''",
       description: 'What the store puts between entries when it counts usage (soma-work: `\\n§\\n`).',
+    },
+    {
+      name: 'data.stores[].empty',
+      type: 'string',
+      default: '“Empty — add an entry below.”',
+      description:
+        'The line shown while the store has no entries, e.g. how else entries get there (“say “remember this” in Slack”). A read-only panel keeps “Empty.”.',
+    },
+    {
+      name: 'refuse(write, message?)',
+      type: '(write: { type: string; detail }, message?: string) => boolean',
+      description:
+        'Method. A write you accepted failed on the server (409, over the limit, a lock): pass the `ui-*` event (or `{ type, detail }` with the same detail) and the message. What was typed comes back — an edit to its entry’s editor (when `previous` is still there once and no other editor is open), else to the add box; an add or a restore to the store’s add box, opened. A refused delete withdraws its Undo. An optimistic change still on screen rolls back. The message replaces “Saved” in the fail tone (default “Couldn’t save”). Works before or after you send the reloaded data; called inside the listener it acts as preventDefault(). Busy handling stays yours: preventDefault() while a write is out.',
     },
     {
       name: 'data.readOnly',
@@ -210,15 +235,20 @@ export const doc: ComponentDoc = {
   // { stores: [{ id: 'memory', label: 'Agent notes', file: 'MEMORY.md', limit: 2200,
   //              perEntryLimit: 660, separator: '\\n§\\n', entries: ['…'] }, …] }
   const reload = async () => { el.data = await (await fetch('/api/memory')).json(); };
-  const api = (method, path, body) => fetch('/api/memory/' + path, {
-    method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
-  }).finally(reload); // the panel shows each change at once; reload sends the truth (a failed write rolls back)
+  // The panel shows each change at once; reload sends the truth. A refused write hands the typed text back.
+  const api = async (e, method, path, body) => {
+    const r = await fetch('/api/memory/' + path, {
+      method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    await reload();
+    if (!r.ok) el.refuse(e, 'Couldn’t save: ' + ((await r.json()).error ?? r.status));
+  };
   await reload();
-  el.addEventListener('ui-add', (e) => api('POST', e.detail.store, { text: e.detail.text }));
-  el.addEventListener('ui-edit', (e) => api('PUT', e.detail.store + '/' + e.detail.index, e.detail));
-  el.addEventListener('ui-delete', (e) => api('DELETE', e.detail.store + '/' + e.detail.index, e.detail));
-  el.addEventListener('ui-restore', (e) => api('POST', e.detail.store, { text: e.detail.text, restore: true }));
-  el.addEventListener('ui-clear', (e) => api('DELETE', e.detail.store));
+  el.addEventListener('ui-add', (e) => api(e, 'POST', e.detail.store, { text: e.detail.text }));
+  el.addEventListener('ui-edit', (e) => api(e, 'PUT', e.detail.store + '/' + e.detail.index, e.detail));
+  el.addEventListener('ui-delete', (e) => api(e, 'DELETE', e.detail.store + '/' + e.detail.index, e.detail));
+  el.addEventListener('ui-restore', (e) => api(e, 'POST', e.detail.store, { text: e.detail.text, restore: true }));
+  el.addEventListener('ui-clear', (e) => api(e, 'DELETE', e.detail.store));
 </script>`,
   demos: [
     {
@@ -242,10 +272,37 @@ export const doc: ComponentDoc = {
     {
       id: 'empty',
       title: 'Empty',
-      description: 'A new user: both stores empty, each with its own add editor.',
+      description:
+        'A new user: both stores empty, each with its own add editor. Agent notes carries the host’s own empty line (stores[].empty).',
       height: 420,
       frame: false,
-      create: () => make({ stores: [notes([]), profile([])] }),
+      create: () =>
+        make({
+          stores: [
+            { ...notes([]), empty: 'Empty — say “remember this” in Slack, or add an entry below.' },
+            profile([]),
+          ],
+        }),
+    },
+    {
+      id: 'refused',
+      title: 'Refused by the server',
+      description:
+        'Agent notes is at 97 %. The “server” refuses an add or edit that would pass the limit and answers with refuse() 0.4 s later: the optimistic row rolls back, the text is back in its editor or the add box, the tray says why.',
+      height: 640,
+      frame: false,
+      create: () =>
+        make({ stores: [notes(NOTES, 1990), profile(PROFILE.slice(0, 3))] }, {}, (name, d, model) => {
+          const s = model.stores.find((x) => x.id === d.store);
+          if (!s || (name !== 'ui-add' && name !== 'ui-edit')) return '';
+          const next = s.entries.slice();
+          if (name === 'ui-add') next.push(d.text.trim());
+          else next[d.index ?? 0] = d.text.trim();
+          const used = storeUsed(next, s.separator);
+          return used > s.limit
+            ? `Couldn’t save: ${s.label} would be ${used.toLocaleString('en-US')} / ${s.limit.toLocaleString('en-US')} chars`
+            : '';
+        }),
     },
     {
       id: 'readonly',

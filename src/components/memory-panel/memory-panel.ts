@@ -19,6 +19,8 @@ export interface MemoryStore {
   perEntryLimit?: number;
   /** What the store puts between entries when it counts its usage (e.g. `'\n§\n'`). Default `''`. */
   separator?: string;
+  /** The line shown while the store has no entries (writable panel). Default: “Empty — add an entry below.” */
+  empty?: string;
 }
 
 export interface MemoryPanelData {
@@ -51,6 +53,12 @@ export interface MemoryDeleteDetail {
 export type MemoryRestoreDetail = MemoryDeleteDetail;
 export interface MemoryClearDetail {
   store: string;
+}
+
+/** A write the host could not carry out: the `ui-*` event it received (or `{ type, detail }` with that detail). */
+export interface MemoryWriteRefusal {
+  type: string;
+  detail?: unknown;
 }
 
 /** ok < 80% ≤ warn (amber) < 95% ≤ high (red bar) < 100% ≤ full (red text). */
@@ -107,6 +115,7 @@ const STRINGS = {
     added: 'Added',
     restored: 'Restored',
     cleared: 'Cleared',
+    failed: 'Couldn’t save',
     emptyEntry: 'An entry cannot be empty — use Delete to remove it',
     editHint: 'Enter to save · Shift+Enter for a new line · Esc to cancel',
     addHint: 'Enter to add · Shift+Enter for a new line · Esc to close',
@@ -152,6 +161,7 @@ const STRINGS = {
     added: '추가했습니다',
     restored: '되돌렸습니다',
     cleared: '모두 지웠습니다',
+    failed: '저장하지 못했습니다',
     emptyEntry: '비어 있는 항목은 저장할 수 없습니다 — 지우려면 삭제를 쓰세요',
     editHint: 'Enter 저장 · Shift+Enter 줄바꿈 · Esc 취소',
     addHint: 'Enter 추가 · Shift+Enter 줄바꿈 · Esc 닫기',
@@ -267,6 +277,7 @@ interface WorkStore {
   limit: number;
   per: number;
   sep: string;
+  empty: string;
   entries: string[];
 }
 interface View {
@@ -346,6 +357,11 @@ export class UiMemoryPanel extends UiElement<MemoryPanelData> {
   #rolls = new Map<Element, { n: number; raf: number }>();
   #timers = { notice: 0, armed: 0, settle: 0, scroll: 0 };
   #swaps = new Set<number>();
+  /** Optimistic writes still on screen (until the next `data`): detail → undo of that change. */
+  #pending = new Map<object, () => void>();
+  /** The detail being dispatched right now, and a refusal that arrived while it was. */
+  #emitting: object | null = null;
+  #refusedNow = '';
 
   constructor() {
     super();
@@ -416,6 +432,8 @@ export class UiMemoryPanel extends UiElement<MemoryPanelData> {
   // ── data ──
 
   #adopt(d: MemoryPanelData | undefined): void {
+    // New data is the truth: every optimistic change on screen ends here.
+    this.#pending.clear();
     const list = Array.isArray(d?.stores) ? d.stores : [];
     this.#work = list
       .filter((s) => s && s.id != null)
@@ -426,6 +444,7 @@ export class UiMemoryPanel extends UiElement<MemoryPanelData> {
         limit: num(s.limit),
         per: num(s.perEntryLimit),
         sep: typeof s.separator === 'string' ? s.separator : '',
+        empty: typeof s.empty === 'string' ? s.empty : '',
         entries: (Array.isArray(s.entries) ? s.entries : []).map((e) => String(e ?? '')),
       }));
     const ro = d?.readOnly === true || typeof d?.readOnly === 'string';
@@ -583,7 +602,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
         : '';
     let html = `<section class="mm-group mm-fold" data-store="${escAttr(s.id)}"${open ? ' data-open' : ' inert'} aria-labelledby="mm-h-${si}"><div class="mm-clip">
 <div class="mm-ghead"><h3 id="mm-h-${si}">${esc(s.label)}${s.file ? ` <span class="mm-file">${esc(s.file)}</span>` : ''}</h3><div class="mm-usage" data-level="${level}">${bar}<span class="mm-uval"${bar ? ' aria-hidden="true"' : ''}>${esc(val)}</span></div></div>`;
-    if (!s.entries.length) html += `<p class="mm-empty">${esc(ro ? t.emptyRo : t.empty)}</p>`;
+    if (!s.entries.length) html += `<p class="mm-empty">${esc(ro ? t.emptyRo : s.empty || t.empty)}</p>`;
     html += `<ol class="mm-items">${rows}</ol>`;
     if (!ro) {
       const adding = !!this.#adding[s.id];
@@ -1000,8 +1019,13 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       this.#focusRow('ed', s, i);
       return;
     }
-    if (!this.emit<MemoryEditDetail>('ui-edit', { store: s.id, index: i, text, previous: e.orig })) return;
+    const detail: MemoryEditDetail = { store: s.id, index: i, text, previous: e.orig };
+    if (!this.#emitWrite('ui-edit', detail)) return;
     s.entries[i] = text;
+    this.#pending.set(detail, () => {
+      const at = s.entries[i] === text ? i : s.entries.indexOf(text);
+      if (at >= 0) s.entries[at] = detail.previous;
+    });
     this.#editing = null;
     this.#say(t.saved);
     this.#paintAll();
@@ -1018,7 +1042,14 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const i = entryKeys(s.entries).indexOf(key);
     if (i < 0) return;
     const text = s.entries[i];
-    if (!this.emit<MemoryDeleteDetail>('ui-delete', { store: sid, index: i, text })) return;
+    const detail: MemoryDeleteDetail = { store: sid, index: i, text };
+    if (!this.#emitWrite('ui-delete', detail)) return;
+    this.#pending.set(detail, () => {
+      const at = Math.min(i, s.entries.length);
+      s.entries.splice(at, 0, text);
+      const ed = this.#editing;
+      if (ed?.store === sid && ed.index >= at) ed.index++;
+    });
     const g = this.#group(sid);
     const row = g?.querySelector<HTMLElement>(`.mm-rowf[data-i="${i}"]`) ?? null;
     if (row) {
@@ -1110,7 +1141,8 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const s = this.#store(u.store);
     this.#dropUndo();
     if (!s) return;
-    if (!this.emit<MemoryRestoreDetail>('ui-restore', { store: u.store, index: u.index, text: u.text })) {
+    const detail: MemoryRestoreDetail = { store: u.store, index: u.index, text: u.text };
+    if (!this.#emitWrite('ui-restore', detail)) {
       // refused: the text is not lost — it waits in the store's add box
       this.#keepDraft(s.id, u.text);
       this.#paintAll();
@@ -1121,6 +1153,13 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     s.entries.splice(at, 0, u.text);
     const e = this.#editing;
     if (e?.store === s.id && e.index >= at) e.index++;
+    this.#pending.set(detail, () => {
+      const j = s.entries[at] === u.text ? at : s.entries.indexOf(u.text);
+      if (j < 0) return;
+      s.entries.splice(j, 1);
+      const ed = this.#editing;
+      if (ed?.store === s.id && ed.index > j) ed.index--;
+    });
     this.#say(this.#t.restored);
     this.#paintAll();
     this.#reveal(s, at, true);
@@ -1199,8 +1238,13 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const ta = this.#byKey(`new|${sid}`) as HTMLTextAreaElement | null;
     const text = ta ? ta.value : (this.#drafts[sid] ?? '');
     if (!text.trim()) return;
-    if (!this.emit<MemoryAddDetail>('ui-add', { store: sid, text })) return;
+    const detail: MemoryAddDetail = { store: sid, text };
+    if (!this.#emitWrite('ui-add', detail)) return;
     s.entries.push(text);
+    this.#pending.set(detail, () => {
+      const at = s.entries.lastIndexOf(text);
+      if (at >= 0) s.entries.splice(at, 1);
+    });
     this.#drafts[sid] = '';
     this.#adding[sid] = false;
     this.#say(this.#t.added);
@@ -1226,7 +1270,8 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       return;
     }
     this.#disarm(false);
-    if (!this.emit<MemoryClearDetail>('ui-clear', { store: sid })) {
+    const detail: MemoryClearDetail = { store: sid };
+    if (!this.#emitWrite('ui-clear', detail)) {
       this.#paintClear();
       this.#paintTray();
       return;
@@ -1236,7 +1281,11 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       this.#editing = null;
       if (e.draft !== e.orig) this.#keepDraft(sid, e.draft);
     }
+    const before = s.entries;
     s.entries = [];
+    this.#pending.set(detail, () => {
+      s.entries = before.concat(s.entries);
+    });
     this.#say(this.#t.cleared);
     this.#paintAll();
     if (!this.#focusKey(`add|${sid}`)) this.#focusKey(`new|${sid}`);
@@ -1261,6 +1310,86 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       b.toggleAttribute('data-armed', armed);
       b.textContent = armed && s ? t.clearN(s.entries.length) : t.clear;
     }
+  }
+
+  // ── refused writes ──
+
+  /** Emit a write. A `refuse()` for it while it is being dispatched counts as preventDefault() plus its message. */
+  #emitWrite(name: string, detail: object): boolean {
+    this.#emitting = detail;
+    this.#refusedNow = '';
+    let ok: boolean;
+    try {
+      ok = this.emit(name, detail);
+    } finally {
+      this.#emitting = null;
+    }
+    const msg = this.#refusedNow;
+    this.#refusedNow = '';
+    if (!msg) return ok;
+    this.#say(msg, true);
+    return false;
+  }
+
+  /**
+   * The host could not carry out a write it accepted (409, over the limit, a lock…). Pass the `ui-*` event you
+   * received (or `{ type, detail }` with that same detail) and the message to show. Whatever the person typed comes
+   * back: an edit to its entry's editor (when `previous` is still there, once, and no other editor is open), else to
+   * the store's add box; an add or a restore to the add box (opened). A refused delete withdraws its Undo. An
+   * optimistic change still on screen is rolled back; `data` set in between already is the truth. The message
+   * replaces the optimistic “Saved” in the fail tone. Call it before or after you send the reloaded `data`.
+   * Returns false for anything that is not a memory write.
+   */
+  refuse(write: MemoryWriteRefusal, message?: string): boolean {
+    const d = (write?.detail ?? null) as Record<string, unknown> | null;
+    const kind = String(write?.type ?? '').replace(/^ui-/, '');
+    if (!d || typeof d !== 'object' || !['add', 'edit', 'delete', 'restore', 'clear'].includes(kind)) return false;
+    const text = String(message ?? '').trim() || this.#t.failed;
+    if (this.#emitting && d === this.#emitting) {
+      this.#refusedNow = text;
+      return true;
+    }
+    this.#pending.get(d)?.();
+    this.#pending.delete(d);
+    const s = this.#store(String(d.store ?? ''));
+    let focus = '';
+    if (s && !this.#ro) {
+      const typed = String(d.text ?? '');
+      if (kind === 'edit') {
+        const prev = String(d.previous ?? '');
+        const at = s.entries.indexOf(prev);
+        const other = this.#editing;
+        if (!other && at >= 0 && s.entries.lastIndexOf(prev) === at) {
+          this.#editing = { store: s.id, index: at, orig: prev, draft: typed };
+          focus = `edit|${s.id}`;
+        } else if (typed.trim()) {
+          this.#keepDraft(s.id, typed);
+          focus = `new|${s.id}`;
+        }
+      } else if (kind === 'add' || kind === 'restore') {
+        if (typed.trim()) {
+          this.#keepDraft(s.id, typed);
+          focus = `new|${s.id}`;
+        }
+      } else if (kind === 'delete') {
+        const u = this.#undo;
+        if (u && u.store === s.id && u.text === typed && u.index === Number(d.index)) this.#dropUndo();
+      }
+    }
+    if (s && kind === 'clear' && this.#armed?.store === s.id) this.#disarm(false);
+    this.#say(text, true);
+    if (this.isConnected) {
+      const inside = this.#holds.panel;
+      this.#paintAll();
+      if (focus && inside) {
+        const ta = this.#byKey(focus) as HTMLTextAreaElement | null;
+        if (ta && this.#focus(ta)) {
+          ta.setSelectionRange?.(ta.value.length, ta.value.length);
+          grow(ta);
+        }
+      }
+    } else this.requestRender();
+    return true;
   }
 
   // ── tray ──

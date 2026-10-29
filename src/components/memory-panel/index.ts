@@ -6,6 +6,7 @@ export type {
   MemoryPanelData,
   MemoryRestoreDetail,
   MemoryStore,
+  MemoryWriteRefusal,
   UsageLevel,
 } from './memory-panel';
 export {
