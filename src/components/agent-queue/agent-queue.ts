@@ -9,6 +9,7 @@ import {
   type AqProvider,
   type AqRun,
   type AqRunStatus,
+  type AqSection,
   advanceProvider,
   axisPos,
   clockLabel,
@@ -57,6 +58,18 @@ export interface AqAccountOpenDetail {
   providerId: string;
   accountId: string;
 }
+
+/** `ui-collapse` detail: a section's fold toggle was pressed. Cancel the event to keep the current state. */
+export interface AqCollapseDetail {
+  section: AqSection;
+  /** The state the press asks for. */
+  collapsed: boolean;
+}
+
+const CHEVRON_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+const SECTIONS: readonly AqSection[] = ['capacity', 'lane'];
+const CHIP_GLYPH: Record<string, string> = { low: '▲ ', empty: '✗ ', unknown: '◌ ' };
 
 const CLOCK_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/></svg>';
@@ -156,6 +169,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   #ro: ResizeObserver | null = null;
   #rz = 0;
   #seenQ = new Set<string>();
+  #fold: Record<AqSection, boolean> = { capacity: false, lane: false };
   #tick = 0;
   #say = 0;
   readonly #live: HTMLElement;
@@ -232,6 +246,8 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   // ── Data in ───────────────────────────────────────────────────────────────────────────────
 
   #ingest(d: AgentQueueData): void {
+    // The host's fold state wins on every data set; a section it leaves out keeps the element's own.
+    for (const s of SECTIONS) if (typeof d.collapsed?.[s] === 'boolean') this.#fold[s] = d.collapsed[s] as boolean;
     const next = normalize(d);
     this.#skew = next.now !== undefined ? next.now - Date.now() : 0;
     const prev = this.#m;
@@ -290,11 +306,26 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
 
   // ── Capacity ──────────────────────────────────────────────────────────────────────────────
 
+  /** The section's fold toggle (with `collapsible`): its word says what a press does; aria-expanded the state. */
+  #foldBtn(section: AqSection, name: string, t: Strings): string {
+    if (!this.data?.collapsible) return '';
+    const folded = this.#fold[section];
+    const word = folded ? t.fold.expand : t.fold.collapse;
+    return `<button type="button" class="aq-fold" data-fold="${section}" data-key="fold-${section}" aria-expanded="${
+      folded ? 'false' : 'true'
+    }" aria-label="${escAttr(t.fold.aria(word, name))}"><span class="aq-fold-text">${esc(word)}</span>${CHEVRON_SVG}</button>`;
+  }
+
   #capacity(m: AgentQueueData, now: number, t: Strings): string {
+    const fold = this.#foldBtn('capacity', t.capTitle, t);
+    if (this.#fold.capacity)
+      return `<section class="capacity is-collapsed" aria-label="${escAttr(t.capTitle)}"><div class="cap-head"><h2 class="cap-title">${esc(
+        t.capTitle,
+      )}</h2>${this.#summary(m, now, t)}${fold}</div></section>`;
     const sub = [m.capacityNote ? esc(m.capacityNote) : '', this.#time('fetched', m.fetchedAt, now, t, 'aq-ago')]
       .filter(Boolean)
       .join(' · ');
-    const head = `<div class="cap-head"><h2 class="cap-title">${esc(t.capTitle)}</h2>${sub ? `<span class="cap-sub">${sub}</span>` : ''}</div>`;
+    const head = `<div class="cap-head"><h2 class="cap-title">${esc(t.capTitle)}</h2>${sub ? `<span class="cap-sub">${sub}</span>` : ''}${fold}</div>`;
     const open = `<section class="capacity" aria-label="${escAttr(t.capTitle)}">${head}`;
     if (m.capacityError !== undefined)
       return `${open}<div class="cap-off">${esc(t.capError(m.capacityError || '—'))}</div></section>`;
@@ -307,6 +338,93 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     return `${open}<div class="cap-rows">${ps
       .map((p, i) => this.#provider(advanceProvider(p, now), i, now, t, W, narrow))
       .join('')}</div></section>`;
+  }
+
+  /** Collapsed capacity: one chip per provider — state glyph, both measures, ⏸ limited · first return, ⚠ flags. */
+  #summary(m: AgentQueueData, now: number, t: Strings): string {
+    if (m.capacityError !== undefined)
+      return `<div class="cap-summary"><span class="cap-chip is-error" title="${escAttr(m.capacityError)}">${esc(
+        t.chip.error(m.capacityError || '—'),
+      )}</span></div>`;
+    const ps = m.providers ?? [];
+    if (!ps.length)
+      return `<div class="cap-summary"><span class="cap-chip is-unknown">${esc(t.chip.none)}</span></div>`;
+    return `<ul class="cap-summary" aria-label="${escAttr(t.chip.aria)}">${ps
+      .map((p) => this.#chip(advanceProvider(p, now), now, t))
+      .join('')}</ul>`;
+  }
+
+  #chip(p: AqProvider, now: number, t: Strings): string {
+    const state = poolState(p);
+    const total = Number(p.total) || 0;
+    const known = total > 0;
+    const ts = fmt1(total);
+    const five = has5h(p);
+    const wk = p.weekly !== undefined && p.weekly !== null;
+    const v5 = Number(p.fiveHour) || 0;
+    const vw = Number(p.weekly) || 0;
+    // Both measures as count / total and %, labelled — also folded, also on phones.
+    const meas = (cls: string, word: string, v: number) =>
+      `<span class="cap-m is-${cls}"><i class="cap-chip-k">${esc(word)} </i><b>${fmtCount(v, total)}</b><i class="cap-chip-of">/${ts}</i> <em>${fmtPct(
+        v,
+        total,
+      )}</em></span>`;
+    const nums = [five ? meas('now', t.chip.now, v5) : '', wk ? meas('wk', t.chip.week, vw) : ''].filter(Boolean);
+    const said = known
+      ? [
+          five ? t.chip.said5(fmtCount(v5, total), ts, fmtPct(v5, total)) : '',
+          wk ? t.chip.saidWk(fmtCount(vw, total), ts, fmtPct(vw, total)) : '',
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : t.bar.unknown;
+    // What the card's disclosure line flags: a reading over a day old, a fifth or more left out, assumed tiers.
+    const acc = p.accounts ?? [];
+    const age = p.measuredAt !== undefined ? (now - p.measuredAt) / 1000 : 0;
+    const stale = age > 86400 ? t.age(age) : '';
+    const all = p.accountCount ?? acc.length;
+    const counted = countedAccounts(p);
+    const part = all > 0 && counted < all * 0.8 ? t.disc.reflected(counted, all) : '';
+    const assumed = acc.filter((a) => a.tierAssumed && a.tier && a.state !== 'paused' && a.state !== 'excluded');
+    const tier = assumed.length ? String(assumed[0].tier) : '';
+    const flags = [stale ? t.chip.stale(stale) : '', part, tier ? t.chip.assumed(tier, assumed.length) : ''].filter(
+      Boolean,
+    );
+    const flagSaid = [stale ? t.disc.measured(stale) : '', part, tier ? t.disc.assumed(assumed.length, tier) : '']
+      .filter(Boolean)
+      .map((x) => ` · ${x}`)
+      .join('');
+    // Limited workers and the first return, between the measures and the ⚠ flag (ticking in place).
+    const lim = limitedAccounts(p).length;
+    const back = lim ? firstReturn(p) : null;
+    const left = back === null ? 0 : Math.floor((back - now) / 1000);
+    const limHtml = lim
+      ? ` <i class="cap-chip-lim">⏸ ${lim}${back !== null ? ` · ${this.#time('left', back, now, t)}` : ''}</i>`
+      : '';
+    const limSaid = lim
+      ? t.chip.limSaid(lim, back === null ? '' : left > 0 ? t.chip.firstBack(t.dur(left)) : t.backSoon)
+      : '';
+    const next = known ? this.#nextText(p, primaryKey(p), now, t) : '';
+    const lead = `${said}${flagSaid}${t.chip.word[state] ?? ''}${limSaid}${next ? ` — ${next}` : ''}`;
+    const flag = flags.length ? ` <i class="cap-chip-flag">${esc(`⚠ ${flags.join(' · ')}`)}</i>` : '';
+    return `<li class="cap-chip is-${state}" title="${escAttr(lead)}"><span class="cap-chip-v" aria-hidden="true">${esc(
+      (CHIP_GLYPH[state] ?? '') + p.name,
+    )} ${nums.length && known ? nums.join(' · ') : '<b>—</b>'}${limHtml}${flag}</span><span class="sr-only">${esc(
+      `${p.name} ${lead}`,
+    )}</span></li>`;
+  }
+
+  /** The next line as plain words (chip tooltip): what comes back next, when, and why. */
+  #nextText(p: AqProvider, key: MeasureKey, now: number, t: Strings): string {
+    const e = nextRefill(p, key, now);
+    if (!e) {
+      const small = gainWithin(p, key, now);
+      return small > 0.0005 ? t.bar.backWithin(t.gain(small, fmt1)) : t.bar.nothing;
+    }
+    const why = [t.cause[e.cause] ?? '', e.account ?? ''].filter(Boolean).join(' · ');
+    return `${t.bar.next(fmt1(Number(e[key]) || 0))}${timeText('in', e.at, now, t)} (${clockLabel(e.at, now)})${
+      why ? ` · ${why}` : ''
+    }`;
   }
 
   #provider(p: AqProvider, idx: number, now: number, t: Strings, W: number, narrow: boolean): string {
@@ -590,12 +708,21 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const title = lane.title || 'CRON';
     const running = jobs.filter((j) => j.state === 'running').length;
     const waiting = jobs.filter((j) => j.state === 'waiting').length;
-    const day = dayRuns({ ...lane, jobs }, now);
     const head = `<div class="aq-lane-head"><span class="aq-lane-ic" aria-hidden="true">${CLOCK_SVG}</span><h2 class="aq-lane-title">${esc(
       title,
     )}</h2><span class="aq-count">${jobs.length}</span>${running ? pill('run', esc(t.running(running))) : ''}${
       waiting ? pill('wait', esc(t.waiting(waiting))) : ''
-    }</div>`;
+    }${this.#foldBtn('lane', t.laneAria(title), t)}</div>`;
+    // Folded: the head and only the jobs whose run waits for a reply (with their slots) — nothing else is written.
+    if (this.#fold.lane) {
+      const wait = jobs.filter((j) => j.state === 'waiting');
+      return `<section class="aq-lane is-collapsed" aria-label="${escAttr(t.laneAria(title))}">${head}${
+        wait.length
+          ? `<div class="aq-lane-body"><div class="cron-groups">${wait.map((j) => this.#job(j, now, t, title)).join('')}</div></div>`
+          : ''
+      }</section>`;
+    }
+    const day = dayRuns({ ...lane, jobs }, now);
     return `<section class="aq-lane" aria-label="${escAttr(t.laneAria(title))}">${head}<div class="aq-lane-top">${this.#stats(
       jobs,
       day,
@@ -691,13 +818,19 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const expr = j.expression ? ` title="${escAttr(t.job.exprTitle(j.expression))}"` : '';
     return `<section class="cron-group${cls}" aria-label="${escAttr(j.name)}"><div class="cron-tile"><div class="cron-tile-head"><span class="cron-badge" aria-hidden="true">${CLOCK_SVG}<span class="cron-badge-text">${esc(
       badge,
-    )}</span></span><span class="cron-name" title="${escAttr(j.name)}">${esc(j.name)}</span><button type="button" class="cron-history-btn" data-job="${escAttr(
+    )}</span></span><span class="cron-name" title="${escAttr(j.name)}">${esc(j.name)}</span>${
+      j.note?.text
+        ? `<span class="cron-note"${j.note.title ? ` title="${escAttr(j.note.title)}"` : ''}>${esc(j.note.text)}</span>`
+        : ''
+    }<button type="button" class="cron-history-btn" data-job="${escAttr(
       j.id,
     )}" data-key="${keyOf('runs', j.id)}">${esc(t.job.past(j.pastRuns ?? runs.length))}</button></div>${
       sched || next
         ? `<div class="cron-sched">${sched ? `<span class="cron-expr"${expr}>${esc(sched)}</span>` : ''}${next}</div>`
         : ''
-    }${this.#strip(j, runs, now, t)}<div class="cron-status is-${tone}">${status}</div></div></section>`;
+    }${this.#strip(j, runs, now, t)}<div class="cron-status is-${tone}">${status}</div></div><slot name="${escAttr(
+      `job:${j.id}`,
+    )}"></slot></section>`;
   }
 
   /** The last 12 runs, oldest → newest. Every state has its own mark; the button says the counts. */
@@ -852,13 +985,33 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     if (refocus) this.#focusKey(accKey(o.pid, o.aid));
   }
 
+  /** A press outside the element's own markup closes the card — also one on the host's slotted content. */
   #onDocClick = (e: Event): void => {
-    if (this.#open && !e.composedPath().includes(this)) this.#close(false);
+    const at = e.composedPath()[0];
+    if (this.#open && !(at instanceof Node && this.root.contains(at))) this.#close(false);
   };
+
+  /** An event from the host's own slotted content (a job's live card) is the host's, never the element's. */
+  #own(el: Element | null): boolean {
+    return !!el && this.root.contains(el);
+  }
+
+  #toggleFold(section: AqSection): void {
+    const collapsed = !this.#fold[section];
+    if (!this.emit<AqCollapseDetail>('ui-collapse', { section, collapsed })) return;
+    this.#fold[section] = collapsed;
+    this.renderNow();
+  }
 
   #onClick(e: Event): void {
     const el = e.target as Element | null;
     if (!el?.closest) return;
+    if (!this.#own(el)) return;
+    const fold = el.closest<HTMLElement>('.aq-fold[data-fold]');
+    if (fold) {
+      if (fold.dataset.fold === 'capacity' || fold.dataset.fold === 'lane') this.#toggleFold(fold.dataset.fold);
+      return;
+    }
     if (el.closest('.aq-pop-close')) {
       this.#close(true);
       return;
@@ -874,6 +1027,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   }
 
   #onKey(e: KeyboardEvent): void {
+    if (!this.#own(e.target as Element | null)) return;
     if (e.key === 'Escape' && this.#open) {
       e.preventDefault();
       e.stopPropagation();
@@ -902,6 +1056,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   }
 
   #onFocus(e: Event): void {
+    if (!this.#own(e.target as Element | null)) return;
     const item = (e.target as Element | null)?.closest?.<HTMLElement>('[data-rove-item]');
     const box = item?.closest<HTMLElement>('[data-rove]');
     if (!item || !box) return;
