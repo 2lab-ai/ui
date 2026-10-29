@@ -31,25 +31,60 @@ export const styles = `
 .ib-empty { margin: 0; text-align: center; color: var(--ib-muted); font-size: 13px; padding: 14px 8px 18px; }
 .ib-empty[hidden] { display: none; }
 
-/* List = the same columns stacked full width (same DOM). Forced with view="list"; automatic below 640px. */
-:host([view="list"]) .ib-board { grid-template-columns: minmax(0, 1fr); }
-:host([view="list"]) .ib-col-name { flex: 0 1 auto; text-align: left; }
-:host([view="list"]) .ib-summary { -webkit-line-clamp: 1; }
-:host([view="list"]) .ib-empty { padding: 10px 8px 16px; }
+/* List = the same columns stacked full width (same DOM). Forced with view="list"; automatic below 640px.
+   The rules follow .ib[data-view] (it mirrors the attribute) so a switch can be measured before it lands. */
+.ib[data-view="list"] .ib-board { grid-template-columns: minmax(0, 1fr); }
+.ib[data-view="list"] .ib-col-name { flex: 0 1 auto; text-align: left; }
+.ib[data-view="list"] .ib-summary { -webkit-line-clamp: 1; }
+.ib[data-view="list"] .ib-empty { padding: 10px 8px 16px; }
 /* Narrow board: the columns scroll sideways inside the board (the page never scrolls sideways). */
 @container ib (max-width: 839px) {
-  :host(:not([view="list"])) .ib-board {
+  .ib:not([data-view="list"]) .ib-board {
     grid-template-columns: repeat(var(--ib-cols, 3), minmax(min(300px, 84cqi), 1fr));
     overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; padding-bottom: 8px;
   }
-  :host(:not([view="list"])) .ib-col { scroll-snap-align: start; }
+  .ib:not([data-view="list"]) .ib-col { scroll-snap-align: start; }
 }
 @container ib (max-width: 639px) {
-  :host(:not([view="board"])) .ib-board { grid-template-columns: minmax(0, 1fr); overflow-x: visible; scroll-snap-type: none; padding-bottom: 0; }
-  :host(:not([view="board"])) .ib-col-name { flex: 0 1 auto; text-align: left; }
-  :host(:not([view="board"])) .ib-summary { -webkit-line-clamp: 1; }
-  :host(:not([view="board"])) .ib-empty { padding: 10px 8px 16px; }
+  .ib:not([data-view="board"]) .ib-board { grid-template-columns: minmax(0, 1fr); overflow-x: visible; scroll-snap-type: none; padding-bottom: 0; }
+  .ib:not([data-view="board"]) .ib-col-name { flex: 0 1 auto; text-align: left; }
+  .ib:not([data-view="board"]) .ib-summary { -webkit-line-clamp: 1; }
+  .ib:not([data-view="board"]) .ib-empty { padding: 10px 8px 16px; }
 }
+/* A bare column is just its list (a CRON job's runs under the host's own head). */
+.ib-col.is-bare { background: none; padding: 0; border-radius: 0; }
+
+/* Groups inside a column (DONE by finish day): a disclosure head, then its cards; a closed group draws none. */
+.ib-groups { display: flex; flex-direction: column; gap: 8px; }
+.ib-groups:empty { display: none; }
+.ib-cards:not(:empty) + .ib-groups { margin-top: 8px; }
+.ib-group { display: flex; flex-direction: column; gap: 8px; }
+.ib-group.is-stale { position: absolute; z-index: 1; pointer-events: none; }
+.ib-group-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 8px; border: 0; border-radius: 8px;
+  background: none; color: var(--ib-text-2); font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-align: left; cursor: pointer;
+  transition: background-color 150ms ease;
+}
+.ib-group-head:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+.ib-group-head .ib-chev { width: 12px; height: 12px; flex-shrink: 0; color: var(--ib-muted); transition: transform var(--dur-press) var(--ease-out); }
+.ib-group-head[aria-expanded="true"] .ib-chev { transform: rotate(90deg); }
+.ib-group-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-group-cards[hidden] { display: none; }
+
+/* Loading: skeleton cards where cards will be, never a false "0 · Nothing here". Opacity pulse only, staggered. */
+.ib-skel { display: flex; flex-direction: column; gap: 8px; }
+.ib-skel:empty { display: none; }
+.ib-skel-card { background: var(--ib-card); border: 1px solid var(--ib-card-border); border-radius: 12px; box-shadow: var(--ib-shadow); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.ib-sk { background: var(--ib-pill); border-radius: 6px; animation: ib-sk-pulse 1.6s ease-in-out infinite; }
+.ib-sk-title { height: 14px; width: 68%; }
+.ib-sk-meta { height: 10px; width: 42%; }
+.ib-sk-pill { height: 20px; width: 34%; border-radius: 999px; }
+.ib-skel-card:nth-child(2) .ib-sk { animation-delay: 120ms; }
+.ib-skel-card:nth-child(3) .ib-sk { animation-delay: 240ms; }
+/* Counts are claims about the whole board: none until it is certified (a pulse while it loads). */
+.ib-count:empty { min-height: 18px; }
+.ib-board[aria-busy="true"] .ib-count:empty { animation: ib-sk-pulse 1.6s ease-in-out infinite; }
+.ib-board:not([aria-busy="true"]) .ib-count:empty { visibility: hidden; }
 
 /* ── CARD — collapsed face + in-place expansion ── */
 .ib-card {
@@ -72,6 +107,31 @@ export const styles = `
 .ib-face:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
 .ib-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ib-spark { flex-shrink: 0; display: inline-flex; color: var(--st-color); }
+/* The host's lead (a CRON badge): the status colour, text mixed toward ink so it reads ≥ 4.5:1 on its tint. */
+.ib-lead {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5;
+  color: color-mix(in srgb, var(--st-color) 70%, var(--ib-text));
+  background: color-mix(in srgb, var(--st-color) 14%, var(--ib-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) 45%, transparent);
+}
+.ib-lead svg { width: 12px; height: 12px; }
+/* Owner badge: right end of the head, keeps its width up to its cap so the title truncates first. Eight hues,
+   each a tint of the card with text mixed toward ink (≥ 4.5:1 in both themes). */
+.ib-badge {
+  flex: 0 0 auto; margin-left: auto; max-inline-size: min(45%, 168px); padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  --hue: var(--accent);
+  background: color-mix(in srgb, var(--hue) 18%, var(--ib-card));
+  color: color-mix(in srgb, var(--hue) 55%, var(--ib-text));
+}
+.ib-badge[data-hue="1"] { --hue: var(--yellow); }
+.ib-badge[data-hue="2"] { --hue: var(--green); }
+.ib-badge[data-hue="3"] { --hue: var(--red); }
+.ib-badge[data-hue="4"] { --hue: color-mix(in srgb, var(--accent) 50%, var(--green)); }
+.ib-badge[data-hue="5"] { --hue: var(--orange); }
+.ib-badge[data-hue="6"] { --hue: var(--purple); }
+.ib-badge[data-hue="7"] { --hue: color-mix(in srgb, var(--yellow) 55%, var(--green)); }
 .ib-title { flex: 1 1 auto; font-size: 15px; font-weight: 600; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ib-summary {
   margin-top: 6px; font-size: 13.5px; line-height: 1.45; color: var(--ib-text-2);
@@ -91,6 +151,7 @@ export const styles = `
 .ib-adot.is-done { background: var(--st-done); }
 .ib-adot.is-failed { background: var(--st-fail); }
 .ib-adot.is-unknown { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ib-muted); }
+.ib-adot.is-stopped { background: var(--ib-muted); border-radius: 2px; }
 .ib-dots-more { font-size: 11px; color: var(--ib-muted); margin-left: 2px; font-variant-numeric: tabular-nums; }
 .ib-agents-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ib-agents-text b { color: var(--ib-text); font-weight: 600; }
@@ -116,6 +177,10 @@ export const styles = `
 .ib-chip.is-video, .ib-chip.is-pdf { --tint: var(--red); }
 .ib-chip.is-markdown { --tint: var(--accent); }
 .ib-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A chip with an id is a button that opens the file (ui-artifact), never the card. */
+button.ib-chip { font: inherit; font-size: 11.5px; cursor: zoom-in; transition: border-color 150ms ease, background-color 150ms ease, transform var(--dur-press) var(--ease-out); }
+button.ib-chip:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-arts-more { flex-shrink: 0; font-size: 11px; color: var(--ib-muted); }
 /* Foot: the status tag, then the metrics on the right (a narrow foot wraps them below). */
 .ib-foot { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; color: var(--ib-text-2); min-width: 0; }
@@ -150,6 +215,14 @@ export const styles = `
 .ib-metric svg { width: 13px; height: 13px; }
 .ib-metric.is-warn svg { color: var(--st-wait); }
 .ib-metric.is-danger { color: var(--st-fail-text); font-weight: 600; }
+/* Host metrics (PR, media…): a tone colours text and glyph, mixed toward ink for contrast on the card. */
+.ib-metric.is-host { white-space: nowrap; }
+.ib-metric.is-host[data-tone="run"] { color: var(--ib-run-fg); }
+.ib-metric.is-host[data-tone="done"] { color: var(--ib-done-fg); }
+.ib-metric.is-host[data-tone="fail"] { color: var(--ib-fail-fg); }
+.ib-metric.is-host[data-tone="wait"] { color: var(--ib-wait-fg); }
+.ib-metric.is-host[data-tone="warn"] svg { color: var(--st-wait); }
+.ib-metric.is-host[data-tone="danger"] { color: var(--st-fail-text); font-weight: 600; }
 
 /* Expansion — grid row 0fr → 1fr; cards below ride the animated row. */
 .ib-expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
@@ -188,6 +261,7 @@ export const styles = `
 
 @keyframes ib-spin { to { transform: rotate(360deg); } }
 @keyframes ib-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes ib-sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 /* Hover — pointer devices only; colour / border, never movement. */
 @media (hover: hover) and (pointer: fine) {
@@ -195,6 +269,8 @@ export const styles = `
   .ib-card[data-status="idle"]:hover { border-color: var(--ib-card-border); }
   .ib-btn:hover:not([aria-disabled="true"]) { border-color: var(--ib-muted); }
   .ib-btn.is-primary:hover:not([aria-disabled="true"]) { border-color: var(--ib-text); opacity: 0.88; }
+  button.ib-chip:hover { border-color: var(--tint); background: var(--ib-card); }
+  .ib-group-head:hover { background: var(--ib-pill); }
 }
 /* 44px targets on touch and narrow screens. */
 @media (pointer: coarse), (max-width: 639px) {
@@ -204,5 +280,7 @@ export const styles = `
 @media (prefers-reduced-motion: reduce) {
   .ib-spin { animation: none; border-color: currentColor; }
   .ib-adot.is-running { animation: none; }
+  .ib-sk, .ib-board[aria-busy="true"] .ib-count:empty { animation: none; }
+  .ib-group-head .ib-chev { transition: none; }
 }
 `;

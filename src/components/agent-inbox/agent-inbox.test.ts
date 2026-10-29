@@ -454,3 +454,464 @@ describe('<ui-agent-inbox>', () => {
     expect(q(empty, '.ib-empty')?.textContent).toBe('비어 있음');
   });
 });
+
+// ── Host gaps for the dashboard swap (0.4.2) ────────────────────────────────
+
+describe('host gaps', () => {
+  const OLD: InboxCard = { ...DONE, id: 'old', title: 'Old digest', since: NOW - 4 * 24 * 60 * MIN };
+  const grouped = (open = false, extra: InboxCard[] = []): AgentInboxData => ({
+    columns: [
+      { id: 'running', label: 'Running', cards: [RUN, ...extra] },
+      {
+        id: 'done',
+        label: 'Done',
+        cards: [],
+        groups: [
+          { id: '2026-10-27', label: 'Today', open: true, cards: [DONE] },
+          { id: '2026-10-23', label: '10월 23일 (금)', open, cards: [OLD] },
+        ],
+      },
+    ],
+  });
+  const heads = (el: UiAgentInbox) => qa(el, '.ib-group:not(.is-stale) > .ib-group-head');
+
+  it('does not toggle when a click finishes a text selection inside the face', () => {
+    const el = mount(board(WAIT));
+    const c = card(el, 'migrate');
+    let selected = 'Migrate users';
+    const sel = () => ({ toString: () => selected, isCollapsed: !selected }) as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockImplementation(sel);
+    vi.spyOn(document, 'getSelection').mockImplementation(sel);
+    const fired = vi.fn();
+    el.addEventListener('ui-toggle', fired);
+    c.querySelector<HTMLElement>('.ib-face')!.click();
+    expect(fired).not.toHaveBeenCalled();
+    expect(c.classList.contains('is-open')).toBe(false);
+    selected = '';
+    c.querySelector<HTMLElement>('.ib-face')!.click();
+    expect(c.classList.contains('is-open')).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it('announces the host counts (data.announce), and nothing with announce: false', () => {
+    const el = mount({ ...board(WAIT, RUN), announce: { needs: 3, running: 2 } });
+    const live = q(el, '[aria-live="polite"]')!;
+    expect(live.textContent).toBe('3 need you, 2 running');
+    const quiet = mount({ ...board(WAIT, RUN), announce: false });
+    const qlive = q(quiet, '[aria-live="polite"]')!;
+    expect(qlive.textContent).toBe('');
+    quiet.data = { ...board(WAIT, { ...RUN, status: 'done' }), announce: false };
+    quiet.renderNow();
+    vi.advanceTimersByTime(2000);
+    expect(qlive.textContent).toBe('');
+  });
+
+  it('load: loading draws skeletons with no counts or empty hints; failed keeps cards and makes no claims', () => {
+    const el = mount({ columns: columnsByStatus([]), load: 'loading' });
+    expect(q(el, '.ib-board')?.getAttribute('aria-busy')).toBe('true');
+    expect(qa(el, '[data-col="running"] .ib-skel-card').length).toBeGreaterThan(0);
+    for (const e of qa(el, '.ib-empty')) expect(e.hidden).toBe(true);
+    for (const n of qa(el, '.ib-count')) expect(n.textContent).toBe('');
+    expect(q(el, '[aria-live="polite"]')?.textContent).toBe('');
+    // Failed first load: this instance's cards under the host's retry bar, no skeleton, no counts, no announcement.
+    el.data = { columns: columnsByStatus([RUN]), load: 'failed' };
+    el.renderNow();
+    expect(q(el, '.ib-board')?.getAttribute('aria-busy')).toBe('false');
+    expect(qa(el, '.ib-skel-card')).toHaveLength(0);
+    expect(card(el, 'notes')).not.toBeNull();
+    for (const e of qa(el, '.ib-empty')) expect(e.hidden).toBe(true);
+    for (const n of qa(el, '.ib-count')) expect(n.textContent).toBe('');
+    expect(q(el, '[aria-live="polite"]')?.textContent).toBe('');
+    // Certified: counts, empty hints and the first sentence at once.
+    el.data = { columns: columnsByStatus([RUN]) };
+    el.renderNow();
+    expect(q(el, '[data-col="running"] .ib-count')?.textContent).toBe('1');
+    expect(q(el, '[data-col="done"] .ib-empty')?.hidden).toBe(false);
+    expect(q(el, '[aria-live="polite"]')?.textContent).toBe('0 need you, 1 running');
+  });
+
+  it('merges data.strings over the language table: status words, agents, titles, clock, announcement', () => {
+    const el = mount(
+      {
+        ...board(WAIT, RUN, DONE),
+        strings: {
+          status: { running: 'Running' },
+          agents: '서브에이전트',
+          agentsRunning: (n: number) => `실행 ${n}`,
+          agentsFailed: (n: number) => `실패 ${n}`,
+          announce: (w: number, r: number) => `응답이 필요한 세션 ${w}개, 실행 중 ${r}개`,
+          changed: () => '',
+          duration: (ms: number) =>
+            `${Math.floor(ms / 60_000)}m ${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}s`,
+          empty: 7 as unknown as string,
+        },
+      },
+      { lang: 'ko' },
+    );
+    expect(card(el, 'notes').querySelector('.ib-agents-text')?.textContent).toBe('서브에이전트 40 · 실행 2 · 실패 1');
+    expect(card(el, 'notes').querySelector('.ib-tag')?.textContent).toBe('Running · 3m 49s');
+    expect(card(el, 'notes').querySelector('.ib-task-time')?.textContent).toBe('0m 58s');
+    expect(card(el, 'migrate').querySelector('.ib-tag')?.textContent).toBe('입력 대기6분 전');
+    expect(card(el, 'digest').querySelector('.ib-tag')?.textContent).toBe('완료 · 4m 12s13시간 전');
+    const live = q(el, '[aria-live="polite"]')!;
+    expect(live.textContent).toBe('응답이 필요한 세션 1개, 실행 중 1개');
+    el.data = { ...el.data!, columns: columnsByStatus([WAIT, { ...RUN, status: 'done' }, DONE]) };
+    el.renderNow();
+    vi.advanceTimersByTime(1000);
+    // `changed` returning '' drops the "title: word." prefix.
+    expect(live.textContent).toBe('응답이 필요한 세션 1개, 실행 중 0개');
+    // A value of the wrong type falls back to the table.
+    el.data = { columns: [{ id: 'x', label: 'X', cards: [] }], strings: { empty: 7 as unknown as string } };
+    el.renderNow();
+    expect(q(el, '.ib-empty')?.textContent).toBe('비어 있음');
+  });
+
+  it('draws face extras: lead, owner badge, host metrics, titles, context level, artifact count and chip buttons', () => {
+    const el = mount(
+      board({
+        ...RUN,
+        lead: { text: 'CRON', glyph: 'clock', title: '크론 잡: nightly' },
+        badge: { text: 'zhuge', hue: 3, title: 'Zhuge Liang' },
+        metrics: [
+          { text: '#12 머지됨', glyph: 'pr', tone: 'done', title: 'PR #12 머지됨 — Fix the board' },
+          { text: '2', glyph: 'attach', title: '지시 첨부 2개', label: '지시 첨부 2개' },
+        ],
+        titles: {
+          tokens: '총 토큰 (task 합계: 메인 + 서브에이전트 4개)',
+          cost: 'API 환산 비용',
+          context: '컨텍스트 72% · 자동 압축 750K까지 120K',
+        },
+        contextLevel: 'danger',
+        artifactsCount: 9,
+        artifacts: [
+          { id: 'a1', name: 'shot.png' },
+          { id: 'a2', name: 'report', kind: 'html' },
+        ],
+        agents: { total: 4, running: 1, done: 1, failed: 1, dots: ['done', 'stopped', 'running', 'failed'] },
+      }),
+    );
+    const c = card(el, 'notes');
+    expect(c.querySelector('.ib-spark')).toBeNull();
+    const lead = c.querySelector('.ib-lead')!;
+    expect(lead.textContent).toBe('CRON');
+    expect(lead.getAttribute('title')).toBe('크론 잡: nightly');
+    const badge = c.querySelector('.ib-head .ib-badge')!;
+    expect(badge.textContent).toBe('zhuge');
+    expect(badge.getAttribute('data-hue')).toBe('3');
+    expect(badge.getAttribute('title')).toBe('Zhuge Liang');
+    const metrics = Array.from(c.querySelectorAll('.ib-metric'));
+    expect(metrics.map((m) => m.textContent)).toEqual(['0/4', '72%', '#12 머지됨', '2']);
+    expect(metrics[1].classList.contains('is-danger')).toBe(true);
+    expect(metrics[1].getAttribute('title')).toBe('컨텍스트 72% · 자동 압축 750K까지 120K');
+    expect(metrics[2].getAttribute('data-tone')).toBe('done');
+    expect(metrics[3].getAttribute('aria-label')).toBe('지시 첨부 2개');
+    expect(Array.from(c.querySelectorAll('.ib-use')).map((u) => u.getAttribute('title'))).toEqual([
+      '총 토큰 (task 합계: 메인 + 서브에이전트 4개)',
+      'API 환산 비용',
+    ]);
+    expect(c.querySelector('.ib-arts-n')?.textContent).toBe('9');
+    expect(c.querySelector('.ib-arts-more')?.textContent).toBe('+7');
+    const chips = Array.from(c.querySelectorAll<HTMLElement>('button.ib-chip'));
+    expect(chips.map((b) => b.getAttribute('data-art'))).toEqual(['a1', 'a2']);
+    expect(chips[1].classList.contains('is-html')).toBe(true);
+    expect(chips[0].getAttribute('aria-label')).toBe('Open shot.png');
+    expect(Array.from(c.querySelectorAll('.ib-adot')).map((d) => d.className)).toEqual([
+      'ib-adot is-done',
+      'ib-adot is-stopped',
+      'ib-adot is-running',
+      'ib-adot is-failed',
+    ]);
+    const arts: unknown[] = [];
+    const toggles = vi.fn();
+    el.addEventListener('ui-artifact', (e) => arts.push((e as CustomEvent).detail));
+    el.addEventListener('ui-toggle', toggles);
+    chips[0].click();
+    expect(arts).toEqual([{ cardId: 'notes', artifactId: 'a1' }]);
+    expect(toggles).not.toHaveBeenCalled();
+    // An explicit empty level overrides the bands; no level falls back to them.
+    el.data = board({ ...RUN, contextLevel: '' });
+    el.renderNow();
+    expect(card(el, 'notes').querySelector('.ib-metric.is-warn, .ib-metric.is-danger')).toBeNull();
+  });
+
+  it('escapes every host string of the face extras and groups', () => {
+    const X = '<img src=x onerror=alert(1)>';
+    const el = mount({
+      columns: [
+        {
+          id: X,
+          label: X,
+          cards: [],
+          groups: [
+            {
+              id: X,
+              label: X,
+              open: true,
+              cards: [
+                {
+                  id: 'c',
+                  title: 't',
+                  status: 'done',
+                  lead: { text: X, title: X },
+                  badge: { text: X, title: X, hue: X as unknown as number },
+                  metrics: [{ text: X, title: X, label: X, tone: X as never, glyph: X as never }],
+                  titles: { tokens: X, cost: X, context: X },
+                  tokens: 1,
+                  costUsd: 1,
+                  contextPct: 50,
+                  artifacts: [{ id: X, name: X, kind: X as never }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(q(el, 'img')).toBeNull();
+    expect(q(el, '[onerror]')).toBeNull();
+    const c = card(el, 'c');
+    expect(c.querySelector('.ib-lead')?.textContent).toBe(X);
+    expect(c.querySelector('.ib-badge')?.textContent).toBe(X);
+    expect(c.querySelector('.ib-badge')?.getAttribute('data-hue')).toBe('0');
+    expect(c.querySelector('.ib-metric[title]')?.getAttribute('title')).toBe(X);
+    expect(c.querySelector('button.ib-chip')?.getAttribute('data-art')).toBe(X);
+    expect(c.querySelector('button.ib-chip')?.classList.contains('is-file')).toBe(true);
+    expect(q(el, '.ib-group-label')?.textContent).toBe(X);
+  });
+
+  it('bodyMode slot: the open card shows the host light-DOM body, keeps Esc, and never reads host buttons as its own', () => {
+    const el = mount({ columns: columnsByStatus([{ ...WAIT, bodyMode: 'slot' }]) });
+    const host = document.createElement('div');
+    host.slot = 'body:migrate';
+    host.innerHTML = '<button type="button" data-act="stop" data-open>Stop</button><textarea></textarea>';
+    el.append(host);
+    const c = card(el, 'migrate');
+    const face = c.querySelector<HTMLElement>('.ib-face')!;
+    const slot = c.querySelector<HTMLSlotElement>('.ib-expand slot')!;
+    expect(slot.getAttribute('name')).toBe('body:migrate');
+    // The slot replaces the built-in steps and buttons.
+    expect(c.querySelector('.ib-body')).toBeNull();
+    expect(face.getAttribute('role')).toBe('button');
+    expect(c.querySelector('.ib-expand')?.hasAttribute('inert')).toBe(true);
+    face.click();
+    expect(c.querySelector('.ib-expand')?.hasAttribute('inert')).toBe(false);
+    const acts = vi.fn();
+    el.addEventListener('ui-action', acts);
+    el.addEventListener('ui-open', acts);
+    const toggles = vi.fn();
+    el.addEventListener('ui-toggle', toggles);
+    host.querySelector('button')!.click();
+    expect(acts).not.toHaveBeenCalled();
+    expect(toggles).not.toHaveBeenCalled();
+    key(host.querySelector('textarea')!, 'Escape');
+    expect(c.classList.contains('is-open')).toBe(true);
+    key(host.querySelector('button')!, 'Escape');
+    expect(c.classList.contains('is-open')).toBe(false);
+    expect(el.shadowRoot!.activeElement).toBe(face);
+    // A data render keeps the slot node (the host's body is never re-slotted).
+    el.data = { columns: columnsByStatus([{ ...WAIT, bodyMode: 'slot', summary: 'Still waiting.' }]) };
+    el.renderNow();
+    expect(c.querySelector('.ib-expand slot')).toBe(slot);
+  });
+
+  it('groups: a disclosure head per group, a closed group draws no cards, the column counts every group', () => {
+    const el = mount(grouped());
+    const hs = heads(el);
+    expect(hs.map((h) => h.querySelector('.ib-group-label')?.textContent)).toEqual(['Today', '10월 23일 (금)']);
+    expect(hs.map((h) => h.getAttribute('aria-expanded'))).toEqual(['true', 'false']);
+    expect(hs.map((h) => h.querySelector('.ib-count')?.textContent)).toEqual(['1', '1']);
+    expect(el.shadowRoot!.getElementById(hs[0].getAttribute('aria-controls')!)?.hidden).toBe(false);
+    expect(card(el, 'digest')).not.toBeNull();
+    expect(card(el, 'old')).toBeNull();
+    expect(q(el, '[data-col="done"] .ib-col-head .ib-count')?.textContent).toBe('2');
+    expect(q(el, '[data-col="done"] .ib-empty')?.hidden).toBe(true);
+    const fired: unknown[] = [];
+    el.addEventListener('ui-group-toggle', (e) => fired.push((e as CustomEvent).detail));
+    hs[1].click();
+    expect(fired).toEqual([{ columnId: 'done', groupId: '2026-10-23', open: true }]);
+    expect(hs[1].getAttribute('aria-expanded')).toBe('true');
+    expect(card(el, 'old')).not.toBeNull();
+    // The person's choice rules over `open` afterwards.
+    el.data = grouped(false);
+    el.renderNow();
+    expect(card(el, 'old')).not.toBeNull();
+    hs[0].click();
+    expect(card(el, 'digest')).toBeNull();
+    expect(q(el, '[data-col="done"] .ib-col-head .ib-count')?.textContent).toBe('2');
+    el.addEventListener('ui-group-toggle', (e) => e.preventDefault(), { once: true });
+    hs[0].click();
+    expect(hs[0].getAttribute('aria-expanded')).toBe('false');
+    // A group that leaves goes; the empty hint stays hidden while any group is there.
+    el.data = { columns: [{ id: 'done', label: 'Done', cards: [], groups: [{ id: 'g', label: 'G', cards: [] }] }] };
+    el.renderNow();
+    expect(heads(el).map((h) => h.querySelector('.ib-group-label')?.textContent)).toEqual(['G']);
+    expect(q(el, '[data-col="done"] .ib-empty')?.hidden).toBe(true);
+  });
+
+  it('holds a card that moves into a group in place first, then moves it there', () => {
+    const el = mount(grouped());
+    const node = card(el, 'notes');
+    const next = grouped();
+    next.columns[0].cards = [];
+    next.columns[1].groups![0].cards = [{ ...RUN, status: 'done', since: NOW }, DONE];
+    el.data = next;
+    el.renderNow();
+    expect(colOf(el, 'notes')).toBe('running');
+    expect(q(el, '[data-col="running"] .ib-col-head .ib-count')?.textContent).toBe('1');
+    expect(q(el, '[data-col="done"] .ib-col-head .ib-count')?.textContent).toBe('2');
+    vi.setSystemTime(NOW + BOARD_HOLD_MS + 50);
+    el.renderNow();
+    expect(card(el, 'notes')).toBe(node);
+    expect(node.closest('.ib-group')?.getAttribute('data-group')).toBe('2026-10-27');
+    expect(q(el, '[data-col="done"] .ib-col-head .ib-count')?.textContent).toBe('3');
+  });
+
+  it('reveal(): opens a drawn card and scrolls it to centre, opens its closed group first, false for an unknown id', () => {
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {});
+    const el = mount(grouped());
+    const toggles: unknown[] = [];
+    el.addEventListener('ui-toggle', (e) => toggles.push((e as CustomEvent).detail));
+    el.addEventListener('ui-group-toggle', (e) => toggles.push((e as CustomEvent).detail));
+    expect(el.reveal('old')).toBe(true);
+    expect(card(el, 'old').classList.contains('is-open')).toBe(true);
+    expect(toggles).toEqual([
+      { columnId: 'done', groupId: '2026-10-23', open: true },
+      { cardId: 'old', expanded: true },
+    ]);
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'center' });
+    expect(scroll.mock.contexts.at(-1)).toBe(card(el, 'old'));
+    // Already open: stays open, no second toggle; scroll: false leaves the page.
+    scroll.mockClear();
+    expect(el.reveal('old', { scroll: false })).toBe(true);
+    expect(toggles).toHaveLength(2);
+    expect(scroll).not.toHaveBeenCalled();
+    expect(el.reveal('nope')).toBe(false);
+    // Data set in the same task: reveal renders it first.
+    el.data = grouped(undefined, [{ ...WAIT, id: 'fresh' }]);
+    expect(el.reveal('fresh', { open: false })).toBe(true);
+    expect(card(el, 'fresh').classList.contains('is-open')).toBe(false);
+    scroll.mockRestore();
+  });
+
+  it('a group that leaves fades out with its cards; reveal is false when the host keeps a group closed', () => {
+    const el = mount(grouped());
+    const anim = vi
+      .spyOn(HTMLElement.prototype, 'animate')
+      .mockImplementation(() => ({ cancel() {}, onfinish: null, oncancel: null }) as unknown as Animation);
+    const today = q(el, '.ib-group[data-group="2026-10-27"]')!;
+    const node = card(el, 'digest');
+    const next = grouped();
+    next.columns[1].groups = next.columns[1].groups!.slice(1);
+    el.data = next;
+    el.renderNow();
+    // Still on screen, fading, inert, its card inside it; no longer a group or a card of the board.
+    expect(today.classList.contains('is-stale')).toBe(true);
+    expect(today.hasAttribute('inert')).toBe(true);
+    expect(node.parentElement?.closest('.ib-group')).toBe(today);
+    expect(card(el, 'digest')).toBeNull();
+    expect(anim.mock.contexts).toContain(today);
+    anim.mockRestore();
+    el.addEventListener('ui-group-toggle', (e) => e.preventDefault());
+    expect(el.reveal('old')).toBe(false);
+    expect(card(el, 'old')).toBeNull();
+  });
+
+  it('counts cards in groups for the sentence, open or closed', () => {
+    const cols = grouped().columns;
+    cols[1].groups![1].cards = [{ ...OLD, status: 'failed' }];
+    expect(boardCounts(cols)).toEqual({ needs: 1, running: 1 });
+  });
+
+  it('a bare column is just its list: no head, no tint, no empty hint (a CRON job section)', () => {
+    const el = mount(
+      { columns: [{ id: 'cron:nightly', label: 'nightly', bare: true, cards: [RUN] }], announce: false },
+      {
+        view: 'list',
+      },
+    );
+    const sec = q(el, 'section.ib-col')!;
+    expect(sec.classList.contains('is-bare')).toBe(true);
+    expect(sec.querySelector('.ib-col-head')).toBeNull();
+    expect(sec.getAttribute('aria-label')).toBe('nightly');
+    expect(card(el, 'notes')).not.toBeNull();
+    el.data = { columns: [{ id: 'cron:nightly', label: 'nightly', bare: true, cards: [] }], announce: false };
+    el.renderNow();
+    expect(sec.querySelector<HTMLElement>('.ib-empty')?.hidden ?? true).toBe(true);
+  });
+
+  describe('motion for host layout changes', () => {
+    // A fake layout: board = three columns side by side, list = stacked. Cards are 100×80.
+    function fakeLayout() {
+      const spot = (node: Element): { x: number; y: number } => {
+        const view = node.closest('.ib')?.getAttribute('data-view') === 'list' ? 'list' : 'board';
+        const col = node.closest('section.ib-col');
+        const ci = col ? Array.from(col.parentElement!.children).indexOf(col) : 0;
+        const li = node.closest('li.ib-card');
+        const ri = li ? Array.from(li.parentElement!.children).indexOf(li) + 1 : 0;
+        const shift = Number(node.closest('.ib')?.getAttribute('data-shift') ?? 0);
+        return view === 'list' ? { x: 10 + shift, y: ci * 300 + ri * 90 } : { x: 10 + ci * 320 + shift, y: ri * 90 };
+      };
+      return vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+        const p = spot(this);
+        return {
+          left: p.x,
+          top: p.y,
+          right: p.x + 100,
+          bottom: p.y + 80,
+          width: 100,
+          height: 80,
+          x: p.x,
+          y: p.y,
+        } as DOMRect;
+      });
+    }
+    // A stub animation: happy-dom rejects `finished` on cancel() without marking it handled (the spec marks it).
+    const spyAnimate = () =>
+      vi
+        .spyOn(HTMLElement.prototype, 'animate')
+        .mockImplementation(
+          () => ({ cancel() {}, finish() {}, onfinish: null, oncancel: null }) as unknown as Animation,
+        );
+    const moves = (anim: { mock: { calls: unknown[][]; contexts: unknown[] } }) =>
+      anim.mock.calls
+        .map((call, i) => ({ el: anim.mock.contexts[i] as Element, frames: call[0] as Keyframe[] }))
+        .filter((m) => String(m.frames?.[0]?.transform ?? '').startsWith('translate('));
+
+    it('FLIPs the cards and column heads when view changes', () => {
+      const rect = fakeLayout();
+      const el = mount(board(WAIT, RUN));
+      const anim = spyAnimate();
+      el.setAttribute('view', 'list');
+      expect(q(el, '.ib')?.getAttribute('data-view')).toBe('list');
+      const m = moves(anim);
+      // RUNNING's card and head moved from x 330 to x 10 and down a column.
+      const run = m.find((x) => x.el === card(el, 'notes'))!;
+      expect(run.frames[0].transform).toBe('translate(320px, -300px)');
+      expect(m.some((x) => x.el === q(el, '[data-col="running"] .ib-col-head'))).toBe(true);
+      // NEEDS YOU's card stayed put: no move.
+      expect(m.some((x) => x.el === card(el, 'migrate'))).toBe(false);
+      anim.mockRestore();
+      rect.mockRestore();
+    });
+
+    it('measure() before a host layout change, flipFrom() after it, glides every card from where it was', () => {
+      const rect = fakeLayout();
+      const el = mount(board(WAIT, RUN));
+      const snap = el.measure();
+      expect(Object.keys(snap.spots).sort()).toEqual(['c:migrate', 'c:notes', 'h:done', 'h:needs-you', 'h:running']);
+      // The host docks a panel: everything moves 40px left.
+      q(el, '.ib')!.setAttribute('data-shift', '-40');
+      const anim = spyAnimate();
+      el.flipFrom(snap);
+      const m = moves(anim);
+      expect(m.find((x) => x.el === card(el, 'notes'))?.frames[0].transform).toBe('translate(40px, 0px)');
+      expect(m.filter((x) => x.el.matches('.ib-col-head'))).toHaveLength(3);
+      anim.mockClear();
+      // Nothing moved since: nothing to play.
+      el.flipFrom(el.measure());
+      expect(moves(anim)).toHaveLength(0);
+      anim.mockRestore();
+      rect.mockRestore();
+    });
+  });
+});
