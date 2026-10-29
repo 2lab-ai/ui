@@ -722,7 +722,7 @@ export const doc: ComponentDoc = {
       name: 'measure() / flipFrom(layout)',
       type: 'methods',
       description:
-        'For layout changes the element cannot see (a panel docks, a section folds): `const at = el.measure()` before, change the layout, then `el.flipFrom(at)` glides every card and head from where it was (translate, 320 ms). Nothing moves on the first paint, in a hidden tab or under reduced motion.',
+        'For layout changes the element cannot see (a panel docks, a section folds): `const at = el.measure()` before, change the layout, then `el.flipFrom(at)` glides every card and head from where it was (translate, 320 ms). A card or head still gliding starts again from where it is drawn, not from `at`, so a host may re-flip from its last settled `measure()` during a resize burst. Nothing moves on the first paint, in a hidden tab or under reduced motion.',
     },
     {
       name: 'data.openLabel',
