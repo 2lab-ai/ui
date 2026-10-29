@@ -1255,13 +1255,31 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return { x: r.left + r.width / 2 - el.offsetWidth / 2, y: r.top + r.height / 2 - el.offsetHeight / 2 };
   }
 
-  #scroll(): { x: number; y: number } {
-    return typeof window === 'undefined' ? { x: 0, y: 0 } : { x: window.scrollX || 0, y: window.scrollY || 0 };
+  /**
+   * How far `el`'s scrolling ancestors are scrolled, summed — its own board, the host's panels (across the shadow
+   * boundary) and the page — so a scroll between two glides does not move a remembered target.
+   */
+  #scroll(el: Element): { x: number; y: number } {
+    let x = 0;
+    let y = 0;
+    let n: Node | null = el.parentNode;
+    while (n) {
+      if (n instanceof Element) {
+        x += n.scrollLeft || 0;
+        y += n.scrollTop || 0;
+        n = n.parentNode;
+      } else n = n instanceof ShadowRoot ? n.host : null;
+    }
+    if (typeof window !== 'undefined') {
+      x += window.scrollX || 0;
+      y += window.scrollY || 0;
+    }
+    return { x, y };
   }
 
-  /** Remember a glide: its target in document px (a page scroll since does not move it) and its starting offset. */
+  /** Remember a glide: its target (scroll-independent px, see `#scroll`) and its starting offset. */
   #noteGlide(el: Element, anim: Animation, to: { x: number; y: number }, dx: number, dy: number): void {
-    const s = this.#scroll();
+    const s = this.#scroll(el);
     this.#glides.set(el, { anim, x: to.x + s.x, y: to.y + s.y, dx, dy });
   }
 
@@ -1275,8 +1293,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const raw = anim.effect?.getComputedTiming?.().progress;
     const p = raw == null ? Number.NaN : Number(raw);
     if (!Number.isFinite(p)) return null;
-    const left = 1 - Math.min(1, Math.max(0, p));
-    const s = this.#scroll();
+    // Not clamped: an overshooting easing token draws past the target (p > 1) and so does this.
+    const left = 1 - p;
+    const s = this.#scroll(el);
     return { x: g.x - s.x + g.dx * left, y: g.y - s.y + g.dy * left };
   }
 
