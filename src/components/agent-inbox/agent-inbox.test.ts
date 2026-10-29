@@ -949,6 +949,40 @@ describe('host gaps', () => {
       rect.mockRestore();
     });
 
+    it('a second flipFrom() during a glide starts from where the card is drawn, not from the older snapshot', () => {
+      const rect = fakeLayout();
+      const el = mount(board(WAIT, RUN));
+      // A host that re-flips from its last settled snapshot (a resize burst: the second change lands mid-glide).
+      const settled = el.measure();
+      const anim = vi.spyOn(HTMLElement.prototype, 'animate').mockImplementation(
+        () =>
+          ({
+            cancel() {},
+            finish() {},
+            onfinish: null,
+            oncancel: null,
+            // Half-way through the glide (eased progress).
+            effect: { getComputedTiming: () => ({ progress: 0.5 }) },
+          }) as unknown as Animation,
+      );
+      q(el, '.ib')!.setAttribute('data-shift', '-40');
+      el.flipFrom(settled);
+      expect(moves(anim).find((x) => x.el === card(el, 'notes'))?.frames[0].transform).toBe('translate(40px, 0px)');
+      anim.mockClear();
+      // Mid-glide the notes card is drawn at 290 + 20 = 310. The layout moves again, to 230.
+      q(el, '.ib')!.setAttribute('data-shift', '-100');
+      el.flipFrom(settled);
+      const m = moves(anim);
+      // From 310, not from the snapshot's 330 (that would jump the card back before gliding).
+      expect(m.find((x) => x.el === card(el, 'notes'))?.frames[0].transform).toBe('translate(80px, 0px)');
+      // The heads re-aim the same way.
+      expect(m.find((x) => x.el === q(el, '[data-col="running"] .ib-col-head'))?.frames[0].transform).toBe(
+        'translate(80px, 0px)',
+      );
+      anim.mockRestore();
+      rect.mockRestore();
+    });
+
     it('a card in a group that leaves stops its glide (the group fades out with it)', () => {
       const rect = fakeLayout();
       const el = mount(grouped());
