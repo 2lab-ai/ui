@@ -784,6 +784,79 @@ describe('host gaps: empty text, refused writes', () => {
     expect(failTone(el)).toBe(true);
   });
 
+  it('Undo before a refused delete: the row is on screen once, and stays when the restore is refused too (R-041 P3)', () => {
+    const el = mount();
+    let del: CustomEvent | null = null;
+    let res: CustomEvent | null = null;
+    el.addEventListener('ui-delete', (e) => {
+      del = e as CustomEvent;
+    });
+    el.addEventListener('ui-restore', (e) => {
+      res = e as CustomEvent;
+    });
+    act(el, 'memory', 1, 'delete').click();
+    vi.advanceTimersByTime(FOLD_MS);
+    q<HTMLButtonElement>(el, '.mm-undo')!.click(); // no busy gate on the host: Undo goes out before the answer
+    expect(text(el, 'memory')).toEqual(store().entries);
+    el.refuse(del!, 'Couldn’t delete');
+    el.renderNow();
+    expect(text(el, 'memory')).toEqual(store().entries); // not a duplicate
+    el.refuse(res!, 'Already there');
+    el.renderNow();
+    expect(text(el, 'memory')).toEqual(store().entries); // the delete never happened: the row stays
+  });
+
+  it('Undo, then the restore refused, then the delete refused: the row comes back once', () => {
+    const el = mount();
+    let del: CustomEvent | null = null;
+    let res: CustomEvent | null = null;
+    el.addEventListener('ui-delete', (e) => {
+      del = e as CustomEvent;
+    });
+    el.addEventListener('ui-restore', (e) => {
+      res = e as CustomEvent;
+    });
+    act(el, 'memory', 1, 'delete').click();
+    vi.advanceTimersByTime(FOLD_MS);
+    q<HTMLButtonElement>(el, '.mm-undo')!.click();
+    el.refuse(res!);
+    el.renderNow();
+    expect(text(el, 'memory')).toEqual([store().entries[0], store().entries[2]]);
+    el.refuse(del!);
+    el.renderNow();
+    expect(text(el, 'memory')).toEqual(store().entries);
+  });
+
+  it('matches a cloned event by type, store, index and text — after the write and inside the listener (R-041 P3)', () => {
+    const el = mount();
+    const clone = (e: CustomEvent) => ({ type: e.type, detail: JSON.parse(JSON.stringify(e.detail)) });
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-edit', (e) => {
+      ev = e as CustomEvent;
+    });
+    act(el, 'memory', 1, 'edit').click();
+    const ta = byKey(el, 'edit|memory') as HTMLTextAreaElement;
+    ta.value = 'Deploys via release/* only';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    key(ta, 'Enter');
+    expect(text(el, 'memory')[1]).toBe('Deploys via release/* only');
+    // Another kind with the same fields is not this write.
+    expect(el.refuse({ type: 'ui-delete', detail: clone(ev!).detail })).toBe(true);
+    expect(text(el, 'memory')[1]).toBe('Deploys via release/* only');
+    expect(el.refuse(clone(ev!), 'Locked')).toBe(true);
+    const back = byKey(el, 'edit|memory') as HTMLTextAreaElement;
+    expect(back.value).toBe('Deploys via release/* only');
+    back.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    expect(text(el, 'memory')).toEqual(store().entries);
+    // A clone refused while the write is being dispatched acts as preventDefault().
+    const el2 = mount();
+    el2.addEventListener('ui-delete', (e) => el2.refuse(clone(e as CustomEvent), 'Busy'));
+    act(el2, 'memory', 0, 'delete').click();
+    expect(text(el2, 'memory')).toEqual(store().entries);
+    expect(q<HTMLButtonElement>(el2, '.mm-undo')?.hidden).toBe(true);
+    expect(caption(el2)).toBe('Busy');
+  });
+
   it('ignores anything that is not a memory write; speaks Korean by default text', () => {
     const el = mount(BASE(), { lang: 'ko' });
     expect(el.refuse({ type: 'click', detail: {} })).toBe(false);

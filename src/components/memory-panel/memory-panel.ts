@@ -64,6 +64,12 @@ export interface MemoryWriteRefusal {
 /** ok < 80% ≤ warn (amber) < 95% ≤ high (red bar) < 100% ≤ full (red text). */
 export type UsageLevel = 'ok' | 'warn' | 'high' | 'full';
 
+/** Two write details name the same write: store, index, text and previous agree (a cloned event's detail). */
+function sameWrite(a: Record<string, unknown>, b: object): boolean {
+  const o = b as Record<string, unknown>;
+  return (['store', 'index', 'text', 'previous'] as const).every((k) => (a[k] ?? null) === (o[k] ?? null));
+}
+
 export const UNDO_MS = 5000;
 export const FOLD_MS = 320;
 const NOTICE_MS = 3000;
@@ -299,6 +305,18 @@ interface Undo {
   left: number;
   started: number;
   timer: number;
+  /** Shared by the delete's rollback and its Undo's: whichever is refused, the row ends up on screen once. */
+  link: UndoLink;
+}
+/** `restored`: Undo put the deleted text back (its restore is still on screen); `refused`: the delete was refused. */
+interface UndoLink {
+  restored: boolean;
+  refused: boolean;
+}
+/** An optimistic write still on screen: its kind (`edit`, `delete` …), the detail it was sent with, its rollback. */
+interface Pending {
+  kind: string;
+  rollback: () => void;
 }
 interface Notice {
   text: string;
@@ -357,10 +375,10 @@ export class UiMemoryPanel extends UiElement<MemoryPanelData> {
   #rolls = new Map<Element, { n: number; raf: number }>();
   #timers = { notice: 0, armed: 0, settle: 0, scroll: 0 };
   #swaps = new Set<number>();
-  /** Optimistic writes still on screen (until the next `data`): detail → undo of that change. */
-  #pending = new Map<object, () => void>();
-  /** The detail being dispatched right now, and a refusal that arrived while it was. */
-  #emitting: object | null = null;
+  /** Optimistic writes still on screen (until the next `data`), in the order they were sent: detail → rollback. */
+  #pending = new Map<object, Pending>();
+  /** The write being dispatched right now, and a refusal that arrived while it was. */
+  #emitting: { kind: string; detail: object } | null = null;
   #refusedNow = '';
 
   constructor() {
@@ -1022,7 +1040,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const detail: MemoryEditDetail = { store: s.id, index: i, text, previous: e.orig };
     if (!this.#emitWrite('ui-edit', detail)) return;
     s.entries[i] = text;
-    this.#pending.set(detail, () => {
+    this.#pend('edit', detail, () => {
       const at = s.entries[i] === text ? i : s.entries.indexOf(text);
       if (at >= 0) s.entries[at] = detail.previous;
     });
@@ -1044,7 +1062,11 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const text = s.entries[i];
     const detail: MemoryDeleteDetail = { store: sid, index: i, text };
     if (!this.#emitWrite('ui-delete', detail)) return;
-    this.#pending.set(detail, () => {
+    const link: UndoLink = { restored: false, refused: false };
+    this.#pend('delete', detail, () => {
+      link.refused = true;
+      // Undo already put the text back (its restore is still on screen): the row is there once — never twice.
+      if (link.restored) return;
       const at = Math.min(i, s.entries.length);
       s.entries.splice(at, 0, text);
       const ed = this.#editing;
@@ -1061,7 +1083,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const e = this.#editing;
     if (e?.store === sid && e.index > i) e.index--;
     this.#dropUndo();
-    this.#undo = { store: sid, index: i, text, seq: ++this.#seq, left: UNDO_MS, started: 0, timer: 0 };
+    this.#undo = { store: sid, index: i, text, seq: ++this.#seq, left: UNDO_MS, started: 0, timer: 0, link };
     this.#armUndo();
     this.#disarm(false);
     this.#sync();
@@ -1153,7 +1175,12 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     s.entries.splice(at, 0, u.text);
     const e = this.#editing;
     if (e?.store === s.id && e.index >= at) e.index++;
-    this.#pending.set(detail, () => {
+    const link = u.link;
+    link.restored = true;
+    this.#pend('restore', detail, () => {
+      link.restored = false;
+      // The delete it undid was refused: the entry never left — what Undo put back stays.
+      if (link.refused) return;
       const j = s.entries[at] === u.text ? at : s.entries.indexOf(u.text);
       if (j < 0) return;
       s.entries.splice(j, 1);
@@ -1241,7 +1268,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const detail: MemoryAddDetail = { store: sid, text };
     if (!this.#emitWrite('ui-add', detail)) return;
     s.entries.push(text);
-    this.#pending.set(detail, () => {
+    this.#pend('add', detail, () => {
       const at = s.entries.lastIndexOf(text);
       if (at >= 0) s.entries.splice(at, 1);
     });
@@ -1283,7 +1310,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     }
     const before = s.entries;
     s.entries = [];
-    this.#pending.set(detail, () => {
+    this.#pend('clear', detail, () => {
       s.entries = before.concat(s.entries);
     });
     this.#say(this.#t.cleared);
@@ -1314,9 +1341,13 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
 
   // ── refused writes ──
 
+  #pend(kind: string, detail: object, rollback: () => void): void {
+    this.#pending.set(detail, { kind, rollback });
+  }
+
   /** Emit a write. A `refuse()` for it while it is being dispatched counts as preventDefault() plus its message. */
   #emitWrite(name: string, detail: object): boolean {
-    this.#emitting = detail;
+    this.#emitting = { kind: name.replace(/^ui-/, ''), detail };
     this.#refusedNow = '';
     let ok: boolean;
     try {
@@ -1333,9 +1364,11 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
 
   /**
    * The host could not carry out a write it accepted (409, over the limit, a lock…). Pass the `ui-*` event you
-   * received (or `{ type, detail }` with that same detail) and the message to show. Whatever the person typed comes
+   * received (or `{ type, detail }` with that detail — or a copy of it: matched by type, store, index, text and
+   * previous) and the message to show. Whatever the person typed comes
    * back: an edit to its entry's editor (when `previous` is still there, once, and no other editor is open), else to
-   * the store's add box; an add or a restore to the add box (opened). A refused delete withdraws its Undo. An
+   * the store's add box; an add or a restore to the add box (opened). A refused delete withdraws its Undo; when Undo
+   * already went out, the row stays on screen once whichever of the two is refused. An
    * optimistic change still on screen is rolled back; `data` set in between already is the truth. The message
    * replaces the optimistic “Saved” in the fail tone. Call it before or after you send the reloaded `data`.
    * Returns false for anything that is not a memory write.
@@ -1345,12 +1378,24 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const kind = String(write?.type ?? '').replace(/^ui-/, '');
     if (!d || typeof d !== 'object' || !['add', 'edit', 'delete', 'restore', 'clear'].includes(kind)) return false;
     const text = String(message ?? '').trim() || this.#t.failed;
-    if (this.#emitting && d === this.#emitting) {
+    const now = this.#emitting;
+    if (now && now.kind === kind && (d === now.detail || sameWrite(d, now.detail))) {
       this.#refusedNow = text;
       return true;
     }
-    this.#pending.get(d)?.();
-    this.#pending.delete(d);
+    // The same detail object, else (a host that cloned the event) the oldest pending write of this kind whose
+    // store, index, text and previous match.
+    let key: object | undefined = this.#pending.has(d) ? d : undefined;
+    if (!key)
+      for (const [k, p] of this.#pending)
+        if (p.kind === kind && sameWrite(d, k)) {
+          key = k;
+          break;
+        }
+    if (key) {
+      this.#pending.get(key)?.rollback();
+      this.#pending.delete(key);
+    }
     const s = this.#store(String(d.store ?? ''));
     let focus = '';
     if (s && !this.#ro) {
