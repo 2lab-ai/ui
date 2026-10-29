@@ -862,6 +862,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #counting = new Map<string, { el: HTMLElement; kind: string; from: number; to: number; t0: number }>();
   #raf = 0;
   #slides = new WeakMap<Element, Animation>();
+  /** A glide in flight: its animation, its target (document px) and its starting offset. */
+  #glides = new WeakMap<Element, { anim: Animation; x: number; y: number; dx: number; dy: number }>();
   #tCache: { lang: string; over: Record<string, unknown> | null; t: Strings } | null = null;
 
   attributeChangedCallback(name: string, old: string | null, value: string | null): void {
@@ -970,10 +972,13 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     if (typeof HTMLElement.prototype.animate !== 'function' || prefersReducedMotion()) return;
     const m = this.#motion();
     for (const [id, sh] of this.#cards) {
-      const a = spots[`c:${id}`];
+      let a = spots[`c:${id}`];
       if (!a || !sh.el.isConnected) continue;
       const wasFlying = sh.el.classList.contains('is-flying');
       if (sh.flip) {
+        // Mid-glide the card is drawn where its glide puts it, not where an older snapshot saw it (a host that
+        // re-flips from its last settled layout during a resize burst would otherwise snap it back first).
+        a = this.#drawnAt(sh.el, sh.flip) ?? a;
         sh.flip.cancel();
         sh.flip = null;
       }
@@ -1248,6 +1253,31 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #boxOf(el: HTMLElement): { x: number; y: number } {
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2 - el.offsetWidth / 2, y: r.top + r.height / 2 - el.offsetHeight / 2 };
+  }
+
+  #scroll(): { x: number; y: number } {
+    return typeof window === 'undefined' ? { x: 0, y: 0 } : { x: window.scrollX || 0, y: window.scrollY || 0 };
+  }
+
+  /** Remember a glide: its target in document px (a page scroll since does not move it) and its starting offset. */
+  #noteGlide(el: Element, anim: Animation, to: { x: number; y: number }, dx: number, dy: number): void {
+    const s = this.#scroll();
+    this.#glides.set(el, { anim, x: to.x + s.x, y: to.y + s.y, dx, dy });
+  }
+
+  /**
+   * Where the glide `anim` draws `el` now (viewport px): its target plus what is left of its offset, from the
+   * animation's eased progress. Null when that is not known — the caller keeps the position it was given.
+   */
+  #drawnAt(el: Element, anim: Animation): { x: number; y: number } | null {
+    const g = this.#glides.get(el);
+    if (!g || g.anim !== anim) return null;
+    const raw = anim.effect?.getComputedTiming?.().progress;
+    const p = raw == null ? Number.NaN : Number(raw);
+    if (!Number.isFinite(p)) return null;
+    const left = 1 - Math.min(1, Math.max(0, p));
+    const s = this.#scroll();
+    return { x: g.x - s.x + g.dx * left, y: g.y - s.y + g.dy * left };
   }
 
   protected override update(): void {
@@ -1593,12 +1623,14 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       return;
     }
     if (raise) sh.el.classList.add('is-flying');
+    const to = this.#boxOf(sh.el);
     const anim = sh.el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }], {
       duration: m.move,
       easing: m.easeInOut,
       composite: 'add',
     });
     sh.flip = anim;
+    this.#noteGlide(sh.el, anim, to, dx, dy);
     anim.onfinish = () => {
       if (sh.flip !== anim) return;
       sh.flip = null;
@@ -1610,6 +1642,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #slide(el: HTMLElement, from: { x: number; y: number }, m: Motion): void {
     const prev = this.#slides.get(el);
     if (prev) {
+      from = this.#drawnAt(el, prev) ?? from;
       prev.cancel();
       this.#slides.delete(el);
     }
@@ -1622,6 +1655,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       easing: m.easeInOut,
     });
     this.#slides.set(el, anim);
+    this.#noteGlide(el, anim, b, dx, dy);
     anim.onfinish = () => {
       if (this.#slides.get(el) === anim) this.#slides.delete(el);
     };
