@@ -70,9 +70,10 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.compactState',
-      type: "'idle' | 'sending' | 'sent' | 'queued' | 'observed' | 'failed'",
+      type: "'idle' | 'sending' | 'sent' | 'queued' | 'observed' | 'failed' | 'timeout'",
       default: "'idle'",
-      description: 'Host-owned request state. The component adds the two-press confirm itself.',
+      description:
+        'Host-owned request state. The component adds the two-press confirm itself. `observed` shows ✓ Compacted; when it ends the button leaves (400 ms) instead of vanishing. `timeout` = the request was taken but no compaction showed up in time (the host picks the limit, e.g. 5 min): fail-tone “No compaction result yet”, announced, and the action can be pressed again. Clear `failed` / `timeout` back to `idle` after a few seconds.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
@@ -92,11 +93,13 @@ export const doc: ComponentDoc = {
     ['Tab', 'Focus the compact action'],
     ['Enter / Space', 'First press arms, second press within 4 s sends ui-compact'],
     ['Esc', 'Disarm without sending'],
+    ['Tab away (focus leaves the armed button)', 'Disarm without sending'],
   ],
   a11y: [
     'role="group" labelled by the title; the field is decorative (aria-hidden) — every number is in the list.',
     'One screen-reader sentence carries used / window / % / auto-compact point.',
-    'Only state transitions (sending, sent, armed, observed, failed, pending) are announced via aria-live; distances are not, so updates do not chatter.',
+    'Only state transitions (sending, sent, armed, observed, failed, timeout, pending) are announced via aria-live; distances are not, so updates do not chatter. Updates patch the tree in place, so the live node persists and speaks once per transition; the tray line swaps in only when its state changes, and the cells sweep to their new colour.',
+    'Warn text (pill, tray, armed button) is st-wait mixed toward the text colour: ≥4.5:1 in light and dark.',
     'Reduced motion: the number jumps instead of rolling, the busy wave and spinner stop.',
   ],
   usage: `<ui-context-window lang="en"></ui-context-window>
@@ -150,6 +153,19 @@ export const doc: ComponentDoc = {
           unsplit: { tokens: 41_200, kind: 'compact' },
           compactState: 'observed',
           lastCompact: { preTokens: 742_000, postTokens: 41_200 },
+        }),
+    },
+    {
+      id: 'timeout',
+      title: 'No compaction result yet',
+      description:
+        'compactState: timeout — the request was taken, no compaction showed up in time. The action is live again.',
+      height: 460,
+      create: () =>
+        make({
+          ...BASE,
+          parts: { cacheRead: 590_000, cacheWrite: 21_000, input: 6_200, output: 3_800 },
+          compactState: 'timeout',
         }),
     },
     { id: 'ko', title: '한국어 (lang="ko")', height: 460, create: () => make(BASE, { lang: 'ko' }) },

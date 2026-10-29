@@ -119,7 +119,7 @@ export const doc: ComponentDoc = {
       type: 'boolean',
       default: 'false',
       description:
-        'More text is coming: renders the text so far, replaces the footer with the writing row, sets aria-busy.',
+        "More text is coming: renders the text so far, replaces the footer with the writing row, sets aria-busy. With no text yet (`markdown: ''`) only the writing row is drawn — no label, no body, no footer rule.",
     },
     {
       name: 'data.loading',
@@ -147,11 +147,25 @@ export const doc: ComponentDoc = {
         'Titles you already know for some URLs (e.g. the PR this session opened). Beat the link’s label and the title read off the URL. Trailing slashes are ignored.',
     },
     {
+      name: 'data.animate',
+      type: 'boolean',
+      default: 'true',
+      description:
+        'Play the entry fade and card pop when this text first shows. Set false when a fresh element repaints an answer the person already saw (e.g. from your cache after the turn re-rendered).',
+    },
+    {
       name: 'links',
       type: 'AnswerLink[] (read-only)',
       description: '`{ n, href, name, title, chip }` for each link of the last render, in card order.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
+    {
+      name: 'flat',
+      type: 'boolean attribute',
+      default: 'absent',
+      description:
+        'For a host surface that is already the card (a conversation turn): no border, radius, background or shadow, no side padding; the link row starts at the text’s edge and fades only where it continues.',
+    },
     {
       name: 'theme',
       type: "'light' | 'dark'",
@@ -219,6 +233,14 @@ export const doc: ComponentDoc = {
       create: () => make({ markdown: PARTIAL, streaming: true }),
     },
     {
+      id: 'pending',
+      title: 'Writing, no text yet',
+      description: "streaming: true with markdown: '' — only the writing row, aria-busy.",
+      height: 140,
+      frame: false,
+      create: () => make({ markdown: '', streaming: true }),
+    },
+    {
       id: 'stream',
       title: 'Live stream',
       description: 'Chunks arrive every 650 ms; link cards join the row as their URLs appear, then the answer settles.',
@@ -249,6 +271,16 @@ export const doc: ComponentDoc = {
       height: 200,
       frame: false,
       create: () => make({ markdown: '' }),
+    },
+    {
+      id: 'flat',
+      title: 'Flat (inside a turn)',
+      description:
+        'flat + animate: false — no card frame, as in a conversation turn; repainted from the host cache, so no entry motion.',
+      height: 520,
+      frame: true,
+      create: () =>
+        make({ markdown: KO, responseMs: 252_000, linkTitles: TITLES, animate: false }, { lang: 'ko', flat: '' }),
     },
     {
       id: 'ko',

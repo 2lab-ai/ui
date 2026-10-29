@@ -20,6 +20,7 @@ function mount(data: UiAiAnswer['data'], attrs: Record<string, string> = {}): Ui
 const q = (el: UiAiAnswer, s: string) => el.shadowRoot!.querySelector(s) as HTMLElement | null;
 const qa = (el: UiAiAnswer, s: string) => Array.from(el.shadowRoot!.querySelectorAll<HTMLElement>(s));
 const flush = () => new Promise((r) => setTimeout(r, 0));
+const UiAiAnswerCtor = () => customElements.get('ui-ai-answer') as unknown as { styles: string[] };
 
 const PR = 'https://github.com/2lab-ai/soma-work/pull/999';
 const XSS = '<img src=x onerror=alert(1)>';
@@ -268,10 +269,49 @@ describe('<ui-ai-answer>', () => {
     expect(q(el, '.ans-copy')).toBeNull();
     expect(qa(el, '.ans-src')).toHaveLength(1);
     expect(card.classList.contains('is-in')).toBe(false);
-    const empty = mount({ markdown: '', streaming: true });
-    expect(q(empty, '.ans-label')?.textContent).toBe('Answer');
-    expect(q(empty, '.ans-body')).toBeNull();
-    expect(q(empty, '.ans-writing')).not.toBeNull();
+  });
+
+  it('streaming with no text yet draws only the writing row: no label, no body, no footer rule', () => {
+    const el = mount({ markdown: '', streaming: true });
+    const card = q(el, '.ans-card')!;
+    expect(card.getAttribute('aria-busy')).toBe('true');
+    expect(card.classList.contains('is-pending')).toBe(true);
+    expect(q(el, '.ans-label')).toBeNull();
+    expect(q(el, '.ans-body')).toBeNull();
+    expect(q(el, '.ans-foot')).toBeNull();
+    expect(q(el, '.ans-copy')).toBeNull();
+    expect(q(el, '.ans-shimmer')?.textContent).toBe('Writing the answer');
+    expect(q(el, '.ans-dot')?.getAttribute('aria-hidden')).toBe('true');
+    expect(card.getAttribute('aria-label')).toBe('Answer');
+    // The first words arrive: the full card takes over.
+    el.data = { markdown: 'Hello', streaming: true };
+    el.renderNow();
+    expect(q(el, '.ans-label')?.textContent).toBe('Answer');
+    expect(q(el, '.ans-foot.is-writing .ans-writing')).not.toBeNull();
+    const ko = mount({ markdown: '', streaming: true }, { lang: 'ko' });
+    expect(q(ko, '.ans-shimmer')?.textContent).toBe('응답 작성 중');
+  });
+
+  it('animate: false paints the answer without the entry motion (a repaint from the host cache)', () => {
+    expect(q(mount({ markdown: `Done: ${PR}` }), '.ans-card')?.classList.contains('is-in')).toBe(true);
+    const el = mount({ markdown: `Done: ${PR}`, animate: false });
+    expect(q(el, '.ans-card')?.classList.contains('is-in')).toBe(false);
+    expect(qa(el, '.ans-src')).toHaveLength(1);
+    el.data = { markdown: 'A different answer', animate: false };
+    el.renderNow();
+    expect(q(el, '.ans-card')?.classList.contains('is-in')).toBe(false);
+  });
+
+  it('flat drops the card frame: no border, radius, background, shadow or side padding', () => {
+    const css = (UiAiAnswerCtor().styles as string[]).join('\n');
+    const rule = /:host\(\[flat\]\) \.ans-card \{([^}]*)\}/.exec(css);
+    expect(rule).not.toBeNull();
+    const body = rule![1];
+    for (const decl of ['border: 0', 'border-radius: 0', 'background: none', 'box-shadow: none', 'padding: 2px 0 0'])
+      expect(body).toContain(decl);
+    expect(css).toMatch(/:host\(\[flat\]\) \.ans-srcs \{[^}]*margin: -4px 0 8px; padding: 4px 0;/);
+    const el = mount({ markdown: `Done: ${PR}` }, { flat: '' });
+    expect(q(el, '.ans-card')).not.toBeNull();
   });
 
   it('does not replay the entry motion for a streamed continuation', () => {

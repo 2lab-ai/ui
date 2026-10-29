@@ -617,6 +617,187 @@ describe('add and clear', () => {
   });
 });
 
+describe('host gaps: empty text, refused writes', () => {
+  const text = (el: UiMemoryPanel, id: string) =>
+    rowsOf(el, id)
+      .filter((r) => !r.hasAttribute('data-leaving'))
+      .map((r) => r.querySelector('.mm-text')?.textContent);
+  const failTone = (el: UiMemoryPanel) => q(el, '.mm-caption .mm-swap:not([data-out])')?.classList.contains('is-fail');
+
+  it('shows the host’s empty line for an empty store (escaped); read-only keeps “Empty.”', () => {
+    const el = mount({
+      stores: [store({ entries: [], empty: `Say “remember this” in Slack, or add one below. ${XSS}` })],
+    });
+    const p = group(el, 'memory').querySelector('.mm-empty')!;
+    expect(p.textContent).toBe(`Say “remember this” in Slack, or add one below. ${XSS}`);
+    expect(p.querySelector('img')).toBeNull();
+    expect(group(mount({ stores: [store({ entries: [] })] }), 'memory').querySelector('.mm-empty')?.textContent).toBe(
+      'Empty — add an entry below.',
+    );
+    const ro = mount({ readOnly: true, stores: [store({ entries: [], empty: 'Add one below.' })] });
+    expect(group(ro, 'memory').querySelector('.mm-empty')?.textContent).toBe('Empty.');
+  });
+
+  it('refuse(ui-edit) after the optimistic save: the entry rolls back, the draft is back in its editor, fail notice', () => {
+    const el = mount();
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-edit', (e) => {
+      ev = e as CustomEvent;
+    });
+    act(el, 'memory', 1, 'edit').click();
+    const ta = byKey(el, 'edit|memory') as HTMLTextAreaElement;
+    ta.value = 'Deploys via release/* only';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    key(ta, 'Enter');
+    expect(caption(el)).toBe('Saved');
+    expect(text(el, 'memory')[1]).toBe('Deploys via release/* only');
+    expect(el.refuse(ev!, 'Couldn’t save: the store is locked')).toBe(true);
+    const back = byKey(el, 'edit|memory') as HTMLTextAreaElement;
+    expect(back.value).toBe('Deploys via release/* only');
+    expect(rowsOf(el, 'memory')[1].querySelector('[data-editing]')).not.toBeNull();
+    expect(caption(el)).toBe('Couldn’t save: the store is locked');
+    expect(failTone(el)).toBe(true);
+    expect(active(el)).toBe('edit|memory');
+    // Cancel shows the entry as it was: the optimistic text is gone.
+    back.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    expect(text(el, 'memory')).toEqual(store().entries);
+  });
+
+  it('refuse(ui-edit) after a reload where the entry changed: the draft waits in the add box', () => {
+    const el = mount();
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-edit', (e) => {
+      ev = e as CustomEvent;
+    });
+    act(el, 'memory', 0, 'edit').click();
+    const ta = byKey(el, 'edit|memory') as HTMLTextAreaElement;
+    ta.value = 'Repo uses pnpm 9';
+    key(ta, 'Enter');
+    // 409: the host reloads (someone else changed the entry), then refuses.
+    el.data = { stores: [store({ entries: ['Repo uses pnpm workspaces', 'Deploys via release/*'] }), user()] };
+    el.renderNow();
+    el.refuse(ev!, 'Changed elsewhere — reloaded');
+    el.renderNow();
+    expect(byKey(el, 'edit|memory')).toBeNull();
+    expect((byKey(el, 'new|memory') as HTMLTextAreaElement).value).toBe('Repo uses pnpm 9');
+    expect(q(el, '#mm-new-0')?.hasAttribute('data-open')).toBe(true);
+    expect(text(el, 'memory')).toEqual(['Repo uses pnpm workspaces', 'Deploys via release/*']);
+    expect(caption(el)).toBe('Changed elsewhere — reloaded');
+  });
+
+  it('refuse(ui-add): the optimistic row goes, the note is back in the open add box', () => {
+    const el = mount();
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-add', (e) => {
+      ev = e as CustomEvent;
+    });
+    byKey(el, 'add|memory')!.click();
+    const ta = byKey(el, 'new|memory') as HTMLTextAreaElement;
+    ta.value = 'CI runs on self-hosted runners';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    key(ta, 'Enter');
+    expect(text(el, 'memory')).toHaveLength(4);
+    expect((byKey(el, 'new|memory') as HTMLTextAreaElement).value).toBe('');
+    el.refuse(ev!, 'Over the 2,200-char limit');
+    expect(text(el, 'memory')).toEqual(store().entries);
+    expect((byKey(el, 'new|memory') as HTMLTextAreaElement).value).toBe('CI runs on self-hosted runners');
+    expect(q(el, '#mm-new-0')?.hasAttribute('data-open')).toBe(true);
+    expect(caption(el)).toBe('Over the 2,200-char limit');
+    expect(active(el)).toBe('new|memory');
+  });
+
+  it('refuse(ui-delete): the row comes back and Undo is withdrawn (no duplicate on Undo)', () => {
+    const el = mount();
+    const restore = vi.fn();
+    el.addEventListener('ui-restore', restore);
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-delete', (e) => {
+      ev = e as CustomEvent;
+    });
+    act(el, 'memory', 1, 'delete').click();
+    expect(q<HTMLButtonElement>(el, '.mm-undo')?.hidden).toBe(false);
+    el.refuse(ev!);
+    expect(text(el, 'memory')).toEqual(store().entries);
+    expect(q<HTMLButtonElement>(el, '.mm-undo')?.hidden).toBe(true);
+    expect(caption(el)).toBe('Couldn’t save');
+    expect(failTone(el)).toBe(true);
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it('refuse(ui-delete) after the host already reloaded: Undo is withdrawn, rows are the data', () => {
+    const el = mount();
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-delete', (e) => {
+      ev = e as CustomEvent;
+    });
+    act(el, 'memory', 0, 'delete').click();
+    vi.advanceTimersByTime(FOLD_MS);
+    el.data = BASE();
+    el.renderNow();
+    expect(q<HTMLButtonElement>(el, '.mm-undo')?.hidden).toBe(false);
+    el.refuse(ev!, '삭제하지 못했습니다');
+    expect(q<HTMLButtonElement>(el, '.mm-undo')?.hidden).toBe(true);
+    expect(text(el, 'memory')).toEqual(store().entries);
+  });
+
+  it('refuse(ui-restore): the restored row goes, the deleted text waits in the add box', () => {
+    const el = mount();
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-restore', (e) => {
+      ev = e as CustomEvent;
+    });
+    act(el, 'memory', 0, 'delete').click();
+    vi.advanceTimersByTime(FOLD_MS);
+    q<HTMLButtonElement>(el, '.mm-undo')!.click();
+    expect(text(el, 'memory')).toEqual(store().entries);
+    el.refuse(ev!, 'Couldn’t restore');
+    expect(text(el, 'memory')).toEqual(store().entries.slice(1));
+    expect((byKey(el, 'new|memory') as HTMLTextAreaElement).value).toBe('Repo uses pnpm');
+    expect(q(el, '#mm-new-0')?.hasAttribute('data-open')).toBe(true);
+  });
+
+  it('refuse(ui-clear): the entries come back', () => {
+    const el = mount();
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-clear', (e) => {
+      ev = e as CustomEvent;
+    });
+    byKey(el, 'clear|memory')!.click();
+    byKey(el, 'clear|memory')!.click();
+    expect(text(el, 'memory')).toEqual([]);
+    el.refuse(ev!, 'Store is locked');
+    expect(text(el, 'memory')).toEqual(store().entries);
+    expect(caption(el)).toBe('Store is locked');
+  });
+
+  it('refuse() inside the listener acts like preventDefault() and shows the message', () => {
+    const el = mount();
+    el.addEventListener('ui-add', (e) => el.refuse(e, 'Busy — try again'));
+    byKey(el, 'add|memory')!.click();
+    const ta = byKey(el, 'new|memory') as HTMLTextAreaElement;
+    ta.value = 'kept';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    key(ta, 'Enter');
+    expect(text(el, 'memory')).toEqual(store().entries);
+    expect((byKey(el, 'new|memory') as HTMLTextAreaElement).value).toBe('kept');
+    expect(caption(el)).toBe('Busy — try again');
+    expect(failTone(el)).toBe(true);
+  });
+
+  it('ignores anything that is not a memory write; speaks Korean by default text', () => {
+    const el = mount(BASE(), { lang: 'ko' });
+    expect(el.refuse({ type: 'click', detail: {} })).toBe(false);
+    expect(el.refuse({ type: 'ui-add' })).toBe(false);
+    let ev: CustomEvent | null = null;
+    el.addEventListener('ui-delete', (e) => {
+      ev = e as CustomEvent;
+    });
+    act(el, 'memory', 0, 'delete').click();
+    expect(el.refuse({ type: ev!.type, detail: ev!.detail })).toBe(true);
+    expect(caption(el)).toBe('저장하지 못했습니다');
+  });
+});
+
 describe('read-only, language, lifecycle', () => {
   it('read-only hides every write action and shows the reason', () => {
     const el = mount({ ...BASE(), readOnly: 'Managed by an admin' });
