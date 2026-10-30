@@ -193,7 +193,9 @@ export class UiHovercard extends UiElement {
 
   readonly #onFocusOut = (e: FocusEvent): void => {
     if (!this.#open || !this.#trigger) return;
-    if (!e.composedPath().includes(this.#trigger)) return;
+    // Focus leaving the trigger, or leaving the card's own content after a Tab into it.
+    const path = e.composedPath();
+    if (!path.includes(this.#trigger) && !path.includes(this)) return;
     const to = e.relatedTarget as Node | null;
     // Within the trigger, or into the card's content: it stays.
     if (to && (this.#trigger.contains(to) || this.contains(to))) return;

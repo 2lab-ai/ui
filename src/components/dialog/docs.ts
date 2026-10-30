@@ -150,7 +150,7 @@ export const doc: ComponentDoc = {
       type: "'sm' | 'md' | 'lg' | 'xl' | 'full'",
       default: "'md'",
       description:
-        'Attribute. Panel width 400 · 560 · 720 · 960 px (never wider than the viewport less 32px); full = viewport less 16px each side, and edge to edge under 640px (no rounding, safe areas inside).',
+        'Attribute. Panel width 400 · 560 · 720 · 960 px (never wider than the viewport less 32px); full = viewport less 16px each side, and edge to edge under 640px whatever sheet says (no rounding, safe areas inside).',
     },
     {
       name: 'sheet',
