@@ -77,6 +77,10 @@ export const styles = `
   .ss-row[data-period] .ss-period { flex-basis: 100%; }
   .ss-row[data-period] .ss-nums { flex: 1 1 0; }
 }
+/* A 44px More on touch and on phone-width windows. */
+@media (max-width: 639px) {
+  .ss-more { min-height: 44px; }
+}
 @media (pointer: coarse) {
   .ss-more { min-height: 44px; }
   /* A 44px tall hit area without making the line taller. */

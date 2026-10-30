@@ -46,6 +46,12 @@ export interface StatMetric {
   breakdown?: StatBreakdown;
   /** Plain tooltip text for the figure when there is no breakdown. */
   hint?: string;
+  /**
+   * Where the figure rolls from when it lands a value with none on screen (first paint, after loading or no
+   * data): a number, or `'last'` — the value it showed before its loading bar (kept under the bar). Without it
+   * such a value appears at once. A figure that already shows a value always rolls on from it.
+   */
+  from?: number | 'last';
 }
 
 /** A period option (the inner `<ui-segmented>` option). */
@@ -224,6 +230,8 @@ export class UiStatStrip extends UiElement<StatStripData> {
   #dataOpen: boolean | undefined;
   /** The value each figure shows right now (mid-roll included), with the format it was written in. */
   #shown = new Map<string, { v: number; fmt: MetricFormat }>();
+  /** What a figure showed when its loading bar came: `from: 'last'` rolls from it when the answer lands. */
+  #kept = new Map<string, { v: number; fmt: MetricFormat }>();
   #rolls = new Map<string, Roll>();
   #raf = 0;
   /** The breakdown tooltip pressed, and whether it was open before the press hid it. */
@@ -456,7 +464,8 @@ export class UiStatStrip extends UiElement<StatStripData> {
 
   /**
    * Start, retarget or land each figure's roll. A figure jumps on first paint, on its first value (after loading
-   * or no data), on a change of format and under reduced motion.
+   * or no data), on a change of format and under reduced motion — unless its `from` gives it a start: a number,
+   * or `'last'` (the value kept under its loading bar).
    */
   #syncRolls(): void {
     const d = this.data;
@@ -467,6 +476,11 @@ export class UiStatStrip extends UiElement<StatStripData> {
       seen.add(m.key);
       const fmt = metricFormat(m.format);
       if (d?.loading || m.loading || !isNum(m.value)) {
+        // The loading bar hides the figure but keeps what it showed (mid-roll: the value on screen); no data
+        // ("—") forgets it.
+        const was = this.#shown.get(m.key);
+        if (was && (d?.loading || m.loading)) this.#kept.set(m.key, was);
+        else if (!(d?.loading || m.loading)) this.#kept.delete(m.key);
         this.#shown.delete(m.key);
         this.#rolls.delete(m.key);
         continue;
@@ -474,7 +488,18 @@ export class UiStatStrip extends UiElement<StatStripData> {
       const to = m.value;
       const roll = this.#rolls.get(m.key);
       if (roll && roll.to === to && roll.fmt === fmt) continue;
-      const prev = this.#shown.get(m.key);
+      let prev = this.#shown.get(m.key);
+      if (!prev) {
+        const start = m.from === 'last' ? this.#kept.get(m.key) : isNum(m.from) ? { v: m.from, fmt } : undefined;
+        if (start && start.fmt === fmt && start.v !== to && !still) {
+          prev = start;
+          this.#shown.set(m.key, start);
+          // Drawn with the answer a moment ago: back to the start before the first frame paints.
+          const el = this.#fig(m.key);
+          if (el) el.textContent = fmtMetric(start.v, fmt, lang);
+        }
+      }
+      this.#kept.delete(m.key);
       if (!prev || prev.fmt !== fmt || prev.v === to || still) {
         this.#rolls.delete(m.key);
         this.#shown.set(m.key, { v: to, fmt });
@@ -485,6 +510,7 @@ export class UiStatStrip extends UiElement<StatStripData> {
       this.#rolls.set(m.key, { from: prev.v, to, fmt, t0: -1 });
     }
     for (const key of Array.from(this.#shown.keys())) if (!seen.has(key)) this.#shown.delete(key);
+    for (const key of Array.from(this.#kept.keys())) if (!seen.has(key)) this.#kept.delete(key);
     for (const key of Array.from(this.#rolls.keys())) if (!seen.has(key)) this.#rolls.delete(key);
     if (this.#rolls.size && !this.#raf && this.isConnected) this.#raf = requestAnimationFrame(this.#tick);
     else if (!this.#rolls.size && this.#raf) {

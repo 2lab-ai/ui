@@ -191,6 +191,25 @@ function rolling(): HTMLElement {
   );
 }
 
+/** A period switch that loads: the bar hides each figure, and the answer rolls from what it showed (`from: 'last'`). */
+function loadingPeriod(): HTMLElement {
+  const figs = (f: Figures): StatMetric[] => metrics(f, EN).map((m) => ({ ...m, from: 'last' as const }));
+  const el = make({ period: { options: EN.options, value: '7d' }, metrics: figs(FIGURES['7d']) });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  el.addEventListener('ui-period', (e) => {
+    const { value } = (e as CustomEvent<StatPeriodChange>).detail;
+    const f = FIGURES[value];
+    if (!f || !el.data) return;
+    clearTimeout(timer);
+    // The host's whole job: loading meanwhile, then the answer — no old → new trick.
+    el.data = { ...el.data, period: { ...el.data.period!, value }, loading: true };
+    timer = setTimeout(() => {
+      if (el.data) el.data = { ...el.data, loading: false, metrics: figs(f) };
+    }, 700);
+  });
+  return el;
+}
+
 function loading(): HTMLElement {
   const loaded: StatStripData = {
     period: { options: EN.options, value: 'today' },
@@ -255,6 +274,12 @@ export const doc: ComponentDoc = {
     },
     { name: 'data.metrics[].loading', type: 'boolean', description: 'A skeleton bar for this figure only.' },
     {
+      name: 'data.metrics[].from',
+      type: "number | 'last'",
+      description:
+        "Where the figure rolls from when it lands a value with none on screen — first paint, or after loading / no data. 'last': the value it showed before its loading bar (kept under the bar, mid-roll included), so a period switch that loads rolls from the old period. A number: a known start. Without it such a value appears at once. A figure already showing a value always rolls on from it; reduced motion and a change of format jump.",
+    },
+    {
       name: 'data.metrics[].breakdown',
       type: '{ title?: string; rows: Array<{ label: string; value: number | null; format?: MetricFormat }> }',
       description:
@@ -307,7 +332,7 @@ export const doc: ComponentDoc = {
       name: 'ui-period',
       detail: '{ value: string; previous: string | undefined }',
       description:
-        'A period was chosen. Cancelable: preventDefault() keeps the old period; otherwise the control shows the new one right away — load its figures (set `loading` meanwhile). The inner `ui-change` never leaves the element.',
+        "A period was chosen. Cancelable: preventDefault() keeps the old period; otherwise the control shows the new one right away — load its figures (set `loading` meanwhile; with `from: 'last'` the answer rolls from the old figures). The inner `ui-change` never leaves the element.",
     },
     {
       name: 'ui-more',
@@ -328,7 +353,7 @@ export const doc: ComponentDoc = {
     'Loading sets aria-busy on the strip and reads “Loading” per figure; no data reads “No data” instead of the dash.',
     'A breakdown is a non-interactive tooltip: the figure button is described by it (aria-describedby). Hover after 500 ms, keyboard focus at once, a press toggles it (touch too); Esc or a press elsewhere hides it.',
     'More is a button with aria-expanded and aria-controls; the closed region is inert, so nothing inside takes focus.',
-    'Every control is ≥ 44px tall on coarse pointers (figures through a larger hit area, so the line stays one line).',
+    'Every control is ≥ 44px tall on coarse pointers (figures through a larger hit area, so the line stays one line); More is 44px on phone-width windows too.',
     'Reduced motion: figures jump instead of rolling, the region and chevron do not animate, skeletons stop pulsing.',
   ],
   usage: `<ui-stat-strip lang="en">
@@ -353,11 +378,12 @@ export const doc: ComponentDoc = {
   ] };
   async function load(value) {
     const s = await (await fetch('/usage?period=' + value)).json();
+    // from: 'last' — each answer rolls from the figure the loading bar hid.
     el.data = { ...el.data, loading: false, metrics: [
-      { key: 'sessions', label: 'Sessions', value: s.sessions },
-      { key: 'tokens', label: 'Tokens', value: s.tokens, format: 'tokens',
+      { key: 'sessions', label: 'Sessions', value: s.sessions, from: 'last' },
+      { key: 'tokens', label: 'Tokens', value: s.tokens, format: 'tokens', from: 'last',
         breakdown: { title: 'Tokens by environment', rows: s.byEnv } },
-      { key: 'cost', label: 'Cost', value: s.cost, format: 'usd' },
+      { key: 'cost', label: 'Cost', value: s.cost, format: 'usd', from: 'last' },
     ] };
   }
   el.addEventListener('ui-period', (e) => {
@@ -382,6 +408,14 @@ export const doc: ComponentDoc = {
         'Each figure rolls from what it shows to the new value in 620 ms, ease-out quart — count, tokens, cost, percent and duration.',
       height: 220,
       create: () => rolling(),
+    },
+    {
+      id: 'loading-period',
+      title: 'A period that loads',
+      description:
+        "Pick a period: the host sets loading, then hands over the answer 700 ms later. With from: 'last' the bar keeps each figure's value underneath and the answer rolls from it — the host needs no old → new trick.",
+      height: 200,
+      create: () => loadingPeriod(),
     },
     {
       id: 'loading',
