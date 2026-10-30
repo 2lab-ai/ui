@@ -15,6 +15,13 @@ export const ORDER = [
   'toaster',
   'memory-panel',
   'model-picker',
+  'segmented',
+  'tabs',
+  'menu',
+  'tooltip',
+  'dialog',
+  'drawer',
+  'disclosure',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });
