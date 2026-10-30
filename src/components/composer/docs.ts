@@ -179,6 +179,25 @@ export const doc: ComponentDoc = {
         'Built-in tools: file picker, image picker (`accept="image/*"`), voice recorder. Voice is hidden where getUserMedia or MediaRecorder is missing.',
     },
     {
+      name: 'data.camera',
+      type: "boolean | 'environment' | 'user'",
+      default: 'false',
+      description:
+        'A camera tool on touch screens: takes a photo with the back camera (true / environment) or the front one (user) through capture, and attaches it like the image tool. Hidden on fine pointers, where the image picker covers it.',
+    },
+    {
+      name: 'data.progress',
+      type: 'number (0–1)',
+      description:
+        'Upload progress while you send (with busy): a thin ink line above the toolbar, role="progressbar" named “Uploading”. Leave it unset when nothing is uploading.',
+    },
+    {
+      name: 'fill',
+      type: 'boolean attribute',
+      description:
+        'The card takes the composer’s height — give the host one (flex: 1 in a phone sheet): the field grows into it and the toolbar sits at the bottom; maxRows no longer caps the field.',
+    },
+    {
       name: 'data.maxRecordMs',
       type: 'number',
       default: '600000 (10 min)',
@@ -227,6 +246,12 @@ export const doc: ComponentDoc = {
       type: 'methods',
       description:
         'Attach files (checked against the limits; returns the ones taken), remove one (its object URL is revoked), empty everything (text, files, error, a recording), focus the field.',
+    },
+    {
+      name: 'pause() / cancelRecording()',
+      type: 'methods',
+      description:
+        'Stop a voice note’s preview (no event) — done for you when the composer is disabled, hidden (a closed sheet, display: none) or removed. Discard a recording in progress or a pending microphone prompt (ui-record cancel) while the text and files stay — call both when your sheet closes.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
@@ -291,7 +316,8 @@ export const doc: ComponentDoc = {
     'The error line is role="alert"; attaching and removing files is announced in a polite status region that the patched markup never re-creates.',
     'Send uses aria-disabled (it stays in the tab order) and aria-busy while busy; host toggles use aria-pressed.',
     'Recording moves focus to Done; the recorder row is a group named “Recording” with a role="timer" clock; ending it returns focus to the field.',
-    'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom.',
+    'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom. The camera tool (data.camera) shows only there.',
+    'Upload progress (data.progress) is a role="progressbar" named “Uploading” with aria-valuenow in percent.',
     'Reduced motion: chip, error and recorder enters switch at once; the drop wash keeps a short fade; the send spinner keeps turning.',
   ],
   usage: `<ui-composer></ui-composer>
@@ -346,11 +372,12 @@ export const doc: ComponentDoc = {
     {
       id: 'busy-disabled',
       title: 'Busy & disabled',
-      description: 'busy: the send spins and the text stays editable. disabled with a reason: read-only.',
+      description:
+        'busy with progress: 0.64 — the send spins, a thin line shows the upload, the text stays editable. disabled with a reason: read-only.',
       height: 340,
       create: () =>
         frame(
-          make({ value: 'Draft the migration plan for the billing tables.', busy: true, minRows: 1 }),
+          make({ value: 'Draft the migration plan for the billing tables.', busy: true, progress: 0.64, minRows: 1 }),
           make({
             value: 'Rerun the nightly import with the new mapping.',
             disabled: 'This conversation has ended — start a new one to continue.',

@@ -16,6 +16,18 @@ button { appearance: none; margin: 0; padding: 0; border: 0; background: none; f
 svg { display: block; flex: none; }
 .cp { container: cp / inline-size; min-width: 0; }
 
+/* fill: the card takes the host's height (a phone sheet) — the field grows, the toolbar sits at the bottom. */
+:host([fill]) { display: flex; flex-direction: column; }
+:host([fill]) .ui-root, :host([fill]) .cp { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+:host([fill]) .cp-card { flex: 1 1 auto; min-height: 0; }
+:host([fill]) .cp-field { flex: 1 1 auto; max-height: none; }
+
+/* Upload progress: a thin ink line above the toolbar. */
+.cp-progress { flex: none; height: 3px; margin: 0 12px 4px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--ib-text) 12%, transparent); }
+.cp-progress-bar { display: block; height: 100%; background: var(--ib-text); transform-origin: 0 50%;
+  transition: transform var(--dur-move) var(--ease-out); }
+
 /* The card: everything sits inside one surface. */
 .cp-card { position: relative; display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--ib-card-border);
   border-radius: 12px; background: var(--ib-card); box-shadow: var(--ib-shadow); cursor: text;
