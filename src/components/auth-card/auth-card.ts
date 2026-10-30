@@ -263,7 +263,9 @@ export function authCardHtml(
   opts: { lang?: AuthLang; page?: boolean; theme?: 'light' | 'dark' } = {},
 ): string {
   const lang = opts.lang === 'ko' ? 'ko' : 'en';
-  const hostAttrs = `lang="${lang}"${opts.page ? ' page' : ''}${opts.theme ? ` theme="${opts.theme}"` : ''}`;
+  // Only the two known themes reach the markup: this string is written into a server-rendered page.
+  const theme = opts.theme === 'dark' || opts.theme === 'light' ? opts.theme : '';
+  const hostAttrs = `lang="${lang}"${opts.page ? ' page' : ''}${theme ? ` theme="${theme}"` : ''}`;
   return `<ui-auth-card ${hostAttrs}><template shadowrootmode="open"><style>${baseCss}\n${styles}</style><div part="root" class="ui-root">${authCardMarkup(data, lang)}</div></template><script type="application/json" data-auth-state>${authStateJson(data)}</script></ui-auth-card>`;
 }
 

@@ -280,6 +280,13 @@ describe('<ui-auth-card> confirm a session switch', () => {
 });
 
 describe('server-side markup', () => {
+  it('the server markup writes only a known theme', () => {
+    expect(authCardHtml(SIGN_IN, { theme: 'dark' })).toContain(' theme="dark"');
+    const bad = authCardHtml(SIGN_IN, { theme: '"><script>alert(1)</script>' as unknown as 'dark' });
+    expect(bad.slice(0, bad.indexOf('>') + 1)).toBe('<ui-auth-card lang="en">');
+    expect(bad).not.toContain('<script>alert');
+  });
+
   it('emits a declarative shadow root with the styles, the card and the state', () => {
     const html = authCardHtml(SIGN_IN, { lang: 'ko', page: true });
     expect(html.startsWith('<ui-auth-card lang="ko" page>')).toBe(true);

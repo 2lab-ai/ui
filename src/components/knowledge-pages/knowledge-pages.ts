@@ -1183,7 +1183,8 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     const el = e.target as HTMLElement | null;
     if (!el) return;
     if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
-      if (!el.closest?.('.kp-detail') || !this.$('.kp-edit')) return;
+      // Anywhere in the element while a page is open for editing (list and search too), so the browser never saves the page.
+      if (!this.$('.kp-edit')) return;
       e.preventDefault();
       this.#save(false);
       return;
