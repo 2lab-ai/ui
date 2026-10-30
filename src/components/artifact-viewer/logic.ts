@@ -11,10 +11,13 @@ import {
   fileThumbSrc,
 } from '../file-card/render';
 
-/** `strip` — one scrolling row · `grid` — auto-fill tiles ≥ 132px · `chips` — wrapping name pills · `list` — rows. */
-export type ArtifactLayout = 'strip' | 'grid' | 'chips' | 'list';
+/**
+ * `strip` — one scrolling row · `grid` — auto-fill tiles ≥ 132px · `chips` — wrapping name pills · `list` — rows ·
+ * `none` — no tiles at all: the viewer only, opened over the host's own tiles (`open(items, index, opener)`).
+ */
+export type ArtifactLayout = 'strip' | 'grid' | 'chips' | 'list' | 'none';
 
-const LAYOUTS: readonly ArtifactLayout[] = ['strip', 'grid', 'chips', 'list'];
+const LAYOUTS: readonly ArtifactLayout[] = ['strip', 'grid', 'chips', 'list', 'none'];
 
 /** A layout value as a layout (unknown or missing → `strip`). */
 export function artifactLayout(value: unknown): ArtifactLayout {
