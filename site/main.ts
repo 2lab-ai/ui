@@ -245,7 +245,7 @@ function mountDemo(): void {
   if (!frame) return;
   frame.innerHTML = '';
   const el = current.demo.create();
-  const framed = current.demo.frame ?? current.doc.group === 'Components';
+  const framed = current.demo.frame ?? current.doc.group !== 'Screens';
   if (framed) {
     const card = document.createElement('div');
     card.className = 'pv-card';
@@ -267,7 +267,7 @@ function mountThumbs(): void {
     if (!d || !d.demos[0] || !inner) continue;
     try {
       const el = d.demos[0].create();
-      if (d.demos[0].frame ?? d.group === 'Components') {
+      if (d.demos[0].frame ?? d.group !== 'Screens') {
         const card = document.createElement('div');
         card.className = 'pv-card';
         card.append(el);
