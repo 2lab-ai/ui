@@ -37,6 +37,11 @@ export interface BarChartData {
   format?: ChartFormat;
   /** Unit of a single-series value ("sessions") — used in the tooltip and each bar's accessible label. */
   unit?: string;
+  /**
+   * The colour of a single series read from `BarDatum.value` — no legend (a `series` entry draws one). Default
+   * `spark`. Ignored when `series` is given (each series has its own colour).
+   */
+  color?: ChartColor;
   /** Empty-state text. Default “No data for this period”. */
   empty?: string;
   /** The host is fetching: skeleton bars before the first data, the old bars dimmed after. */
@@ -258,7 +263,7 @@ export function barChartModel(d: BarChartData | undefined): BarChartModel {
     series.push({ key: s.key, label: String(s.label ?? s.key), color: barColor(s.color) ?? slot });
   }
   const single = series.length <= 1;
-  if (!series.length) series.push({ key: '', label: '', color: 'spark' });
+  if (!series.length) series.push({ key: '', label: '', color: barColor(d?.color) ?? 'spark' });
   const ids = new Map<string, number>();
   const bars: BarModel[] = [];
   for (const b of Array.isArray(d?.bars) ? d.bars : []) {
