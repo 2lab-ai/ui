@@ -9,6 +9,7 @@ import {
   type ComposerData,
   type ComposerFilesDetail,
   type ComposerInputDetail,
+  type ComposerOverCapDetail,
   type ComposerRecordDetail,
   type ComposerRejectDetail,
   type ComposerRejectReason,
@@ -20,6 +21,7 @@ import {
   composerCheckFile,
   composerCounterTone,
   composerEnterAction,
+  composerEnterMode,
   composerLevel,
   composerPastedName,
   composerRecorderMime,
@@ -62,6 +64,11 @@ interface Rec {
 
 const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v));
 const isTouch = (): boolean => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+/** ⌘ on Apple keyboards, Ctrl elsewhere (the newline mode's hint). */
+const modKey = (): string =>
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || '')
+    ? '⌘'
+    : 'Ctrl';
 /** Recording needs both getUserMedia and MediaRecorder. */
 export const composerCanRecord = (): boolean =>
   typeof navigator !== 'undefined' &&
@@ -93,7 +100,7 @@ const floorSec = (ms: number): number => Math.floor(Math.max(0, ms) / 1000) * 10
 export class UiComposer extends UiElement<ComposerData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang'];
+    return ['lang', 'enter', 'fill'];
   }
 
   readonly #live: HTMLElement;
@@ -161,8 +168,11 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#applied = String(value);
       this.#setText(this.#applied);
     }
-    // Read-only now: a recording in progress (or a microphone prompt still pending) is discarded.
-    if ((this.#rec || this.#recPending) && composerSettings(v).disabled) this.#stopRecording(false);
+    // Read-only now: a recording in progress (or a microphone prompt still pending) is discarded, a preview stops.
+    if (composerSettings(v).disabled) {
+      if (this.#rec || this.#recPending) this.#stopRecording(false);
+      this.pause();
+    }
   }
 
   override connectedCallback(): void {
@@ -204,7 +214,7 @@ export class UiComposer extends UiElement<ComposerData> {
     return this.#entries.map((e) => e.file);
   }
 
-  /** Attach files (checked against maxFiles / maxFileSize / accept). Returns the ones taken. */
+  /** Attach files (checked against maxFiles / maxFileSize / maxTotalBytes / accept). Returns the ones taken. */
   addFiles(list: FileList | Iterable<File> | ArrayLike<File> | null | undefined): File[] {
     if (!list) return this.#add([]);
     return this.#add(Array.from(list as ArrayLike<File>));
@@ -228,6 +238,31 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#setText('');
     if (hadText) this.notify<ComposerInputDetail>('ui-input', { value: '' });
     if (hadFiles) this.notify<ComposerFilesDetail>('ui-files', { files: [] });
+  }
+
+  /** What a plain Enter does: the `enter` attribute, else `data.enter` (`send` by default). */
+  get enter(): 'send' | 'newline' {
+    return composerEnterMode(this.getAttribute('enter') ?? this.data?.enter);
+  }
+
+  /**
+   * Pause a chip's audio preview (no event). Done for you when the composer is disabled or hidden (a closed sheet,
+   * `display: none`), and when it leaves the page.
+   */
+  pause(): void {
+    if (this.#playing < 0) return;
+    this.#playing = -1;
+    try {
+      this.#audio?.pause();
+    } catch {
+      // Nothing playing.
+    }
+    this.#paint();
+  }
+
+  /** Discard a recording in progress, or a microphone prompt still pending (`ui-record` cancel); the rest stays. */
+  cancelRecording(): void {
+    if (this.#rec || this.#recPending) this.#stopRecording(false);
   }
 
   /** Focus the field. */
@@ -292,6 +327,7 @@ export class UiComposer extends UiElement<ComposerData> {
     const t = this.#t;
     const accepted: File[] = [];
     const rejected: Array<{ file: File; reason: ComposerRejectReason }> = [];
+    let total = this.#entries.reduce((n, e) => n + (Number(e.file.size) || 0), 0);
     for (const item of items) {
       if (!item || typeof item !== 'object' || typeof (item as Blob).size !== 'number') continue;
       const file = item as File;
@@ -300,11 +336,24 @@ export class UiComposer extends UiElement<ComposerData> {
         maxFiles: s.maxFiles,
         maxFileSize: s.maxFileSize,
         accept: s.accept,
+        total,
+        maxTotalBytes: s.maxTotalBytes,
       });
-      if (reason) {
+      // Over the total: the host may take it anyway (it compresses, or uploads it apart).
+      const refuse =
+        reason === 'total' &&
+        this.emit<ComposerOverCapDetail>('ui-over-cap', {
+          name: str(file.name),
+          file,
+          size: file.size,
+          total,
+          max: s.maxTotalBytes,
+        });
+      if (reason && (reason !== 'total' || refuse)) {
         rejected.push({ file, reason });
         continue;
       }
+      total += Number(file.size) || 0;
       this.#entries.push({ id: ++this.#seq, file, kind: fileKind(file), url: '', voiceMs, still: !this.#painted });
       accepted.push(file);
     }
@@ -326,7 +375,13 @@ export class UiComposer extends UiElement<ComposerData> {
     if (!other.length) return t.tooMany(s.maxFiles);
     const first = other[0];
     const why =
-      first.reason === 'size' ? t.tooLarge(fmtBytes(s.maxFileSize)) : first.reason === 'type' ? t.badType : t.empty;
+      first.reason === 'size'
+        ? t.tooLarge(fmtBytes(s.maxFileSize))
+        : first.reason === 'total'
+          ? t.tooLargeTotal(fmtBytes(s.maxTotalBytes))
+          : first.reason === 'type'
+            ? t.badType
+            : t.empty;
     const msg = `${first.file.name || t.untitled} — ${why}`;
     return list.length > 1 ? msg + t.more(list.length - 1) : msg;
   }
@@ -393,9 +448,9 @@ export class UiComposer extends UiElement<ComposerData> {
     if (this.#error) this.sound('error', { emphasis: 'subtle' });
   }
 
-  #pick(which: 'file' | 'image'): void {
+  #pick(which: 'file' | 'image' | 'camera'): void {
     if (this.#s.disabled) return;
-    this.$<HTMLInputElement>(which === 'image' ? '.cp-in-image' : '.cp-in-file')?.click();
+    this.$<HTMLInputElement>(`.cp-in-${which}`)?.click();
   }
 
   #play(id: number): void {
@@ -454,6 +509,9 @@ export class UiComposer extends UiElement<ComposerData> {
       case 'image':
         this.#pick('image');
         break;
+      case 'camera':
+        this.#pick('camera');
+        break;
       case 'voice':
         void this.#startRecording(e);
         break;
@@ -487,7 +545,7 @@ export class UiComposer extends UiElement<ComposerData> {
       return;
     }
     if (!this.#ta || e.target !== this.#ta) return;
-    if (composerEnterAction(e, { touch: isTouch() }) !== 'send') {
+    if (composerEnterAction(e, { touch: isTouch(), enter: this.enter }) !== 'send') {
       const key = typedKey(e, this.#ta);
       if (key) this.sound('type', { key }, e);
       return;
@@ -652,7 +710,10 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#ro = null;
     if (!this.#ta || typeof ResizeObserver !== 'function') return;
     this.#ro = new ResizeObserver((entries) => {
-      const w = Math.round(entries[0]?.contentRect.width ?? 0);
+      const box = entries[0]?.contentRect;
+      const w = Math.round(box?.width ?? 0);
+      // Hidden (a closed sheet, display: none): a preview stops with it.
+      if (box && !box.width && !box.height) this.pause();
       if (w === this.#roWidth) return;
       this.#roWidth = w;
       // Next frame: resizing the observed node inside its own callback would loop.
@@ -927,14 +988,23 @@ export class UiComposer extends UiElement<ComposerData> {
     }</p>`;
     const row = this.#rec ? this.#recorderBar(this.#rec, t) : this.#toolbar(d, s, t, showHint);
     const accept = s.accept ? ` accept="${escAttr(s.accept)}"` : '';
-    const inputs = `<input type="file" class="cp-in cp-in-file" data-mk="in-file" multiple hidden tabindex="-1"${accept}><input type="file" class="cp-in cp-in-image" data-mk="in-image" multiple hidden tabindex="-1" accept="image/*">`;
+    const camera = s.camera
+      ? `<input type="file" class="cp-in cp-in-camera" data-mk="in-camera" hidden tabindex="-1" accept="image/*" capture="${s.camera}">`
+      : '';
+    const inputs = `<input type="file" class="cp-in cp-in-file" data-mk="in-file" multiple hidden tabindex="-1"${accept}><input type="file" class="cp-in cp-in-image" data-mk="in-image" multiple hidden tabindex="-1" accept="image/*">${camera}`;
+    const progress =
+      s.progress === null
+        ? ''
+        : `<div class="cp-progress" data-mk="progress" role="progressbar" aria-label="${escAttr(t.uploading)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(
+            s.progress * 100,
+          )}"><span class="cp-progress-bar" style="transform:scaleX(${s.progress.toFixed(3)})"></span></div>`;
     const drop = `<div class="cp-drop" aria-hidden="true">${icon('attach', { size: 16 })}<span>${esc(t.drop)}</span></div>`;
     const reason = s.reason
       ? `<p class="cp-reason" id="cp-reason">${icon('info', { size: 14 })}<span>${esc(s.reason)}</span></p>`
       : '';
     return `<div class="cp" data-mk="cp"${s.disabled ? ' data-disabled' : ''}${s.busy ? ' data-busy' : ''}><div class="cp-card" data-mk="card" style="--cp-min:${s.minRows};--cp-max:${s.maxRows}"${
       this.#dragOn ? ' data-drag' : ''
-    }>${field}${files}${error}${row}${inputs}${drop}</div>${reason}</div>`;
+    }>${field}${files}${error}${progress}${row}${inputs}${drop}</div>${reason}</div>`;
   }
 
   #chip(e: Entry, s: ComposerSettings, t: ComposerStrings): string {
@@ -968,6 +1038,7 @@ export class UiComposer extends UiElement<ComposerData> {
     let tools = '';
     if (s.attach) tools += builtIn('attach', 'attach', t.attach);
     if (s.image) tools += builtIn('image', 'image', t.image);
+    if (s.camera && isTouch()) tools += builtIn('camera', 'camera', t.camera);
     if (s.voice && composerCanRecord())
       tools += this.#recPending
         ? builtIn('voice', 'mic', t.waiting, ' aria-busy="true"')
@@ -983,7 +1054,8 @@ export class UiComposer extends UiElement<ComposerData> {
         text ? `<span>${esc(tool.label)}</span>` : ''
       }</button>`;
     }
-    const hint = showHint ? `<span class="cp-hint" id="cp-hint">${esc(t.hint)}</span>` : '';
+    const hintText = this.enter === 'newline' ? t.hintNewline(modKey()) : t.hint;
+    const hint = showHint ? `<span class="cp-hint" id="cp-hint">${esc(hintText)}</span>` : '';
     const count = s.maxLength
       ? `<span class="cp-count" id="cp-count" data-tone="${composerCounterTone(this.value.length, s.maxLength)}">${this.#countText(s)}</span>`
       : '';

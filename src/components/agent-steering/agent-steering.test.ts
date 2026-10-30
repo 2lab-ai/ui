@@ -1,8 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
+import type { UiComposer } from '../composer/composer';
+import '../composer/composer';
 import type { UiAgentSteering } from './agent-steering';
 import './agent-steering';
-import type { AgentSteeringData, SteeringItem, SteeringLocal, SteeringOverlay, SteeringRow } from './logic';
+import type {
+  AgentSteeringData,
+  SteeringItem,
+  SteeringLocal,
+  SteeringOverlay,
+  SteeringRow,
+  SteeringSubmitDetail,
+} from './logic';
 import {
   claimLocals,
   clipNote,
@@ -612,6 +621,127 @@ describe('<ui-agent-steering> note actions', () => {
     (act(el, 1, 'promote') as HTMLElement).focus();
     set(el, { items: [item('z'), ...two()] });
     expect(el.shadowRoot?.activeElement).toBe(act(el, 2, 'promote'));
+  });
+});
+
+describe('<ui-agent-steering> with a slotted <ui-composer> (D2 G5-1)', () => {
+  /** A steering element hosting a composer: the composer is the field. */
+  function hosted(data: AgentSteeringData = {}, attrs: Record<string, string> = {}) {
+    const el = document.createElement('ui-agent-steering');
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    const c = document.createElement('ui-composer') as UiComposer;
+    c.slot = 'composer';
+    c.data = { maxFiles: 4 };
+    el.append(c);
+    document.body.append(el);
+    el.data = data;
+    el.renderNow();
+    c.renderNow();
+    return { el, c };
+  }
+  const cField = (c: UiComposer) => c.shadowRoot!.querySelector<HTMLTextAreaElement>('.cp-field')!;
+  const cType = (c: UiComposer, text: string) => {
+    const f = cField(c);
+    f.value = text;
+    f.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+  };
+
+  it('the composer is the field: the built-in one, attachments and tools step aside; the hint row stays', () => {
+    const { el, c } = hosted({ running: true }, { lang: 'ko' });
+    expect(q(el, '.as')!.hasAttribute('data-composer')).toBe(true);
+    expect(c.data).toMatchObject({
+      maxFiles: 4,
+      placeholder: steeringStrings('ko').placeholderRunning,
+      label: steeringStrings('ko').fieldRunning,
+      disabled: false,
+      hint: false,
+    });
+    expect(q(el, '.as-hint')!.hidden).toBe(false);
+    expect(q(el, '.as-hint')!.textContent).toContain(steeringStrings('ko').hintSteer);
+    // Without it, the built-in field again.
+    c.remove();
+    el.renderNow();
+    expect(q(el, '.as')!.hasAttribute('data-composer')).toBe(false);
+  });
+
+  it('Enter queues, ⌘/Ctrl+Enter steers while running: one ui-submit from the steering, with the files', () => {
+    const { el, c } = hosted({ running: true });
+    const sent: SteeringSubmitDetail[] = [];
+    let raw = 0;
+    el.addEventListener('ui-submit', (e) => {
+      if (e.target === c) raw++;
+      else sent.push((e as CustomEvent<SteeringSubmitDetail>).detail);
+    });
+    const page: Event[] = [];
+    document.addEventListener('ui-submit', (e) => page.push(e));
+    const pdf = new File([new Uint8Array(20)], 'brief.pdf', { type: 'application/pdf' });
+    c.addFiles([pdf]);
+    cType(c, 'check the logs');
+    key(cField(c), 'Enter');
+    cType(c, 'stop and use staging');
+    key(cField(c), 'Enter', { ctrlKey: true });
+    expect(raw).toBe(0);
+    expect(page.every((e) => e.target === el)).toBe(true);
+    expect(sent.map((d) => [d.text, d.mode, d.files?.map((f) => f.name)])).toEqual([
+      ['check the logs', 'queue', ['brief.pdf']],
+      ['stop and use staging', 'steer', []],
+    ]);
+    expect(sent[0].ref).toMatch(/^as-/);
+    // Sent: the composer cleared itself; both notes show while the agent runs, the first with its file.
+    expect(c.value).toBe('');
+    expect(c.files).toEqual([]);
+    el.renderNow();
+    expect(rows(el)).toHaveLength(2);
+    expect(rows(el)[0].querySelector('.as-files')?.textContent).toBe(steeringStrings('en').files(1));
+  });
+
+  it('a ⌘/Ctrl+Enter that did not send is not remembered for the send button', () => {
+    const { el, c } = hosted({ running: true });
+    const sent = events<SteeringSubmitDetail>(el, 'ui-submit');
+    key(cField(c), 'Enter', { metaKey: true }); // empty: nothing sends
+    cType(c, 'later');
+    c.shadowRoot!.querySelector<HTMLButtonElement>('.cp-send')!.click();
+    expect(sent.map((d) => d.mode)).toEqual(['queue']);
+  });
+
+  it('the host cancels: the composer keeps its text and files; no row', () => {
+    const { el, c } = hosted({ running: true });
+    events(el, 'ui-submit', true);
+    c.addFiles([new File([new Uint8Array(5)], 'a.txt', { type: 'text/plain' })]);
+    cType(c, 'keep me');
+    key(cField(c), 'Enter');
+    expect(c.value).toBe('keep me');
+    expect(c.files).toHaveLength(1);
+    el.renderNow();
+    expect(rows(el)).toHaveLength(0);
+  });
+
+  it('read-only or ended: the composer is off with the steering’s words; value and focus go to it', () => {
+    const { el, c } = hosted({ canAct: false });
+    expect(c.data).toMatchObject({ disabled: true, placeholder: steeringStrings('en').readOnly });
+    set(el, { canAct: true, disabled: true });
+    expect(c.data).toMatchObject({ disabled: true, placeholder: steeringStrings('en').ended });
+    set(el, { disabled: false });
+    expect(c.data).toMatchObject({ disabled: false, placeholder: steeringStrings('en').placeholderIdle });
+    el.value = 'resend this';
+    expect(c.value).toBe('resend this');
+    expect(el.value).toBe('resend this');
+    el.focus();
+    expect(document.activeElement).toBe(c);
+    expect(c.shadowRoot!.activeElement).toBe(cField(c));
+  });
+
+  it('idle: a send is not drawn (it becomes the turn), and a reported failure offers Retry', () => {
+    const { el, c } = hosted({});
+    const sent = events<SteeringSubmitDetail>(el, 'ui-submit');
+    cType(c, 'hello');
+    key(cField(c), 'Enter');
+    el.renderNow();
+    expect(rows(el)).toHaveLength(0);
+    el.setItemState(sent[0].ref, 'failed', 'offline');
+    el.renderNow();
+    expect(rows(el)).toHaveLength(1);
+    expect(act(el, 0, 'retry')).not.toBeNull();
   });
 });
 

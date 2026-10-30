@@ -1,7 +1,7 @@
 import type { ComponentDoc } from '../../docs/types';
 import { demoFiles, demoPhoto } from './demo';
 import './file-card';
-import type { FileOpenDetail, UiFileCard } from './file-card';
+import type { FileOpenDetail, FilePlayDetail, UiFileCard } from './file-card';
 import type { FileCardVariant, FileItem } from './render';
 
 function card(item: FileItem, variant: FileCardVariant, lang = 'en'): UiFileCard {
@@ -40,6 +40,85 @@ function gallery(items: FileItem[], variant: FileCardVariant, lang = 'en'): HTML
   return box;
 }
 
+/**
+ * The same voice note as a tile, a row and a chip, each `playable`: press play on one and the one before stops.
+ * The line echoes ui-play and ui-open.
+ */
+function playInPlace(lang = 'en'): HTMLElement {
+  const memo = demoFiles(lang === 'ko' ? 'ko' : 'en').find((f) => f.id === 'memo') as FileItem;
+  const box = document.createElement('div');
+  box.style.cssText = 'display:grid;gap:14px;width:100%;max-width:440px;margin:0 auto';
+  const top = document.createElement('div');
+  top.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:12px';
+  const tile = card({ ...memo, id: 'memo-tile' }, 'tile', lang);
+  const chip = card({ ...memo, id: 'memo-chip' }, 'chip', lang);
+  const row = card({ ...memo, id: 'memo-row', meta: lang === 'ko' ? '음성 메모' : 'Voice note' }, 'row', lang);
+  for (const el of [tile, chip, row]) el.setAttribute('playable', '');
+  top.append(tile, chip);
+  const line = document.createElement('p');
+  line.className = 'ui-status-line';
+  line.setAttribute('role', 'status');
+  box.addEventListener('ui-play', (e) => {
+    const d = (e as CustomEvent<FilePlayDetail>).detail;
+    line.textContent = `ui-play → ${d.id} ${d.playing ? 'play' : 'pause'}`;
+  });
+  box.addEventListener('ui-open', (e) => {
+    line.textContent = `ui-open → ${(e as CustomEvent<FileOpenDetail>).detail.id}`;
+  });
+  box.append(top, row, line);
+  return box;
+}
+
+/**
+ * The same tiles in a tall and a short panel, one host rule: `@container` on the panel's height hides the thumbnail
+ * and the meta line through `::part`, so a short panel shows name cards (drag a panel's corner to change it).
+ */
+function containerHook(): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'fc-cq-demo';
+  box.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;width:100%';
+  const style = document.createElement('style');
+  style.textContent = `.fc-cq-demo .fc-cq { container: fcq / size; resize: vertical; overflow: auto; min-height: 120px;
+  padding: 12px; border-radius: 12px; background: var(--ui-surface); box-shadow: 0 0 0 1px var(--ui-ib-card-border); }
+.fc-cq-demo .fc-cq-list { display: flex; flex-wrap: wrap; gap: 8px; }
+@container fcq (max-height: 220px) {
+  .fc-cq-demo ui-file-card::part(thumb), .fc-cq-demo ui-file-card::part(meta) { display: none; }
+}`;
+  box.append(style);
+  for (const h of [300, 170]) {
+    const panel = document.createElement('div');
+    panel.className = 'fc-cq';
+    panel.style.height = `${h}px`;
+    const list = document.createElement('div');
+    list.className = 'fc-cq-list';
+    for (const it of demoFiles().slice(0, 3)) list.append(card(it, 'tile'));
+    panel.append(list);
+    box.append(panel);
+  }
+  return box;
+}
+
+/**
+ * The final answer says “Answer” instead of Markdown (kindLabel); a file only Slack keeps is dimmed by one page
+ * rule on its thumbnail part, and says so on its meta line.
+ */
+function ownWords(): HTMLElement {
+  const now = Date.now();
+  const box = gallery(
+    [
+      { id: 'answer', name: 'final-answer.md', kindLabel: 'Answer', size: 4_120, time: now - 60_000, text: '# Done' },
+      { id: 'slack', name: 'customer-call.m4a', size: 2_480_000, time: now - 41 * 60_000, meta: 'Only in Slack' },
+      { id: 'plan', name: 'plan.md', size: 1_900, time: now - 9 * 60_000, text: '# Plan' },
+    ],
+    'tile',
+  );
+  const style = document.createElement('style');
+  style.textContent = 'ui-file-card.is-remote::part(thumb) { opacity: 0.5; filter: grayscale(1); }';
+  box.prepend(style);
+  box.querySelectorAll('ui-file-card')[1]?.classList.add('is-remote');
+  return box;
+}
+
 /** A PNG header with no image data: the browser fails to decode it, so the card falls back to its glyph. */
 const BROKEN_PNG = 'data:image/png;base64,iVBORw0KGgo=';
 
@@ -60,7 +139,7 @@ export const doc: ComponentDoc = {
       type: 'FileItem',
       required: true,
       description:
-        'The file: { id, name, kind?, mime?, size?, time?, url?, thumb?, text?, meta?, downloadName? }. Only id and name are needed. Nothing renders without data.',
+        'The file: { id, name, kind?, kindLabel?, mime?, size?, time?, url?, thumb?, text?, meta?, downloadName?, actions? }. Only id and name are needed. Nothing renders without data.',
     },
     { name: 'data.id', type: 'string', required: true, description: 'Echoed as detail.id in ui-open.' },
     {
@@ -73,6 +152,12 @@ export const doc: ComponentDoc = {
       name: 'data.kind',
       type: "'image' | 'audio' | 'video' | 'markdown' | 'html' | 'pdf' | 'code' | 'text' | 'file'",
       description: 'Wins over mime and the extension. Without it the kind comes from mime, else the extension.',
+    },
+    {
+      name: 'data.kindLabel',
+      type: 'string',
+      description:
+        'The kind word to say instead of the kind’s own — “Answer” for the final markdown answer. Used in the card’s name, for a nameless file, and by Artifact Viewer’s badge and peek. The glyph and tint stay the kind’s.',
     },
     { name: 'data.mime', type: 'string', description: 'MIME type, used for the kind when kind is missing.' },
     { name: 'data.size', type: 'number', description: 'Bytes, drawn as 12.4 KB / 3.1 MB (tabular).' },
@@ -101,10 +186,34 @@ export const doc: ComponentDoc = {
       description: 'Attribute (and property). tile — thumbnail card · row — one line in a list · chip — a pill.',
     },
     {
+      name: '::part(card | thumb | glyph | text | name | meta | sub | ext)',
+      type: 'CSS parts',
+      description:
+        'The card’s pieces, for your own rules: card (the button), thumb (a tile’s thumbnail, a row’s box), glyph (a chip’s), text, name, meta, sub (the extra line), ext (the extension tag). Hide thumbnails in a short panel with a container query, dim a file you only link to. A playable card adds play, progress and video.',
+    },
+    {
       name: '--fc-tile-w',
       type: 'CSS custom property',
       default: '148px',
       description: 'A tile’s width. Set 100% to let a grid size it.',
+    },
+    {
+      name: 'playable',
+      type: 'boolean attribute',
+      description:
+        'An audio file (any variant) or a video tile with a playable url gets a play / pause toggle beside the card — over a tile’s thumbnail (bottom right, a progress line along its foot, the video itself in place), at a row’s end, after a chip — and plays in place. One card plays at a time on the page; nothing loads before the first press.',
+    },
+    {
+      name: 'focus()',
+      type: 'method',
+      description:
+        'Focuses the card’s button — so viewer.open(items, i, card) returns focus to the card and a page can focus it without reaching into the shadow root.',
+    },
+    {
+      name: 'play() · pause() · playing',
+      type: 'methods · boolean (read-only)',
+      description:
+        'Play or pause in place without ui-play (a playable card only); playing is true while it plays. Pause the card when your viewer opens the same file.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'Kind words and relative time (attribute).' },
     {
@@ -120,10 +229,16 @@ export const doc: ComponentDoc = {
       description:
         'The card was activated (click, Enter, Space). The card has no default action of its own: open a viewer, a tab or a download.',
     },
+    {
+      name: 'ui-play',
+      detail: '{ id: string; playing: boolean; url: string }',
+      description:
+        'The play toggle was pressed; playing is the state it asks for. Cancelable: preventDefault() keeps the card as it is (play it in your own player).',
+    },
   ],
   keyboard: [
-    ['Tab', 'Focus the card'],
-    ['Enter / Space', 'Open it (ui-open)'],
+    ['Tab', 'Focus the card, then its play toggle (playable)'],
+    ['Enter / Space', 'Open it (ui-open); on the toggle, play / pause (ui-play)'],
   ],
   a11y: [
     'The whole card is one native <button>, named “report.png, Image, 12.4 KB · 5m ago, from Build agent” — name, kind word, meta and the extra line.',
@@ -131,7 +246,8 @@ export const doc: ComponentDoc = {
     'Kind is never colour alone: the glyph and the extension tag carry it, the wash only tints.',
     'Every string is escaped; image sources pass safeSrc (no javascript:, no data:text/html).',
     'Focus ring 2px; chips grow to 44px on coarse pointers; press scales to .97; hover changes the border only, on fine pointers.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a tap when the person opens the file (unless ui-open is cancelled). Silent until the page turns sound on.',
+    'The play toggle is its own button next to the card (never inside it), named “Play standup.wav” / “Pause standup.wav” (ko: “… 재생” / “… 일시정지”); 32px drawn, 44px to the touch; ink while it plays. The progress line is decorative.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a tap when the person opens the file (unless ui-open is cancelled); the play toggle plays toggle (forward to play, back to pause). Silent until the page turns sound on.',
   ],
   usage: `<ui-file-card id="f"></ui-file-card>
 <ui-file-card variant="row" id="g"></ui-file-card>
@@ -191,6 +307,30 @@ export const doc: ComponentDoc = {
           'tile',
         );
       },
+    },
+    {
+      id: 'own-words',
+      title: 'Kind word and dimming',
+      description:
+        'kindLabel: the final answer says Answer, not Markdown (its name reads “final-answer.md, Answer, …”). A file only Slack keeps is dimmed by one page rule — ui-file-card.is-remote::part(thumb) { opacity: .5 } — and says so on its meta line.',
+      height: 300,
+      create: () => ownWords(),
+    },
+    {
+      id: 'container',
+      title: 'Container hook',
+      description:
+        'The same three tiles in a tall and a short panel. One page rule — @container (max-height: 220px) { ui-file-card::part(thumb), ::part(meta) { display: none } } — turns the short panel’s tiles into name cards. Drag a panel’s corner.',
+      height: 340,
+      create: () => containerHook(),
+    },
+    {
+      id: 'play',
+      title: 'Play in place',
+      description:
+        'playable: the voice note as a tile, a chip and a row. Press play on one — the one playing before stops. The card itself still opens (ui-open).',
+      height: 330,
+      create: () => playInPlace(),
     },
     {
       id: 'ko',

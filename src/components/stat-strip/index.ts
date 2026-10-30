@@ -3,6 +3,7 @@ export type {
   StatBreakdown,
   StatBreakdownRow,
   StatLang,
+  StatLayout,
   StatMetric,
   StatMore,
   StatMoreToggle,

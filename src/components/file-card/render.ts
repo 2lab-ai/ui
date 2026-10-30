@@ -1,7 +1,22 @@
 import { type FileKind, fileExt, fileKind, fileKindIcon, fmtBytes } from '../../core/files';
 import { fmtAgo } from '../../core/format';
 import { attrs, cls, esc, safeSrc } from '../../core/html';
-import { icon } from '../../icons/icons';
+import { type IconName, icon } from '../../icons/icons';
+
+/**
+ * An extra action on a file, beside the viewer's Open in new tab / Download (open in Slack, copy a link, retry):
+ * a link to a new tab when `href` is a safe link, else a button the host answers on `ui-action`.
+ */
+export interface FileAction {
+  /** Echoed as `detail.action` in `ui-action`. `open` and `download` are the built-ins' and are skipped here. */
+  id: string;
+  /** The button's text (and its name). */
+  label: string;
+  /** A glyph from `@2lab.ai/ui/icons`. Without one the action keeps its text on phones too. */
+  icon?: IconName;
+  /** Follow this link in a new tab: http(s), `mailto:` or relative. Any other scheme is dropped (a button then). */
+  href?: string;
+}
 
 /**
  * One file the agent made (or the person attached): what `<ui-file-card>` draws and `<ui-artifact-viewer>` pages
@@ -12,6 +27,8 @@ export interface FileItem {
   name: string;
   /** Wins over `mime` / the extension. */
   kind?: FileKind;
+  /** The kind word to show instead of the kind's own (“Answer” for the final markdown answer). */
+  kindLabel?: string;
   mime?: string;
   /** Bytes (drawn as 12.4 KB). */
   size?: number;
@@ -27,6 +44,8 @@ export interface FileItem {
   meta?: string;
   /** File name for Download (default `name`). */
   downloadName?: string;
+  /** Extra viewer actions after Open / Download (the file's Slack permalink …) → `ui-action` with their `id`. */
+  actions?: FileAction[];
 }
 
 /** `tile` — thumbnail card · `row` — one line in a list · `chip` — a pill with the glyph and name. */
@@ -39,9 +58,11 @@ export function fileCardVariant(value: string | null | undefined): FileCardVaria
   return VARIANTS.includes(value as FileCardVariant) ? (value as FileCardVariant) : 'tile';
 }
 
-/** Kind words for badges and labels. */
+/** Kind words for badges and labels, and the play toggle's names. */
 export const FILE_STRINGS = {
   en: {
+    play: (name: string) => `Play ${name}`,
+    pause: (name: string) => `Pause ${name}`,
     kinds: {
       image: 'Image',
       audio: 'Audio',
@@ -55,6 +76,8 @@ export const FILE_STRINGS = {
     } as Record<FileKind, string>,
   },
   ko: {
+    play: (name: string) => `${name} 재생`,
+    pause: (name: string) => `${name} 일시정지`,
     kinds: {
       image: '이미지',
       audio: '오디오',
@@ -98,6 +121,12 @@ export function fileKindLabel(kind: FileKind, lang?: string | null): string {
   return (isKo(lang) ? FILE_STRINGS.ko : FILE_STRINGS.en).kinds[kind] ?? FILE_STRINGS.en.kinds.file;
 }
 
+/** The item's kind word: its own `kindLabel`, else the kind's word in the card's language. */
+export function fileItemKindLabel(item: Partial<FileItem> | null | undefined, lang?: string | null): string {
+  const own = String(item?.kindLabel ?? '').trim();
+  return own || fileKindLabel(fileItemKind(item), lang);
+}
+
 /** Relative time in the card's language: "5m ago" / "5분 전" ('' for a missing time). */
 export function fileAgo(at: unknown, now: number = Date.now(), lang?: string | null): string {
   const t = Number(at);
@@ -121,7 +150,7 @@ export function fileMeta(item: Partial<FileItem> | null | undefined, now: number
 /** The name to draw: the item's name, or the kind word when it has none. */
 export function fileDisplayName(item: Partial<FileItem> | null | undefined, lang?: string): string {
   const n = String(item?.name ?? '').trim();
-  return n || fileKindLabel(fileItemKind(item), lang);
+  return n || fileItemKindLabel(item, lang);
 }
 
 /** The raw thumbnail source of an image item (thumb, else url) that passes `safeSrc`; '' for other kinds or none. */
@@ -134,11 +163,23 @@ export function fileThumbSrc(item: Partial<FileItem> | null | undefined): string
   return '';
 }
 
+/**
+ * The source a card plays in place (`playable`): the url of an audio file (any variant) or a video (tiles only)
+ * when it passes `safeSrc`; '' when the card has nothing to play.
+ */
+export function filePlaySrc(item: Partial<FileItem> | null | undefined, variant: FileCardVariant = 'tile'): string {
+  if (!item) return '';
+  const kind = fileItemKind(item);
+  if (kind !== 'audio' && !(kind === 'video' && variant === 'tile')) return '';
+  const v = String(item.url ?? '').trim();
+  return v && safeSrc(v) ? v : '';
+}
+
 /** The card's accessible name: "report.png, Image, 12.4 KB · 5m ago, from Build agent". */
 export function fileCardLabel(item: Partial<FileItem>, lang?: string, now: number = Date.now()): string {
   const meta = fileMeta(item, now, lang);
   const extra = String(item.meta ?? '').trim();
-  return [fileDisplayName(item, lang), fileKindLabel(fileItemKind(item), lang), meta, extra].filter(Boolean).join(', ');
+  return [fileDisplayName(item, lang), fileItemKindLabel(item, lang), meta, extra].filter(Boolean).join(', ');
 }
 
 export interface FileCardOptions {
@@ -160,7 +201,9 @@ function imgTag(src: string): string {
 
 /**
  * One file card as markup (a `<button class="fc fc-{variant}">`): the shared renderer of `<ui-file-card>` and
- * `<ui-artifact-viewer>`. Style it with `fileCardStyles`. Every string is escaped; image sources go through
+ * `<ui-artifact-viewer>`. Its pieces carry `part` names — `card`, `thumb` (a tile's thumbnail, a row's box),
+ * `glyph` (a chip's), `text`, `name`, `meta`, `sub`, `ext` — so a page can restyle `<ui-file-card>` by its own
+ * container (`@container (max-height: 360px) { ui-file-card::part(thumb) { display: none } }`). Style it with `fileCardStyles`. Every string is escaped; image sources go through
  * `safeSrc` (http(s), relative, `blob:`, base64 raster `data:image/…`).
  */
 export function fileCardHtml(
@@ -179,22 +222,23 @@ export function fileCardHtml(
   const glyph = icon(fileKindIcon(kind), { size: GLYPH_SIZE[variant] });
   let inner: string;
   if (variant === 'chip') {
-    inner = `<span class="fc-glyph">${glyph}</span><span class="fc-name">${esc(name)}</span>`;
+    inner = `<span class="fc-glyph" part="glyph">${glyph}</span><span class="fc-name" part="name">${esc(name)}</span>`;
   } else if (variant === 'row') {
     const line = [meta, extra].filter(Boolean).join(' · ');
-    inner = `<span class="${cls('fc-box', img && 'has-img')}">${img ? imgTag(img) : glyph}</span><span class="fc-text"><span class="fc-name">${esc(
+    inner = `<span class="${cls('fc-box', img && 'has-img')}" part="thumb">${img ? imgTag(img) : glyph}</span><span class="fc-text" part="text"><span class="fc-name" part="name">${esc(
       name,
-    )}</span>${line ? `<span class="fc-meta">${esc(line)}</span>` : ''}</span>`;
+    )}</span>${line ? `<span class="fc-meta" part="meta">${esc(line)}</span>` : ''}</span>`;
   } else {
     const ext = fileExt(item.name).toUpperCase().slice(0, 5);
-    const thumb = img ? imgTag(img) : `${glyph}${ext ? `<span class="fc-ext">${esc(ext)}</span>` : ''}`;
-    inner = `<span class="${cls('fc-thumb', img && 'has-img')}">${thumb}</span><span class="fc-text"><span class="fc-name">${esc(
+    const thumb = img ? imgTag(img) : `${glyph}${ext ? `<span class="fc-ext" part="ext">${esc(ext)}</span>` : ''}`;
+    inner = `<span class="${cls('fc-thumb', img && 'has-img')}" part="thumb">${thumb}</span><span class="fc-text" part="text"><span class="fc-name" part="name">${esc(
       name,
-    )}</span>${meta ? `<span class="fc-meta">${esc(meta)}</span>` : ''}${extra ? `<span class="fc-sub">${esc(extra)}</span>` : ''}</span>`;
+    )}</span>${meta ? `<span class="fc-meta" part="meta">${esc(meta)}</span>` : ''}${extra ? `<span class="fc-sub" part="sub">${esc(extra)}</span>` : ''}</span>`;
   }
   return `<button${attrs({
     type: 'button',
     class: cls('fc', `fc-${variant}`, opts.className),
+    part: 'card',
     'data-kind': kind,
     'aria-label': fileCardLabel(item, lang, now),
     ...opts.attrs,

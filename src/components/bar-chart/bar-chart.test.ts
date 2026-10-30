@@ -232,6 +232,20 @@ describe('<ui-bar-chart> rendering', () => {
     expect(q(one, '.bc-legend')).toBeNull();
   });
 
+  it('data.color colours a single series without a legend; series wins; raw CSS is never taken', () => {
+    const one = mount({ ...SESSIONS, color: 'purple' });
+    expect(qa(one, '.bc-seg').every((s) => s.style.getPropertyValue('--c') === 'var(--purple)')).toBe(true);
+    expect(q(one, '.bc-legend')).toBeNull();
+    const raw = mount({ ...SESSIONS, color: 'red; background: url(x)' as never });
+    expect(q(raw, '.bc-seg')?.style.getPropertyValue('--c')).toBe('var(--ib-spark)');
+    const given = mount({ ...SESSIONS, color: 'purple', series: [{ key: 'v', label: 'V', color: 'done' }] });
+    expect(
+      barChartModel({ ...SESSIONS, color: 'purple', series: [{ key: 'v', label: 'V', color: 'done' }] }).series[0]
+        .color,
+    ).toBe('done');
+    expect(q(given, '.bc-legend')).not.toBeNull();
+  });
+
   it('shows the empty state inside the plot with the axis hidden', () => {
     for (const data of [{ bars: [] }, { bars: [{ label: 'a' }, { label: 'b', value: null }] }] as BarChartData[]) {
       const el = mount(data);

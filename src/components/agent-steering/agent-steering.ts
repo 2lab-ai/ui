@@ -63,6 +63,17 @@ interface Editing {
 }
 
 const isTouch = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+
+/** What this element needs of a slotted `<ui-composer>` (duck-typed: no import, no bundle weight). */
+interface ComposerLike extends HTMLElement {
+  value: string;
+  data?: object;
+}
+/** The composer's `ui-submit` detail. */
+interface ComposerSubmit {
+  text: string;
+  files: File[];
+}
 const s = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 const kbd = (...keys: string[]) => keys.map((k) => `<kbd>${esc(k)}</kbd>`).join('');
 
@@ -95,6 +106,10 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   #hint!: HTMLElement;
   /** Field text set through `value` before the composer exists. */
   #draft = '';
+  /** A `<ui-composer slot="composer">` that is the field (its own field, attachments and tools step aside). */
+  #composer: ComposerLike | null = null;
+  /** The Enter that is about to make the composer send carried ⌘/Ctrl: steer. */
+  #steerNext = false;
 
   #items: SteeringItem[] = [];
   #rows: SteeringRow[] = [];
@@ -126,6 +141,23 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.root.addEventListener('click', (e) => this.#onClick(e));
     this.root.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
     this.root.addEventListener('input', (e) => this.#onInput(e));
+    this.root.addEventListener('slotchange', (e) => {
+      if ((e.target as Element | null)?.getAttribute?.('name') === 'composer') this.requestRender();
+    });
+    // The slotted composer: its Enter is seen here before it sends (capture on the host runs first); its send
+    // becomes this element's ui-submit.
+    this.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key === 'Enter' && this.#fromComposer(e)) this.#steerNext = e.metaKey || e.ctrlKey;
+      },
+      true,
+    );
+    // …and on the way back up the composer has had it (it prevents every Enter): a ⌘/Ctrl that did not send is spent.
+    this.addEventListener('keydown', (e) => {
+      if (this.#fromComposer(e)) this.#steerNext = false;
+    });
+    this.addEventListener('ui-submit', (e) => this.#onComposerSubmit(e as CustomEvent<ComposerSubmit>));
   }
 
   attributeChangedCallback(): void {
@@ -141,13 +173,18 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#leaving.clear();
   }
 
-  /** The field's text (the host may prefill it, e.g. to resend). */
+  /** The field's text (the host may prefill it, e.g. to resend) — the slotted composer's, when there is one. */
   get value(): string {
+    if (this.#composer) return s(this.#composer.value);
     return this.#built ? this.#field.value : this.#draft;
   }
 
   set value(v: string) {
     const text = s(v);
+    if (this.#composer) {
+      this.#composer.value = text;
+      return;
+    }
     if (!this.#built) {
       this.#draft = text;
       return;
@@ -160,7 +197,11 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   /** Keyboard landing: the field — or, when it is off (read-only, ended), the first note's first button. */
   override focus(options?: FocusOptions): void {
     if (!this.#built && this.isConnected) this.renderNow();
-    if (this.#built && !this.#field.disabled) {
+    if (this.#composer && this.#open()) {
+      this.#composer.focus(options);
+      return;
+    }
+    if (this.#built && !this.#field.disabled && !this.#composer) {
       this.#field.focus(options);
       return;
     }
@@ -276,7 +317,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     const el = target?.closest?.('[data-act]') as HTMLElement | null;
     // Slotted light-DOM content (the host's tools) is not ours, nor are the host page's own [data-act] ancestors.
     if (!el || !this.root.contains(el)) {
-      if (target === this.#fieldBox && !this.#field.disabled) this.#field.focus();
+      if (target === this.#fieldBox && !this.#field.disabled && !this.#composer) this.#field.focus();
       return;
     }
     if (el.getAttribute('aria-disabled') === 'true') return;
@@ -304,7 +345,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   }
 
   #onKey(e: KeyboardEvent): void {
-    if (e.defaultPrevented) return;
+    if (e.defaultPrevented || this.#fromComposer(e)) return;
     const target = e.target as HTMLElement | null;
     if (this.#built && target === this.#field) {
       if (e.key === 'Escape') {
@@ -361,16 +402,39 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   /** Emit the note; not cancelled → the field clears and, while the agent runs, the note shows until the list has it. */
   #submit(mode: SteerMode, e?: Event): void {
     const d = this.#d;
-    if (!this.#built || !this.#open(d)) return;
+    if (!this.#built || !this.#open(d) || this.#composer) return;
     const text = this.#field.value.trim();
     const files = Math.max(0, Math.floor(Number(d.attachments) || 0));
     if (!text && !files) return;
+    if (this.#note(text, mode, files, undefined, e)) this.value = '';
+  }
+
+  /**
+   * The slotted composer sent: its ui-submit stops here and leaves as this element's (mode from the Enter's
+   * ⌘/Ctrl, the composer's files along). Cancelled — or the field is off — the composer keeps its text and files.
+   */
+  #onComposerSubmit(e: CustomEvent<ComposerSubmit>): void {
+    if (!this.#composer || e.target !== this.#composer) return;
+    // Not even a listener on this element hears the composer's own send: this element's ui-submit replaces it.
+    e.stopImmediatePropagation();
+    const steer = this.#steerNext;
+    this.#steerNext = false;
+    const text = s(e.detail?.text).trim();
+    const files = Array.isArray(e.detail?.files) ? e.detail.files : [];
+    if (!this.#open() || (!text && !files.length) || !this.#note(text, steer ? 'steer' : 'queue', files.length, files))
+      e.preventDefault();
+  }
+
+  /** Send a note (ui-submit); false when the host cancelled it. While the agent runs it shows until the list has it. */
+  #note(text: string, mode: SteerMode, files: number, list?: File[], ev?: Event): boolean {
+    const d = this.#d;
     const running = !!d.running;
     const m: SteerMode = running && mode === 'steer' ? 'steer' : 'queue';
     const ref = `as-${Date.now().toString(36)}-${++this.#seq}`;
-    if (!this.emit<SteeringSubmitDetail>('ui-submit', { text, mode: m, ref })) return;
-    this.sound('tap', undefined, e);
-    this.value = '';
+    const detail: SteeringSubmitDetail = { text, mode: m, ref };
+    if (list) detail.files = list;
+    if (!this.emit<SteeringSubmitDetail>('ui-submit', detail)) return false;
+    this.sound('tap', undefined, ev);
     const local: SteeringLocal = { ref, text, mode: m, at: Date.now(), state: 'sending' };
     if (files) local.attachments = files;
     const t = this.#t;
@@ -384,6 +448,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
       this.#say(t.say.sent(said));
     }
     this.requestRender();
+    return true;
   }
 
   #hostItem(row: SteeringRow): SteeringItem | undefined {
@@ -476,7 +541,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   protected override update(): void {
     if (!this.#built) this.#build();
     this.#sync();
-    const active = this.root.activeElement as HTMLElement | null;
+    const active = this.#active();
     const inList = !!active && this.#list.contains(active);
     const key = inList ? active?.dataset.key : undefined;
     const sel =
@@ -487,7 +552,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#patchComposer();
     this.updated();
     if (inList) {
-      const now = this.root.activeElement as HTMLElement | null;
+      const now = this.#active();
       const kept = !!now && now === active && this.#list.contains(now) && !now.closest('[data-leaving]');
       if (!kept) {
         const next =
@@ -508,6 +573,16 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     }
   }
 
+  /** What has focus in this shadow tree (null while focus is in the slotted composer's own tree). */
+  #active(): HTMLElement | null {
+    try {
+      return this.root.activeElement as HTMLElement | null;
+    } catch {
+      // Some DOMs throw for focus inside a slotted element's shadow root: that focus is not in this tree.
+      return null;
+    }
+  }
+
   /** A note whose control went away: the note now at its place (or the one before) — else the field. */
   protected override focusFallback(): HTMLElement | null {
     const items = this.#liveItems();
@@ -522,7 +597,8 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
         if (b) return b;
       }
     }
-    return this.#built && !this.#field.disabled ? this.#field : null;
+    if (this.#composer && this.#open()) return this.#composer as unknown as HTMLElement;
+    return this.#built && !this.#field.disabled && !this.#composer ? this.#field : null;
   }
 
   protected override updated(): void {
@@ -530,7 +606,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   }
 
   protected render(): string {
-    return `<div class="as"><div class="as-queue"><div class="as-queue-in"><div class="as-queue-pad"><div class="as-label" aria-hidden="true"><span class="as-label-text"></span><span class="as-count"></span></div><ul class="as-list"></ul></div></div></div><div class="as-compose"><slot name="attachments"></slot><div class="as-field"><slot name="tools"></slot><textarea class="as-input" rows="1" dir="auto" autocomplete="off"></textarea><button type="button" class="as-send" data-act="send">${ICON.send}</button></div><div class="as-hint" id="as-hint"></div></div></div>`;
+    return `<div class="as"><div class="as-queue"><div class="as-queue-in"><div class="as-queue-pad"><div class="as-label" aria-hidden="true"><span class="as-label-text"></span><span class="as-count"></span></div><ul class="as-list"></ul></div></div></div><div class="as-compose"><slot name="composer"></slot><slot name="attachments"></slot><div class="as-field"><slot name="tools"></slot><textarea class="as-input" rows="1" dir="auto" autocomplete="off"></textarea><button type="button" class="as-send" data-act="send">${ICON.send}</button></div><div class="as-hint" id="as-hint"></div></div></div>`;
   }
 
   #build(): void {
@@ -695,11 +771,31 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     }</div></div></li>`;
   }
 
+  /** The event came from inside the slotted composer. */
+  #fromComposer(e: Event): boolean {
+    return !!this.#composer && e.composedPath().includes(this.#composer);
+  }
+
+  /** The first `slot="composer"` child that looks like a composer (value, focus, data) — else none. */
+  #findComposer(): ComposerLike | null {
+    const el = Array.from(this.children).find((c) => c.getAttribute('slot') === 'composer') as ComposerLike | undefined;
+    return el && typeof el.focus === 'function' ? el : null;
+  }
+
+  /** The composer's words and state follow this element's: placeholder, name, off when the field is, no own hint. */
+  #syncSlotted(c: ComposerLike, placeholder: string, label: string, open: boolean): void {
+    const cur = (c.data ?? {}) as Record<string, unknown>;
+    const want: Record<string, unknown> = { placeholder, label, disabled: !open, hint: false };
+    if (Object.keys(want).some((k) => cur[k] !== want[k])) c.data = { ...cur, ...want };
+  }
+
   #patchComposer(): void {
     const d = this.#d;
     const t = this.#t;
     const open = this.#open(d);
     const running = !!d.running;
+    this.#composer = this.#findComposer();
+    this.#wrap.toggleAttribute('data-composer', !!this.#composer);
     this.#wrap.toggleAttribute('data-running', running);
     this.#wrap.toggleAttribute('data-closed', !open);
     const placeholder = !open
@@ -707,6 +803,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
         ? t.ended
         : t.readOnly
       : s(d.placeholder) || (running ? t.placeholderRunning : t.placeholderIdle);
+    if (this.#composer) this.#syncSlotted(this.#composer, placeholder, running ? t.fieldRunning : t.fieldIdle, open);
     const f = this.#field;
     if (f.placeholder !== placeholder) f.placeholder = placeholder;
     if (f.disabled === open) f.disabled = !open;

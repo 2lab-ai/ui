@@ -89,10 +89,52 @@ export const fileCardStyles = `${fileKindCss}
 }
 `;
 
-/** `<ui-file-card>`'s own sheet: the host box plus the card. */
+/**
+ * `<ui-file-card>`'s own sheet: the host box, the card, and the in-place play toggle (`playable`): over a tile's
+ * thumbnail (bottom right, with a progress line along its foot and the video itself), at a row's end, after a chip.
+ * The toggle is 32px drawn, 44px to the touch; playing it turns ink.
+ */
 export const styles = `
 :host { display: inline-block; max-width: 100%; vertical-align: top; }
 :host([variant="row"]) { display: block; }
-.ui-root { display: flex; min-width: 0; }
+.ui-root { position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; }
 ${fileCardStyles}
+audio.fc-media { display: none; }
+.fc-play {
+  position: relative; display: inline-grid; flex: none; place-items: center; box-sizing: border-box;
+  width: 32px; height: 32px; margin: 0; padding: 0; border: 1px solid var(--ib-card-border); border-radius: 999px;
+  background: var(--ib-card); color: var(--ib-text); box-shadow: var(--ib-shadow); font: inherit; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform var(--dur-press) var(--ease-out);
+}
+.fc-play::before { content: ""; position: absolute; inset: -6px; border-radius: inherit; }
+.fc-play svg { display: block; width: 14px; height: 14px; }
+.fc-play[data-on] { border-color: transparent; background: var(--ib-text); color: var(--ib-card); }
+.fc-play:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+.fc-play:active:not(:focus-visible) { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .fc-play:not([data-on]):hover { border-color: var(--ib-muted); }
+}
+
+/* Tile: the thumbnail's box (inside the card's 1px border and 4px padding); only the toggle takes the pointer. */
+.fc-over {
+  position: absolute; top: 5px; left: 5px; width: calc(100% - 10px); aspect-ratio: 16 / 10; overflow: hidden;
+  border-radius: 8px; pointer-events: none;
+}
+.fc-over .fc-play { position: absolute; right: 6px; bottom: 7px; pointer-events: auto; }
+.fc-over video.fc-media {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover;
+  background: var(--ib-col); opacity: 0; transition: opacity 150ms ease;
+}
+.fc-over.has-video video.fc-media { opacity: 1; }
+.fc-prog {
+  position: absolute; right: 0; bottom: 0; left: 0; height: 3px; opacity: 0;
+  background: color-mix(in srgb, var(--ib-text) 14%, transparent); transition: opacity 150ms ease;
+}
+.fc-over.is-live .fc-prog { opacity: 1; }
+.fc-bar { display: block; height: 100%; background: var(--ib-text); transform-origin: 0 50%; transition: transform 250ms linear; }
+
+/* Row: at the end, the name keeps clear of it. */
+.fc-row.has-play { padding-right: 52px; }
+:host([variant="row"]) .fc-play { position: absolute; top: 50%; right: 10px; margin-top: -16px; }
 `;
