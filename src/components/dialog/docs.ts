@@ -1,5 +1,6 @@
 import { esc } from '../../core/html';
 import type { ComponentDoc } from '../../docs/types';
+import { type IconName, icon } from '../../icons/icons';
 import './dialog';
 import type { DialogCloseDetail, UiDialog } from './dialog';
 
@@ -42,6 +43,29 @@ function onAct(el: UiDialog, run: (act: string) => void): void {
     if (act) run(act);
   });
 }
+
+/** A kit icon button for the viewer toolbar (slot="actions"). */
+function tool(name: IconName, label: string, act: string): string {
+  return `<button type="button" class="ui-icon-btn" slot="actions" data-act="${act}" aria-label="${esc(label)}">${icon(name)}</button>`;
+}
+
+const ARTIFACTS: Array<{ name: string; meta: string; body: string }> = [
+  {
+    name: 'report.html',
+    meta: 'HTML · 18 KB · 2 min ago',
+    body: '<h3 style="margin:0 0 6px;font-size:15px;color:var(--ui-ib-text)">Upload flake — findings</h3><p style="margin:0">The 40 MB fixture times out on the shared ARM pool: 28–31 s in waitForResponse versus 6–9 s elsewhere. The retry delay doubles each attempt and hits the 30 s test timeout on the third.</p>',
+  },
+  {
+    name: 'retries.png',
+    meta: 'PNG · 1280×720 · 2 min ago',
+    body: '<div role="img" data-chart aria-label="Bar chart of retry delays: 1 s, 2 s, 4 s, 8 s, 16 s" style="display:flex;align-items:flex-end;gap:12px;height:220px;padding:16px;box-sizing:border-box;border-radius:12px;background:var(--ui-ib-pill)"></div>',
+  },
+  {
+    name: 'notes.md',
+    meta: 'Markdown · 2 KB · 1 min ago',
+    body: '<p style="margin:0 0 8px"><b>Next</b></p><ul style="margin:0;padding-left:18px"><li>Cap the retry delay at 4 s.</li><li>Run the spec 50× throttled.</li><li>Watch two full CI runs before merging.</li></ul>',
+  },
+];
 
 const FIELD =
   'display:block;box-sizing:border-box;width:100%;min-height:112px;resize:vertical;padding:10px 12px;border:1px solid var(--ui-ib-card-border);border-radius:10px;background:var(--ui-ib-card);color:var(--ui-ib-text);font:inherit;font-size:14px;line-height:1.5';
@@ -126,7 +150,7 @@ export const doc: ComponentDoc = {
       type: "'sm' | 'md' | 'lg' | 'xl' | 'full'",
       default: "'md'",
       description:
-        'Attribute. Panel width 400 · 560 · 720 · 960 px (never wider than the viewport less 32px); full = viewport less 16px each side.',
+        'Attribute. Panel width 400 · 560 · 720 · 960 px (never wider than the viewport less 32px); full = viewport less 16px each side, and edge to edge under 640px whatever sheet says (no rounding, safe areas inside).',
     },
     {
       name: 'sheet',
@@ -138,6 +162,13 @@ export const doc: ComponentDoc = {
       name: 'hide-close',
       type: 'boolean',
       description: 'Attribute. No close button (Escape and the scrim still ask).',
+    },
+    {
+      name: 'viewport',
+      type: "'visual' | 'layout'",
+      default: "'visual'",
+      description:
+        'Attribute. visual: while open the dialog follows window.visualViewport (height and offsetTop), so a sheet’s bottom stays above the iOS soft keyboard. layout: it does not.',
     },
     {
       name: 'lang',
@@ -160,8 +191,21 @@ export const doc: ComponentDoc = {
       type: '() => void',
       description: 'Close with the exit motion (no event). Focus returns to where it was.',
     },
+    {
+      name: '--ui-vv-h / --ui-vv-top',
+      type: 'CSS length',
+      default: '100dvh / 0px',
+      description:
+        'Height and top of the visible area. The element writes them while open (from window.visualViewport); with viewport="layout" a host may set them itself.',
+    },
     { name: 'slot (default)', type: 'content', description: 'The body. Scrolls when it is taller than the panel.' },
     { name: 'slot="header"', type: 'content', description: 'Replaces the heading text. Give the host a label then.' },
+    {
+      name: 'slot="actions"',
+      type: 'content',
+      description:
+        'A toolbar beside the close button, outside the heading (paging, open in a new tab, download). Hidden while nothing is slotted; ::part(actions).',
+    },
     {
       name: 'slot="footer"',
       type: 'content',
@@ -187,6 +231,7 @@ export const doc: ComponentDoc = {
     'On open, focus goes to the first [autofocus] element in your content, else the panel (no ring on the panel itself); after the close it returns to the element that had it.',
     'The close button is a 32px target (44px on touch and narrow screens) named “Close” / “닫기”.',
     'Escape while a control inside uses it (an open menu, an IME composition) is left to that control.',
+    'slot="actions" sits outside the <h2>, so toolbar buttons and links are not read as part of the dialog’s name; give icon buttons their own labels.',
     'Reduced motion: nothing moves — the scrim and panel fade in 120ms.',
   ],
   usage: `<button id="stop">Stop session…</button>
@@ -238,7 +283,7 @@ export const doc: ComponentDoc = {
       id: 'new-task',
       title: 'New task',
       description:
-        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. A bottom sheet under 640px.',
+        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. A bottom sheet under 640px that follows the visual viewport, so Start stays above the soft keyboard.',
       height: 200,
       create: () => {
         const { box, line } = stage();
@@ -295,6 +340,58 @@ export const doc: ComponentDoc = {
         );
         open.addEventListener('click', () => el.show());
         onAct(el, () => el.hide());
+        echo(el, line);
+        box.append(open, line, el);
+        return box;
+      },
+    },
+    {
+      id: 'viewer',
+      title: 'Viewer',
+      description:
+        'size="full" with a header toolbar in slot="actions": ‹ n/m ›, open, download beside ×. Edge to edge on phones; ← / → page.',
+      height: 200,
+      create: () => {
+        const { box, line } = stage();
+        const open = trigger('Open artifacts');
+        let at = 0;
+        const el = dialog(
+          { size: 'full', label: 'Artifact viewer' },
+          `<span slot="header" style="display:flex;flex-direction:column;gap:2px"><span data-name></span><span data-meta style="font-size:12px;font-weight:500;color:var(--ui-ib-muted)"></span></span>
+<div data-body style="max-width:720px;margin:0 auto"></div>
+${tool('chevron-left', 'Previous', 'prev')}<span slot="actions" data-count style="min-width:40px;text-align:center;font-size:12.5px;color:var(--ui-ib-text-2);font-variant-numeric:tabular-nums"></span>${tool('chevron-right', 'Next', 'next')}${tool('external', 'Open in a new tab', 'tab')}${tool('download', 'Download', 'download')}`,
+        );
+        const paint = () => {
+          const a = ARTIFACTS[at];
+          el.querySelector('[data-name]')!.textContent = a.name;
+          el.querySelector('[data-meta]')!.textContent = a.meta;
+          el.querySelector('[data-count]')!.textContent = `${at + 1}/${ARTIFACTS.length}`;
+          el.querySelector('[data-body]')!.innerHTML = a.body;
+          const chart = el.querySelector('[data-chart]');
+          if (chart) {
+            chart.innerHTML = [1, 2, 4, 8, 16]
+              .map(
+                (n) =>
+                  `<span style="flex:1;height:${n * 10 + 12}px;border-radius:6px 6px 2px 2px;background:color-mix(in srgb, var(--ui-accent) 70%, var(--ui-ib-card))"></span>`,
+              )
+              .join('');
+          }
+        };
+        const page = (d: number) => {
+          at = (at + d + ARTIFACTS.length) % ARTIFACTS.length;
+          paint();
+        };
+        paint();
+        onAct(el, (act) => {
+          if (act === 'prev') page(-1);
+          else if (act === 'next') page(1);
+          else line.textContent = `${act === 'tab' ? 'Opened' : 'Downloaded'} ${ARTIFACTS[at].name}`;
+        });
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowLeft') page(-1);
+          if (e.key === 'ArrowRight') page(1);
+        });
+        open.addEventListener('click', () => el.show());
         echo(el, line);
         box.append(open, line, el);
         return box;

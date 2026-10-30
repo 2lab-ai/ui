@@ -18,6 +18,16 @@ export interface TabItem {
   tone?: TabTone;
   /** A count after the label. */
   badge?: string | number;
+  /** A muted second label after the label ("Main" · "opus-5-5", "A1" · "Explore"). Part of the tab's name. */
+  meta?: string;
+  /**
+   * Sticky at the list's start edge while the others scroll under it, with a fade on its far side once they do
+   * (the session panel's Main tab). Applies to the leading run of tabs only: a pinned tab after an unpinned one
+   * scrolls as usual.
+   */
+  pinned?: boolean;
+  /** This tab and the ones after it sit at the far end of the list (a tab apart from the others). */
+  end?: boolean;
   disabled?: boolean;
   title?: string;
 }
@@ -51,6 +61,18 @@ export function tabItems(d: TabsData | undefined): TabItem[] {
   return out;
 }
 
+/** How many tabs lead the list pinned (the leading run of `pinned: true`). */
+export function pinnedCount(tabs: TabItem[]): number {
+  let n = 0;
+  while (n < tabs.length && tabs[n].pinned === true) n++;
+  return n;
+}
+
+/** Index of the first `end: true` tab (it and the ones after it sit at the far end), or -1. */
+export function endIndex(tabs: TabItem[]): number {
+  return tabs.findIndex((t) => t.end === true);
+}
+
 /** Index of the selected tab: `value` when it names an enabled tab, else the first enabled one (-1: none). */
 export function selectedIndex(tabs: TabItem[], value: string | undefined): number {
   const i = tabs.findIndex((t) => t.id === value);
@@ -66,14 +88,21 @@ export function selectedIndex(tabs: TabItem[], value: string | undefined): numbe
  * `<ui-tabs>` — a tab list over panels the host slots in (`<section slot="chat">`), with an ink underline that
  * glides to the selected tab. Arrows move along the list (roving tabindex) and, in the default automatic mode,
  * select as they go; selecting sends a cancelable `ui-change` and shows the new panel unless a listener cancels.
+ * `shared-panel`: one panel (the default slot) that every tab controls — the host repaints it on `ui-change`.
+ * `panel-focus="none"`: the panel is no tab stop of its own (the host's slotted scroller is).
  */
 export class UiTabs extends UiElement<TabsData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['activation'];
+    return ['activation', 'shared-panel', 'panel-focus'];
   }
 
   #ind: { x: number; w: number } | null = null;
+  /** Sticky offsets of the pinned tabs (each after the ones before it) and their total width. */
+  #pins: { at: number[]; w: number } = { at: [], w: 0 };
+  /** The list is scrolled away from its start: the pinned tabs show their fade. */
+  #scrolled = false;
+  #scroller: HTMLElement | null = null;
   #shown: string | undefined;
   #ro: ResizeObserver | null = null;
   #raf = 0;
@@ -97,19 +126,28 @@ export class UiTabs extends UiElement<TabsData> {
   override connectedCallback(): void {
     super.connectedCallback();
     if (typeof ResizeObserver === 'function' && !this.#ro) {
-      this.#ro = new ResizeObserver(() => this.#measure(false));
+      this.#ro = new ResizeObserver(() => {
+        this.#measurePins();
+        this.#measure(false);
+      });
     }
   }
 
   override disconnectedCallback(): void {
     this.#ro?.disconnect();
     this.#ro = null;
+    this.#scroller?.removeEventListener('scroll', this.#onScroll);
+    this.#scroller = null;
     if (this.#raf) cancelAnimationFrame(this.#raf);
     this.#raf = 0;
   }
 
   get #manual(): boolean {
     return this.getAttribute('activation') === 'manual';
+  }
+
+  get #shared(): boolean {
+    return this.hasAttribute('shared-panel');
   }
 
   protected override update(): void {
@@ -122,6 +160,11 @@ export class UiTabs extends UiElement<TabsData> {
     const tabs = tabItems(d);
     if (!tabs.length) return '';
     const sel = selectedIndex(tabs, d?.value);
+    const shared = this.#shared;
+    const panelTab = this.getAttribute('panel-focus') === 'none' ? undefined : '0';
+    const pinned = pinnedCount(tabs);
+    const end = endIndex(tabs);
+    const pins = this.#pins;
     const buttons = tabs
       .map((t, i) => {
         const tone = t.tone && TONES.has(t.tone) ? `<span class="tb-dot" data-tone="${t.tone}"></span>` : '';
@@ -129,41 +172,64 @@ export class UiTabs extends UiElement<TabsData> {
           t.badge === undefined || t.badge === null || t.badge === ''
             ? ''
             : `<span class="tb-badge">${esc(t.badge)}</span>`;
+        const meta =
+          t.meta === undefined || t.meta === null || t.meta === '' ? '' : `<span class="tb-meta">${esc(t.meta)}</span>`;
+        const pin = i < pinned;
+        const parts = ['tab', i === sel && 'selected', pin && 'pinned', i === end && 'end'].filter(Boolean).join(' ');
         return `<button${attrs({
           type: 'button',
           class: 'tb-tab',
           role: 'tab',
           id: `tb-t-${i}`,
           'aria-selected': String(i === sel),
-          'aria-controls': `tb-p-${i}`,
+          'aria-controls': shared ? 'tb-p' : `tb-p-${i}`,
           'aria-disabled': t.disabled ? 'true' : undefined,
           tabindex: i === sel ? '0' : '-1',
           title: t.title,
-          part: i === sel ? 'tab selected' : 'tab',
+          part: parts,
+          'data-pinned': pin,
+          'data-pin-last': pin && i === pinned - 1,
+          'data-end': i === end,
+          style: pin && pins.at[i] ? `inset-inline-start: ${pins.at[i]}px` : undefined,
           'data-mk': t.id,
           'data-key': t.id,
           'data-i': i,
-        })}>${tone}${t.icon ? icon(t.icon) : ''}<span class="tb-label">${esc(t.label)}</span>${badge}</button>`;
+        })}>${tone}${t.icon ? icon(t.icon) : ''}<span class="tb-label">${esc(t.label)}</span>${meta}${badge}</button>`;
       })
       .join('');
     const ind = this.#ind;
     const indStyle = ind ? `width: ${ind.w}px; transform: translateX(${ind.x}px)` : undefined;
-    const panels = tabs
-      .map(
-        (t, i) =>
-          `<div${attrs({
-            class: 'tb-panel',
-            role: 'tabpanel',
-            id: `tb-p-${i}`,
-            'aria-labelledby': `tb-t-${i}`,
-            tabindex: '0',
-            part: 'panel',
-            hidden: i !== sel,
-            'data-mk': t.id,
-          })}><slot${attrs({ name: t.id })}></slot></div>`,
-      )
-      .join('');
-    return `<div class="tb"><div class="tb-scroll" part="list"><div${attrs({
+    const panels = shared
+      ? `<div${attrs({
+          class: 'tb-panel',
+          role: 'tabpanel',
+          id: 'tb-p',
+          'aria-labelledby': sel >= 0 ? `tb-t-${sel}` : undefined,
+          tabindex: panelTab,
+          part: 'panel',
+        })}><slot></slot></div>`
+      : tabs
+          .map(
+            (t, i) =>
+              `<div${attrs({
+                class: 'tb-panel',
+                role: 'tabpanel',
+                id: `tb-p-${i}`,
+                'aria-labelledby': `tb-t-${i}`,
+                tabindex: panelTab,
+                part: 'panel',
+                hidden: i !== sel,
+                'data-mk': t.id,
+              })}><slot${attrs({ name: t.id })}></slot></div>`,
+          )
+          .join('');
+    return `<div class="tb"><div${attrs({
+      class: 'tb-scroll',
+      part: 'list',
+      'data-scrolled': pinned > 0 && this.#scrolled,
+      // Focus moved by the arrows (manual mode) scrolls a tab clear of the pinned ones, not under them.
+      style: pins.w ? `scroll-padding-inline-start: ${pins.w}px` : undefined,
+    })}><div${attrs({
       class: 'tb-list',
       role: 'tablist',
       'aria-label': d?.label,
@@ -177,6 +243,13 @@ export class UiTabs extends UiElement<TabsData> {
       this.#ro.disconnect();
       this.#ro.observe(list);
     }
+    const scroller = this.$('.tb-scroll');
+    if (scroller !== this.#scroller) {
+      this.#scroller?.removeEventListener('scroll', this.#onScroll);
+      this.#scroller = scroller;
+      scroller?.addEventListener('scroll', this.#onScroll, { passive: true });
+    }
+    this.#measurePins();
     this.#measure(true);
     const value = this.value;
     if (value !== this.#shown) {
@@ -184,6 +257,38 @@ export class UiTabs extends UiElement<TabsData> {
       this.#shown = value;
       this.#reveal();
       if (!first) this.#fadePanel();
+    }
+  }
+
+  readonly #onScroll = (): void => {
+    const s = this.#scroller;
+    // RTL scrolls to negative offsets; either way, away from 0 is "scrolled".
+    const scrolled = !!s && Math.abs(s.scrollLeft) > 0.5;
+    if (scrolled === this.#scrolled) return;
+    this.#scrolled = scrolled;
+    s?.toggleAttribute('data-scrolled', scrolled && this.$$('.tb-tab[data-pinned]').length > 0);
+  };
+
+  /** Each pinned tab sticks after the pinned tabs before it; their total width keeps arrowed-to tabs clear. */
+  #measurePins(): void {
+    const tabs = this.$$<HTMLElement>('.tb-tab[data-pinned]');
+    const at: number[] = [];
+    let w = 0;
+    for (const t of tabs) {
+      at.push(w);
+      w += t.offsetWidth;
+    }
+    const prev = this.#pins;
+    if (prev.w === w && prev.at.length === at.length && prev.at.every((x, k) => x === at[k])) return;
+    this.#pins = { at, w };
+    tabs.forEach((t, k) => {
+      if (at[k]) t.style.insetInlineStart = `${at[k]}px`;
+      else t.style.removeProperty('inset-inline-start');
+    });
+    const scroller = this.$('.tb-scroll');
+    if (scroller) {
+      if (w) scroller.style.scrollPaddingInlineStart = `${w}px`;
+      else scroller.style.removeProperty('scroll-padding-inline-start');
     }
   }
 
@@ -216,8 +321,9 @@ export class UiTabs extends UiElement<TabsData> {
   #reveal(): void {
     const scroller = this.$('.tb-scroll');
     const tab = this.$('.tb-tab[aria-selected="true"]');
-    if (!scroller || !tab || !scroller.clientWidth) return;
-    const left = tab.offsetLeft - 16;
+    if (!scroller || !tab || !scroller.clientWidth || tab.hasAttribute('data-pinned')) return;
+    // Clear of the pinned tabs stuck over the start edge.
+    const left = tab.offsetLeft - 16 - this.#pins.w;
     const right = tab.offsetLeft + tab.offsetWidth + 16 - scroller.clientWidth;
     const to = scroller.scrollLeft > left ? left : scroller.scrollLeft < right ? right : null;
     if (to === null) return;

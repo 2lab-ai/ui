@@ -265,6 +265,77 @@ describe('<ui-tooltip>', () => {
     remove.mockRestore();
   });
 
+  describe('touch="tap" (G5-1)', () => {
+    const tap = (t: Element) => {
+      pointer(t, 'pointerdown', 'touch');
+      pointer(t, 'pointerleave', 'touch');
+      (t as HTMLElement).click();
+    };
+
+    it('a touch tap on the trigger toggles it; touch without the attribute still never shows', () => {
+      const { el, trig } = mount({ text: 'Tokens by environment', touch: 'tap' });
+      tap(trig);
+      expect(el.open).toBe(true);
+      expect(pop(el).classList.contains('is-open')).toBe(true);
+      vi.advanceTimersByTime(500);
+      expect(el.open).toBe(true); // the touch pointerleave started no grace hide
+      tap(trig);
+      expect(el.open).toBe(false);
+
+      const plain = mount({ text: 'No touch' });
+      tap(plain.trig);
+      expect(plain.el.open).toBe(false);
+    });
+
+    it('a touch press anywhere else closes it (the bubble too); mouse presses elsewhere follow the usual rules', () => {
+      const { el, trig } = mount({ text: 'Bar value', touch: 'tap' });
+      const other = document.createElement('div');
+      document.body.append(other);
+      tap(trig);
+      expect(el.open).toBe(true);
+      pointer(other, 'pointerdown', 'mouse');
+      expect(el.open).toBe(true);
+      pointer(other, 'pointerdown', 'touch');
+      expect(el.open).toBe(false);
+      tap(trig);
+      pop(el).dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true, composed: true }));
+      expect(el.open).toBe(false);
+    });
+
+    it('a pan that starts on the trigger never toggles; a mouse or keyboard click does not toggle; disabled never shows', () => {
+      const { el, trig } = mount({ text: 'Bar value', touch: 'tap' });
+      pointer(trig, 'pointerdown', 'touch');
+      pointer(trig, 'pointercancel', 'touch');
+      trig.click();
+      expect(el.open).toBe(false);
+      pointer(trig, 'pointerdown', 'mouse');
+      trig.click();
+      expect(el.open).toBe(false);
+      trig.click(); // Enter / Space on a button
+      expect(el.open).toBe(false);
+      el.setAttribute('disabled', '');
+      tap(trig);
+      expect(el.open).toBe(false);
+    });
+
+    it('Esc and a second tooltip still close a tapped one; its document listener goes with it', () => {
+      const a = mount({ text: 'A', touch: 'tap' });
+      const b = mount({ text: 'B', touch: 'tap' });
+      tap(a.trig);
+      expect(a.el.open).toBe(true);
+      tap(b.trig);
+      expect(a.el.open).toBe(false);
+      expect(b.el.open).toBe(true);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(b.el.open).toBe(false);
+      const remove = vi.spyOn(document, 'removeEventListener');
+      tap(a.trig);
+      a.el.hide();
+      expect(remove.mock.calls.map((c) => c[0])).toContain('pointerdown');
+      remove.mockRestore();
+    });
+  });
+
   it('styles: origin-aware by side, 160/220ms open, 180ms exit with delayed visibility, gentle reduced motion', () => {
     expect(styles).toContain('transform-origin: bottom center; opacity: 0; visibility: hidden; pointer-events: none;');
     expect(styles).toContain('transform: translateY(4px) scale(0.96);');

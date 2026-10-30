@@ -2,13 +2,16 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { attrs, esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { deepActive } from '../../core/popover';
+import { applyViewportVars, type ViewportBox, viewportVars, watchVisualViewport } from '../../core/viewport';
 import { icon } from '../../icons/icons';
 import { styles } from './styles';
 
-/** Panel width: 400 · 560 · 720 · 960 px, or the whole viewport less 16px on each side. */
+/** Panel width: 400 · 560 · 720 · 960 px, or the whole viewport less 16px on each side (edge to edge on phones). */
 export type DialogSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 /** Phones (< 640px): `auto` turns the panel into a bottom sheet, `never` keeps it centred. */
 export type DialogSheet = 'auto' | 'never';
+/** `visual` (default): the dialog box follows `window.visualViewport` (above a soft keyboard); `layout`: it does not. */
+export type DialogViewport = 'visual' | 'layout';
 /** What the person did to ask for the close. */
 export type DialogCloseReason = 'escape' | 'scrim' | 'close-button';
 
@@ -52,7 +55,7 @@ function focusOnBody(): boolean {
 export class UiDialog extends UiElement {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['open', 'heading', 'label', 'size', 'sheet', 'hide-close', 'lang'];
+    return ['open', 'heading', 'label', 'size', 'sheet', 'hide-close', 'viewport', 'lang'];
   }
 
   /** Asked to be open (the `open` attribute). False from the moment a close starts. */
@@ -66,6 +69,10 @@ export class UiDialog extends UiElement {
   #escHandled = false;
   #head = false;
   #foot = false;
+  #actions = false;
+  /** The visual viewport box while it is followed, and the stop for that. */
+  #vv: ViewportBox | null = null;
+  #vvStop: (() => void) | null = null;
 
   constructor() {
     super();
@@ -105,6 +112,7 @@ export class UiDialog extends UiElement {
       if (!this.#reflecting) this.#setOpen(value !== null);
       return;
     }
+    if (name === 'viewport') this.#syncViewport();
     this.requestRender();
   }
 
@@ -120,6 +128,7 @@ export class UiDialog extends UiElement {
     this.#timer = 0;
     this.#returnTo = null;
     this.#state = 'closed';
+    this.#syncViewport();
     const dlg = this.#dlg();
     if (!dlg) return;
     dlg.setAttribute('data-state', 'closed');
@@ -149,6 +158,8 @@ export class UiDialog extends UiElement {
     const close = hideClose
       ? ''
       : `<button type="button" class="dg-close" part="close" aria-label="${escAttr(this.#t.close)}">${icon('close')}</button>`;
+    // Beside the close button and outside the heading: a toolbar (paging, open in a new tab, download).
+    const actions = `<div${attrs({ class: 'dg-actions', part: 'actions', hidden: !this.#actions })}><slot name="actions"></slot></div>`;
     return `<dialog${attrs({
       class: 'dg',
       part: 'dialog',
@@ -159,11 +170,12 @@ export class UiDialog extends UiElement {
       // A heading attribute or a slotted header names it; the label only when neither is there.
       'aria-labelledby': titled ? 'dg-title' : undefined,
       'aria-label': !titled && label ? label : undefined,
+      style: viewportVars(this.#vv) || undefined,
     })}><div class="dg-scrim" part="scrim" aria-hidden="true"></div><div class="dg-panel" part="panel" tabindex="-1"><div class="dg-grab" aria-hidden="true"></div><header${attrs(
-      { class: 'dg-head', part: 'header', hidden: !titled && hideClose },
+      { class: 'dg-head', part: 'header', hidden: !titled && hideClose && !this.#actions },
     )}><h2${attrs({ class: 'dg-title', id: 'dg-title', part: 'title', hidden: !titled })}><slot name="header">${esc(
       heading,
-    )}</slot></h2>${close}</header><div class="dg-body" part="body"><slot></slot></div><footer${attrs({
+    )}</slot></h2>${actions}${close}</header><div class="dg-body" part="body"><slot></slot></div><footer${attrs({
       class: 'dg-foot',
       part: 'footer',
       hidden: !this.#foot,
@@ -174,15 +186,38 @@ export class UiDialog extends UiElement {
     return this.$<HTMLDialogElement>('dialog');
   }
 
-  /** Header / footer rows show only when something is slotted into them. */
+  /** Header / footer rows (and the header's actions) show only when something is slotted into them. */
   #syncSlots(): void {
     const has = (name: string) => Array.from(this.children).some((c) => c.getAttribute('slot') === name);
     const head = has('header');
     const foot = has('footer');
-    if (head === this.#head && foot === this.#foot) return;
+    const actions = has('actions');
+    if (head === this.#head && foot === this.#foot && actions === this.#actions) return;
     this.#head = head;
     this.#foot = foot;
+    this.#actions = actions;
     if (this.#dlg()) this.renderNow();
+  }
+
+  /**
+   * Open or on its way out (and not `viewport="layout"`): the box follows the visual viewport, so a sheet's bottom
+   * stays above the soft keyboard. Closed: nothing is listened to and the properties go.
+   */
+  #syncViewport(): void {
+    const follow =
+      this.isConnected && (this.#want || this.#state !== 'closed') && this.getAttribute('viewport') !== 'layout';
+    if (follow === !!this.#vvStop) return;
+    if (follow) {
+      this.#vvStop = watchVisualViewport((box) => {
+        this.#vv = box;
+        applyViewportVars(this.#dlg(), box);
+      });
+      return;
+    }
+    this.#vvStop?.();
+    this.#vvStop = null;
+    this.#vv = null;
+    applyViewportVars(this.#dlg(), null);
   }
 
   // ── open / close ──────────────────────────────────────────────────────────
@@ -226,6 +261,7 @@ export class UiDialog extends UiElement {
     this.#returnTo = deepActive();
     this.#setState(dlg, 'closed');
     if (dlg.open) dlg.close(); // never left open non-modally underneath
+    this.#syncViewport(); // sized to the visible area before the first frame
     dlg.showModal();
     void dlg.offsetWidth; // the closed-state styles land first, so the change below transitions
     this.#setState(dlg, 'open');
@@ -256,6 +292,7 @@ export class UiDialog extends UiElement {
     // Only take focus back when it is still ours to give (inside, or dropped on the body).
     const restore = this.#focusWithin() || focusOnBody();
     this.#state = 'closed';
+    this.#syncViewport();
     if (dlg) {
       dlg.setAttribute('data-state', 'closed');
       if (dlg.open) dlg.close();
@@ -319,6 +356,7 @@ export class UiDialog extends UiElement {
     this.#setState(dlg, 'closed');
     this.#want = false;
     this.#reflect(false);
+    this.#syncViewport();
     if (this.#focusWithin() || focusOnBody()) this.#focusBack(back);
   }
 

@@ -1,7 +1,7 @@
 /**
  * The 2lab icon set: a 16×16 grid, 1.5px strokes, round caps and joins, drawn in `currentColor` — the same
  * hand as the glyphs inside the components and on ui.2lab.ai. `icon(name)` returns an SVG string (decorative by
- * default; pass `label` for a meaningful image). The brand mark is the only filled glyph.
+ * default; pass `label` for a meaningful image). The brand mark and `dot` are the only filled glyphs.
  */
 
 /** Inner markup per glyph (16-unit viewBox). A dot is a zero-length segment: `M8 8h.01` with a round cap. */
@@ -52,6 +52,8 @@ const GLYPHS = {
     '<rect x="2.25" y="2.75" width="11.5" height="10.5" rx="2"/><circle cx="5.75" cy="6.25" r="1.25"/><path d="M13.5 10.25L10.5 7.5 3.5 13"/>',
   send: '<path d="M13.75 2.25L2.25 6.75l5 2 2 5zM13.75 2.25l-6.5 6.5"/>',
   play: '<path d="M5 3.25v9.5L12.5 8z"/>',
+  pause:
+    '<rect x="4" y="3.25" width="2.75" height="9.5" rx="1"/><rect x="9.25" y="3.25" width="2.75" height="9.5" rx="1"/>',
   stop: '<rect x="4" y="4" width="8" height="8" rx="1.5"/>',
   check: '<path d="M3.5 8.5l3 3 6-6.5"/>',
   cross: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
@@ -65,6 +67,17 @@ const GLYPHS = {
   edit: '<path d="M10.5 2.75l2.75 2.75L6 12.75 2.75 13.25l.5-3.25zM9 4.25L11.75 7"/>',
   trash:
     '<path d="M2.75 4.25h10.5M6.25 4.25V2.75h3.5v1.5M4.25 4.25l.6 8.4a1.25 1.25 0 0 0 1.25 1.1h3.8a1.25 1.25 0 0 0 1.25-1.1l.6-8.4"/>',
+  archive:
+    '<rect x="2" y="2.75" width="12" height="3.5" rx="1"/><path d="M3.25 6.25v6a1.5 1.5 0 0 0 1.5 1.5h6.5a1.5 1.5 0 0 0 1.5-1.5v-6M6.5 9.25h3"/>',
+  shield:
+    '<path d="M8 1.75l5 1.9v4.1c0 3.1-2.1 5.4-5 6.5-2.9-1.1-5-3.4-5-6.5v-4.1z"/><path d="M5.75 8l1.6 1.6 3.15-3.1"/>',
+  camera:
+    '<path d="M2.25 5.5a1.25 1.25 0 0 1 1.25-1.25h1.75l1.25-1.75h3l1.25 1.75h1.75a1.25 1.25 0 0 1 1.25 1.25v6.25A1.25 1.25 0 0 1 12.5 13h-9a1.25 1.25 0 0 1-1.25-1.25z"/><circle cx="8" cy="8.5" r="2.25"/>',
+  tree: '<circle cx="4" cy="3.5" r="1.5"/><circle cx="11.75" cy="7.25" r="1.5"/><circle cx="11.75" cy="12.5" r="1.5"/><path d="M4 5v5.5a2 2 0 0 0 2 2h4.25M4 5.25a2 2 0 0 0 2 2h4.25"/>',
+  ban: '<circle cx="8" cy="8" r="5.75"/><path d="M3.93 3.93l8.14 8.14"/>',
+  dot: '<circle cx="8" cy="8" r="2.75" fill="currentColor"/>',
+  'circle-dashed':
+    '<path d="M9.34 2.41A5.75 5.75 0 0 1 11 3.1M12.9 5a5.75 5.75 0 0 1 .69 1.66M13.59 9.34A5.75 5.75 0 0 1 12.9 11M11 12.9a5.75 5.75 0 0 1-1.66.69M6.66 13.59A5.75 5.75 0 0 1 5 12.9M3.1 11a5.75 5.75 0 0 1-.69-1.66M2.41 6.66A5.75 5.75 0 0 1 3.1 5M5 3.1a5.75 5.75 0 0 1 1.66-.69"/>',
 } as const;
 
 export type IconName = keyof typeof GLYPHS;
@@ -82,6 +95,9 @@ export const ICON_ALIASES: Readonly<Record<string, IconName>> = {
   'file-html': 'file-code',
   avatar: 'user',
   agent: 'bot',
+  branch: 'tree',
+  'circle-slash': 'ban',
+  'shield-check': 'shield',
 };
 
 /** Every glyph name, in display order. */

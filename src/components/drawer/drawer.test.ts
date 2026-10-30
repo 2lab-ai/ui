@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clampDrawerWidth, DRAWER_EXIT_MS, drawerWidthBounds, resolveDrawerMode, type UiDrawer } from './drawer';
+import {
+  clampDrawerWidth,
+  DRAWER_EXIT_MS,
+  DRAWER_MORPH_MS,
+  drawerWidthBounds,
+  resolveDrawerMode,
+  type UiDrawer,
+} from './drawer';
 import { styles } from './styles';
 
 function mount(attrs: Record<string, string> = {}, html = '<p>Body</p>'): UiDrawer {
@@ -104,7 +111,8 @@ describe('<ui-drawer>', () => {
     expect(dlg(el).dataset.state).toBe('open');
     expect(el.docked).toBe(true);
     expect(el.hasAttribute('open')).toBe(true);
-    expect(styles).toContain('.dr[data-mode="dock"] .dr-scrim { display: none; }');
+    // Hidden, not gone, so an in-place switch can fade it.
+    expect(styles).toContain('.dr[data-mode="dock"] .dr-scrim { opacity: 0; visibility: hidden; }');
   });
 
   it('mode="sheet" opens modally over the scrim', () => {
@@ -458,5 +466,146 @@ describe('ui-drawer — notifications', () => {
     const h = q(el, '[role="separator"]');
     if (h) key(h, 'ArrowLeft');
     expect(seen.every((c) => c === false)).toBe(true);
+  });
+  it('follows the visual viewport while open, in sheet and dock (G8-1)', () => {
+    const media = fakeMedia(false);
+    const vv = Object.assign(new EventTarget(), { height: 760, offsetTop: 0 });
+    vi.stubGlobal('visualViewport', vv);
+    const el = mount({ heading: 'Session' });
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.show();
+    expect(dlg(el).dataset.mode).toBe('sheet');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('760px');
+    vv.height = 388;
+    vv.offsetTop = 210;
+    vv.dispatchEvent(new Event('resize'));
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('388px');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('210px');
+    // Crossing into dock keeps following (the dock's top is --ui-drawer-top below the visible top).
+    media.set(true);
+    expect(dlg(el).dataset.mode).toBe('dock');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('210px');
+    el.hide();
+    vi.advanceTimersByTime(DRAWER_EXIT_MS);
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    expect(dlg(el).hasAttribute('style')).toBe(false);
+  });
+
+  it('viewport="layout" opts out of the visual viewport', () => {
+    fakeMedia(false);
+    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 400, offsetTop: 90 }));
+    const el = mount({ heading: 'Session', viewport: 'layout' });
+    el.show();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.removeAttribute('viewport');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('90px');
+    expect(styles).toContain('inset: var(--ui-vv-top, 0px) 0 auto;');
+    expect(styles).toContain('height: var(--ui-vv-h, 100%);');
+  });
+  it('sheet ↔ dock in place: same dialog node, no frame closed, scroll places and the caret kept (G8-1)', () => {
+    const media = fakeMedia(true);
+    const el = mount(
+      { heading: 'Session' },
+      '<div class="log" style="overflow:auto;height:80px"><p>1</p><p>2</p></div><textarea>draft</textarea>',
+    );
+    el.show();
+    const d = dlg(el);
+    const body = q(el, '.dr-body')!;
+    const log = el.querySelector<HTMLElement>('.log')!;
+    const ta = el.querySelector('textarea')!;
+    body.scrollTop = 140;
+    log.scrollTop = 36;
+    ta.focus();
+    ta.setSelectionRange(2, 4);
+    // A real close() tears the boxes down (display: none): scroll offsets go. Simulate that.
+    const close = vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+      body.scrollTop = 0;
+      log.scrollTop = 0;
+    });
+    const modal = vi.spyOn(HTMLDialogElement.prototype, 'showModal');
+    media.set(false); // the window narrows under 840px
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(modal).toHaveBeenCalledTimes(1);
+    expect(dlg(el)).toBe(d);
+    expect(d.dataset.mode).toBe('sheet');
+    expect(d.hasAttribute('data-instant')).toBe(false);
+    expect(body.scrollTop).toBe(140);
+    expect(log.scrollTop).toBe(36);
+    expect(document.activeElement).toBe(ta);
+    expect(ta.value).toBe('draft');
+    expect([ta.selectionStart, ta.selectionEnd]).toEqual([2, 4]);
+  });
+
+  it('the switch morphs the panel box (width, top) from where it was drawn, 320ms, and fades the scrim', () => {
+    const media = fakeMedia(false);
+    const el = mount({ heading: 'Session', width: '560' });
+    el.show();
+    const d = dlg(el);
+    const panel = q(el, '.dr-panel')!;
+    const scrim = q(el, '.dr-scrim')!;
+    // Sheet: full height, 390 wide (a phone); dock: 560 wide under a 56px bar.
+    const rect = (top: number, width: number) =>
+      ({ top, width, left: 0, right: width, bottom: 800, height: 800 - top, x: 0, y: top, toJSON() {} }) as DOMRect;
+    vi.spyOn(panel, 'getBoundingClientRect').mockImplementation(() =>
+      d.dataset.mode === 'dock' ? rect(56, 560) : rect(0, 390),
+    );
+    vi.spyOn(d, 'getBoundingClientRect').mockImplementation(() => rect(0, 1024));
+    const anims: Array<{ el: string; frames: Keyframe[]; opts: KeyframeAnimationOptions; cancel: () => void }> = [];
+    const fake = (name: string) =>
+      vi.fn((frames: Keyframe[], opts: KeyframeAnimationOptions) => {
+        const a = { el: name, frames, opts, cancel: vi.fn(), finished: new Promise(() => {}) };
+        anims.push(a);
+        return a as unknown as Animation;
+      });
+    panel.animate = fake('panel');
+    scrim.animate = fake('scrim');
+    media.set(true);
+    expect(d.dataset.mode).toBe('dock');
+    const box = anims.find((a) => a.el === 'panel')!;
+    expect(box.frames).toEqual([
+      { width: '390px', top: '0px' },
+      { width: '560px', top: '56px' },
+    ]);
+    expect(box.opts.duration).toBe(DRAWER_MORPH_MS);
+    expect(box.opts.easing).toBe('cubic-bezier(0.23, 1, 0.32, 1)');
+    // The scrim fades out from its drawn opacity (visible while it fades).
+    const fade = anims.find((a) => a.el === 'scrim')!;
+    expect(fade.frames.at(-1)).toEqual({ opacity: 0, visibility: 'visible' });
+    expect(fade.opts.duration).toBe(180);
+    // Back again mid-flight: the running morph is cancelled and a new one starts from the drawn box.
+    media.set(false);
+    expect(box.cancel).toHaveBeenCalled();
+    expect(anims.filter((a) => a.el === 'panel')).toHaveLength(2);
+    expect(anims.at(-2)?.frames).toEqual([
+      { width: '560px', top: '56px' },
+      { width: '390px', top: '0px' },
+    ]);
+    // Closing cancels whatever is still running.
+    el.hide();
+    vi.advanceTimersByTime(DRAWER_EXIT_MS);
+    expect(anims.at(-1)?.cancel).toHaveBeenCalled();
+  });
+
+  it('no morph under reduced motion or when the box does not change', () => {
+    const media = fakeMedia(true);
+    const el = mount({ heading: 'Session' });
+    el.show();
+    const panel = q(el, '.dr-panel')!;
+    const scrim = q(el, '.dr-scrim')!;
+    const anim = () => ({ cancel: vi.fn(), finished: new Promise(() => {}) }) as unknown as Animation;
+    panel.animate = vi.fn(anim) as unknown as typeof panel.animate;
+    scrim.animate = vi.fn(anim) as unknown as typeof scrim.animate;
+    media.set(false); // happy-dom draws no boxes: same 0×0 box, nothing to morph for the panel
+    expect(panel.animate).not.toHaveBeenCalled();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('reduce') || (query.includes('min-width') && true),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    el.setAttribute('mode', 'dock');
+    expect(dlg(el).dataset.mode).toBe('dock');
+    expect(scrim.animate).toHaveBeenCalledTimes(1); // only the first (non-reduced) switch faded the scrim
   });
 });

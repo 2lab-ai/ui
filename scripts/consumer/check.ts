@@ -16,11 +16,12 @@ import { type ComposerData, composerEnterAction, UiComposer } from '@2lab.ai/ui/
 import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-window';
 import { type ConversationData, initialOf, UiConversation } from '@2lab.ai/ui/conversation';
 import { type DeckNavData, deckClamp, UiDeckNav } from '@2lab.ai/ui/deck-nav';
-import { type DialogCloseDetail, dialogSize, UiDialog } from '@2lab.ai/ui/dialog';
+import { type DialogCloseDetail, type DialogViewport, dialogSize, UiDialog } from '@2lab.ai/ui/dialog';
 import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
-import { clampDrawerWidth, type DrawerMode, UiDrawer } from '@2lab.ai/ui/drawer';
+import { clampDrawerWidth, DRAWER_MORPH_MS, type DrawerMode, type DrawerViewport, UiDrawer } from '@2lab.ai/ui/drawer';
 import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
 import { GOAL_ARM_MS, type GoalCardData, UiGoalCard } from '@2lab.ai/ui/goal-card';
+import { type HovercardDetail, hovercardDelay, UiHovercard } from '@2lab.ai/ui/hovercard';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { type LogScrollerData, logJumpText, UiLogScroller } from '@2lab.ai/ui/log-scroller';
@@ -63,6 +64,8 @@ const seg: SegmentedData = { options: [{ value: 'd', label: 'Day' }], value: 'd'
 const tabs: TabsData = { tabs: [{ id: 'a', label: 'A' }], value: 'a' };
 const menu: MenuData = { items: [{ kind: 'radio', value: 'a', label: 'A' }] };
 const closed: DialogCloseDetail = { reason: 'escape' };
+const vvs: [DialogViewport, DrawerViewport] = ['visual', 'layout'];
+const peekDetail: HovercardDetail = { trigger: document.createElement('button') };
 const mode: DrawerMode = 'dock';
 const toggled: DisclosureToggle = { open: true };
 const glyph: IconName = 'gear';
@@ -110,6 +113,7 @@ const classes = [
   UiTabs,
   UiMenu,
   UiTooltip,
+  UiHovercard,
   UiDialog,
   UiDrawer,
   UiDisclosure,
@@ -157,10 +161,14 @@ console.log(
   applyMenuSelect(menu.items, 0)[0].checked,
   closed.reason,
   dialogSize('lg'),
+  vvs.join(),
+  DRAWER_MORPH_MS,
   clampDrawerWidth(100, 320, 960, 1280),
   mode,
   toggled.open,
   tooltipDelay('200'),
+  hovercardDelay('200'),
+  peekDetail.trigger.tagName,
   icon(glyph).length,
   KIT_CLASSES.length,
   kitCss.length,

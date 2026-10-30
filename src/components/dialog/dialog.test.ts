@@ -311,6 +311,118 @@ describe('<ui-dialog>', () => {
     expect(q(el2, '.dg-head')?.hasAttribute('hidden')).toBe(true);
   });
 
+  it('slot="actions" sits beside the close button, outside the heading (G7-2)', () => {
+    const el = mount(
+      { heading: 'report.html' },
+      '<p>Body</p><a slot="actions" href="#n">Open</a><button slot="actions">Download</button>',
+    );
+    el.renderNow();
+    const actions = q(el, '.dg-actions')!;
+    expect(actions.hidden).toBe(false);
+    expect(actions.getAttribute('part')).toBe('actions');
+    expect(actions.querySelector('slot')?.getAttribute('name')).toBe('actions');
+    expect(q(el, '.dg-title')!.contains(actions)).toBe(false);
+    expect(actions.nextElementSibling?.classList.contains('dg-close')).toBe(true);
+    expect(actions.parentElement?.classList.contains('dg-head')).toBe(true);
+    // Without slotted actions the box stays out.
+    expect(q(mount({ heading: 'x' }), '.dg-actions')?.hidden).toBe(true);
+  });
+
+  it('actions alone keep the header row (no heading, no close button)', () => {
+    const el = mount({ 'hide-close': '', label: 'Viewer' }, '<p>Body</p><button slot="actions">Next</button>');
+    el.renderNow();
+    expect(q(el, '.dg-head')?.hidden).toBe(false);
+    expect(q(el, '.dg-title')?.hidden).toBe(true);
+    expect(dlg(el).getAttribute('aria-label')).toBe('Viewer');
+    el.querySelector('[slot="actions"]')!.remove();
+    el.renderNow();
+    expect(q(el, '.dg-head')?.hidden).toBe(true);
+    expect(styles).toContain('.dg-actions:not([hidden]) + .dg-close { margin-left: 0; }');
+    // On a phone the toolbar wraps under the title and ×, end-aligned.
+    const phone = styles.slice(styles.lastIndexOf('@media (max-width: 639px)'));
+    expect(phone).toContain('.dg-head:has(> .dg-actions:not([hidden])) { flex-wrap: wrap; row-gap: 4px; }');
+    expect(phone).toContain('.dg-actions { order: 1; flex-basis: 100%; justify-content: flex-end; }');
+  });
+
+  it('size="full" goes edge to edge on phones: no rounding, no grab, safe areas inside (G7-2)', () => {
+    const phone = styles.slice(styles.lastIndexOf('@media (max-width: 639px)'));
+    expect(phone).toContain('.dg[data-size="full"] { place-items: stretch; }');
+    expect(phone).toMatch(
+      /\.dg\[data-size="full"\]\[data-sheet\] \.dg-panel \{\s*width: 100%; height: 100%; max-height: none; border-radius: 0;/,
+    );
+    expect(phone).toContain('env(safe-area-inset-top) env(safe-area-inset-right)');
+    expect(phone).toContain('.dg[data-size="full"][data-sheet] .dg-grab { display: none; }');
+    // Desktop full is unchanged: the viewport less 16px each side.
+    expect(styles).toContain(
+      '.dg[data-size="full"] .dg-panel { width: calc(100% - 32px); height: calc(var(--ui-vv-h, 100dvh) - 32px); max-height: none; }',
+    );
+  });
+
+  it('follows the visual viewport while open: --ui-vv-h / --ui-vv-top on the box (G7-1)', () => {
+    const vv = Object.assign(new EventTarget(), { height: 800, offsetTop: 0 });
+    const add = vi.spyOn(vv, 'addEventListener');
+    const remove = vi.spyOn(vv, 'removeEventListener');
+    vi.stubGlobal('visualViewport', vv);
+    const el = mount({ heading: 'New task' });
+    // Closed: nothing listened to, nothing written.
+    expect(add).not.toHaveBeenCalled();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.show();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('800px');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('0px');
+    // The soft keyboard opens and iOS scrolls the page under it.
+    vv.height = 412;
+    vv.offsetTop = 196;
+    vv.dispatchEvent(new Event('resize'));
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('412px');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('196px');
+    // A re-render keeps them (they are in the markup too).
+    el.setAttribute('heading', 'New task · draft');
+    el.renderNow();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('412px');
+    // Still followed on the way out; gone once closed.
+    el.hide();
+    vv.height = 800;
+    vv.offsetTop = 0;
+    vv.dispatchEvent(new Event('scroll'));
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('800px');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS);
+    expect(dlg(el).open).toBe(false);
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(remove).toHaveBeenCalledWith('scroll', expect.any(Function));
+  });
+
+  it('viewport="layout" opts out; switching it while open starts or stops the tracking', () => {
+    const vv = Object.assign(new EventTarget(), { height: 500, offsetTop: 40 });
+    vi.stubGlobal('visualViewport', vv);
+    const el = mount({ heading: 'x', viewport: 'layout' });
+    el.show();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.removeAttribute('viewport');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('500px');
+    el.setAttribute('viewport', 'layout');
+    el.renderNow();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    expect(dlg(el).hasAttribute('style')).toBe(false);
+    // Removed from the page: the listener goes with it.
+    el.removeAttribute('viewport');
+    const remove = vi.spyOn(vv, 'removeEventListener');
+    el.remove();
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function));
+  });
+
+  it('without the API (or with layout) the styles fall back to the layout viewport', () => {
+    const el = mount({ heading: 'x' });
+    el.show();
+    expect(dlg(el).hasAttribute('style')).toBe(false);
+    expect(styles).toContain('inset: var(--ui-vv-top, 0px) 0 auto;');
+    expect(styles).toContain('height: var(--ui-vv-h, 100%);');
+    expect(styles).toContain('max-height: calc(var(--ui-vv-h, 100dvh) - 48px)');
+    expect(styles).toContain('max-height: calc(var(--ui-vv-h, 100dvh) - 24px)');
+    expect(styles).not.toMatch(/[^,(] 100dvh/);
+  });
+
   it('size and sheet land on the dialog as CSS hooks', () => {
     const el = mount({ size: 'xl', sheet: 'never' });
     expect(dlg(el).dataset.size).toBe('xl');

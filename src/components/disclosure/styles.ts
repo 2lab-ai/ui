@@ -31,6 +31,8 @@ export const styles = `
 .dc-body { padding: 2px 8px 10px 28px; font-size: 13px; line-height: 1.5; color: var(--ib-text-2); }
 :host([variant="card"]) .dc-body { padding: 0 14px 14px 32px; }
 :host([flush]) .dc-body { padding: 0; }
+/* trigger="external": no row to line up under — the region is the host's, edge to edge */
+:host([trigger="external"]) .dc-body { padding: 0; }
 @media (hover: hover) and (pointer: fine) {
   .dc-head:not([aria-disabled="true"]):hover { background: var(--ib-pill); }
   :host([variant="card"]) .dc-head:not([aria-disabled="true"]):hover { background: color-mix(in srgb, var(--ib-pill) 55%, transparent); }
