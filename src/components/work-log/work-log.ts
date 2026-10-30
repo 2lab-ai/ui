@@ -286,6 +286,8 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     const append: HTMLElement[] = [];
     let changed = false;
     let seen = false;
+    // Entries that arrived inside groups already shown: the reader higher up hears about them on the pill.
+    let fresh = 0;
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       const isOpen = open.get(g.id) ?? false;
@@ -296,7 +298,11 @@ export class UiWorkLog extends UiElement<WorkLogData> {
           this.#dropGroup(g.id, true);
           sc.upsertItem(g.id, this.#buildGroup(g, isOpen));
           changed = true;
-        } else if (this.#patchGroup(rec, g, isOpen)) changed = true;
+        } else {
+          const had = new Set(rec.entries);
+          if (this.#patchGroup(rec, g, isOpen)) changed = true;
+          fresh += (g.entries ?? []).filter((e) => !had.has(e.id)).length;
+        }
         continue;
       }
       const el = this.#buildGroup(g, isOpen);
@@ -320,6 +326,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       sc.data = { ...sdata };
     }
     if (append.length) sc.appendItems(append, wasEmpty ? { animate: false } : {});
+    if (fresh) sc.noteUnread(fresh);
   }
 
   #buildGroup(g: WorkGroup, open: boolean): HTMLElement {

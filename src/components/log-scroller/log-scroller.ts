@@ -216,6 +216,16 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     if (wasEmpty) this.#fillSoon();
   }
 
+  /**
+   * Something new arrived inside an item already shown (a line added to an open group). A pinned reader keeps
+   * following it (the box sticks to the bottom as it grows); a reader higher up is told — the pill counts `n` more.
+   */
+  noteUnread(n = 1): void {
+    if (this.#pinned || !(n > 0)) return;
+    this.#unread += Math.floor(n);
+    this.renderNow();
+  }
+
   /** An older page above the first item. The reader's place stays exactly where it was. */
   prependItems(nodes: Node | Node[], opts: LogPrependOptions = {}): void {
     const list = toNodes(nodes);

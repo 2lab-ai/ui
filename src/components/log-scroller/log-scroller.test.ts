@@ -180,6 +180,20 @@ describe('<ui-log-scroller>', () => {
     expect(el.unread).toBe(2);
   });
 
+  it('noteUnread counts growth inside a shown item for a reader higher up — not while pinned', () => {
+    const { el, vp } = mount();
+    el.appendItems(rows(el, 0, 20));
+    el.noteUnread(3);
+    expect(el.unread).toBe(0);
+    scrollTo(vp, 100);
+    el.noteUnread(2);
+    el.noteUnread(0);
+    el.noteUnread(-1);
+    expect(el.unread).toBe(2);
+    expect(q(el, '.ls-jump')!.textContent).toBe('2 new');
+    expect(vp.scrollTop).toBe(100);
+  });
+
   it('the pill jumps to the newest item, clears unread and keeps focus in the box', () => {
     const { el, vp } = mount();
     el.appendItems(rows(el, 0, 20));
