@@ -1,6 +1,7 @@
 import { define, UiElement } from '../../core/element';
 import { attrs, cls, esc } from '../../core/html';
 import { morphInto } from '../../core/morph';
+import { lastEnabled, rovingIndex } from '../../core/roving';
 import { type IconName, icon } from '../../icons/icons';
 import { styles } from './styles';
 
@@ -45,22 +46,6 @@ export function segmentedOptions(d: SegmentedData | undefined): SegmentedOption[
     out.push(o);
   }
   return out;
-}
-
-/**
- * Next enabled index from `from` in direction `dir` (wrapping); `dir` 0 = first enabled at or after `from`.
- * -1 when nothing is enabled.
- */
-export function rovingIndex(disabled: boolean[], from: number, dir: -1 | 0 | 1): number {
-  const n = disabled.length;
-  if (!n) return -1;
-  const step = dir === 0 ? 1 : dir;
-  let i = dir === 0 ? from : from + dir;
-  for (let k = 0; k < n; k++, i += step) {
-    const j = ((i % n) + n) % n;
-    if (!disabled[j]) return j;
-  }
-  return -1;
 }
 
 /**
@@ -185,8 +170,7 @@ export class UiSegmented extends UiElement<SegmentedData> {
         next = rovingIndex(disabled, 0, 0);
         break;
       case 'End':
-        next = rovingIndex(disabled.slice().reverse(), 0, 0);
-        if (next >= 0) next = disabled.length - 1 - next;
+        next = lastEnabled(disabled);
         break;
       default:
         return;
