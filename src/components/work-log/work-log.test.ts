@@ -664,6 +664,7 @@ describe('<ui-work-log> raw output, skills and actions', () => {
     copy.focus();
     copy.click();
     expect(write).toHaveBeenCalledWith('full output\nline 2');
+    await vi.advanceTimersByTimeAsync(0); // the write settles
     expect(copies).toHaveLength(1);
     expect(copies[0].detail).toEqual({ id: 'e6', group: 'g2', text: 'full output\nline 2' });
     expect(copies[0].cancelable).toBe(false);
@@ -673,6 +674,26 @@ describe('<ui-work-log> raw output, skills and actions', () => {
     expect(el.shadowRoot!.activeElement).toBe(now);
     vi.advanceTimersByTime(WORK_LOG_COPIED_MS + 10);
     expect(entry(el, 'e6')!.querySelector('.raw-copy')?.textContent).toBe('Copy');
+  });
+
+  it('a failed copy says nothing: no Copied, no ui-copy', async () => {
+    const write = vi.fn(() => Promise.reject(new Error('denied')));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: write }, configurable: true });
+    const exec = document.execCommand;
+    (document as unknown as { execCommand?: unknown }).execCommand = undefined;
+    try {
+      const el = mount({ groups: groups() });
+      const copies: CustomEvent[] = [];
+      el.addEventListener('ui-copy', (e) => copies.push(e as CustomEvent));
+      entry(el, 'e6')!.querySelector<HTMLElement>('.wl-row')!.click();
+      entry(el, 'e6')!.querySelector<HTMLButtonElement>('.raw-copy')!.click();
+      await new Promise((r) => setTimeout(r, 0));
+      expect(write).toHaveBeenCalled();
+      expect(copies).toHaveLength(0);
+      expect(entry(el, 'e6')!.querySelector('.raw-copy')?.textContent).toBe('Copy');
+    } finally {
+      (document as unknown as { execCommand?: unknown }).execCommand = exec;
+    }
   });
 
   it('Retry sends a cancelable ui-retry; unprevented it shows Loading until the host answers', () => {

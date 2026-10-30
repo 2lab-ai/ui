@@ -1,4 +1,5 @@
 import { activityCss } from '../../core/activity';
+import { copyText } from '../../core/clipboard';
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { fmtDuration } from '../../core/format';
 import { attrs, esc } from '../../core/html';
@@ -568,7 +569,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     const id = entry?.dataset.entry;
     if (id === undefined || !this.#entries.has(id)) return;
     const btn = t.closest<HTMLElement>('button');
-    if (btn?.classList.contains('raw-copy')) this.#copy(id);
+    if (btn?.classList.contains('raw-copy')) void this.#copy(id);
     else if (btn?.classList.contains('raw-retry')) this.#retry(id);
     else if (btn?.classList.contains('skill-badge')) this.#toggleSkill(id, Number(btn.dataset.skill));
     else if (btn?.classList.contains('wl-agent')) {
@@ -608,17 +609,13 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     this.renderNow();
   }
 
-  #copy(id: string): void {
+  async #copy(id: string): Promise<void> {
     const rec = this.#entries.get(id);
     const raw = rec?.data.raw;
     if (!rec || !raw || raw.state !== 'ready') return;
     const text = String(raw.text ?? '');
-    try {
-      const done = typeof navigator !== 'undefined' ? navigator.clipboard?.writeText?.(text) : undefined;
-      done?.catch?.(() => {});
-    } catch {
-      // No clipboard (insecure context): the event still tells the host.
-    }
+    // "Copied" only when it was: the Clipboard API, else the textarea fallback (plain http), else nothing.
+    if (!(await copyText(text, this.root))) return;
     const prev = this.#copied.get(id);
     if (prev) clearTimeout(prev);
     this.#copied.set(

@@ -164,6 +164,33 @@ describe('<ui-log-scroller>', () => {
     expect(el.items.slice(3, 8)).toEqual(first);
   });
 
+  it('an older page goes in with the log silenced; the log speaks again a frame later', async () => {
+    const { el } = mount();
+    el.appendItems(rows(el, 0, 5));
+    const vp = () => q(el, '.ls-vp')!;
+    expect(vp().getAttribute('role')).toBe('log');
+    expect(vp().getAttribute('aria-live')).toBeNull();
+    let atInsert: string | null = 'unset';
+    const prepend = el.prepend.bind(el);
+    el.prepend = (...nodes: (Node | string)[]) => {
+      atInsert = vp().getAttribute('aria-live');
+      prepend(...nodes);
+    };
+    el.prependItems(rows(el, -3, 3));
+    expect(atInsert).toBe('off');
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
+    expect(vp().getAttribute('aria-live')).toBeNull();
+    expect(vp().getAttribute('role')).toBe('log');
+  });
+
+  it('live: false is a plain region and stays one through a prepend', () => {
+    const { el } = mount({ live: false });
+    el.appendItems(rows(el, 0, 3));
+    el.prependItems(rows(el, -2, 2));
+    expect(q(el, '.ls-vp')!.getAttribute('role')).toBe('region');
+    expect(q(el, '.ls-vp')!.getAttribute('aria-live')).toBeNull();
+  });
+
   it('a reader above the newest keeps the place: unread count and the latest pill', () => {
     const { el, vp } = mount();
     el.appendItems(rows(el, 0, 20));

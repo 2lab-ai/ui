@@ -1,4 +1,5 @@
 import { activityCss, rawViewHtml, skillBadgesHtml, sysBadgeHtml } from '../../core/activity';
+import { copyText } from '../../core/clipboard';
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
 import { icon } from '../../icons/icons';
@@ -100,36 +101,6 @@ function setText(el: Element | null, value: string): void {
 function setAttr(el: Element, name: string, value: string | null): void {
   if (value === null) el.removeAttribute(name);
   else if (el.getAttribute(name) !== value) el.setAttribute(name, value);
-}
-
-/** Copy to the clipboard; without the Clipboard API (plain http) through a hidden textarea. */
-async function copyText(text: string, root: ShadowRoot): Promise<boolean> {
-  try {
-    const clip = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
-    if (clip && typeof clip.writeText === 'function') {
-      await clip.writeText(text);
-      return true;
-    }
-  } catch {
-    // fall through to the textarea
-  }
-  if (typeof document.execCommand !== 'function') return false;
-  const prev = root.activeElement as HTMLElement | null;
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.setAttribute('readonly', '');
-  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-  root.append(ta);
-  ta.select();
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch {
-    ok = false;
-  }
-  ta.remove();
-  prev?.focus({ preventScroll: true });
-  return ok;
 }
 
 /** The progress row's numbers at `now`. */
@@ -399,6 +370,7 @@ export class UiConversation extends UiElement<ConversationData> {
       loading: !!d.loading && !(error && empty),
       label: String(d.label || t.label),
       startText: d.startText ?? t.start,
+      live: d.live,
     };
     // A new scroller data object settles an older page it asked for: only when something it shows changed.
     const key = `${JSON.stringify(ld)}\n${error}`;
