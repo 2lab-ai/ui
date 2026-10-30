@@ -1,4 +1,5 @@
-// Runtime smoke test against the installed package: each of the 13 subpaths registers its element(s) (14 in all).
+// Runtime smoke test against the installed package: each of the 20 element subpaths registers its element(s) (21 in
+// all); the icon set and the kit load and return their strings.
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -24,6 +25,13 @@ const slugs = [
   'model-picker',
   'tool-call-card',
   'toaster',
+  'segmented',
+  'tabs',
+  'menu',
+  'tooltip',
+  'dialog',
+  'drawer',
+  'disclosure',
 ];
 // Subpaths that register more than their own tag.
 const extra = { 'tool-call-card': ['ui-tool-call-group'] };
@@ -62,7 +70,13 @@ if (at.shadowRoot?.querySelectorAll('[role="treeitem"]').length !== 2) {
   console.error('register: <ui-agent-tree> did not render its two agents');
   process.exit(1);
 }
+const { icon } = await import('@2lab.ai/ui/icons');
+const { kitCss } = await import('@2lab.ai/ui/kit');
+if (!icon('gear').startsWith('<svg') || !kitCss.includes('.ui-btn')) {
+  console.error('register: @2lab.ai/ui/icons or @2lab.ai/ui/kit did not load');
+  process.exit(1);
+}
 const tags = slugs.length + Object.values(extra).flat().length;
 console.log(
-  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window> and <ui-compact-breakdown> rendered`,
+  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window> and <ui-compact-breakdown> rendered; icons and kit load`,
 );
