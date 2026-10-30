@@ -210,6 +210,109 @@ function loadingPeriod(): HTMLElement {
   return el;
 }
 
+interface Detail {
+  turns: number;
+  opened: number;
+  merged: number;
+  added: number;
+  deleted: number;
+  workflows: Array<[string, number]>;
+}
+const DETAILS: Detail[] = [
+  {
+    turns: 1942,
+    opened: 31,
+    merged: 19,
+    added: 12_480,
+    deleted: 3_215,
+    workflows: [
+      ['z', 42],
+      ['autoz', 17],
+      ['zfix', 9],
+      ['review', 4],
+    ],
+  },
+  {
+    turns: 2310,
+    opened: 38,
+    merged: 27,
+    added: 15_902,
+    deleted: 4_877,
+    workflows: [
+      ['z', 51],
+      ['autoz', 22],
+      ['zfix', 6],
+    ],
+  },
+  {
+    turns: 1488,
+    opened: 22,
+    merged: 14,
+    added: 8_130,
+    deleted: 2_406,
+    workflows: [
+      ['z', 30],
+      ['autoz', 11],
+      ['review', 7],
+    ],
+  },
+];
+const DETAIL_KO = { turns: '턴 사용', opened: 'PR 생성', merged: 'PR 머지', lines: '머지 코드', wf: '워크플로우' };
+const DETAIL_EN = { turns: 'Turns', opened: 'PRs opened', merged: 'PRs merged', lines: 'Merged code', wf: 'Workflows' };
+
+/**
+ * layout: 'cards' — five tiles: three rolling counts, a two-number figure and a name: count list in slots (the
+ * host's markup, tinted with tokens), loading between periods with from: 'last'.
+ */
+function cards(s: typeof DETAIL_EN, attrs: Record<string, string> = {}): HTMLElement {
+  const lines = document.createElement('span');
+  lines.slot = 'lines';
+  const wf = document.createElement('span');
+  wf.slot = 'wf';
+  const tone = (t: string) => `color:color-mix(in srgb, var(--ui-st-${t}) 70%, var(--ui-text))`;
+  const fill = (f: Detail) => {
+    lines.innerHTML = `<span style="${tone('done')}">+${f.added.toLocaleString('en-US')}</span><span style="color:var(--ui-text-tertiary)">/</span><span style="${tone('fail')}">−${f.deleted.toLocaleString('en-US')}</span>`;
+    wf.replaceChildren(
+      ...f.workflows.map(([name, n]) => {
+        const x = document.createElement('span');
+        x.innerHTML = `<span style="color:var(--ui-text-secondary);font-weight:500"></span> <b style="font-weight:600"></b>`;
+        x.firstElementChild!.textContent = `${name}:`;
+        x.lastElementChild!.textContent = String(n);
+        return x;
+      }),
+    );
+  };
+  const data = (f: Detail, loading = false): StatStripData => ({
+    layout: 'cards',
+    label: s.turns === 'Turns' ? 'Details' : '세부 사용량',
+    loading,
+    metrics: [
+      { key: 'turns', label: s.turns, value: f.turns, from: 'last' },
+      { key: 'opened', label: s.opened, value: f.opened, from: 'last' },
+      { key: 'merged', label: s.merged, value: f.merged, from: 'last' },
+      { key: 'lines', label: s.lines, slot: 'lines' },
+      { key: 'wf', label: s.wf, slot: 'wf', wide: true },
+    ],
+  });
+  fill(DETAILS[0]);
+  const el = make(data(DETAILS[0]), attrs);
+  el.append(lines, wf);
+  let at = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return stack(
+    el,
+    button(s.turns === 'Turns' ? 'Next period (loads)' : '다음 기간 (불러오기)', () => {
+      clearTimeout(timer);
+      at = (at + 1) % DETAILS.length;
+      el.data = data(DETAILS[at], true);
+      timer = setTimeout(() => {
+        fill(DETAILS[at]);
+        el.data = data(DETAILS[at]);
+      }, 600);
+    }),
+  );
+}
+
 function loading(): HTMLElement {
   const loaded: StatStripData = {
     period: { options: EN.options, value: 'today' },
@@ -297,6 +400,24 @@ export const doc: ComponentDoc = {
         'The period control at the start of the line. `label` is its accessible name (default “Period” / “기간”). Left out = no control.',
     },
     { name: 'data.loading', type: 'boolean', default: 'false', description: 'Every figure shows a skeleton.' },
+    {
+      name: 'data.layout',
+      type: "'line' | 'cards'",
+      default: "'line'",
+      description:
+        'line: label · figure pairs on one calm line. cards: a grid of tiles (label above a 22px figure, 12px radius, hairline + resting shadow), as many columns as fit at 140px or more — the detail behind a More, a dashboard row. Everything else (rolling, loading, from, breakdowns, slots, More) works the same; below 480px of its own width the tiles tighten (18px figures).',
+    },
+    {
+      name: 'data.metrics[].slot',
+      type: 'string',
+      description:
+        'A free-form figure: the name of a slot whose light-DOM content takes the figure’s place (“+1,204 / −318”, a name: count list). No roll and no breakdown; loading still shows the bar; an empty slot shows “—”.',
+    },
+    {
+      name: 'data.metrics[].wide',
+      type: 'boolean',
+      description: 'cards: the tile spans two columns (one when only one fits) — for a long free-form figure.',
+    },
     {
       name: 'data.more',
       type: 'boolean | { label?: string; open?: boolean }',
@@ -408,6 +529,25 @@ export const doc: ComponentDoc = {
         'Each figure rolls from what it shows to the new value in 620 ms, ease-out quart — count, tokens, cost, percent and duration.',
       height: 220,
       create: () => rolling(),
+    },
+    {
+      id: 'cards',
+      title: 'Cards',
+      description:
+        "layout: 'cards' — the detail tiles behind a More: three rolling counts, a two-number figure and a wide name: count list (both slots: the host's own markup). Next period loads, then rolls from the old figures (from: 'last').",
+      height: 280,
+      create: () => cards(DETAIL_EN),
+    },
+    {
+      id: 'cards-ko',
+      title: '카드 (한국어)',
+      description: '턴 사용 · PR 생성 · PR 머지 · 머지 코드 · 워크플로우 — lang="ko", 좁은 폭에서는 두 열.',
+      height: 320,
+      create: () => {
+        const box = cards(DETAIL_KO, { lang: 'ko' });
+        box.style.maxWidth = '420px';
+        return box;
+      },
     },
     {
       id: 'loading-period',

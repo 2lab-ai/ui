@@ -463,6 +463,84 @@ describe('<ui-stat-strip> rolling figures', () => {
   });
 });
 
+describe('<ui-stat-strip> cards layout (D2 G3-1)', () => {
+  const CARDS: StatStripData = {
+    layout: 'cards',
+    label: 'Details',
+    metrics: [
+      { key: 'turns', label: 'Turns', value: 1942 },
+      { key: 'prs', label: 'PRs opened', value: 31 },
+      { key: 'lines', label: 'Merged code', slot: 'lines' },
+      { key: 'wf', label: 'Workflows', slot: 'wf', wide: true },
+    ],
+  };
+  const free = (slot: string, html: string) => {
+    const s = document.createElement('span');
+    s.slot = slot;
+    s.innerHTML = html;
+    return s;
+  };
+
+  it('draws a grid of tiles: label above a figure; line layout is the default', () => {
+    const el = mount(CARDS);
+    expect(q(el, '.ss')!.dataset.layout).toBe('cards');
+    expect(qa(el, 'dl.ss-nums > .ss-m').length).toBe(4);
+    expect(fig(el, 'turns').textContent).toBe('1,942');
+    expect(metric(el, 'wf').hasAttribute('data-wide')).toBe(true);
+    expect(metric(el, 'turns').hasAttribute('data-wide')).toBe(false);
+    expect(q(mount(DATA), '.ss')!.hasAttribute('data-layout')).toBe(false);
+  });
+
+  it('a slot figure draws the host’s markup in the figure’s place: no roll, no breakdown; loading shows the bar', () => {
+    const el = document.createElement('ui-stat-strip') as UiStatStrip;
+    el.append(free('lines', '<b>+1,204</b> / <b>−318</b>'));
+    document.body.append(el);
+    el.data = {
+      ...CARDS,
+      metrics: CARDS.metrics.map((m) =>
+        m.key === 'lines' ? { ...m, value: 5, breakdown: { title: 'x', rows: [{ label: 'a', value: 1 }] } } : m,
+      ),
+    };
+    el.renderNow();
+    const slot = metric(el, 'lines').querySelector('slot')!;
+    expect(slot.getAttribute('name')).toBe('lines');
+    expect(metric(el, 'lines').querySelector('ui-tooltip, button')).toBeNull();
+    // An empty slot falls back to the no-data dash.
+    expect(metric(el, 'wf').querySelector('slot .ss-fig.is-none')!.textContent).toBe('—');
+    el.data = { ...CARDS, loading: true };
+    el.renderNow();
+    expect(metric(el, 'lines').querySelector('slot')).toBeNull();
+    expect(metric(el, 'lines').querySelector('.ss-sk')).not.toBeNull();
+    expect(frames.size).toBe(0);
+  });
+
+  it('escapes the slot name', () => {
+    const el = mount({ layout: 'cards', metrics: [{ key: 'x', label: 'X', slot: BREAK }] });
+    expect(metric(el, 'x').querySelector('slot')!.getAttribute('name')).toBe(BREAK);
+    expect(q(el, 'b')).toBeNull();
+  });
+
+  it('cards roll, load and keep from: like the line', () => {
+    const el = mount({ layout: 'cards', metrics: [{ key: 's', label: 'S', value: 10, from: 'last' }] });
+    el.data = { layout: 'cards', loading: true, metrics: [{ key: 's', label: 'S', value: 10, from: 'last' }] };
+    el.renderNow();
+    el.data = { layout: 'cards', metrics: [{ key: 's', label: 'S', value: 90, from: 'last' }] };
+    el.renderNow();
+    expect(fig(el, 's').textContent).toBe('10');
+    frame(0);
+    frame(STAT_ROLL_MS);
+    expect(fig(el, 's').textContent).toBe('90');
+  });
+
+  it('styles: tiles on tokens, a wide card spans two columns, smaller below 480px', () => {
+    expect(styles).toMatch(/\.ss\[data-layout="cards"\] \.ss-nums \{[^}]*display: grid/);
+    expect(styles).toMatch(
+      /\.ss\[data-layout="cards"\] \.ss-m \{[^}]*border-radius: 12px; background: var\(--surface\)/,
+    );
+    expect(styles).toMatch(/\.ss-m\[data-wide\] \{ grid-column: span 2; \}/);
+  });
+});
+
 describe('<ui-stat-strip> breakdown', () => {
   it('wraps a breakdown figure in a card tooltip: title, label · value rows, described-by', () => {
     const el = mount(DATA);
