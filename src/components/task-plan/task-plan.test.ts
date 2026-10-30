@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlanStep } from '../../core/plan';
+import { type PlanStep, planCss } from '../../core/plan';
 import {
   type TaskPlanData,
   type TaskPlanToggle,
@@ -113,6 +113,13 @@ describe('pure helpers', () => {
 });
 
 describe('<ui-task-plan> rendering', () => {
+  it('carries the shared plan look (planCss) before its own styles', () => {
+    const el = mount(BASE);
+    const css = el.shadowRoot?.querySelector('style')?.textContent ?? '';
+    expect(css).toContain(planCss.trim().slice(0, 60));
+    expect(css.indexOf(planCss.trim().slice(0, 60))).toBeLessThan(css.indexOf('.tp {'));
+  });
+
   it('renders nothing without data', () => {
     const el = mount(undefined);
     expect(q(el, '.tp')).toBeNull();
