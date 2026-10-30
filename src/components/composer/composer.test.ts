@@ -814,6 +814,24 @@ describe('<ui-composer> files', () => {
     expect(el.addFiles([{} as File, 'x' as unknown as File])).toEqual([]);
   });
 
+  it('files added later scroll the chip row to its end; files there on first paint start at the first chip', () => {
+    const early = document.createElement('ui-composer');
+    early.addFiles([
+      new File(['a'], 'a.txt', { type: 'text/plain' }),
+      new File(['b'], 'b.txt', { type: 'text/plain' }),
+    ]);
+    document.body.append(early);
+    early.renderNow();
+    const row = early.shadowRoot!.querySelector<HTMLElement>('.cp-files')!;
+    Object.defineProperty(row, 'scrollWidth', { value: 900, configurable: true });
+    expect(row.scrollLeft).toBe(0);
+    early.addFiles([new File(['c'], 'c.txt', { type: 'text/plain' })]);
+    early.renderNow();
+    const after = early.shadowRoot!.querySelector<HTMLElement>('.cp-files')!;
+    expect(after).toBe(row);
+    expect(row.scrollLeft).toBeGreaterThan(0);
+  });
+
   it('removeFile and the remove button send ui-files and revoke the object URL', () => {
     const el = mount();
     const filesEv = events<ComposerFilesDetail>(el, 'ui-files');
