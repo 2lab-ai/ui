@@ -98,9 +98,9 @@ input { letter-spacing: inherit; }
 .cf-md th { background: var(--ib-col); font-weight: 600; }
 
 /* ── Expand regions: the answer row and the choices trade places (0fr → 1fr + fade, inert while closed) ── */
-.cf-x { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
+.cf-x { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .cf-x[data-open] { grid-template-rows: 1fr; }
-.cf-x-in { min-height: 0; overflow: hidden; opacity: 0; visibility: hidden;
+.cf-x-in { min-width: 0; min-height: 0; overflow: hidden; opacity: 0; visibility: hidden;
   transition: opacity var(--dur-expand) var(--ease-out), visibility 0s linear var(--dur-expand); }
 .cf-x[data-open] > .cf-x-in { opacity: 1; visibility: visible; transition: opacity var(--dur-expand) var(--ease-out), visibility 0s; }
 .cf-x[data-open][data-settled] > .cf-x-in { overflow: visible; }
