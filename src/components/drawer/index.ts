@@ -5,6 +5,7 @@ export type {
   DrawerModeChange,
   DrawerResizeDetail,
   DrawerSide,
+  DrawerViewport,
 } from './drawer';
 export {
   clampDrawerWidth,

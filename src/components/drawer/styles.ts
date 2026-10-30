@@ -3,11 +3,13 @@
  * mode is modal (`showModal()`, scrim); dock mode is `show()` with no scrim, and the box lets the pointer through
  * to the page — only the panel takes it. `data-state` drives the slide (the same path and curve both ways),
  * `data-resizing` turns transitions off while the edge is dragged, `data-instant` while the mode switches over.
+ * The box is the visual viewport (`--ui-vv-h` / `--ui-vv-top`, written by the element while open; the layout
+ * viewport when they are not set), so the panel's foot stays above the soft keyboard in both modes.
  */
 export const styles = `
 :host { display: contents; }
 .dr {
-  position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0;
+  position: fixed; inset: var(--ui-vv-top, 0px) 0 auto; width: 100%; height: var(--ui-vv-h, 100%); max-width: none; max-height: none; margin: 0; padding: 0;
   border: 0; background: transparent; overflow: hidden; color: inherit; overscroll-behavior: contain;
 }
 .dr:not([open]) { display: none; }

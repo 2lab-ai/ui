@@ -129,6 +129,13 @@ export const doc: ComponentDoc = {
     { name: 'max-width', type: 'number', default: '960', description: 'Attribute, px.' },
     { name: 'hide-close', type: 'boolean', description: 'Attribute. No close button.' },
     {
+      name: 'viewport',
+      type: "'visual' | 'layout'",
+      default: "'visual'",
+      description:
+        'Attribute. visual: while open the drawer box follows window.visualViewport in both modes, so the panel’s foot (a composer) stays above the iOS soft keyboard. layout: it does not.',
+    },
+    {
       name: 'lang',
       type: "'en' | 'ko'",
       default: "'en'",
@@ -150,6 +157,13 @@ export const doc: ComponentDoc = {
       type: 'CSS length',
       default: '0px',
       description: 'Where a docked panel starts, e.g. under a 56px app bar. Sheets always take the full height.',
+    },
+    {
+      name: '--ui-vv-h / --ui-vv-top',
+      type: 'CSS length',
+      default: '100dvh / 0px',
+      description:
+        'Height and top of the visible area. The element writes them while open (from window.visualViewport); with viewport="layout" a host may set them itself.',
     },
     {
       name: '--ui-drawer-z',
@@ -212,7 +226,7 @@ export const doc: ComponentDoc = {
       id: 'session',
       title: 'Session detail',
       description:
-        'mode="auto" + resizable: docked under the top bar on a wide window (drag or arrow the left edge), a sheet on a narrow one.',
+        'mode="auto" + resizable: docked under the top bar on a wide window (drag or arrow the left edge), a sheet on a narrow one. Either way it ends at the visible bottom, above a soft keyboard.',
       height: 200,
       create: () => {
         const { box, line } = stage();
