@@ -37,6 +37,15 @@ const BRIEF = [
   'copy',
   'refresh',
   'more',
+  // D1 gaps (G1-1): the dashboard's remaining inline glyphs.
+  'pause',
+  'archive',
+  'shield',
+  'camera',
+  'tree',
+  'ban',
+  'dot',
+  'circle-dashed',
 ];
 
 function parse(svg: string): SVGSVGElement {
@@ -87,6 +96,27 @@ describe('icons', () => {
     expect(svg.querySelector('b')).toBeNull();
     const cls = parse(icon('alert', { class: '"><img src=x onerror=alert(1)>' }));
     expect(cls.querySelector('img')).toBeNull();
+  });
+
+  it('play and pause share one hand (same height on the grid) for a toggle', () => {
+    const box = (n: string) => parse(icon(n)).innerHTML;
+    expect(box('play')).toContain('3.25v9.5');
+    expect(box('pause').match(/y="3.25"[^>]*height="9.5"/g)).toHaveLength(2);
+  });
+
+  it('dot is a filled currentColor disc; circle-dashed is eight arcs; ban crosses the ring', () => {
+    const dot = parse(icon('dot')).querySelector('circle');
+    expect(dot?.getAttribute('fill')).toBe('currentColor');
+    const dashed = parse(icon('circle-dashed')).querySelector('path')?.getAttribute('d') ?? '';
+    expect(dashed.match(/M/g)).toHaveLength(8);
+    expect(dashed.match(/a|A/g)).toHaveLength(8);
+    expect(parse(icon('ban')).querySelector('circle')?.getAttribute('r')).toBe('5.75');
+  });
+
+  it('the D1 aliases resolve: branch → tree, circle-slash → ban, shield-check → shield', () => {
+    expect(iconName('branch')).toBe('tree');
+    expect(iconName('circle-slash')).toBe('ban');
+    expect(iconName('shield-check')).toBe('shield');
   });
 
   it('resolves aliases and returns nothing for unknown names', () => {
