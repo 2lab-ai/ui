@@ -19,6 +19,7 @@ import {
   composerCheckFile,
   composerCounterTone,
   composerEnterAction,
+  composerEnterMode,
   composerLevel,
   composerPastedName,
   composerRecorderMime,
@@ -61,6 +62,11 @@ interface Rec {
 
 const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v));
 const isTouch = (): boolean => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+/** ⌘ on Apple keyboards, Ctrl elsewhere (the newline mode's hint). */
+const modKey = (): string =>
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || '')
+    ? '⌘'
+    : 'Ctrl';
 /** Recording needs both getUserMedia and MediaRecorder. */
 export const composerCanRecord = (): boolean =>
   typeof navigator !== 'undefined' &&
@@ -92,7 +98,7 @@ const floorSec = (ms: number): number => Math.floor(Math.max(0, ms) / 1000) * 10
 export class UiComposer extends UiElement<ComposerData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang'];
+    return ['lang', 'enter'];
   }
 
   readonly #live: HTMLElement;
@@ -227,6 +233,11 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#setText('');
     if (hadText) this.notify<ComposerInputDetail>('ui-input', { value: '' });
     if (hadFiles) this.notify<ComposerFilesDetail>('ui-files', { files: [] });
+  }
+
+  /** What a plain Enter does: the `enter` attribute, else `data.enter` (`send` by default). */
+  get enter(): 'send' | 'newline' {
+    return composerEnterMode(this.getAttribute('enter') ?? this.data?.enter);
   }
 
   /** Focus the field. */
@@ -481,7 +492,7 @@ export class UiComposer extends UiElement<ComposerData> {
       return;
     }
     if (!this.#ta || e.target !== this.#ta) return;
-    if (composerEnterAction(e, { touch: isTouch() }) !== 'send') return;
+    if (composerEnterAction(e, { touch: isTouch(), enter: this.enter }) !== 'send') return;
     // Enter never inserts a new line here, even when there is nothing to send (or sending is off).
     e.preventDefault();
     this.#submit();
@@ -956,7 +967,8 @@ export class UiComposer extends UiElement<ComposerData> {
         text ? `<span>${esc(tool.label)}</span>` : ''
       }</button>`;
     }
-    const hint = showHint ? `<span class="cp-hint" id="cp-hint">${esc(t.hint)}</span>` : '';
+    const hintText = this.enter === 'newline' ? t.hintNewline(modKey()) : t.hint;
+    const hint = showHint ? `<span class="cp-hint" id="cp-hint">${esc(hintText)}</span>` : '';
     const count = s.maxLength
       ? `<span class="cp-count" id="cp-count" data-tone="${composerCounterTone(this.value.length, s.maxLength)}">${this.#countText(s)}</span>`
       : '';

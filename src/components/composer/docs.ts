@@ -110,6 +110,8 @@ const NEW_TASK: ComposerData = {
   hint: true,
   submitLabel: 'Start task',
   minRows: 3,
+  // A long instruction: Enter is a new line, ⌘/Ctrl+Enter starts the task.
+  enter: 'newline',
 };
 
 export const doc: ComponentDoc = {
@@ -192,7 +194,15 @@ export const doc: ComponentDoc = {
       name: 'data.hint',
       type: 'boolean',
       default: 'false',
-      description: '“Enter to send · Shift+Enter for a new line” in the toolbar (hidden on touch and narrow cards).',
+      description:
+        '“Enter to send · Shift+Enter for a new line” in the toolbar (hidden on touch and narrow cards); in newline mode “⌘+Enter to send · Enter for a new line” (Ctrl off Apple keyboards).',
+    },
+    {
+      name: 'data.enter · enter',
+      type: "'send' | 'newline'",
+      default: "'send'",
+      description:
+        'What a plain Enter does. send — Enter sends, Shift+Enter is a new line. newline — for long instructions: Enter (and Shift+Enter) is a new line, ⌘/Ctrl+Enter sends. The enter attribute wins over data.enter; el.enter reads the mode in force.',
     },
     {
       name: 'data.minRows / data.maxRows',
@@ -256,7 +266,7 @@ export const doc: ComponentDoc = {
     },
   ],
   keyboard: [
-    ['Enter', 'Send (desktop). Never during an IME composition'],
+    ['Enter', 'Send (desktop); a new line with enter="newline". Never during an IME composition'],
     ['Shift+Enter / Alt+Enter', 'New line'],
     ['⌘/Ctrl+Enter', 'Send (also on touch screens)'],
     ['Enter on a touch screen', 'New line — the send button sends'],
@@ -298,7 +308,7 @@ export const doc: ComponentDoc = {
       id: 'new-task',
       title: 'New task',
       description:
-        'Placeholder, key hint, attach / image / voice and a labelled send. The line below echoes ui-submit — nothing is sent.',
+        'Placeholder, key hint, attach / image / voice and a labelled send. enter: newline — the instruction is long, so Enter is a new line and ⌘/Ctrl+Enter starts the task. The line below echoes ui-submit — nothing is sent.',
       height: 300,
       create: () => {
         const el = make(NEW_TASK);
