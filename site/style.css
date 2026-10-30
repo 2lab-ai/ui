@@ -631,3 +631,109 @@ ul.plain li {
 }
 
 [data-theme='dark'] .brand img { filter: invert(1); }
+
+/* ── foundations: icons ── */
+.ic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+  margin-top: 26px;
+}
+.ic-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 8px 12px;
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  background: var(--s-panel);
+  color: var(--s-text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+.ic-tile span {
+  font-family: "SF Mono", "Fira Code", ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--s-text-2);
+}
+.ic-tile.is-copied {
+  border-color: var(--s-accent);
+}
+.ic-tile.is-copied span {
+  color: var(--s-accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ic-tile:hover {
+    border-color: var(--s-line-2);
+    background: var(--s-chip);
+  }
+}
+.ic-sizes {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  padding: 18px 20px;
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+}
+.ic-size {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.ic-size small {
+  font-size: 11px;
+  color: var(--s-text-3);
+}
+
+/* ── foundations: kit ── */
+.kit-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 12px;
+}
+.kit-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font-size: 14px;
+}
+.kit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.kit-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.kit-col .ui-skeleton {
+  width: 100%;
+}
+.kit-say {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ui-ib-text-2);
+}
+@media (max-width: 900px) {
+  .kit-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
