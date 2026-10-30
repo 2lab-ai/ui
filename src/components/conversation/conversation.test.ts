@@ -328,7 +328,7 @@ describe('<ui-conversation> rendering', () => {
     el.renderNow();
     const bar = q(el, '.cv-errbar') as HTMLElement;
     expect(bar.hidden).toBe(false);
-    expect(bar.textContent).toContain('HTTP 502');
+    expect(bar.textContent).toBe('Couldn’t load some turns (HTTP 502)');
     expect(bar.querySelector('button')).toBeNull();
     el.data = { turns: [USER] };
     el.renderNow();
@@ -672,6 +672,9 @@ describe('<ui-conversation> lang="ko"', () => {
     el.renderNow();
     expect(q(el, '.cv-fail')?.textContent).toContain('대화를 불러오지 못했습니다');
     expect(q(el, '.cv-fail')?.textContent).toContain('다시 시도');
+    el.data = { turns: [USER], error: 'HTTP 500' };
+    el.renderNow();
+    expect(q(el, '.cv-errbar .cv-err-text')?.textContent).toBe('일부 대화를 불러오지 못했습니다 (HTTP 500)');
     el.data = { turns: [] };
     el.renderNow();
     expect(q(el, '[slot="empty"]')?.textContent).toBe('아직 메시지가 없습니다');

@@ -309,7 +309,7 @@ function statesDemo(): HTMLElement {
     canRetry: true,
     summary: { title: 'Incident summary' },
   };
-  const partial = frame(make({ turns: [ask, answer], error: 'Newer turns could not be loaded (HTTP 500)' }, 260));
+  const partial = frame(make({ turns: [ask, answer], error: 'HTTP 500' }, 260));
   partial.addEventListener('ui-retry', (e) => {
     const id = (e as CustomEvent<{ id: string | null }>).detail.id;
     if (id === 'a-1') {
@@ -457,7 +457,7 @@ export const doc: ComponentDoc = {
       type: 'string · boolean',
       default: 'canRetry: true',
       description:
-        'The conversation could not be loaded: the whole box without turns, a bar above them; Try again sends ui-retry with id null.',
+        'Loading failed: “Couldn’t load the conversation (…)” fills the box without turns; “Couldn’t load some turns (…)” is a bar above them. Pass a short reason ("HTTP 502"). Try again sends ui-retry with id null.',
     },
     {
       name: 'data.assistantName',
