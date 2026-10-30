@@ -8,6 +8,7 @@ import {
   appBarLinks,
   appBarMenuItems,
   appBarTarget,
+  appBarToolbarRow,
   type UiAppBar,
 } from './app-bar';
 import { styles } from './styles';
@@ -648,6 +649,156 @@ describe('lang="ko"', () => {
     el.removeAttribute('lang');
     el.renderNow();
     expect(menuOf(el).hasAttribute('lang')).toBe(false);
+  });
+});
+
+describe('D2 gaps: toolbar row, link title, brand heading, status description', () => {
+  it('appBarToolbarRow: never without a toolbar or a measure; below toolbarAt or the width it needed', () => {
+    expect(appBarToolbarRow(0, 1280, 0, true)).toBe(false);
+    expect(appBarToolbarRow(900, 1280, 0, false)).toBe(false);
+    expect(appBarToolbarRow(900, undefined, 0, true)).toBe(false);
+    expect(appBarToolbarRow(900, 1280, 0, true)).toBe(true);
+    expect(appBarToolbarRow(1300, 1280, 0, true)).toBe(false);
+    expect(appBarToolbarRow(900, 0, 1000, true)).toBe(true);
+    expect(appBarToolbarRow(1100, Number.NaN, 1000, true)).toBe(false);
+  });
+
+  it('a link title is the link’s title and, folded, the menu row’s second line (after its count)', () => {
+    const nav = [
+      { id: 'a', label: 'Conversations', title: 'Every past conversation', badge: 3 },
+      { id: 'b', label: 'Settings', title: '  ' },
+    ];
+    const items = appBarMenuItems(nav);
+    expect(items[0].description).toBe('3 · Every past conversation');
+    expect(items[1].description).toBeUndefined();
+    const el = mount({ nav: [{ id: 'a', label: 'Memory', href: '/m', title: `Kept facts ${BREAK}` }] });
+    const a = q(el, 'a.ab-link')!;
+    expect(a.getAttribute('title')).toBe(`Kept facts ${BREAK}`);
+    expect(q(el, 'a.ab-link b')).toBeNull();
+    const plain = mount({ nav: [{ id: 'a', label: 'Memory', href: '/m' }] });
+    expect(q(plain, 'a.ab-link')!.hasAttribute('title')).toBe(false);
+  });
+
+  it('brand.heading draws the brand inside an h1 (the link inside it); without it no heading', () => {
+    const el = mount({ brand: { label: `soma ${XSS}`, href: '/', mark: true, heading: true } });
+    const h1 = q(el, 'h1.ab-heading')!;
+    expect(h1).not.toBeNull();
+    expect(h1.querySelector('a.ab-brand .ab-brand-label')!.textContent).toBe(`soma ${XSS}`);
+    expect(q(el, 'img')).toBeNull();
+    const span = mount({ brand: { label: 'soma', heading: true } });
+    expect(q(span, 'h1.ab-heading > span.ab-brand')).not.toBeNull();
+    expect(q(mount({ brand: { label: 'soma' } }), 'h1')).toBeNull();
+  });
+
+  it('status.description is read before the word and shown as its title', () => {
+    const el = mount({ status: { tone: 'done', label: 'Connected', description: `Live updates ${XSS}` } });
+    const st = q(el, '.ab-status')!;
+    expect(st.textContent).toBe(`Live updates ${XSS}: Connected`);
+    expect(st.getAttribute('title')).toBe(`Live updates ${XSS}: Connected`);
+    expect(q(el, '.ab-status .ab-vh')!.textContent).toBe(`Live updates ${XSS}: `);
+    expect(q(el, 'img')).toBeNull();
+    const plain = mount({ status: { tone: 'done', label: 'Live' } });
+    expect(q(plain, '.ab-status')!.hasAttribute('title')).toBe(false);
+    expect(q(plain, '.ab-vh')).toBeNull();
+  });
+
+  function withToolbar(data: AppBarData = DATA): { el: UiAppBar; tools: HTMLElement } {
+    const el = document.createElement('ui-app-bar');
+    const tools = document.createElement('div');
+    tools.slot = 'toolbar';
+    tools.textContent = 'Model · Effort · All users';
+    const act = document.createElement('button');
+    act.slot = 'actions';
+    act.textContent = 'New task';
+    el.append(tools, act);
+    document.body.append(el);
+    el.data = data;
+    el.renderNow();
+    return { el, tools };
+  }
+  /** The bar overflows by `over` px while the toolbar is inline, and by `rest` once it has left. */
+  function overflow(el: UiAppBar, width: number, over: number, rest = -50): void {
+    const bar = q(el, '.ab-bar')!;
+    Object.defineProperty(bar, 'clientWidth', { get: () => width, configurable: true });
+    Object.defineProperty(bar, 'scrollWidth', {
+      get: () => width + (el.hasAttribute('toolbar-row') ? rest : over),
+      configurable: true,
+    });
+  }
+  const toolbarSlot = (el: UiAppBar) => q(el, 'slot[name="toolbar"]')!;
+
+  it('the toolbar rides in the bar while it fits, before the actions', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const { el } = withToolbar();
+    overflow(el, 1400, -20);
+    FakeRO.fire(el, 1400);
+    expect(el.hasAttribute('toolbar-row')).toBe(false);
+    const slots = qa(el, '.ab-bar slot').map((x) => x.getAttribute('name'));
+    expect(slots.indexOf('toolbar')).toBeLessThan(slots.indexOf('actions'));
+    expect(toolbarSlot(el).closest('.ab-bar')).not.toBeNull();
+  });
+
+  it('overflowing, the toolbar takes the row under the bar first; the links fold only if it still overflows', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const { el, tools } = withToolbar();
+    overflow(el, 1000, 300);
+    FakeRO.fire(el, 1000);
+    expect(el.hasAttribute('toolbar-row')).toBe(true);
+    expect(el.hasAttribute('collapsed')).toBe(false);
+    // The bar draws no toolbar slot now; the row's slot (the first left in tree order) shows the host's node.
+    expect(q(el, '.ab-bar slot[name="toolbar"]')).toBeNull();
+    expect(toolbarSlot(el).closest('.ab-row')).not.toBeNull();
+    expect(tools.parentElement).toBe(el);
+    // Still short of the 1308px it needed with the toolbar inline.
+    overflow(el, 1200, 100);
+    FakeRO.fire(el, 1200);
+    expect(el.hasAttribute('toolbar-row')).toBe(true);
+    overflow(el, 1320, -10);
+    FakeRO.fire(el, 1320);
+    expect(el.hasAttribute('toolbar-row')).toBe(false);
+    // Overflowing even without the toolbar: it leaves, then the links fold.
+    overflow(el, 600, 700, 200);
+    FakeRO.fire(el, 600);
+    expect(el.hasAttribute('toolbar-row')).toBe(true);
+    expect(el.hasAttribute('collapsed')).toBe(true);
+  });
+
+  it('toolbarAt sends the toolbar to its row below a width; no toolbar child, no row', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const { el } = withToolbar({ ...DATA, toolbarAt: 1280 });
+    overflow(el, 1200, -100);
+    FakeRO.fire(el, 1200);
+    expect(el.hasAttribute('toolbar-row')).toBe(true);
+    overflow(el, 1300, -100);
+    FakeRO.fire(el, 1300);
+    expect(el.hasAttribute('toolbar-row')).toBe(false);
+    const bare = mount({ ...DATA, toolbarAt: 1280 });
+    FakeRO.fire(bare, 900);
+    expect(bare.hasAttribute('toolbar-row')).toBe(false);
+    expect(q(bare, '.ab-bar slot[name="toolbar"]')).not.toBeNull();
+  });
+
+  it('the toolbar moving between its slots is not new content: a slotchange keeps the measures', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const { el, tools } = withToolbar();
+    overflow(el, 1000, 300);
+    FakeRO.fire(el, 1000);
+    expect(el.hasAttribute('toolbar-row')).toBe(true);
+    // The move fires slotchange on both slots; neither may forget the 1308px.
+    overflow(el, 1000, 300, -50);
+    for (const s of qa(el, 'slot')) s.dispatchEvent(new Event('slotchange', { bubbles: true }));
+    expect(el.hasAttribute('toolbar-row')).toBe(true);
+    // A real change (a control left the toolbar for the actions) measures again.
+    tools.slot = 'actions';
+    for (const s of qa(el, 'slot')) s.dispatchEvent(new Event('slotchange', { bubbles: true }));
+    expect(el.hasAttribute('toolbar-row')).toBe(false);
+  });
+
+  it('styles: the row is the bar’s surface under a hairline, wraps, and grows the sticky host', () => {
+    expect(styles).toMatch(/:host\(\[toolbar-row\]\) \{ height: auto; \}/);
+    expect(styles).toMatch(/:host\(\[toolbar-row\]\) \.ab-row \{ display: flex; flex-wrap: wrap/);
+    expect(styles).toMatch(/\.ab-row \{[^}]*border-top: 1px solid var\(--border\)/);
+    expect(styles).toMatch(/\.ab-vh, :host\(\[narrow\]\) \.ab-status-label/);
   });
 });
 

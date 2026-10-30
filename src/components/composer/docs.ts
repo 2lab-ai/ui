@@ -110,6 +110,8 @@ const NEW_TASK: ComposerData = {
   hint: true,
   submitLabel: 'Start task',
   minRows: 3,
+  // A long instruction: Enter is a new line, ⌘/Ctrl+Enter starts the task.
+  enter: 'newline',
 };
 
 export const doc: ComponentDoc = {
@@ -164,11 +166,36 @@ export const doc: ComponentDoc = {
     { name: 'data.maxFiles', type: 'number', default: '10', description: 'Attachments at most (a voice note counts).' },
     { name: 'data.maxFileSize', type: 'number', default: '26214400 (25 MB)', description: 'Bytes per file.' },
     {
+      name: 'data.maxTotalBytes',
+      type: 'number',
+      description:
+        'Bytes all attachments may take together (your server’s request cap, a voice note included). A file that would cross it sends the cancelable ui-over-cap; unless you prevent it, the file is rejected (ui-reject, reason total) and the error line says “Too large together (max 30 MB in all)”. Default: no cap.',
+    },
+    {
       name: 'data.attach / data.image / data.voice',
       type: 'boolean',
       default: 'true',
       description:
         'Built-in tools: file picker, image picker (`accept="image/*"`), voice recorder. Voice is hidden where getUserMedia or MediaRecorder is missing.',
+    },
+    {
+      name: 'data.camera',
+      type: "boolean | 'environment' | 'user'",
+      default: 'false',
+      description:
+        'A camera tool on touch screens: takes a photo with the back camera (true / environment) or the front one (user) through capture, and attaches it like the image tool. Hidden on fine pointers, where the image picker covers it.',
+    },
+    {
+      name: 'data.progress',
+      type: 'number (0–1)',
+      description:
+        'Upload progress while you send (with busy): a thin ink line above the toolbar, role="progressbar" named “Uploading”. Leave it unset when nothing is uploading.',
+    },
+    {
+      name: 'fill',
+      type: 'boolean attribute',
+      description:
+        'The card takes the composer’s height — give the host one (flex: 1 in a phone sheet): the field grows into it and the toolbar sits at the bottom; maxRows no longer caps the field.',
     },
     {
       name: 'data.maxRecordMs',
@@ -192,7 +219,15 @@ export const doc: ComponentDoc = {
       name: 'data.hint',
       type: 'boolean',
       default: 'false',
-      description: '“Enter to send · Shift+Enter for a new line” in the toolbar (hidden on touch and narrow cards).',
+      description:
+        '“Enter to send · Shift+Enter for a new line” in the toolbar (hidden on touch and narrow cards); in newline mode “⌘+Enter to send · Enter for a new line” (Ctrl off Apple keyboards).',
+    },
+    {
+      name: 'data.enter · enter',
+      type: "'send' | 'newline'",
+      default: "'send'",
+      description:
+        'What a plain Enter does. send — Enter sends, Shift+Enter is a new line. newline — for long instructions: Enter (and Shift+Enter) is a new line, ⌘/Ctrl+Enter sends. The enter attribute wins over data.enter; el.enter reads the mode in force.',
     },
     {
       name: 'data.minRows / data.maxRows',
@@ -211,6 +246,12 @@ export const doc: ComponentDoc = {
       type: 'methods',
       description:
         'Attach files (checked against the limits; returns the ones taken), remove one (its object URL is revoked), empty everything (text, files, error, a recording), focus the field.',
+    },
+    {
+      name: 'pause() / cancelRecording()',
+      type: 'methods',
+      description:
+        'Stop a voice note’s preview (no event) — done for you when the composer is disabled, hidden (a closed sheet, display: none) or removed. Discard a recording in progress or a pending microphone prompt (ui-record cancel) while the text and files stay — call both when your sheet closes.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
@@ -239,8 +280,14 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-reject',
-      detail: "{ name: string; reason: 'count' | 'size' | 'type' | 'empty'; file: File }",
+      detail: "{ name: string; reason: 'count' | 'size' | 'type' | 'empty' | 'total'; file: File }",
       description: 'One per file that was not attached; the error line says why (role="alert").',
+    },
+    {
+      name: 'ui-over-cap',
+      detail: '{ name: string; file: File; size: number; total: number; max: number }',
+      description:
+        'This file would take the attachments past maxTotalBytes (total = bytes already attached, this batch’s earlier files included). Cancelable: preventDefault() takes it anyway — you will compress it, or upload it apart. Otherwise it is rejected with reason total.',
     },
     {
       name: 'ui-record',
@@ -256,7 +303,7 @@ export const doc: ComponentDoc = {
     },
   ],
   keyboard: [
-    ['Enter', 'Send (desktop). Never during an IME composition'],
+    ['Enter', 'Send (desktop); a new line with enter="newline". Never during an IME composition'],
     ['Shift+Enter / Alt+Enter', 'New line'],
     ['⌘/Ctrl+Enter', 'Send (also on touch screens)'],
     ['Enter on a touch screen', 'New line — the send button sends'],
@@ -269,7 +316,8 @@ export const doc: ComponentDoc = {
     'The error line is role="alert"; attaching and removing files is announced in a polite status region that the patched markup never re-creates.',
     'Send uses aria-disabled (it stays in the tab order) and aria-busy while busy; host toggles use aria-pressed.',
     'Recording moves focus to Done; the recorder row is a group named “Recording” with a role="timer" clock; ending it returns focus to the field.',
-    'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom.',
+    'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom. The camera tool (data.camera) shows only there.',
+    'Upload progress (data.progress) is a role="progressbar" named “Uploading” with aria-valuenow in percent.',
     'Reduced motion: chip, error and recorder enters switch at once; the drop wash keeps a short fade; the send spinner keeps turning.',
   ],
   usage: `<ui-composer></ui-composer>
@@ -298,7 +346,7 @@ export const doc: ComponentDoc = {
       id: 'new-task',
       title: 'New task',
       description:
-        'Placeholder, key hint, attach / image / voice and a labelled send. The line below echoes ui-submit — nothing is sent.',
+        'Placeholder, key hint, attach / image / voice and a labelled send. enter: newline — the instruction is long, so Enter is a new line and ⌘/Ctrl+Enter starts the task. The line below echoes ui-submit — nothing is sent.',
       height: 300,
       create: () => {
         const el = make(NEW_TASK);
@@ -324,11 +372,12 @@ export const doc: ComponentDoc = {
     {
       id: 'busy-disabled',
       title: 'Busy & disabled',
-      description: 'busy: the send spins and the text stays editable. disabled with a reason: read-only.',
+      description:
+        'busy with progress: 0.64 — the send spins, a thin line shows the upload, the text stays editable. disabled with a reason: read-only.',
       height: 340,
       create: () =>
         frame(
-          make({ value: 'Draft the migration plan for the billing tables.', busy: true, minRows: 1 }),
+          make({ value: 'Draft the migration plan for the billing tables.', busy: true, progress: 0.64, minRows: 1 }),
           make({
             value: 'Rerun the nightly import with the new mapping.',
             disabled: 'This conversation has ended — start a new one to continue.',
@@ -368,10 +417,16 @@ export const doc: ComponentDoc = {
       id: 'limits',
       title: 'Limits',
       description:
-        'accept="image/*,.pdf", at most 3 files of 2 MB. Drop something else, or a fourth file, to see ui-reject and the error line.',
+        'accept="image/*,.pdf", at most 3 files of 2 MB, 3 MB together (maxTotalBytes). Drop something else, a fourth file, or two big ones, to see ui-over-cap, ui-reject and the error line.',
       height: 280,
       create: () => {
-        const el = make({ accept: 'image/*,.pdf', maxFiles: 3, maxFileSize: 2 * 1024 * 1024, voice: false });
+        const el = make({
+          accept: 'image/*,.pdf',
+          maxFiles: 3,
+          maxFileSize: 2 * 1024 * 1024,
+          maxTotalBytes: 3 * 1024 * 1024,
+          voice: false,
+        });
         const line = statusLine();
         el.addEventListener('ui-reject', (e) => {
           const { name, reason } = (e as CustomEvent<ComposerRejectDetail>).detail;

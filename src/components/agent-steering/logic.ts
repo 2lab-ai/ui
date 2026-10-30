@@ -57,6 +57,11 @@ export interface SteeringSubmitDetail {
   mode: SteerMode;
   /** The row this note shows as until the host's list has it — pass it to `setItemState(ref, 'failed', why)`. */
   ref: string;
+  /**
+   * With a `<ui-composer slot="composer">`: the files attached to this note (the composer's File objects). A Retry
+   * sends the same `ref` without them — keep them by ref until the note is in your list.
+   */
+  files?: File[];
 }
 export interface SteeringItemDetail {
   id: string;

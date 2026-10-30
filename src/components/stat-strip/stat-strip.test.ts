@@ -364,6 +364,90 @@ describe('<ui-stat-strip> rolling figures', () => {
     expect(frames.size).toBe(0);
   });
 
+  it("from: 'last' keeps a figure's value under its loading bar and rolls the answer from it", () => {
+    const M = (value: number | null, extra: object = {}) => ({
+      metrics: [{ key: 's', label: 'Sessions', value, from: 'last' as const, ...extra }],
+    });
+    const el = mount(M(100));
+    el.data = { ...M(100), loading: true };
+    el.renderNow();
+    expect(metric(el, 's').querySelector('.ss-sk')).not.toBeNull();
+    expect(frames.size).toBe(0);
+    el.data = M(500);
+    el.renderNow();
+    // The answer is read at once; the figure starts from what it showed before the bar.
+    expect(metric(el, 's').querySelector('.sr-only')?.textContent).toBe('500');
+    expect(fig(el, 's').textContent).toBe('100');
+    expect(frames.size).toBe(1);
+    frame(0);
+    frame(STAT_ROLL_MS / 2);
+    expect(fig(el, 's').textContent).toBe(String(Math.round(rollValue(100, 500, 0.5))));
+    frame(STAT_ROLL_MS);
+    expect(fig(el, 's').textContent).toBe('500');
+    // A metric's own loading flag keeps it too; a load started mid-roll keeps the value on screen.
+    el.data = M(900);
+    el.renderNow();
+    frame(1000);
+    frame(1000 + STAT_ROLL_MS / 2);
+    const mid = fig(el, 's').textContent;
+    el.data = M(900, { loading: true });
+    el.renderNow();
+    el.data = M(1200);
+    el.renderNow();
+    expect(fig(el, 's').textContent).toBe(mid);
+    frame(3000);
+    frame(3000 + STAT_ROLL_MS);
+    expect(fig(el, 's').textContent).toBe('1,200');
+    // No data forgets it: the next value appears at once.
+    el.data = M(null);
+    el.renderNow();
+    el.data = { ...M(null), loading: true };
+    el.renderNow();
+    el.data = M(70);
+    el.renderNow();
+    expect(fig(el, 's').textContent).toBe('70');
+    expect(frames.size).toBe(0);
+  });
+
+  it('from: a number rolls a figure with nothing on screen (first paint too); jumps without it', () => {
+    const el = mount({ metrics: [{ key: 's', label: 'Cost', value: 38.2, format: 'usd', from: 12.5 }] });
+    expect(fig(el, 's').textContent).toBe(fmtMetric(12.5, 'usd'));
+    expect(frames.size).toBe(1);
+    frame(0);
+    frame(STAT_ROLL_MS);
+    expect(fig(el, 's').textContent).toBe(fmtMetric(38.2, 'usd'));
+    // A figure already on screen rolls on from its own value, never from `from`.
+    el.data = { metrics: [{ key: 's', label: 'Cost', value: 40, format: 'usd', from: 0 }] };
+    el.renderNow();
+    expect(fig(el, 's').textContent).toBe(fmtMetric(38.2, 'usd'));
+    frame(2000);
+    frame(2000 + STAT_ROLL_MS);
+    // Without from, a value after loading still appears at once (unchanged default).
+    el.data = { loading: true, metrics: [{ key: 's', label: 'Cost', value: 40, format: 'usd' }] };
+    el.renderNow();
+    el.data = { metrics: [{ key: 's', label: 'Cost', value: 90, format: 'usd' }] };
+    el.renderNow();
+    expect(fig(el, 's').textContent).toBe(fmtMetric(90, 'usd'));
+    expect(frames.size).toBe(0);
+  });
+
+  it('from jumps under reduced motion, on a change of format, and when it equals the value', () => {
+    reduce = true;
+    const a = mount({ metrics: [{ key: 's', label: 'S', value: 10, from: 2 }] });
+    expect(fig(a, 's').textContent).toBe('10');
+    reduce = false;
+    const b = mount({ metrics: [{ key: 's', label: 'S', value: 10, from: 10 }] });
+    expect(fig(b, 's').textContent).toBe('10');
+    expect(frames.size).toBe(0);
+    const c = mount({ metrics: [{ key: 's', label: 'S', value: 100, from: 'last' }] });
+    c.data = { loading: true, metrics: [{ key: 's', label: 'S', value: 100, from: 'last' }] };
+    c.renderNow();
+    c.data = { metrics: [{ key: 's', label: 'S', value: 1_500_000, format: 'tokens', from: 'last' }] };
+    c.renderNow();
+    expect(fig(c, 's').textContent).toBe('1.5M');
+    expect(frames.size).toBe(0);
+  });
+
   it('cancels the frame on disconnect and lands on the target when reattached', () => {
     const el = mount({ metrics: [{ key: 's', label: 'Sessions', value: 100 }] });
     el.data = { metrics: [{ key: 's', label: 'Sessions', value: 200 }] };
@@ -376,6 +460,84 @@ describe('<ui-stat-strip> rolling figures', () => {
     el.renderNow();
     expect(fig(el, 's').textContent).toBe('200');
     expect(frames.size).toBe(0);
+  });
+});
+
+describe('<ui-stat-strip> cards layout (D2 G3-1)', () => {
+  const CARDS: StatStripData = {
+    layout: 'cards',
+    label: 'Details',
+    metrics: [
+      { key: 'turns', label: 'Turns', value: 1942 },
+      { key: 'prs', label: 'PRs opened', value: 31 },
+      { key: 'lines', label: 'Merged code', slot: 'lines' },
+      { key: 'wf', label: 'Workflows', slot: 'wf', wide: true },
+    ],
+  };
+  const free = (slot: string, html: string) => {
+    const s = document.createElement('span');
+    s.slot = slot;
+    s.innerHTML = html;
+    return s;
+  };
+
+  it('draws a grid of tiles: label above a figure; line layout is the default', () => {
+    const el = mount(CARDS);
+    expect(q(el, '.ss')!.dataset.layout).toBe('cards');
+    expect(qa(el, 'dl.ss-nums > .ss-m').length).toBe(4);
+    expect(fig(el, 'turns').textContent).toBe('1,942');
+    expect(metric(el, 'wf').hasAttribute('data-wide')).toBe(true);
+    expect(metric(el, 'turns').hasAttribute('data-wide')).toBe(false);
+    expect(q(mount(DATA), '.ss')!.hasAttribute('data-layout')).toBe(false);
+  });
+
+  it('a slot figure draws the host’s markup in the figure’s place: no roll, no breakdown; loading shows the bar', () => {
+    const el = document.createElement('ui-stat-strip') as UiStatStrip;
+    el.append(free('lines', '<b>+1,204</b> / <b>−318</b>'));
+    document.body.append(el);
+    el.data = {
+      ...CARDS,
+      metrics: CARDS.metrics.map((m) =>
+        m.key === 'lines' ? { ...m, value: 5, breakdown: { title: 'x', rows: [{ label: 'a', value: 1 }] } } : m,
+      ),
+    };
+    el.renderNow();
+    const slot = metric(el, 'lines').querySelector('slot')!;
+    expect(slot.getAttribute('name')).toBe('lines');
+    expect(metric(el, 'lines').querySelector('ui-tooltip, button')).toBeNull();
+    // An empty slot falls back to the no-data dash.
+    expect(metric(el, 'wf').querySelector('slot .ss-fig.is-none')!.textContent).toBe('—');
+    el.data = { ...CARDS, loading: true };
+    el.renderNow();
+    expect(metric(el, 'lines').querySelector('slot')).toBeNull();
+    expect(metric(el, 'lines').querySelector('.ss-sk')).not.toBeNull();
+    expect(frames.size).toBe(0);
+  });
+
+  it('escapes the slot name', () => {
+    const el = mount({ layout: 'cards', metrics: [{ key: 'x', label: 'X', slot: BREAK }] });
+    expect(metric(el, 'x').querySelector('slot')!.getAttribute('name')).toBe(BREAK);
+    expect(q(el, 'b')).toBeNull();
+  });
+
+  it('cards roll, load and keep from: like the line', () => {
+    const el = mount({ layout: 'cards', metrics: [{ key: 's', label: 'S', value: 10, from: 'last' }] });
+    el.data = { layout: 'cards', loading: true, metrics: [{ key: 's', label: 'S', value: 10, from: 'last' }] };
+    el.renderNow();
+    el.data = { layout: 'cards', metrics: [{ key: 's', label: 'S', value: 90, from: 'last' }] };
+    el.renderNow();
+    expect(fig(el, 's').textContent).toBe('10');
+    frame(0);
+    frame(STAT_ROLL_MS);
+    expect(fig(el, 's').textContent).toBe('90');
+  });
+
+  it('styles: tiles on tokens, a wide card spans two columns, smaller below 480px', () => {
+    expect(styles).toMatch(/\.ss\[data-layout="cards"\] \.ss-nums \{[^}]*display: grid/);
+    expect(styles).toMatch(
+      /\.ss\[data-layout="cards"\] \.ss-m \{[^}]*border-radius: 12px; background: var\(--surface\)/,
+    );
+    expect(styles).toMatch(/\.ss-m\[data-wide\] \{ grid-column: span 2; \}/);
   });
 });
 
@@ -605,6 +767,10 @@ describe('<ui-stat-strip> lang="ko"', () => {
 });
 
 describe('styles', () => {
+  it('a 44px More on phone-width windows as well as coarse pointers', () => {
+    expect(styles).toMatch(/@media \(max-width: 639px\) \{\s*\.ss-more \{ min-height: 44px; \}/);
+  });
+
   it('tokens only, calm motion recipes, coarse-pointer targets', () => {
     expect(styles).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
     expect(styles).toContain('animation: ss-pulse 1.6s ease-in-out infinite');

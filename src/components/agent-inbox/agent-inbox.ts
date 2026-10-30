@@ -1,5 +1,5 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
-import { fmtAgo, fmtDuration, fmtInt, fmtUsd } from '../../core/format';
+import { fmtAgo, fmtDuration, fmtDurationKo, fmtInt, fmtUsd } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import { styles } from './styles';
 
@@ -245,7 +245,7 @@ const STRINGS = {
     announce: (w: number, r: number) => `응답이 필요한 세션 ${w}개, 실행 중 ${r}개`,
     changed: (title: string, word: string) => `${title}: ${word}.`,
     ago: agoKo as (at: number, now?: number) => string,
-    duration: (ms: number) => fmtDuration(ms),
+    duration: (ms: number) => fmtDurationKo(ms),
     artOpen: (name: string, _kind: ArtifactKind) => `${name} — 크게 보기`,
   },
 };

@@ -24,6 +24,29 @@ export const styles = `
 }
 @keyframes ss-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
+/* A free-form figure (slot): the host's markup in the figure's place. */
+.ss-free { display: inline-flex; min-width: 0; white-space: normal; }
+/* The slotted element lays its parts out with room between them (page CSS overrides it). */
+.ss-free ::slotted(*) { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+
+/* ── layout: 'cards' — a grid of tiles, label above a large figure (no line, no separators) ── */
+.ss[data-layout="cards"] .ss-nums {
+  display: grid; flex: 1 1 100%; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px;
+  align-items: stretch;
+}
+.ss[data-layout="cards"] .ss-m {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 16px; white-space: normal;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--ib-shadow);
+  transition: border-color 150ms ease;
+}
+.ss[data-layout="cards"] .ss-m[data-wide] { grid-column: span 2; }
+.ss[data-layout="cards"] .ss-label { line-height: 16px; }
+.ss[data-layout="cards"] :is(.ss-val, .ss-tip, .ss-fig-btn) {
+  min-height: 28px; font-size: 22px; line-height: 28px; letter-spacing: -0.02em;
+}
+.ss[data-layout="cards"] .ss-free { font-size: 15px; line-height: 22px; letter-spacing: -0.01em; }
+.ss[data-layout="cards"] .ss-sk { width: 64px; height: 22px; border-radius: 6px; }
+
 /* The figure as the trigger of its breakdown: same type as a plain figure, a dotted underline says there is more. */
 .ss-tip { font-size: 16px; font-weight: 600; line-height: 22px; letter-spacing: -0.01em; color: var(--text); vertical-align: baseline; }
 .ss-fig-btn {
@@ -76,6 +99,18 @@ export const styles = `
 @container ss (max-width: 479px) {
   .ss-row[data-period] .ss-period { flex-basis: 100%; }
   .ss-row[data-period] .ss-nums { flex: 1 1 0; }
+  .ss[data-layout="cards"] .ss-nums { gap: 6px; }
+  .ss[data-layout="cards"] .ss-m { padding: 8px 12px; }
+  .ss[data-layout="cards"] :is(.ss-val, .ss-tip, .ss-fig-btn) { font-size: 18px; line-height: 24px; min-height: 24px; }
+  .ss[data-layout="cards"] .ss-label { font-size: 11.5px; }
+}
+/* One column left (two need 2 × 140 + 8): a wide card is one column too. */
+@container ss (max-width: 287px) {
+  .ss[data-layout="cards"] .ss-m[data-wide] { grid-column: auto; }
+}
+/* A 44px More on touch and on phone-width windows. */
+@media (max-width: 639px) {
+  .ss-more { min-height: 44px; }
 }
 @media (pointer: coarse) {
   .ss-more { min-height: 44px; }

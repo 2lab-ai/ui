@@ -1,6 +1,6 @@
-export type { FileOpenDetail } from './file-card';
+export type { FileOpenDetail, FilePlayDetail } from './file-card';
 export { UiFileCard } from './file-card';
-export type { FileCardOptions, FileCardVariant, FileItem } from './render';
+export type { FileAction, FileCardOptions, FileCardVariant, FileItem } from './render';
 export {
   FILE_STRINGS,
   FILE_TINTS,
@@ -10,8 +10,10 @@ export {
   fileCardVariant,
   fileDisplayName,
   fileItemKind,
+  fileItemKindLabel,
   fileKindLabel,
   fileMeta,
+  filePlaySrc,
   fileThumbSrc,
 } from './render';
 export { fileCardStyles, fileKindCss } from './styles';
