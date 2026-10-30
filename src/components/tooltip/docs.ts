@@ -200,7 +200,7 @@ export const doc: ComponentDoc = {
     },
     {
       id: 'touch',
-      title: 'Tap on touch · chart values',
+      title: 'Tap on touch',
       description:
         'touch="tap" on each bar: on a phone a tap shows the value and a tap elsewhere hides it; with a mouse it is the usual hover tooltip. Try it in a touch emulator.',
       height: 220,
