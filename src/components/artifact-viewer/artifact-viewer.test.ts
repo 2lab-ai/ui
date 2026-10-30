@@ -119,8 +119,14 @@ afterEach(() => {
 });
 
 describe('helpers', () => {
-  it('artifactLayout keeps the four layouts and falls back to strip', () => {
-    expect(['strip', 'grid', 'chips', 'list'].map(artifactLayout)).toEqual(['strip', 'grid', 'chips', 'list']);
+  it('artifactLayout keeps the five layouts and falls back to strip', () => {
+    expect(['strip', 'grid', 'chips', 'list', 'none'].map(artifactLayout)).toEqual([
+      'strip',
+      'grid',
+      'chips',
+      'list',
+      'none',
+    ]);
     expect(artifactLayout(undefined)).toBe('strip');
     expect(artifactLayout('carousel')).toBe('strip');
     expect(artifactLayout(3)).toBe('strip');
@@ -699,6 +705,86 @@ describe('viewer', () => {
     expect(el.index).toBe(-1);
     expect(dialog(el).open).toBe(false);
     expect(native(el).open).toBe(false);
+  });
+});
+
+describe('dialog only (D2 G4-1)', () => {
+  /** The host's own tiles: plain buttons in the page. */
+  function hostTiles(n: number): HTMLButtonElement[] {
+    return Array.from({ length: n }, (_, i) => {
+      const b = document.createElement('button');
+      b.textContent = `tile ${i}`;
+      document.body.append(b);
+      return b;
+    });
+  }
+
+  it('layout none / tiles="none" draws no tiles, no title and no empty line', () => {
+    for (const el of [
+      mount({ items: files(), layout: 'none', title: 'Files' }),
+      mount({ items: files(), title: 'Files' }, { tiles: 'none' }),
+      mount({ items: [], layout: 'none', title: 'Files' }),
+    ]) {
+      expect(q(el, '.ui-root')!.innerHTML).toBe('');
+      expect(q(el, 'ui-dialog')).not.toBeNull();
+    }
+  });
+
+  it('open(items, index, opener) pages through the host list with steps, badge and actions; focus returns to the opener', () => {
+    const el = mount({ items: [], layout: 'none' }, { lang: 'ko' });
+    const [a, b] = hostTiles(2);
+    b.focus();
+    const views = record<ArtifactViewDetail>(el, 'ui-view');
+    const opens = record(el, 'ui-open');
+    el.open(files(), 3, a);
+    // Focus moved into the dialog (the viewer's shadow), not left on the tile pressed last.
+    expect(document.activeElement).toBe(el);
+    expect(dialog(el).open).toBe(true);
+    expect(el.index).toBe(3);
+    expect(el.data?.items).toHaveLength(7);
+    expect(q(el, '.av-pos [aria-hidden]')!.textContent).toBe('4 / 7');
+    expect(q(el, '.av-badge')!.textContent).toBe('코드');
+    expect(q(el, '.av-vf a.av-act[data-act="download"]')).not.toBeNull();
+    navBtn(el, 'next').click();
+    expect(el.index).toBe(4);
+    expect(views.map((v) => v.id)).toEqual(['code', 'memo']);
+    expect(opens).toEqual([]);
+    key(q(el, '.av-stage')!, 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(dialog(el).open).toBe(false);
+    expect(document.activeElement).toBe(a);
+    expect(q(el, '.ui-root')!.innerHTML).toBe('');
+  });
+
+  it('a new list while open replaces the shown file even at the same index; an old data.index never reopens', () => {
+    const el = mount({ items: files(), layout: 'none', index: 0 });
+    expect(el.index).toBe(0);
+    const views = record<ArtifactViewDetail>(el, 'ui-view');
+    const other: FileItem[] = [
+      { id: 'x', name: 'x.md', text: '# x' },
+      { id: 'y', name: 'y.txt', text: 'y' },
+    ];
+    el.open(other, 0);
+    expect(views.map((v) => v.id)).toEqual(['x']);
+    expect(q(el, '.av-vname')!.textContent).toBe('x.md');
+    el.renderNow();
+    expect(el.index).toBe(0);
+    expect(views).toHaveLength(1);
+    expect('index' in (el.data ?? {})).toBe(false);
+    el.close();
+    el.renderNow();
+    expect(el.index).toBe(-1);
+    // open(index) still opens over the current list.
+    el.open(1);
+    expect(q(el, '.av-vname')!.textContent).toBe('y.txt');
+  });
+
+  it('open(items) on a strip viewer swaps its tiles to the list', () => {
+    const el = mount({ items: files().slice(0, 2), title: 'Files' });
+    el.open(files(), 6);
+    el.renderNow();
+    expect(tiles(el)).toHaveLength(7);
+    expect(el.index).toBe(6);
   });
 });
 

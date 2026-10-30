@@ -1,5 +1,7 @@
 import type { ComponentDoc } from '../../docs/types';
 import { demoFiles, demoPhoto } from '../file-card/demo';
+import '../file-card/file-card';
+import type { FileOpenDetail, UiFileCard } from '../file-card/file-card';
 import type { FileItem } from '../file-card/render';
 import './artifact-viewer';
 import type {
@@ -10,6 +12,48 @@ import type {
   ArtifactViewerData,
   UiArtifactViewer,
 } from './artifact-viewer';
+
+/**
+ * One viewer over the page's own cards: two groups of <ui-file-card> (an answer's chips, the attachments' tiles)
+ * and a <ui-artifact-viewer tiles="none"> that pages through all of them, whichever card opened it.
+ */
+function overHost(): HTMLElement {
+  const all = demoFiles();
+  const viewer = make({ items: [] }, { tiles: 'none' });
+  const group = (title: string, items: FileItem[], variant: 'chip' | 'tile') => {
+    const box = document.createElement('section');
+    box.style.cssText = 'display:flex;flex-direction:column;gap:8px;min-width:0';
+    const h = document.createElement('h4');
+    h.textContent = title;
+    h.style.cssText = 'margin:0;font-size:12px;font-weight:500;color:var(--ui-text-tertiary)';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+    for (const it of items) {
+      const card = document.createElement('ui-file-card') as UiFileCard;
+      card.setAttribute('variant', variant);
+      card.data = it;
+      row.append(card);
+    }
+    box.append(h, row);
+    return box;
+  };
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:16px;width:100%;min-width:0';
+  wrap.append(group('In this answer', all.slice(0, 3), 'chip'), group('Attachments', all.slice(3), 'tile'));
+  wrap.addEventListener('ui-open', (e) => {
+    const card = e.target as UiFileCard;
+    if (card.tagName !== 'UI-FILE-CARD') return;
+    const { id } = (e as CustomEvent<FileOpenDetail>).detail;
+    viewer.open(
+      all,
+      all.findIndex((f) => String(f.id) === id),
+      card,
+    );
+  });
+  const { box } = stage(viewer);
+  box.prepend(wrap);
+  return box;
+}
 
 function make(data: ArtifactViewerData, attrs: Record<string, string> = {}): UiArtifactViewer {
   const el = document.createElement('ui-artifact-viewer');
@@ -186,10 +230,16 @@ export const doc: ComponentDoc = {
     { name: 'data.items[].downloadName', type: 'string', description: 'File name for Download. Default: name.' },
     {
       name: 'data.layout',
-      type: "'strip' | 'grid' | 'chips' | 'list'",
+      type: "'strip' | 'grid' | 'chips' | 'list' | 'none'",
       default: "'strip'",
       description:
-        'strip — one scrolling row with snap and edge fades · grid — tiles of at least 132px · chips — wrapping name pills · list — rows with size and age.',
+        'strip — one scrolling row with snap and edge fades · grid — tiles of at least 132px · chips — wrapping name pills · list — rows with size and age · none — no tiles, no title: only the viewer, opened over your own cards with open(items, index, opener).',
+    },
+    {
+      name: 'tiles',
+      type: "'none'",
+      description:
+        'Attribute: tiles="none" is layout none — the element draws nothing in the page; its viewer opens over the host’s cards.',
     },
     {
       name: 'data.title',
@@ -228,6 +278,12 @@ export const doc: ComponentDoc = {
       type: 'methods',
       description:
         'Open at a file, step (held at the ends), close with the exit motion. They send ui-view for the shown file, never ui-open or ui-close.',
+    },
+    {
+      name: 'open(items, index?, opener?)',
+      type: 'method',
+      description:
+        'Open over a list of your own — every file of a conversation, an instruction’s attachments — at index (default 0). The list becomes data.items (the rest of the data stays; an old data.index never reopens); Previous / Next, the kind badge and Open / Download page through it. opener (your card or button) takes focus back on close. Called while open, it swaps the list and shows index.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
@@ -366,6 +422,14 @@ export const doc: ComponentDoc = {
         box.prepend(open);
         return box;
       },
+    },
+    {
+      id: 'over-host',
+      title: 'Over your own cards',
+      description:
+        'tiles="none": the element draws no tiles. The page’s own cards — an answer’s chips, the attachments’ tiles — open one viewer with open(items, index, opener), which pages through every file on the page; Esc returns focus to the card that opened it.',
+      height: 360,
+      create: () => overHost(),
     },
     {
       id: 'host-preview',
