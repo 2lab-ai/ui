@@ -548,7 +548,7 @@ export const doc: ComponentDoc = {
   slug: 'settings-nav',
   name: 'Settings nav',
   tag: 'ui-settings-nav',
-  group: 'Components',
+  group: 'Pages',
   summary: 'Where am I on the settings page, where is the one I want, and what did I change?',
   description:
     'The side nav of a settings page: one link per section (a quiet count while filtering, an ink dot when something in it differs from its default), a search box and Modified only, and a notice slot above them for a page-wide message. The current section follows the scroll; a link scrolls its section into view (smooth unless reduced motion) without touching the URL. The nav does not filter the page itself — it sends ui-filter and the host hides rows with applySettingsFilter, then sends back the counts and empty. From an 840px viewport it is a column; below that a filter row over a sideways-scrolling row of chips (layout="auto", or force side / top).',

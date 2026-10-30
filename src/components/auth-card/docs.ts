@@ -66,7 +66,7 @@ export const doc: ComponentDoc = {
     'A centred card for the pages around an app. Signed out, it lists the sign-in providers as full-width buttons, with another way in under an “or” divider. Signed in, it shows the account first — Continue is the one ink button, Sign out stays quiet — and the providers follow under “Use a different account”. The confirm variant names the session that ends and the one that starts, and posts a real form. Provider buttons are real links and the form a real form, and `authCardHtml(data)` renders the card on the server as a declarative shadow root, so the page works before (and without) the script; the element takes over in place from the JSON it carries. After a press the chosen button reads “Redirecting…” and the others step back, so a second press cannot start a second sign-in; coming back through the back button frees the card.',
   usedIn: 'soma-work sign-in page (/login) and the SSO session-switch confirm page (M-09, M-10).',
   reference: { name: 'Sign-in card', url: 'https://www.affectui.com' },
-  group: 'Components',
+  group: 'Pages',
   props: [
     {
       name: 'data.brand',

@@ -38,6 +38,12 @@ const COMPONENTS = [
   'deck-nav',
   'conversation',
   'work-log',
+  'setting-row',
+  'settings-nav',
+  'knowledge-pages',
+  'episode-log',
+  'auth-card',
+  'elapsed',
 ];
 /** Non-element entries: the icon set and the CSS kit (as a string; copy-assets also writes dist/ui-kit.css). */
 const MODULES = ['icons', 'kit'];
