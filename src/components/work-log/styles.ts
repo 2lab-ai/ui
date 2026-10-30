@@ -40,7 +40,7 @@ export const styles = `
   font-size: 11px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums;
 }
 .wl-g-time { flex: none; color: var(--ib-muted); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.wl-g-region { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
+.wl-g-region { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .wl-group[data-open] .wl-g-region { grid-template-rows: 1fr; }
 .wl-g-inner {
   min-height: 0; overflow: hidden; opacity: 0; visibility: hidden;

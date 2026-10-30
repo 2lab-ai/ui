@@ -88,7 +88,7 @@ export const styles = `
 }
 .cv-chev { flex: none; width: 12px; height: 12px; color: var(--ib-muted); transition: transform var(--dur-press) var(--ease-out); }
 .cv-dbox[data-open] > .cv-disc .cv-chev, .cv-dbox[data-open] > .cv-sys .cv-chev { transform: rotate(90deg); }
-.cv-region { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
+.cv-region { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .cv-dbox[data-open] > .cv-region { grid-template-rows: 1fr; }
 .cv-region-in {
   min-height: 0; overflow: hidden; opacity: 0; visibility: hidden;

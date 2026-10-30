@@ -23,7 +23,7 @@ export const styles = `
 .dc-summary { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .dc-meta { flex: none; margin-left: auto; color: var(--ib-muted); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .dc-meta:empty { display: none; }
-.dc-region { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
+.dc-region { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .dc[data-open] .dc-region { grid-template-rows: 1fr; }
 .dc-inner { min-height: 0; overflow: hidden; opacity: 0; visibility: hidden; transition: opacity var(--dur-expand) var(--ease-out), visibility 0s linear var(--dur-expand); }
 .dc[data-open] .dc-inner { opacity: 1; visibility: visible; transition: opacity var(--dur-expand) var(--ease-out), visibility 0s; }
