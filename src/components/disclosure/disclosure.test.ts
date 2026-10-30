@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import './disclosure';
-import type { DisclosureData, UiDisclosure } from './disclosure';
+import { cssMs, type DisclosureData, type UiDisclosure } from './disclosure';
 import { styles } from './styles';
 
 function mount(data: DisclosureData | undefined, attrs: Record<string, string> = {}, body = 'Body text'): UiDisclosure {
@@ -154,6 +154,175 @@ describe('<ui-disclosure>', () => {
       /prefers-reduced-motion: reduce\) \{\s*\.dc-region, \.dc-chev \{ transition: none !important; \}/,
     );
     expect(styles).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  });
+
+  describe('G4: slotted summary, external trigger, ui-toggled, roved rows', () => {
+    const grow = (el: UiDisclosure) => {
+      const ev = new Event('transitionend', { bubbles: true }) as TransitionEvent;
+      Object.defineProperty(ev, 'propertyName', { value: 'grid-template-rows' });
+      q(el, '.dc-region')!.dispatchEvent(ev);
+    };
+
+    it('a click on slotted summary content toggles (G4-4)', () => {
+      const el = mount(undefined);
+      const words = document.createElement('span');
+      words.slot = 'summary';
+      words.innerHTML = '<b>System</b> · 12:03';
+      el.append(words);
+      el.renderNow();
+      words.querySelector('b')!.click();
+      expect(el.open).toBe(true);
+      // A click in the region does not.
+      el.querySelector('p')!.click();
+      expect(el.open).toBe(true);
+    });
+
+    it('cssMs reads the first duration in ms', () => {
+      expect(cssMs('0.24s, 0s')).toBe(240);
+      expect(cssMs('180ms')).toBe(180);
+      expect(cssMs('0s')).toBe(0);
+      expect(Number.isNaN(cssMs(''))).toBe(true);
+    });
+
+    it('ui-toggled follows once the region settles — open and closed — and is not cancelable (G4-2)', () => {
+      vi.useFakeTimers();
+      try {
+        const el = mount({ summary: 'Tasks' });
+        const seen: Array<[boolean, boolean]> = [];
+        el.addEventListener('ui-toggled', (e) =>
+          seen.push([(e as CustomEvent).detail.open, (e as CustomEvent).cancelable]),
+        );
+        q(el, '.dc-head')!.click();
+        el.renderNow();
+        expect(seen).toEqual([]);
+        grow(el);
+        expect(seen).toEqual([[true, false]]);
+        expect(q(el, '.dc')?.hasAttribute('data-settled')).toBe(true);
+        vi.advanceTimersByTime(1000);
+        expect(seen).toHaveLength(1);
+        el.open = false; // the host's own change settles too
+        el.renderNow();
+        grow(el);
+        expect(seen).toEqual([
+          [true, false],
+          [false, false],
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('without a transitionend the duration fallback reports it; a quick re-toggle reports only the last state', () => {
+      vi.useFakeTimers();
+      try {
+        const el = mount({ summary: 'Tasks' });
+        const seen: boolean[] = [];
+        el.addEventListener('ui-toggled', (e) => seen.push((e as CustomEvent).detail.open));
+        el.toggle();
+        el.renderNow();
+        vi.advanceTimersByTime(100);
+        el.toggle();
+        el.renderNow();
+        vi.advanceTimersByTime(400);
+        expect(seen).toEqual([false]);
+        // Nothing on first paint, nothing for a state the element was born in.
+        const born = mount({ summary: 'S' }, { open: '' });
+        const fired = vi.fn();
+        born.addEventListener('ui-toggled', fired);
+        vi.advanceTimersByTime(400);
+        expect(fired).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('reduced motion reports at once (after the render)', async () => {
+      const mm = vi
+        .spyOn(window, 'matchMedia')
+        .mockImplementation((q: string) => ({ matches: q.includes('reduce'), media: q }) as MediaQueryList);
+      try {
+        const el = mount({ summary: 'S' });
+        const fired = vi.fn();
+        el.addEventListener('ui-toggled', fired);
+        el.toggle();
+        el.renderNow();
+        await Promise.resolve();
+        expect(fired).toHaveBeenCalledTimes(1);
+      } finally {
+        mm.mockRestore();
+      }
+    });
+
+    it('trigger="external" draws no row; for= wires the host button (aria, click), even after a repaint (G4-1)', () => {
+      const btn = document.createElement('button');
+      btn.id = 'stats-more';
+      btn.textContent = 'More';
+      document.body.append(btn);
+      const el = mount(undefined, { trigger: 'external', for: 'stats-more' });
+      expect(q(el, '.dc-head')).toBeNull();
+      expect(el.id).toMatch(/^ui-dc-\d+$/);
+      expect(btn.getAttribute('aria-expanded')).toBe('false');
+      expect(btn.getAttribute('aria-controls')).toBe(el.id);
+      const asked = vi.fn();
+      el.addEventListener('ui-toggle', (e) => asked((e as CustomEvent).detail.open));
+      btn.click();
+      el.renderNow();
+      expect(el.open).toBe(true);
+      expect(asked).toHaveBeenCalledWith(true);
+      expect(btn.getAttribute('aria-expanded')).toBe('true');
+      expect(q(el, '.dc-region')?.hasAttribute('inert')).toBe(false);
+      // The host repaints its strip: a new button with the same id.
+      const again = btn.cloneNode(true) as HTMLButtonElement;
+      btn.replaceWith(again);
+      again.click();
+      el.renderNow();
+      expect(el.open).toBe(false);
+      expect(again.getAttribute('aria-expanded')).toBe('false');
+      // A disabled trigger does nothing; leaving the page takes our attributes off.
+      again.disabled = true;
+      again.click();
+      expect(el.open).toBe(false);
+      el.remove();
+      expect(again.hasAttribute('aria-expanded')).toBe(false);
+      expect(again.hasAttribute('aria-controls')).toBe(false);
+      again.disabled = false;
+      again.click();
+      expect(el.open).toBe(false);
+      expect(styles).toContain(':host([trigger="external"]) .dc-body { padding: 0; }');
+    });
+
+    it('show() / hide() ask like toggle(): a cancelable ui-toggle, and nothing when already there', () => {
+      const el = mount(undefined, { trigger: 'external' });
+      const asked = vi.fn();
+      el.addEventListener('ui-toggle', (e) => asked((e as CustomEvent).detail.open));
+      el.hide();
+      expect(asked).not.toHaveBeenCalled();
+      el.show();
+      expect(el.open).toBe(true);
+      el.show();
+      expect(asked).toHaveBeenCalledTimes(1);
+      el.addEventListener('ui-toggle', (e) => e.preventDefault(), { once: true });
+      el.hide();
+      expect(el.open).toBe(true);
+      el.hide();
+      expect(el.open).toBe(false);
+    });
+
+    it('head-tabindex passes to the row; focus() lands on the row unless the host is focusable itself (G4-3)', () => {
+      const el = mount({ summary: 'Step 3 · Edit' }, { 'head-tabindex': '-1' });
+      const head = q(el, '.dc-head')!;
+      expect(head.getAttribute('tabindex')).toBe('-1');
+      el.focus();
+      expect(el.shadowRoot!.activeElement).toBe(head);
+      expect(document.activeElement).toBe(el);
+      el.setAttribute('head-tabindex', 'x');
+      el.renderNow();
+      expect(q(el, '.dc-head')?.hasAttribute('tabindex')).toBe(false);
+      const own = mount({ summary: 'S' }, { tabindex: '0' });
+      own.focus();
+      expect(document.activeElement).toBe(own);
+      expect(own.shadowRoot!.activeElement).toBeNull();
+    });
   });
 
   it('carries Korean text with lang="ko"', () => {
