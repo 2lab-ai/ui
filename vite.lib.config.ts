@@ -15,7 +15,16 @@ const COMPONENTS = [
   'toaster',
   'agent-steering',
   'agent-tree',
+  'segmented',
+  'tabs',
+  'menu',
+  'tooltip',
+  'dialog',
+  'drawer',
+  'disclosure',
 ];
+/** Non-element entries: the icon set and the CSS kit (as a string; copy-assets also writes dist/ui-kit.css). */
+const MODULES = ['icons', 'kit'];
 
 export default defineConfig({
   build: {
@@ -28,6 +37,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
         ...Object.fromEntries(COMPONENTS.map((c) => [c, resolve(__dirname, `src/components/${c}/index.ts`)])),
+        ...Object.fromEntries(MODULES.map((m) => [m, resolve(__dirname, `src/${m}/index.ts`)])),
       },
       formats: ['es'],
       fileName: (_format, name) => `${name}.js`,

@@ -20,6 +20,22 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Memory Panel | `<ui-memory-panel>` | What the agent remembers about you — search, edit, delete with undo |
 | Model Picker | `<ui-model-picker>` | Which model and effort to run, with window, compaction and price |
 
+Primitives — the building blocks the dashboard shares, in the same tone and motion:
+
+| Primitive | Tag | What it does |
+|---|---|---|
+| Segmented | `<ui-segmented>` | One choice among a few (period, view) on a raised chip that slides — radiogroup, roving arrows |
+| Tabs | `<ui-tabs>` | Tab list over host-slotted panels; an ink underline glides to the selected tab |
+| Menu | `<ui-menu>` | Menu anchored to a trigger: items, radios, checkboxes, typeahead, origin-aware pop in and out |
+| Tooltip | `<ui-tooltip>` | Hover / focus label or rich card with a delay, hoverable, Esc to dismiss, `aria-describedby` |
+| Dialog | `<ui-dialog>` | Native `<dialog>` with a fading scrim, enter / exit motion, focus trap and return, a bottom sheet on phones |
+| Drawer | `<ui-drawer>` | Side sheet that docks beside the page on wide screens; resizable edge, scrim, interruptible slide |
+| Disclosure | `<ui-disclosure>` | Summary row over a region that grows 0fr → 1fr and is inert while closed |
+
+Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
+`@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab`, `.ui-chip`,
+`.ui-status`, `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`).
+
 ## Install
 
 ```
@@ -29,6 +45,8 @@ npm i @2lab.ai/ui
 import '@2lab.ai/ui';                 // registers every element
 import '@2lab.ai/ui/context-window';  // or just one
 import '@2lab.ai/ui/tokens.css';      // optional page tokens (data-theme="dark" switches)
+import '@2lab.ai/ui/ui-kit.css';      // optional light-DOM classes (buttons, chips, status …)
+import { icon } from '@2lab.ai/ui/icons';
 ```
 No build step: `<script type="module" src="https://ui.2lab.ai/lib/index.js"></script>`.
 

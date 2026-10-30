@@ -9,11 +9,20 @@ import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
 import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
 import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-window';
+import { type DialogCloseDetail, dialogSize, UiDialog } from '@2lab.ai/ui/dialog';
+import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
+import { clampDrawerWidth, type DrawerMode, UiDrawer } from '@2lab.ai/ui/drawer';
+import { type IconName, icon } from '@2lab.ai/ui/icons';
+import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
+import { applyMenuSelect, type MenuData, UiMenu } from '@2lab.ai/ui/menu';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
+import { type SegmentedData, segmentedOptions, UiSegmented } from '@2lab.ai/ui/segmented';
+import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
 import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
+import { tooltipDelay, UiTooltip } from '@2lab.ai/ui/tooltip';
 
 const d: ContextWindowData = { window: 1000 };
 const m: Partial<ModelPickerData> = {};
@@ -34,6 +43,16 @@ const steer: AgentSteeringData = { running: true, items: [{ id: 'q1', text: 'not
 const composer: HTMLElementTagNameMap['ui-agent-steering'] = document.createElement('ui-agent-steering');
 const run: AgentTreeData = { nodes: [{ id: 'm', name: 'Main', status: 'running' }], density: 'compact' };
 const agents: HTMLElementTagNameMap['ui-agent-tree'] = document.createElement('ui-agent-tree');
+// Primitives, the icon set and the kit.
+const seg: SegmentedData = { options: [{ value: 'd', label: 'Day' }], value: 'd' };
+const tabs: TabsData = { tabs: [{ id: 'a', label: 'A' }], value: 'a' };
+const menu: MenuData = { items: [{ kind: 'radio', value: 'a', label: 'A' }] };
+const closed: DialogCloseDetail = { reason: 'escape' };
+const mode: DrawerMode = 'dock';
+const toggled: DisclosureToggle = { open: true };
+const glyph: IconName = 'gear';
+const dlg: HTMLElementTagNameMap['ui-dialog'] = document.createElement('ui-dialog');
+const drawer: HTMLElementTagNameMap['ui-drawer'] = document.createElement('ui-drawer');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
@@ -49,6 +68,13 @@ const classes = [
   UiToaster,
   UiToolCallCard,
   UiToolCallGroup,
+  UiSegmented,
+  UiTabs,
+  UiMenu,
+  UiTooltip,
+  UiDialog,
+  UiDrawer,
+  UiDisclosure,
 ];
 console.log(
   UiContextWindow.name,
@@ -73,4 +99,18 @@ console.log(
   steerEnterAction({ key: 'Enter', shiftKey: false, metaKey: false, ctrlKey: false, altKey: false }),
   buildTree(run.nodes).all.length,
   agents.tagName,
+  segmentedOptions(seg).length,
+  tabItems(tabs).length,
+  applyMenuSelect(menu.items, 0)[0].checked,
+  closed.reason,
+  dialogSize('lg'),
+  clampDrawerWidth(100, 320, 960, 1280),
+  mode,
+  toggled.open,
+  tooltipDelay('200'),
+  icon(glyph).length,
+  KIT_CLASSES.length,
+  kitCss.length,
+  dlg.tagName,
+  drawer.tagName,
 );

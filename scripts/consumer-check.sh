@@ -10,5 +10,5 @@ printf '{"name":"consumer","private":true,"type":"module"}\n' > package.json
 npm i --no-audit --no-fund --loglevel=error ./*.tgz "typescript@$(node -p "require('$here/node_modules/typescript/package.json').version")" \
   "happy-dom@$(node -p "require('$here/node_modules/happy-dom/package.json').version")" >/dev/null
 npx tsc -p .
-echo "consumer-check: packed tarball typechecks under NodeNext (root + 13 subpaths)"
+echo "consumer-check: packed tarball typechecks under NodeNext (root + $(node -p "Object.keys(require('$here/package.json').exports).filter((k) => k !== '.' && !/\\.(css|json)$/.test(k)).length") subpaths)"
 node register.mjs
