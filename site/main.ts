@@ -2,12 +2,15 @@ import '@2lab.ai/ui';
 import { DARK, LIGHT, tokensCss } from '@2lab.ai/ui/core/tokens';
 import { DOCS, docBySlug } from '@2lab.ai/ui/docs/registry';
 import type { ComponentDoc, DemoDoc } from '@2lab.ai/ui/docs/types';
+import { icon } from '@2lab.ai/ui/icons/icons';
+import { kitCss } from '@2lab.ai/ui/kit/kit';
 import pkg from '../package.json';
+import { iconsPage, kitPage, wireKit } from './foundations';
 import './style.css';
 
-// Page-level component tokens: each preview stage switches with data-theme.
+// Page-level component tokens (each preview stage switches with data-theme) and the light-DOM kit the demos use.
 const tok = document.createElement('style');
-tok.textContent = tokensCss;
+tok.textContent = `${tokensCss}\n${kitCss}`;
 document.head.append(tok);
 
 const app = document.getElementById('app')!;
@@ -19,12 +22,11 @@ const esc = (s: unknown) =>
     .replace(/"/g, '&quot;');
 
 const ICON = {
-  sun: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>',
-  moon: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg>',
-  menu: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg>',
-  replay:
-    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9M2.5 2.5v3h3"/></svg>',
-  ext: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7 9"/></svg>',
+  sun: icon('sun'),
+  moon: icon('moon'),
+  menu: icon('menu'),
+  replay: icon('refresh'),
+  ext: icon('external', { size: 12 }),
 };
 
 const WIDE = new Set(['agent-run', 'agent-inbox', 'agent-queue']);
@@ -38,6 +40,7 @@ function shell(active: string, body: string): string {
     `<a href="${href}" data-link${active === href ? ' aria-current="page"' : ''}>${label}${extra}</a>`;
   const screens = DOCS.filter((d) => d.group === 'Screens');
   const comps = DOCS.filter((d) => d.group === 'Components');
+  const prims = DOCS.filter((d) => d.group === 'Primitives');
   return `<header class="top">
   <button class="icon-btn menu-btn" id="menu" aria-label="Menu">${ICON.menu}</button>
   <a class="brand" href="/" data-link><img src="/favicon.svg" alt="" />2lab<span>/ui</span></a>
@@ -50,10 +53,14 @@ function shell(active: string, body: string): string {
   <aside class="side" aria-label="Sections">
     <h4>Getting started</h4>
     ${link('/', 'Introduction')}${link('/docs/installation', 'Installation')}${link('/docs/theming', 'Theming')}
+    <h4>Foundations</h4>
+    ${link('/docs/icons', 'Icons')}${link('/docs/kit', 'UI kit', '<small>css</small>')}
     <h4>Screens</h4>
     ${screens.map((d) => link(`/components/${d.slug}`, esc(d.name), '<small>screen</small>')).join('')}
     <h4>Components</h4>
     ${comps.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
+    <h4>Primitives</h4>
+    ${prims.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
   </aside>
   <main id="main" tabindex="-1"><div class="page">${body}
     <div class="foot">@2lab.ai/ui v${esc(pkg.version)} · Web Components, zero runtime dependencies · built from the soma-work dashboard · interaction patterns studied from <a href="https://www.affectui.com" target="_blank" rel="noopener">affectUI</a> (no code or assets copied)</div>
@@ -65,16 +72,55 @@ function codeBlock(code: string, id: string): string {
   return `<div class="code-wrap"><pre class="code" id="${id}">${esc(code)}</pre><button class="copy" data-copy="${id}">Copy</button></div>`;
 }
 
+const NUMBER_WORDS = [
+  'Zero',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
+  'Eleven',
+  'Twelve',
+  'Thirteen',
+  'Fourteen',
+  'Fifteen',
+  'Sixteen',
+  'Seventeen',
+  'Eighteen',
+  'Nineteen',
+  'Twenty',
+];
+const TENS = ['', '', 'Twenty', 'Thirty', 'Forty'];
+/** 20 → "Twenty", 23 → "Twenty-three" (the hero counts the documented components). */
+function countWord(n: number): string {
+  if (n <= 20) return NUMBER_WORDS[n] ?? String(n);
+  if (n >= 50) return String(n);
+  const t = TENS[Math.floor(n / 10)];
+  return n % 10 ? `${t}-${NUMBER_WORDS[n % 10].toLowerCase()}` : t;
+}
+
+const GROUP_LABEL: Record<ComponentDoc['group'], string> = {
+  Screens: 'Screen',
+  Components: 'Component',
+  Primitives: 'Primitive',
+};
+
 function homePage(): string {
   const cards = DOCS.map(
     (d) => `<a class="card" href="/components/${d.slug}" data-link>
       <div class="thumb" data-thumb="${d.slug}"><div></div></div>
-      <div class="meta"><em>${d.group === 'Screens' ? 'Screen' : 'Component'}</em><b>${esc(d.name)}</b><span>${esc(d.summary)}</span></div></a>`,
+      <div class="meta"><em>${GROUP_LABEL[d.group]}</em><b>${esc(d.name)}</b><span>${esc(d.summary)}</span></div></a>`,
   ).join('');
+  const prims = DOCS.filter((d) => d.group === 'Primitives').length;
   return `<section class="hero">
     <div class="crumb">@2lab.ai/ui</div>
     <h1>Agent UI components that show what the agent is doing — and what it needs from you.</h1>
-    <p class="lede">Eight Web Components lifted from the 2lab soma-work dashboard: the run screen, the inbox board, answer cards, tool calls, provider capacity, context usage, memory and the model picker. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
+    <p class="lede">${countWord(DOCS.length)} Web Components lifted from the 2lab soma-work dashboard: the run screen, the inbox board, the agent tree, approvals and steering, answer cards, tool calls, provider capacity, context usage, spend, toasts, memory and the model picker — plus the ${prims} primitives they share (segmented control, tabs, menu, tooltip, dialog, drawer, disclosure), an icon set and a light-DOM CSS kit. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
     <div class="cta"><a class="btn primary" href="/components/${DOCS[0]?.slug ?? ''}" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
   </section>
   <h2 id="components">Components <span class="chip">${DOCS.length}</span></h2>
@@ -161,9 +207,9 @@ function installPage(): string {
   <h2>npm</h2>
   ${codeBlock(`npm i @2lab.ai/ui`, 'npmi')}
   <h2>Import</h2>
-  ${codeBlock(`// everything\nimport '@2lab.ai/ui';\n\n// or one component (registers only that element)\nimport '@2lab.ai/ui/context-window';\n\n// optional page tokens (data-theme="dark" on any ancestor switches)\nimport '@2lab.ai/ui/tokens.css';`, 'imp')}
+  ${codeBlock(`// everything\nimport '@2lab.ai/ui';\n\n// or one component (registers only that element)\nimport '@2lab.ai/ui/context-window';\n\n// optional page tokens (data-theme="dark" on any ancestor switches)\nimport '@2lab.ai/ui/tokens.css';\n\n// optional light-DOM classes (buttons, chips, status …) and the icon set\nimport '@2lab.ai/ui/ui-kit.css';\nimport { icon } from '@2lab.ai/ui/icons';`, 'imp')}
   <h2>No build step</h2>
-  ${codeBlock(`<script type="module" src="${origin}/lib/index.js"></script>\n<link rel="stylesheet" href="${origin}/lib/tokens.css">\n\n<ui-context-window lang="en"></ui-context-window>`, 'cdn')}
+  ${codeBlock(`<script type="module" src="${origin}/lib/index.js"></script>\n<link rel="stylesheet" href="${origin}/lib/tokens.css">\n<link rel="stylesheet" href="${origin}/lib/ui-kit.css">\n\n<ui-context-window lang="en"></ui-context-window>`, 'cdn')}
   <h2>Data in, events out</h2>
   <p class="desc">Every element takes plain data (<code>el.data = {...}</code>) and reports what the person did with a bubbling <code>ui-*</code> event. Elements never fetch — the host app owns the network and passes the result back in.</p>
   ${codeBlock(`const picker = document.querySelector('ui-model-picker');\npicker.addEventListener('ui-change', (e) => save(e.detail));`, 'evt')}
@@ -253,6 +299,12 @@ function route(): void {
   } else if (path === '/docs/theming') {
     body = themingPage();
     document.title = 'Theming — 2lab/ui';
+  } else if (path === '/docs/icons') {
+    body = iconsPage(codeBlock);
+    document.title = 'Icons — 2lab/ui';
+  } else if (path === '/docs/kit') {
+    body = kitPage(codeBlock);
+    document.title = 'UI kit — 2lab/ui';
   } else {
     body = homePage();
     active = '/';
@@ -261,6 +313,7 @@ function route(): void {
   app.innerHTML = shell(active, body);
   document.body.classList.remove('nav-open');
   if (current) mountDemo();
+  else if (path === '/docs/kit') wireKit(app);
   else mountThumbs();
 }
 
@@ -317,6 +370,14 @@ document.addEventListener('click', (e) => {
   }
   if (t.closest('#replay')) {
     mountDemo();
+    return;
+  }
+  const ct = t.closest('[data-copy-text]') as HTMLElement | null;
+  if (ct) {
+    void navigator.clipboard?.writeText(ct.dataset.copyText ?? '').then(() => {
+      ct.classList.add('is-copied');
+      setTimeout(() => ct.classList.remove('is-copied'), 900);
+    });
     return;
   }
   const cp = t.closest('[data-copy]') as HTMLElement | null;

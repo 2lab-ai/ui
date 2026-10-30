@@ -1,6 +1,7 @@
 /**
  * @2lab.ai/ui — agent UI Web Components. Importing this module registers every element.
- * Import a single component with `@2lab.ai/ui/<slug>` to register only that one.
+ * Import a single component with `@2lab.ai/ui/<slug>` to register only that one; the icon set is
+ * `@2lab.ai/ui/icons`, the light-DOM CSS kit `@2lab.ai/ui/ui-kit.css` (or `kitCss` from `@2lab.ai/ui/kit`).
  */
 export * from './components/agent-inbox';
 export * from './components/agent-queue';
@@ -11,11 +12,18 @@ export * from './components/ai-answer';
 export * from './components/approval-card';
 export * from './components/compact-breakdown';
 export * from './components/context-window';
+export * from './components/disclosure';
 export * from './components/memory-panel';
 export * from './components/model-picker';
+export * from './components/segmented';
+export * from './components/tabs';
 export * from './components/toaster';
 export * from './components/tool-call-card';
 export { define, prefersReducedMotion, UiElement } from './core/element';
 export { clamp, fmtAgo, fmtClock, fmtDuration, fmtInt, fmtTokens, fmtUsd } from './core/format';
 export { attrs, cls, esc, escAttr, safeHref } from './core/html';
+export type { PopAlign, PopPlace, PopRect, PopSide } from './core/popover';
+export { parsePlacement, placePopover } from './core/popover';
 export { baseCss, DARK, LIGHT, SHARED, tokensCss } from './core/tokens';
+export * from './icons';
+export * from './kit';
