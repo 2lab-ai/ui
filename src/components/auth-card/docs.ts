@@ -126,7 +126,13 @@ export const doc: ComponentDoc = {
       name: 'authCardHtml(data, { lang?, page?, theme? })',
       type: 'string',
       description:
-        'Server-side markup: the element with a declarative shadow root (styles + card) and the data as JSON.',
+        'Server-side markup: the element with a declarative shadow root (styles + card) and the data as JSON. Also exported from `@2lab.ai/ui/server` — no element in it, so a server imports it without a DOM, and a CommonJS server can `require` it (the `.cjs` build; types for node10 resolution via `typesVersions`).',
+    },
+    {
+      name: 'authCardCss',
+      type: 'string',
+      description:
+        'The card’s whole stylesheet as data (the shared base sheet, then the card’s own) — what the declarative root carries, for a host that renders the card another way. From `@2lab.ai/ui/auth-card` or `@2lab.ai/ui/server`.',
     },
   ],
   events: [
@@ -173,9 +179,10 @@ export const doc: ComponentDoc = {
   };
 </script>
 
-// Server: the same card, working before (and without) the script.
-import { authCardHtml } from '@2lab.ai/ui/auth-card';
-res.send(\`<!doctype html><link rel="stylesheet" href="/tokens.css">\${authCardHtml(data, { page: true })}
+// Server: the same card, working before (and without) the script. `@2lab.ai/ui/server` has no element in it
+// (no DOM needed) and ships a CommonJS build: const { authCardHtml } = require('@2lab.ai/ui/server').
+import { authCardHtml, tokensCss } from '@2lab.ai/ui/server';
+res.send(\`<!doctype html><style>\${tokensCss}</style>\${authCardHtml(data, { page: true })}
 <script type="module" src="/ui/auth-card.js"></script>\`);`,
   demos: [
     {
