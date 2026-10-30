@@ -93,6 +93,10 @@
       "types": "./dist/components/tooltip/index.d.ts",
       "import": "./dist/tooltip.js"
     },
+    "./hovercard": {
+      "types": "./dist/components/hovercard/index.d.ts",
+      "import": "./dist/hovercard.js"
+    },
     "./dialog": {
       "types": "./dist/components/dialog/index.d.ts",
       "import": "./dist/dialog.js"

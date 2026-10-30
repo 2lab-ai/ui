@@ -19,6 +19,7 @@ const COMPONENTS = [
   'tabs',
   'menu',
   'tooltip',
+  'hovercard',
   'dialog',
   'drawer',
   'disclosure',

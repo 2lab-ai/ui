@@ -33,6 +33,7 @@ export const ORDER = [
   'tabs',
   'menu',
   'tooltip',
+  'hovercard',
   'dialog',
   'drawer',
   'disclosure',

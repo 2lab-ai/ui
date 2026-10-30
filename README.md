@@ -47,6 +47,7 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Tabs | `<ui-tabs>` | Tab list over host-slotted panels; an ink underline glides to the selected tab |
 | Menu | `<ui-menu>` | Menu anchored to a trigger: items, radios, checkboxes, typeahead, origin-aware pop in and out |
 | Tooltip | `<ui-tooltip>` | Hover / focus label or rich card with a delay, hoverable, Esc to dismiss, `aria-describedby` |
+| Hovercard | `<ui-hovercard>` | One preview card for many triggers (`for` selector or `anchor(el)`): hover intent, `ui-open` to fill it, hoverable, Esc; no `aria-describedby` |
 | Dialog | `<ui-dialog>` | Native `<dialog>` with a fading scrim, enter / exit motion, focus trap and return, a bottom sheet on phones |
 | Drawer | `<ui-drawer>` | Side sheet that docks beside the page on wide screens; resizable edge, scrim, interruptible slide |
 | Disclosure | `<ui-disclosure>` | Summary row over a region that grows 0fr → 1fr and is inert while closed |

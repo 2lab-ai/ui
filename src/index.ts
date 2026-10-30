@@ -25,6 +25,7 @@ export * from './components/drawer';
 export * from './components/file-card';
 export * from './components/goal-card';
 export * from './components/log-scroller';
+export * from './components/hovercard';
 export * from './components/memory-panel';
 export * from './components/menu';
 export * from './components/model-picker';
