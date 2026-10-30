@@ -45,6 +45,19 @@ describe('ui-kit.css', () => {
     }
   });
 
+  it('idle is the muted hollow dot; a leading svg replaces the dot in the tone colour (G1-2)', () => {
+    expect(kitCss).toContain(
+      '.ui-status[data-tone="idle"]::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ui-tone); }',
+    );
+    // idle keeps the default muted tone and text-2 word (no status colour).
+    expect(kitCss).not.toMatch(/\.ui-status\[data-tone="idle"\] \{/);
+    expect(kitCss).toMatch(/\.ui-status > svg \{[^}]*color: var\(--ui-tone\)/);
+    expect(kitCss).toContain('.ui-status:has(> svg)::before { content: none; }');
+    expect(kitCss).toContain('.ui-status[data-live] > svg { animation: ui-pulse');
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(rm).toContain('.ui-status[data-live] > svg { animation: none; }');
+  });
+
   it('expands 0fr → 1fr and hides closed content from focus', () => {
     expect(kitCss).toContain('grid-template-rows: 0fr');
     expect(kitCss).toMatch(/\.ui-expand\.is-open, \.ui-expand\[data-open\] \{ grid-template-rows: 1fr; \}/);
