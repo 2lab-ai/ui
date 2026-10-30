@@ -64,6 +64,12 @@ ${TONES.map(([k, , text]) => `.gc-chip.is-quiet[data-tone="${k}"] { background: 
 .gc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 6px; font-size: 12px; color: var(--ib-muted); }
 .gc-when { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gc-dot { color: var(--ib-muted); }
+/* Budget meta (continues 3/10, cost): quiet label, the value in tabular figures a shade darker */
+.gc-kv { white-space: nowrap; }
+.gc-kv .gc-v { color: var(--ib-text-2); font-variant-numeric: tabular-nums; }
+/* A note under the goal (what the evaluator says is left): quiet prose behind a hairline */
+.gc-note { margin: 8px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--ib-card-border); color: var(--ib-text-2);
+  font-size: 12.5px; line-height: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Actions: neutral bordered buttons; Delete in the fail text; the armed press in its tone tint */
 .gc-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -128,6 +134,9 @@ ${TONES.map(([k, , text]) => `.gc-chip.is-quiet[data-tone="${k}"] { background: 
 .gc-h-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .gc-h-top .gc-when { font-size: 12px; color: var(--ib-muted); }
 .gc-h-obj { margin: 2px 0 0; font-size: 13px; line-height: 19px; color: var(--ib-text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.gc-h-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 3px; font-size: 12px; line-height: 17px; color: var(--ib-muted); }
+.gc-h-note { margin: 4px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--ib-card-border); color: var(--ib-muted);
+  font-size: 12px; line-height: 17px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Press: scale .97 (never with a keyboard ring); hover: colour and border only, fine pointers only */
 :is(.gc-btn, .gc-rm, .gc-add-btn, .gc-more):active:not([aria-disabled="true"]):not(:focus-visible) { transform: scale(0.97); }
