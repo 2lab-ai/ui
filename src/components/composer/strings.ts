@@ -20,6 +20,8 @@ const en = {
   play: (name: string) => `Play ${name}`,
   stop: (name: string) => `Stop ${name}`,
   hint: 'Enter to send · Shift+Enter for a new line',
+  /** The newline mode's hint; `mod` is ⌘ on Apple keyboards, else Ctrl. */
+  hintNewline: (mod: string) => `${mod}+Enter to send · Enter for a new line`,
   attached: (name: string) => `${name} attached`,
   attachedMany: (n: number) => `${n} files attached`,
   removed: (name: string) => `${name} removed`,
@@ -52,6 +54,7 @@ const ko: ComposerStrings = {
   play: (name) => `${name} 재생`,
   stop: (name) => `${name} 정지`,
   hint: 'Enter로 보내기 · Shift+Enter로 줄바꿈',
+  hintNewline: (mod) => `${mod}+Enter로 보내기 · Enter로 줄바꿈`,
   attached: (name) => `${name} 첨부됨`,
   attachedMany: (n) => `파일 ${n}개 첨부됨`,
   removed: (name) => `${name} 삭제됨`,

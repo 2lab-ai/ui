@@ -52,8 +52,13 @@ export interface ComposerData {
   tools?: ComposerTool[];
   /** Text on the send button (e.g. “Start task”). Without it the button is a 32px arrow-up icon named “Send”. */
   submitLabel?: string;
-  /** Show “Enter to send · Shift+Enter for a new line” (desktop only). */
+  /** Show the key hint (desktop only): “Enter to send · Shift+Enter for a new line”, or the newline mode's. */
   hint?: boolean;
+  /**
+   * What a plain Enter does: `send` (default; Shift+Enter is a new line) or `newline` — for long instructions:
+   * Enter is a new line and ⌘/Ctrl+Enter sends. The `enter` attribute wins over this.
+   */
+  enter?: ComposerEnterMode;
   /** Autosize bounds in text rows. Default 2 / 10. */
   minRows?: number;
   maxRows?: number;
@@ -62,6 +67,13 @@ export interface ComposerData {
 export type ComposerRejectReason = 'count' | 'size' | 'type' | 'empty';
 export type ComposerRecordState = 'start' | 'stop' | 'cancel' | 'error';
 export type ComposerEnterAction = 'none' | 'newline' | 'send';
+/** What a plain Enter does in the field. */
+export type ComposerEnterMode = 'send' | 'newline';
+
+/** An `enter` value as a mode (anything but `newline` → `send`). */
+export function composerEnterMode(value: unknown): ComposerEnterMode {
+  return value === 'newline' ? 'newline' : 'send';
+}
 
 export interface ComposerSubmitDetail {
   /** The text with leading / trailing whitespace trimmed (inner whitespace and new lines kept). */
@@ -181,19 +193,19 @@ export function composerRows(minRows?: unknown, maxRows?: unknown): { min: numbe
 /**
  * What Enter does in the field. Never during IME composition (isComposing, or keyCode 229 — Safari's composition
  * Enter). ⌘/Ctrl+Enter sends (touch too). Shift+Enter or Alt+Enter: a new line; on touch screens plain Enter is a new
- * line too (the send button sends). Otherwise Enter sends.
+ * line too (the send button sends), and so it is in `enter: 'newline'` mode. Otherwise Enter sends.
  */
 export function composerEnterAction(
   e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey'> & {
     isComposing?: boolean;
     keyCode?: number;
   },
-  opts: { touch?: boolean } = {},
+  opts: { touch?: boolean; enter?: ComposerEnterMode } = {},
 ): ComposerEnterAction {
   if (!e || e.key !== 'Enter') return 'none';
   if (e.isComposing || e.keyCode === 229) return 'none';
   if (e.metaKey || e.ctrlKey) return 'send';
-  if (e.shiftKey || e.altKey || opts.touch) return 'newline';
+  if (e.shiftKey || e.altKey || opts.touch || opts.enter === 'newline') return 'newline';
   return 'send';
 }
 

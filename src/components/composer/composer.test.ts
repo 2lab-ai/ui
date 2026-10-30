@@ -18,6 +18,7 @@ import {
   composerCheckFile,
   composerCounterTone,
   composerEnterAction,
+  composerEnterMode,
   composerLevel,
   composerPastedName,
   composerRecorderMime,
@@ -1372,6 +1373,61 @@ describe('<ui-composer> lang="ko"', () => {
 });
 
 // ── Styles ──
+
+describe('<ui-composer> enter="newline" (D2 G5-2)', () => {
+  it('composerEnterMode / composerEnterAction: Enter and Shift+Enter are new lines, ⌘/Ctrl+Enter sends', () => {
+    expect(composerEnterMode('newline')).toBe('newline');
+    expect(composerEnterMode('send')).toBe('send');
+    expect(composerEnterMode('NEWLINE')).toBe('send');
+    expect(composerEnterMode(undefined)).toBe('send');
+    const k = (o: Partial<KeyboardEvent> = {}) =>
+      ({ key: 'Enter', shiftKey: false, metaKey: false, ctrlKey: false, altKey: false, ...o }) as KeyboardEvent;
+    const nl = { enter: 'newline' as const };
+    expect(composerEnterAction(k(), nl)).toBe('newline');
+    expect(composerEnterAction(k({ shiftKey: true }), nl)).toBe('newline');
+    expect(composerEnterAction(k({ metaKey: true }), nl)).toBe('send');
+    expect(composerEnterAction(k({ ctrlKey: true }), nl)).toBe('send');
+    expect(composerEnterAction(k({ ctrlKey: true, isComposing: true }), nl)).toBe('none');
+    expect(composerEnterAction(k(), { enter: 'send' })).toBe('send');
+  });
+
+  it('data.enter newline: Enter leaves the new line to the field; Ctrl+Enter sends', () => {
+    const el = mount({ enter: 'newline' });
+    const sent = events<ComposerSubmitDetail>(el, 'ui-submit');
+    type(el, 'line one');
+    const e = key(field(el), 'Enter');
+    expect(e.defaultPrevented).toBe(false);
+    expect(sent).toEqual([]);
+    expect(el.enter).toBe('newline');
+    const c = key(field(el), 'Enter', { ctrlKey: true });
+    expect(c.defaultPrevented).toBe(true);
+    expect(sent).toEqual([{ text: 'line one', files: [] }]);
+  });
+
+  it('the enter attribute wins over data.enter; default send', () => {
+    const el = mount({ enter: 'newline' }, { enter: 'send' });
+    expect(el.enter).toBe('send');
+    el.removeAttribute('enter');
+    expect(el.enter).toBe('newline');
+    expect(mount().enter).toBe('send');
+    const attr = mount({}, { enter: 'newline' });
+    const sent = events(attr, 'ui-submit');
+    type(attr, 'x');
+    key(field(attr), 'Enter');
+    expect(sent).toEqual([]);
+  });
+
+  it('the hint says the mode: ⌘ on Apple keyboards, Ctrl elsewhere, Korean with lang="ko"', () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    const mac = mount({ hint: true, enter: 'newline' });
+    expect(q(mac, '.cp-hint')!.textContent).toBe('⌘+Enter to send · Enter for a new line');
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Win32');
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Windows NT 10.0)');
+    const win = mount({ hint: true }, { enter: 'newline', lang: 'ko' });
+    expect(q(win, '.cp-hint')!.textContent).toBe('Ctrl+Enter로 보내기 · Enter로 줄바꿈');
+    expect(q(mount({ hint: true }), '.cp-hint')!.textContent).toBe(T.hint);
+  });
+});
 
 describe('styles', () => {
   it('tokens and color-mix() only; hover changes colour, never motion; press 0.97; spinner 0.9s', () => {
