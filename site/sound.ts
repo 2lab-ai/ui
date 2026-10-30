@@ -85,7 +85,7 @@ const CUE_JOB: Record<SoundCue, string> = {
 const BY_ELEMENT: Array<[string, string]> = [
   ['Segmented, Tabs, Stat Strip period', 'select — rises moving right, falls moving left; Tabs subtle'],
   ['Menu, Model Picker', 'select on open and on a pick, toggle for a checkbox item, a quiet close'],
-  ['Dialog, Drawer', 'open and close — a host opening it sounds only from a click'],
+  ['Dialog, Drawer', 'open and close — a host opening it sounds only while the browser reports a recent click or key'],
   ['Disclosure, Tool Call Card, Work Log, Task Plan, Task Runs, inbox groups', 'subtle open and close'],
   ['Toaster', 'success, error, warning, loading or a subtle ready, once per toast; nothing on close'],
   ['Composer, Agent Steering, Approval Card, Choice Form submit', 'tap; Deny and cancel close'],

@@ -363,7 +363,8 @@ export class UiAuthCard extends UiElement<AuthCardData> {
     if (act === 'provider') {
       const id = el.dataset.id ?? '';
       const sent = this.emit<AuthProviderDetail>('ui-provider', { id, href: href ?? '#' });
-      this.sound('navigate', undefined, e);
+      // A new tab is the browser's, not this page going somewhere (as on the app bar).
+      if (!newTab) this.sound('navigate', undefined, e);
       if (!sent) {
         e.preventDefault();
         return;

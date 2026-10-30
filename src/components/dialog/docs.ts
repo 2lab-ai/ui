@@ -233,7 +233,7 @@ export const doc: ComponentDoc = {
     'Escape while a control inside uses it (an open menu, an IME composition) is left to that control.',
     'slot="actions" sits outside the <h2>, so toolbar buttons and links are not read as part of the dialog’s name; give icon buttons their own labels.',
     'Reduced motion: nothing moves — the scrim and panel fade in 120ms.',
-    'Sound (opt-in, @2lab.ai/ui/sound): Escape, the scrim or the close button plays close unless ui-close is cancelled; show() / hide() / open play open / close only inside a click or key press (never from a timer, never when it starts open). Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): Escape, the scrim or the close button plays close unless ui-close is cancelled; show() / hide() / open play open / close only while the browser reports a recent click or key press (its user activation — a timer that fires seconds after a click can still sound; wrap such regions in data-ui-sound="off"), never when it starts open. Silent until the page turns sound on.',
   ],
   usage: `<button id="stop">Stop session…</button>
 <ui-dialog id="confirm" size="sm" heading="Stop this session?">
