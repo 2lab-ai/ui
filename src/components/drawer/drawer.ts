@@ -263,8 +263,9 @@ export class UiDrawer extends UiElement {
       'data-mode': this.isConnected ? this.#mode : this.#computeMode(),
       'data-side': this.#side,
       'data-resizing': !!this.#drag,
-      'aria-labelledby': heading ? 'dr-title' : undefined,
-      'aria-label': !heading && label ? label : undefined,
+      // A heading attribute or a slotted header names it; the label only when neither is there.
+      'aria-labelledby': titled ? 'dr-title' : undefined,
+      'aria-label': !titled && label ? label : undefined,
     })}><div class="dr-scrim" part="scrim" aria-hidden="true"></div><div${attrs({
       class: 'dr-panel',
       part: 'panel',
@@ -332,7 +333,7 @@ export class UiDrawer extends UiElement {
     this.#mode = next;
     this.#switchOpen();
     this.renderNow();
-    this.emit<DrawerModeChange>('ui-mode-change', { mode: next });
+    this.notify<DrawerModeChange>('ui-mode-change', { mode: next });
   }
 
   #switchOpen(): void {
@@ -477,7 +478,7 @@ export class UiDrawer extends UiElement {
     if (next === this.width) return;
     this.setAttribute('width', String(next));
     this.renderNow();
-    this.emit<DrawerResizeDetail>('ui-resize', { width: next });
+    this.notify<DrawerResizeDetail>('ui-resize', { width: next });
   }
 
   #onHandleKey(e: KeyboardEvent): void {
@@ -540,7 +541,7 @@ export class UiDrawer extends UiElement {
     const moved = d.cur !== d.w;
     if (moved) this.setAttribute('width', String(d.cur));
     this.renderNow();
-    if (moved) this.emit<DrawerResizeDetail>('ui-resize', { width: d.cur });
+    if (moved) this.notify<DrawerResizeDetail>('ui-resize', { width: d.cur });
   }
 
   // ── dismiss ───────────────────────────────────────────────────────────────

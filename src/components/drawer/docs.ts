@@ -170,13 +170,14 @@ export const doc: ComponentDoc = {
     {
       name: 'ui-resize',
       detail: '{ width: number }',
-      description: 'The width changed by the separator: once at the end of a drag, after each arrow / Home / End step.',
+      description:
+        'The width changed by the separator: once at the end of a drag, after each arrow / Home / End step. A notification — not cancelable.',
     },
     {
       name: 'ui-mode-change',
       detail: "{ mode: 'sheet' | 'dock' }",
       description:
-        'The effective mode flipped (breakpoint crossed, or mode / dock-at changed) — make room for a docked panel.',
+        'The effective mode flipped (breakpoint crossed, or mode / dock-at changed) — make room for a docked panel. A notification — not cancelable.',
     },
   ],
   keyboard: [

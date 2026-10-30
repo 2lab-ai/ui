@@ -156,8 +156,9 @@ export class UiDialog extends UiElement {
       'data-state': this.#state,
       'data-size': dialogSize(this.getAttribute('size')),
       'data-sheet': this.getAttribute('sheet') === 'never' ? 'never' : 'auto',
-      'aria-labelledby': heading ? 'dg-title' : undefined,
-      'aria-label': !heading && label ? label : undefined,
+      // A heading attribute or a slotted header names it; the label only when neither is there.
+      'aria-labelledby': titled ? 'dg-title' : undefined,
+      'aria-label': !titled && label ? label : undefined,
     })}><div class="dg-scrim" part="scrim" aria-hidden="true"></div><div class="dg-panel" part="panel" tabindex="-1"><div class="dg-grab" aria-hidden="true"></div><header${attrs(
       { class: 'dg-head', part: 'header', hidden: !titled && hideClose },
     )}><h2${attrs({ class: 'dg-title', id: 'dg-title', part: 'title', hidden: !titled })}><slot name="header">${esc(

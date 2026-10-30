@@ -438,3 +438,25 @@ describe('<ui-drawer>', () => {
     expect(styles).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
   });
 });
+
+describe('ui-drawer — accessible name from a slotted header', () => {
+  it('a slotted header names the drawer (aria-labelledby), not the label', () => {
+    const el = mount({ label: 'fallback' }, '<h3 slot="header">Session detail</h3><p>Body</p>');
+    el.renderNow();
+    expect(dlg(el).getAttribute('aria-labelledby')).toBe('dr-title');
+    expect(dlg(el).hasAttribute('aria-label')).toBe(false);
+  });
+});
+
+describe('ui-drawer — notifications', () => {
+  it('ui-resize reports a width that already changed: not cancelable', () => {
+    const el = mount({ resizable: '', mode: 'dock' });
+    const seen: boolean[] = [];
+    el.addEventListener('ui-resize', (e) => seen.push(e.cancelable));
+    el.show();
+    el.renderNow();
+    const h = q(el, '[role="separator"]');
+    if (h) key(h, 'ArrowLeft');
+    expect(seen.every((c) => c === false)).toBe(true);
+  });
+});

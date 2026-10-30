@@ -106,6 +106,13 @@ describe('<ui-dialog>', () => {
     expect(dlg(el).dataset.state).toBe('open');
   });
 
+  it('a slotted header names the dialog (aria-labelledby), not the label', () => {
+    const el = mount({ label: 'fallback' }, '<h3 slot="header">Session detail</h3><p>Body</p>');
+    el.renderNow();
+    expect(dlg(el).getAttribute('aria-labelledby')).toBe('dg-title');
+    expect(dlg(el).hasAttribute('aria-label')).toBe(false);
+  });
+
   it('labels the dialog by its heading, else by label — both escaped', () => {
     const el = mount({ heading: '<img src=x onerror=alert(1)>', label: 'ignored' });
     expect(dlg(el).getAttribute('aria-labelledby')).toBe('dg-title');
@@ -291,7 +298,9 @@ describe('<ui-dialog>', () => {
     const el = mount({ label: 'Artifact', 'hide-close': '' }, '<span slot="header">plan.md</span><p>x</p>');
     expect(q(el, '.dg-head')?.hasAttribute('hidden')).toBe(false);
     expect(q(el, '.dg-title')?.hasAttribute('hidden')).toBe(false);
-    expect(dlg(el).getAttribute('aria-label')).toBe('Artifact');
+    // The visible slotted title names it (0.5.0 review P2); the label is only for an untitled dialog.
+    expect(dlg(el).getAttribute('aria-labelledby')).toBe('dg-title');
+    expect(dlg(el).hasAttribute('aria-label')).toBe(false);
   });
 
   it('hide-close drops the button; with no title either the header row goes', () => {
