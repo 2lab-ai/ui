@@ -7,7 +7,7 @@ import {
   type FileItem,
   fileDisplayName,
   fileItemKind,
-  fileKindLabel,
+  fileItemKindLabel,
   fileMeta,
   fileThumbSrc,
 } from '../file-card/render';
@@ -222,7 +222,7 @@ const hasText = (item: FileItem): boolean => typeof item.text === 'string' && it
 export function peekHtml(item: FileItem, lang: string, now: number, broken: ReadonlySet<string>): string {
   const kind = fileItemKind(item);
   const name = fileDisplayName(item, lang);
-  const meta = [fileKindLabel(kind, lang), fileMeta(item, now, lang)].filter(Boolean).join(' · ');
+  const meta = [fileItemKindLabel(item, lang), fileMeta(item, now, lang)].filter(Boolean).join(' · ');
   let media = '';
   let doc = false;
   if (kind === 'image') {

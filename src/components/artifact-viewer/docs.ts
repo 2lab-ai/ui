@@ -233,6 +233,12 @@ export const doc: ComponentDoc = {
       type: "'image' | 'audio' | 'video' | 'markdown' | 'html' | 'pdf' | 'code' | 'text' | 'file'",
       description: 'Wins over mime and the extension.',
     },
+    {
+      name: 'data.items[].kindLabel',
+      type: 'string',
+      description:
+        'The kind word for the badge, the peek and the tile’s name instead of the kind’s own (“Answer” for the final answer). Glyph and tint stay the kind’s.',
+    },
     { name: 'data.items[].mime', type: 'string', description: 'MIME type, used for the kind when kind is missing.' },
     { name: 'data.items[].size', type: 'number', description: 'Bytes, drawn as 12.4 KB (tabular).' },
     {

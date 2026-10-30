@@ -30,6 +30,7 @@ import {
 } from './logic';
 import { styles } from './styles';
 import './artifact-viewer';
+import '../file-card/file-card';
 
 const NOW = Date.UTC(2026, 9, 30, 12, 0, 0);
 const MIN = 60_000;
@@ -814,6 +815,31 @@ describe('extra actions (D2 G4-2)', () => {
   it('phones keep the words of an action without a glyph', () => {
     expect(styles).toMatch(/\.av-vf \.av-act\.is-text \{ width: auto;/);
     expect(styles).toMatch(/\.av-vf \.av-act\.is-text \.av-act-t \{ display: inline; \}/);
+  });
+});
+
+describe('the card’s own words and focus (D2 G4-5)', () => {
+  it('kindLabel names the badge, the peek and the tile', () => {
+    const items: FileItem[] = [{ id: 'ans', name: 'final.md', kindLabel: '답변', text: '# Done', size: 2_048 }];
+    const el = mount({ items }, { lang: 'ko' });
+    expect(tiles(el)[0].getAttribute('aria-label')).toBe('final.md, 답변, 2 KB');
+    expect(peekHtml(items[0], 'ko', NOW, new Set())).toContain('답변 · 2 KB');
+    el.open(0);
+    expect(q(el, '.av-badge')!.textContent).toBe('답변');
+  });
+
+  it('a <ui-file-card> opener takes focus back to its button', () => {
+    const card = document.createElement('ui-file-card');
+    card.data = { id: 'a', name: 'a.md', text: '# a' };
+    document.body.append(card);
+    card.renderNow();
+    const el = mount({ items: [] }, { tiles: 'none' });
+    el.open([card.data], 0, card);
+    expect(dialog(el).open).toBe(true);
+    key(q(el, '.av-stage')!, 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(document.activeElement).toBe(card);
+    expect(card.shadowRoot!.activeElement).toBe(card.shadowRoot!.querySelector('button.fc'));
   });
 });
 
