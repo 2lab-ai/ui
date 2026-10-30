@@ -1,0 +1,66 @@
+/** Composer copy, English and Korean. */
+export type ComposerLang = 'en' | 'ko';
+
+const en = {
+  label: 'Message',
+  placeholder: 'Write a message…',
+  attach: 'Attach files',
+  image: 'Add image',
+  voice: 'Record voice',
+  waiting: 'Waiting for the microphone…',
+  send: 'Send',
+  cancel: 'Cancel',
+  done: 'Done',
+  recording: 'Recording',
+  drop: 'Drop files to attach',
+  attachments: 'Attachments',
+  untitled: 'Untitled file',
+  voiceNote: 'Voice note',
+  remove: (name: string) => `Remove ${name}`,
+  play: (name: string) => `Play ${name}`,
+  stop: (name: string) => `Stop ${name}`,
+  hint: 'Enter to send · Shift+Enter for a new line',
+  attached: (name: string) => `${name} attached`,
+  attachedMany: (n: number) => `${n} files attached`,
+  removed: (name: string) => `${name} removed`,
+  tooMany: (n: number) => `Too many files (max ${n})`,
+  tooLarge: (size: string) => `File too large (max ${size})`,
+  badType: 'Unsupported file type',
+  empty: 'Empty file',
+  more: (n: number) => ` (+${n} more)`,
+  mic: 'Microphone unavailable',
+};
+
+export type ComposerStrings = typeof en;
+
+const ko: ComposerStrings = {
+  label: '메시지',
+  placeholder: '메시지 입력…',
+  attach: '파일 첨부',
+  image: '이미지 추가',
+  voice: '음성 녹음',
+  waiting: '마이크를 기다리는 중…',
+  send: '보내기',
+  cancel: '취소',
+  done: '완료',
+  recording: '녹음 중',
+  drop: '놓으면 첨부됩니다',
+  attachments: '첨부 파일',
+  untitled: '이름 없는 파일',
+  voiceNote: '음성 메모',
+  remove: (name) => `${name} 삭제`,
+  play: (name) => `${name} 재생`,
+  stop: (name) => `${name} 정지`,
+  hint: 'Enter로 보내기 · Shift+Enter로 줄바꿈',
+  attached: (name) => `${name} 첨부됨`,
+  attachedMany: (n) => `파일 ${n}개 첨부됨`,
+  removed: (name) => `${name} 삭제됨`,
+  tooMany: (n) => `파일은 최대 ${n}개`,
+  tooLarge: (size) => `파일이 너무 큽니다 (최대 ${size})`,
+  badType: '지원하지 않는 형식',
+  empty: '빈 파일입니다',
+  more: (n) => ` (외 ${n}개)`,
+  mic: '마이크를 쓸 수 없습니다',
+};
+
+export const composerStrings: Record<ComposerLang, ComposerStrings> = { en, ko };

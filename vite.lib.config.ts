@@ -22,6 +22,12 @@ const COMPONENTS = [
   'dialog',
   'drawer',
   'disclosure',
+  'app-bar',
+  'stat-strip',
+  'bar-chart',
+  'file-card',
+  'artifact-viewer',
+  'composer',
 ];
 /** Non-element entries: the icon set and the CSS kit (as a string; copy-assets also writes dist/ui-kit.css). */
 const MODULES = ['icons', 'kit'];
