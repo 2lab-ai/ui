@@ -28,7 +28,9 @@ npm run build:site  # lib build + d.ts + site build + site-dist/lib
 - Strings: English default, Korean with `lang="ko"` (a `STRINGS = { en, ko }` table).
 - Focus survives re-render when the focused element has `data-key`. Timers update text nodes in place, not via re-render.
 - Reduced motion is handled globally in `baseCss`; keep animations CSS-only where possible.
-- Primitives (`group: 'Primitives'` in docs: segmented, tabs, menu, tooltip, hovercard, dialog, drawer, disclosure, log-scroller) are the building
+- Page parts (`group: 'Pages'` in docs: settings-nav, setting-row, knowledge-pages, episode-log, auth-card) are the pieces of the pages
+  around the app (settings, memory, sign-in); a host's own controls go in their slots, styled with the kit's `.ui-input` / `.ui-switch`.
+- Primitives (`group: 'Primitives'` in docs: segmented, tabs, menu, tooltip, hovercard, dialog, drawer, disclosure, log-scroller, elapsed) are the building
   blocks the components and the dashboard share. Reuse `src/core/popover.ts` (anchored overlays), `src/core/roving.ts`
   (roving tabindex) and glyphs from `src/icons/icons.ts` (`icon(name)`) instead of drawing new ones. Light-DOM styling
   for hosts lives in `src/kit/kit.ts` (`ui-kit.css`): tokens and `color-mix()` only, no hex / rgba literals.

@@ -29,6 +29,11 @@ export const ORDER = [
   'app-bar',
   'status-bar',
   'deck-nav',
+  'settings-nav',
+  'setting-row',
+  'knowledge-pages',
+  'episode-log',
+  'auth-card',
   'segmented',
   'tabs',
   'menu',
@@ -38,6 +43,7 @@ export const ORDER = [
   'drawer',
   'disclosure',
   'log-scroller',
+  'elapsed',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });

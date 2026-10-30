@@ -1,7 +1,7 @@
 {
   "name": "@2lab.ai/ui",
-  "version": "0.8.0",
-  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Composer, Conversation, Work Log, Choice Form, Goal Card, Task Plan, Task Runs, Status Bar, Deck Nav; primitives Segmented, Tabs, Menu, Tooltip, Dialog, Drawer, Disclosure, Hovercard, Log Scroller; an icon set and a light-DOM CSS kit.",
+  "version": "0.9.0",
+  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Composer, Conversation, Work Log, Choice Form, Goal Card, Task Plan, Task Runs, Status Bar, Deck Nav; page parts Setting Row, Settings Nav, Knowledge Pages, Episode Log, Auth Card; primitives Segmented, Tabs, Menu, Tooltip, Hovercard, Dialog, Drawer, Disclosure, Log Scroller, Elapsed; an icon set and a light-DOM CSS kit.",
   "type": "module",
   "license": "UNLICENSED",
   "repository": {
@@ -168,6 +168,30 @@
     "./work-log": {
       "types": "./dist/components/work-log/index.d.ts",
       "import": "./dist/work-log.js"
+    },
+    "./setting-row": {
+      "types": "./dist/components/setting-row/index.d.ts",
+      "import": "./dist/setting-row.js"
+    },
+    "./settings-nav": {
+      "types": "./dist/components/settings-nav/index.d.ts",
+      "import": "./dist/settings-nav.js"
+    },
+    "./knowledge-pages": {
+      "types": "./dist/components/knowledge-pages/index.d.ts",
+      "import": "./dist/knowledge-pages.js"
+    },
+    "./episode-log": {
+      "types": "./dist/components/episode-log/index.d.ts",
+      "import": "./dist/episode-log.js"
+    },
+    "./auth-card": {
+      "types": "./dist/components/auth-card/index.d.ts",
+      "import": "./dist/auth-card.js"
+    },
+    "./elapsed": {
+      "types": "./dist/components/elapsed/index.d.ts",
+      "import": "./dist/elapsed.js"
     },
     "./icons": {
       "types": "./dist/icons/index.d.ts",

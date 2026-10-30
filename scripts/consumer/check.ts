@@ -9,6 +9,7 @@ import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
 import { type AppBarData, appBarInitials, UiAppBar } from '@2lab.ai/ui/app-bar';
 import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
 import { type ArtifactViewerData, stepIndex, UiArtifactViewer } from '@2lab.ai/ui/artifact-viewer';
+import { type AuthCardData, authCardHtml, UiAuthCard } from '@2lab.ai/ui/auth-card';
 import { type BarChartData, niceScale, UiBarChart } from '@2lab.ai/ui/bar-chart';
 import { type ChoiceFormData, UiChoiceForm } from '@2lab.ai/ui/choice-form';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
@@ -19,17 +20,22 @@ import { type DeckNavData, deckClamp, UiDeckNav } from '@2lab.ai/ui/deck-nav';
 import { type DialogCloseDetail, type DialogViewport, dialogSize, UiDialog } from '@2lab.ai/ui/dialog';
 import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
 import { clampDrawerWidth, DRAWER_MORPH_MS, type DrawerMode, type DrawerViewport, UiDrawer } from '@2lab.ai/ui/drawer';
+import { type ElapsedData, elapsedText, UiElapsed } from '@2lab.ai/ui/elapsed';
+import { EPISODE_ARM_MS, type EpisodeLogData, episodeDays, UiEpisodeLog } from '@2lab.ai/ui/episode-log';
 import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
 import { GOAL_ARM_MS, type GoalCardData, UiGoalCard } from '@2lab.ai/ui/goal-card';
 import { type HovercardDetail, hovercardDelay, UiHovercard } from '@2lab.ai/ui/hovercard';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
+import { filterPages, type KnowledgePagesData, UiKnowledgePages } from '@2lab.ai/ui/knowledge-pages';
 import { type LogScrollerData, logJumpText, UiLogScroller } from '@2lab.ai/ui/log-scroller';
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
 import { applyMenuSelect, type MenuData, UiMenu } from '@2lab.ai/ui/menu';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
 import { type SegmentedData, segmentedOptions, UiSegmented } from '@2lab.ai/ui/segmented';
+import { type SettingRowData, UiSettingRow } from '@2lab.ai/ui/setting-row';
+import { applySettingsFilter, type SettingsNavData, settingMatches, UiSettingsNav } from '@2lab.ai/ui/settings-nav';
 import { fmtMetric, type StatStripData, UiStatStrip } from '@2lab.ai/ui/stat-strip';
 import { STATUS_ARM_MS, type StatusBarData, UiStatusBar } from '@2lab.ai/ui/status-bar';
 import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
@@ -94,6 +100,15 @@ const talk: ConversationData = { turns: [{ id: 't1', role: 'user', text: 'Hi', n
 const work: WorkLogData = { groups: [{ id: 'g1', title: 'Build', entries: [] }] };
 const convo: HTMLElementTagNameMap['ui-conversation'] = document.createElement('ui-conversation');
 const worklog: HTMLElementTagNameMap['ui-work-log'] = document.createElement('ui-work-log');
+// Page parts and a live time (0.9.0).
+const row: SettingRowData = { key: 'theme', label: 'Theme', status: { state: 'saved' }, locked: null };
+const nav: SettingsNavData = { sections: [{ id: 'general', label: 'General' }] };
+const pages: KnowledgePagesData = { pages: [{ id: 'p1', title: 'Deploy checklist', aliases: ['deploy'] }] };
+const episodes: EpisodeLogData = { days: [{ date: '2026-10-30', entries: [{ time: '09:12', text: 'Noted' }] }] };
+const auth: AuthCardData = { title: 'Sign in', providers: [{ id: 'sso', label: 'Continue', href: '/auth/sso' }] };
+const timer: ElapsedData = { since: 0, format: 'clock' };
+const navEl: HTMLElementTagNameMap['ui-settings-nav'] = document.createElement('ui-settings-nav');
+const authEl: HTMLElementTagNameMap['ui-auth-card'] = document.createElement('ui-auth-card');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
@@ -132,6 +147,12 @@ const classes = [
   UiDeckNav,
   UiConversation,
   UiWorkLog,
+  UiSettingRow,
+  UiSettingsNav,
+  UiKnowledgePages,
+  UiEpisodeLog,
+  UiAuthCard,
+  UiElapsed,
 ];
 console.log(
   UiContextWindow.name,
@@ -207,4 +228,15 @@ console.log(
   convo.tagName,
   normGroups(work.groups).length,
   worklog.tagName,
+  row.label,
+  nav.sections.length,
+  settingMatches('Default model', 'model'),
+  typeof applySettingsFilter,
+  filterPages(pages.pages, 'deploy').length,
+  episodeDays(episodes.days).length,
+  EPISODE_ARM_MS,
+  authCardHtml(auth).length,
+  elapsedText(timer, 61_000),
+  navEl.tagName,
+  authEl.tagName,
 );
