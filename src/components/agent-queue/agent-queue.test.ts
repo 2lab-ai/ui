@@ -721,6 +721,39 @@ describe('workers strip (stacks, one icon, two lines)', () => {
     expect(stripFolds(stacks, '계정 4/20', 120).has('paused|auth')).toBe(false);
   });
 
+  it('folds one stack wider than the row even when the line count fits (no clipped names)', () => {
+    const all = twenty().map((a): AqAccount => ({ ...a, state: 'limited', reason: 'cooldown', binding: undefined }));
+    const stacks = accountStacks(all);
+    expect(stacks.map((s) => s.key)).toEqual(['limited|cooldown']);
+    expect([...stripFolds(stacks, '계정 0/20', 326)]).toEqual(['limited|cooldown']);
+    expect([...stripFolds(stacks, '계정 0/20', 2000)]).toEqual([]);
+    const el = mountAt(390, { now: NOW, providers: [claude({ accounts: all })] }, { lang: 'ko' });
+    expect(qa(el, '.aq-mark').map((m) => m.textContent)).toEqual(['20']);
+    // 4 usable + 16 cooldown on a phone: the cooldown stack folds, the usable names stay.
+    const mixed = twenty().map(
+      (a): AqAccount => (a.state === 'available' ? a : { ...a, state: 'limited', reason: 'cooldown' }),
+    );
+    expect([...stripFolds(accountStacks(mixed), '계정 4/20', 326)]).toEqual(['limited|cooldown']);
+  });
+
+  it('treats a host reason that names an Object.prototype key as free text', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        claude({
+          accounts: [
+            { id: 'p1', name: 'p1', state: 'limited', reason: 'toString' },
+            { id: 'p2', name: 'p2', state: 'limited', reason: '__proto__' },
+          ],
+        }),
+      ],
+    });
+    expect(q(el, '.aq-si')?.innerHTML).not.toContain('function');
+    expect(q(el, '.aq-si')?.innerHTML).not.toContain('[object');
+    const titles = qa(el, '.aq-mark').map((m) => m.getAttribute('title'));
+    expect(titles).toEqual(['p1 · toString · no return time', 'p2 · __proto__ · no return time']);
+  });
+
   it("draws the screenshot's 20 accounts on one line: names only, one icon per stack", () => {
     const el = mountAt(1400, { now: NOW, providers: [claude({ accounts: twenty() })] }, { lang: 'ko' });
     expect(text(el, '.aq-col-head')).toBe('계정 4/20');
@@ -798,6 +831,25 @@ describe('workers strip (stacks, one icon, two lines)', () => {
     q(el, '.aq-pop-close')!.dispatchEvent(key('Escape'));
     expect(q(el, '.aq-pop')).toBeNull();
     expect(el.shadowRoot!.activeElement?.getAttribute('data-grp')).toBe('limited|cooldown');
+  });
+
+  it("keeps a fold's card open across a data refresh; closes it when the run is gone", () => {
+    const el = mountAt(390, { now: NOW, providers: [claude({ accounts: twenty() })] }, { lang: 'ko' });
+    qa(el, '.aq-mark.is-fold')
+      .find((f) => f.dataset.grp === 'limited|cooldown')!
+      .click();
+    expect(q(el, '.aq-pop')).not.toBeNull();
+    // The host hands the same data again (the dashboard re-sets it every minute).
+    el.data = { now: NOW, providers: [claude({ accounts: twenty() })] };
+    el.renderNow();
+    expect(q(el, '.aq-pop')?.getAttribute('aria-label')).toBe('쿨다운 계정 세부');
+    // A later response with no cooldown left: the card closes and does not come back.
+    el.data = { now: NOW, providers: [claude({ accounts: twenty().filter((a) => a.reason !== 'cooldown') })] };
+    el.renderNow();
+    expect(q(el, '.aq-pop')).toBeNull();
+    el.data = { now: NOW, providers: [claude({ accounts: twenty() })] };
+    el.renderNow();
+    expect(q(el, '.aq-pop')).toBeNull();
   });
 
   it('folds the usable run last, to a dot and a count, with its list card', () => {

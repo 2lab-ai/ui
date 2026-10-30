@@ -135,7 +135,8 @@ const STATE_ICON: Record<AqAccountState, string> = {
 };
 const stackIcon = (s: AqStack) =>
   `<svg class="aq-si" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
-    REASON_ICON[s.reason] ?? STATE_ICON[s.state] ?? ''
+    (Object.hasOwn(REASON_ICON, s.reason) ? REASON_ICON[s.reason] : '') ||
+    (Object.hasOwn(STATE_ICON, s.state) ? STATE_ICON[s.state] : '')
   }</svg>`;
 /** The badge colour: limited amber, a failed login red (someone must act), left out dashed, the rest grey. */
 const stackTone = (s: AqStack) =>
@@ -578,7 +579,8 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   }
 
   #reason(a: AqAccount, t: Strings): string {
-    if (a.reason) return t.reason[a.reason] ?? String(a.reason);
+    // Own keys only: a host reason such as `toString` or `__proto__` is free text, not a lookup.
+    if (a.reason) return Object.hasOwn(t.reason, a.reason) ? t.reason[a.reason] : String(a.reason);
     return t.stateWord[a.state] ?? '';
   }
 
@@ -661,7 +663,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const n = s.accounts.length;
     const ok = s.key === OK_STACK;
     const label = ok ? t.okFoldAria(n) : t.foldAria(this.#reason(s.accounts[0], t), n);
-    const icon = ok ? '<i class="aq-wdot is-h5" aria-hidden="true"></i>' : stackIcon(s);
+    const icon = ok ? '<i class="aq-wdot is-ok" aria-hidden="true"></i>' : stackIcon(s);
     return `<button type="button" class="aq-mark is-${s.state} is-fold" data-key="${escAttr(key)}" data-pid="${escAttr(
       p.id,
     )}" data-grp="${escAttr(s.key)}" data-rove-item tabindex="${stop ? 0 : -1}" aria-haspopup="dialog" aria-expanded="${open}" aria-label="${escAttr(
@@ -1003,7 +1005,8 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   protected override updated(): void {
     // An open key with no card any more is forgotten, so it never reopens on its own.
     if (this.#open && !this.$('.aq-pop')) this.#open = null;
-    // The card sits under its mark, its left edge clamped into the strip.
+    // The card sits under its mark, its left edge clamped into the strip. offsetLeft/Top resolve against
+    // .aq-workers (position: relative) — a mark inside an .aq-stack still does, so .aq-stack must stay unpositioned.
     for (const pop of this.$$<HTMLElement>('.aq-pop[data-for]')) {
       const box = pop.parentElement;
       const mark = box
