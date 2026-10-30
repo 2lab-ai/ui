@@ -431,6 +431,7 @@ export const doc: ComponentDoc = {
     'Openable rows are role="button" with aria-expanded / aria-controls; child agents are buttons named “Open <name> — <status>, <n> tools”.',
     'Status is always an icon plus a word (Done, Failed, Running …), never colour alone; times are <time datetime>.',
     'Reduced motion: groups open without the height glide or chevron turn; spinners stand still.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the user opens or folds a group or a row, a soft success when a copy lands, a tap for Retry, a navigate for Open on a child agent. Silent until the page turns sound on.',
   ],
   usage: `<ui-work-log style="height: 480px"></ui-work-log>
 <script type="module">

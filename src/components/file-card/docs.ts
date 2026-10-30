@@ -247,6 +247,7 @@ export const doc: ComponentDoc = {
     'Every string is escaped; image sources pass safeSrc (no javascript:, no data:text/html).',
     'Focus ring 2px; chips grow to 44px on coarse pointers; press scales to .97; hover changes the border only, on fine pointers.',
     'The play toggle is its own button next to the card (never inside it), named “Play standup.wav” / “Pause standup.wav” (ko: “… 재생” / “… 일시정지”); 32px drawn, 44px to the touch; ink while it plays. The progress line is decorative.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a tap when the person opens the file (unless ui-open is cancelled); the play toggle plays toggle (forward to play, back to pause). Silent until the page turns sound on.',
   ],
   usage: `<ui-file-card id="f"></ui-file-card>
 <ui-file-card variant="row" id="g"></ui-file-card>

@@ -2,6 +2,7 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { attrs, esc } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
+import { userGesture } from '../../sound/sound';
 import { styles } from './styles';
 
 export interface DisclosureData {
@@ -142,10 +143,17 @@ export class UiDisclosure extends UiElement<DisclosureData> {
 
   /** The person asked to toggle: a cancelable `ui-toggle`, then the change unless a listener cancelled it. */
   toggle(): void {
+    this.#toggle();
+  }
+
+  /** `e`: the click on the row or the external trigger. Without one (the host's own control) it sounds only in a gesture. */
+  #toggle(e?: Event): void {
     if (this.data?.disabled) return;
     const next = !this.#open;
     const detail: DisclosureToggle = { open: next };
-    if (this.emit('ui-toggle', detail)) this.#set(next);
+    if (!this.emit('ui-toggle', detail)) return;
+    this.#set(next);
+    if (e || userGesture()) this.sound(next ? 'open' : 'close', { emphasis: 'subtle' }, e);
   }
 
   protected override update(): void {
@@ -204,11 +212,11 @@ export class UiDisclosure extends UiElement<DisclosureData> {
     const head = this.$('.dc-head');
     if (!head) return;
     if (e.composedPath().includes(head)) {
-      this.toggle();
+      this.#toggle(e);
       return;
     }
     const own = (e.target as Element | null)?.closest?.('[slot="summary"], [slot="meta"]');
-    if (own && own.parentElement === this) this.toggle();
+    if (own && own.parentElement === this) this.#toggle(e);
   }
 
   #onTransitionEnd(e: TransitionEvent): void {
@@ -308,7 +316,7 @@ export class UiDisclosure extends UiElement<DisclosureData> {
     const t = this.#externalTrigger();
     if (!t || !e.composedPath().includes(t)) return;
     if ((t as HTMLButtonElement).disabled || t.getAttribute('aria-disabled') === 'true') return;
-    this.toggle();
+    this.#toggle(e);
     this.#decorate();
   };
 }

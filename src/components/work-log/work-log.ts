@@ -528,7 +528,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     if (t.classList.contains('wl-row') && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       const id = t.closest<HTMLElement>('[data-entry]')?.dataset.entry;
-      if (id !== undefined) this.#toggleEntry(id);
+      if (id !== undefined) this.#toggleEntry(id, e);
       return;
     }
     if (t.classList.contains('wl-gh') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
@@ -536,7 +536,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       const rec = gid === undefined ? undefined : this.#groups.get(gid);
       if (rec && rec.open === (e.key === 'ArrowLeft')) {
         e.preventDefault();
-        this.#toggleGroup(rec.id);
+        this.#toggleGroup(rec.id, e);
       }
       return;
     }
@@ -562,26 +562,28 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     const head = t.closest<HTMLElement>('.wl-gh');
     if (head) {
       const gid = head.closest<HTMLElement>('.wl-group')?.dataset.item;
-      if (gid !== undefined) this.#toggleGroup(gid);
+      if (gid !== undefined) this.#toggleGroup(gid, e);
       return;
     }
     const entry = t.closest<HTMLElement>('[data-entry]');
     const id = entry?.dataset.entry;
     if (id === undefined || !this.#entries.has(id)) return;
     const btn = t.closest<HTMLElement>('button');
-    if (btn?.classList.contains('raw-copy')) void this.#copy(id);
-    else if (btn?.classList.contains('raw-retry')) this.#retry(id);
+    if (btn?.classList.contains('raw-copy')) void this.#copy(id, e);
+    else if (btn?.classList.contains('raw-retry')) this.#retry(id, e);
     else if (btn?.classList.contains('skill-badge')) this.#toggleSkill(id, Number(btn.dataset.skill));
     else if (btn?.classList.contains('wl-agent')) {
-      this.emit<WorkOpenDetail>('ui-open', { id: btn.dataset.agent ?? '', entry: id });
-    } else if (t.closest('.wl-row[role="button"]')) this.#toggleEntry(id);
+      if (this.emit<WorkOpenDetail>('ui-open', { id: btn.dataset.agent ?? '', entry: id }))
+        this.sound('navigate', undefined, e);
+    } else if (t.closest('.wl-row[role="button"]')) this.#toggleEntry(id, e);
   }
 
-  #toggleGroup(gid: string): void {
+  #toggleGroup(gid: string, e: Event): void {
     const rec = this.#groups.get(gid);
     if (!rec) return;
     const open = !rec.open;
     if (!this.emit<WorkToggleDetail>('ui-toggle', { kind: 'group', id: gid, group: gid, open })) return;
+    this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
     if (typeof rec.data.open === 'boolean') return; // controlled: the host answers with data
     this.#chosen.set(gid, open);
     const active = this.root.activeElement;
@@ -590,11 +592,12 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     this.#syncRoving();
   }
 
-  #toggleEntry(id: string): void {
+  #toggleEntry(id: string, e: Event): void {
     const rec = this.#entries.get(id);
     if (!rec || !entryExpandable(rec.data)) return;
     const open = !this.#openRaw.has(id);
     if (!this.emit<WorkToggleDetail>('ui-toggle', { kind: 'entry', id, group: rec.group, open })) return;
+    this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
     if (open) {
       this.#openRaw.add(id);
       this.#entering.add(id);
@@ -609,7 +612,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     this.renderNow();
   }
 
-  async #copy(id: string): Promise<void> {
+  async #copy(id: string, e: Event): Promise<void> {
     const rec = this.#entries.get(id);
     const raw = rec?.data.raw;
     if (!rec || !raw || raw.state !== 'ready') return;
@@ -626,13 +629,15 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       }, WORK_LOG_COPIED_MS),
     );
     this.renderNow();
+    this.sound('success', { emphasis: 'subtle' }, e);
     this.notify<WorkCopyDetail>('ui-copy', { id, group: rec.group, text });
   }
 
-  #retry(id: string): void {
+  #retry(id: string, e: Event): void {
     const rec = this.#entries.get(id);
     if (!rec) return;
     if (!this.emit<WorkRetryDetail>('ui-retry', { id, group: rec.group })) return;
+    this.sound('tap', undefined, e);
     // Loading until the host sets this entry's raw output again (whatever the outcome).
     this.#retrying.set(id, json(this.#entries.get(id)?.data.raw ?? null));
     this.renderNow();

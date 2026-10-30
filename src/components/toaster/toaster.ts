@@ -1,5 +1,6 @@
 import { define, UiElement } from '../../core/element';
 import { esc, escAttr, safeHref } from '../../core/html';
+import type { SoundCue } from '../../sound/sound';
 import {
   errorText,
   messageFields,
@@ -64,6 +65,8 @@ interface Toast {
   duration: unknown;
   /** Bumped on every update: the timer restarts. */
   version: number;
+  /** The tone whose cue already played: a toast sounds once as it appears and once per tone it changes to. */
+  sounded?: ToastTone;
   /** Effective duration of this version. */
   ms: number;
   /** Time left on the timer (counts down only while it runs). */
@@ -95,6 +98,14 @@ const REMOVE_MS = 420;
 /** The old text crossfades out this long after an update. */
 const GHOST_MS = 320;
 const FREE: StackSlot = { y: 0, scale: 1, height: 0, z: 0, behind: false, hidden: false };
+/** The outcome cue of each tone; a plain toast is `ready`. */
+const TONE_CUE: Record<ToastTone, SoundCue> = {
+  neutral: 'ready',
+  success: 'success',
+  error: 'error',
+  warning: 'warning',
+  loading: 'loading',
+};
 
 const STATUS_SVG =
   '<svg class="ts-status" viewBox="0 0 24 24" aria-hidden="true"><g class="ts-spin"><circle class="ts-ring" cx="12" cy="12" r="9.2" pathLength="1"/></g><path class="ts-mark ts-check" d="m8.2 12.3 2.6 2.6 5-5.4" pathLength="1"/><path class="ts-mark ts-x1" d="m9.4 9.4 5.2 5.2" pathLength="1"/><path class="ts-mark ts-x2" d="m14.6 9.4-5.2 5.2" pathLength="1"/><path class="ts-mark ts-bang" d="M12 7.6v5" pathLength="1"/><path class="ts-dot" d="M12 16.1h.01"/></svg>';
@@ -260,6 +271,7 @@ export class UiToaster extends UiElement<ToasterData> {
       this.#enter();
     }
     this.#announce(t);
+    this.#chime(t);
     return id;
   }
 
@@ -298,6 +310,7 @@ export class UiToaster extends UiElement<ToasterData> {
     this.#measure(t);
     this.#layout();
     if (before.title !== t.title || before.description !== t.description || before.tone !== t.tone) this.#announce(t);
+    this.#chime(t);
     return true;
   }
 
@@ -818,6 +831,16 @@ export class UiToaster extends UiElement<ToasterData> {
     region.textContent = region.textContent === text ? `${text} ` : text;
   }
 
+  /**
+   * Toasts come from code, so their cue is the one sound not tied to a click: the outcome, subtle, as a toast appears
+   * or changes tone (a promise that settles). The page's sound setting decides; leaving is silent.
+   */
+  #chime(t: Toast): void {
+    if (t.sounded === t.tone) return;
+    t.sounded = t.tone;
+    this.sound(TONE_CUE[t.tone], { emphasis: 'subtle' });
+  }
+
   // ── Input ──
 
   #onClick(e: MouseEvent): void {
@@ -838,6 +861,7 @@ export class UiToaster extends UiElement<ToasterData> {
     if (t && !t.removing && act === 'action' && t.action) {
       const v = t.version;
       const ok = this.emit<ToastActionDetail>('ui-action', { id: t.id, actionId: t.action.id });
+      if (ok) this.sound('tap', undefined, e);
       // Not cancelled → the toast closes, unless the handler already updated it in place (a retry).
       if (ok && t.version === v) this.#dismiss(t, 'action');
       return;

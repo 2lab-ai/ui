@@ -472,16 +472,18 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     if (changed) this.notify<ArtifactViewDetail>('ui-view', { id: String(item.id), index: i });
   }
 
-  #step(delta: number): void {
+  #step(delta: number, e?: Event): void {
     if (this.#index < 0) return;
-    this.#go(stepIndex(this.#index, delta, this.#items().length));
+    this.#go(stepIndex(this.#index, delta, this.#items().length), e);
   }
 
-  #go(i: number): void {
+  /** Move the open viewer to `i`. `e` is the person's step or key (sounded); the host's calls pass none. */
+  #go(i: number, e?: Event): void {
     const items = this.#items();
     const item = items[i];
     // The same place may hold another file (a new list from open(items, …)): that is a move too.
     if (this.#index < 0 || !item || (i === this.#index && String(item.id) === this.#shownId)) return;
+    if (e) this.sound('navigate', { emphasis: 'subtle', direction: i > this.#index ? 'forward' : 'back' }, e);
     this.#index = i;
     this.#shownId = String(item.id);
     this.#zoomed = false;
@@ -519,12 +521,13 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
   }
 
   /** Activate tile `i`: ask the host first (`ui-open`), then open. */
-  #activate(i: number, tile: HTMLElement | null): void {
+  #activate(i: number, tile: HTMLElement | null, e: Event): void {
     const item = this.#items()[i];
     if (!item) return;
     this.#hidePeek();
     if (!this.emit<ArtifactOpenDetail>('ui-open', { id: String(item.id), index: i })) return;
     this.#show(i, tile);
+    this.sound('open', undefined, e);
   }
 
   // ── events ────────────────────────────────────────────────────────────────
@@ -533,18 +536,18 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     const t = e.target as Element | null;
     if (!t?.closest) return;
     if (this.#peek.contains(t)) {
-      if (this.#peekAt >= 0) this.#activate(this.#peekAt, this.#peekAnchor);
+      if (this.#peekAt >= 0) this.#activate(this.#peekAt, this.#peekAnchor, e);
       return;
     }
     const tile = t.closest<HTMLElement>('.av-list .fc[data-i]');
     if (tile) {
-      this.#activate(Number(tile.dataset.i), tile);
+      this.#activate(Number(tile.dataset.i), tile, e);
       return;
     }
     if (this.#index < 0) return;
     const step = t.closest<HTMLButtonElement>('.av-nb');
     if (step) {
-      if (!step.disabled) this.#step(Number(step.dataset.step) || 0);
+      if (!step.disabled) this.#step(Number(step.dataset.step) || 0, e);
       return;
     }
     if (t.closest('.av-tg') || t.closest('.av-pic')) {
@@ -566,8 +569,10 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       const item = this.#items()[this.#index];
       const action = act.dataset.act === 'download' ? 'download' : 'open';
       // The url the link follows (trimmed, a safe app link), not whatever the data held.
-      if (item && !this.emit<ArtifactActionDetail>('ui-action', { action, id: String(item.id), url: actionUrl(item) }))
-        e.preventDefault();
+      if (!item) return;
+      if (this.emit<ArtifactActionDetail>('ui-action', { action, id: String(item.id), url: actionUrl(item) }))
+        this.sound(action === 'download' ? 'tap' : 'navigate', undefined, e);
+      else e.preventDefault();
     }
   }
 
@@ -584,7 +589,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     else if (e.key === 'End') to = n - 1;
     else return;
     e.preventDefault();
-    this.#go(to);
+    this.#go(to, e);
   }
 
   /** The inner dialog's close request becomes ours; a host that cancels ours keeps the dialog open. */

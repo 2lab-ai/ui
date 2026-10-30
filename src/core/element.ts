@@ -1,3 +1,4 @@
+import { playSound, type SoundCue, type SoundOptions, soundInput } from '../sound/sound';
 import { baseCss } from './tokens';
 
 /**
@@ -117,6 +118,16 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
   /** Dispatch a bubbling, composed notification that cannot be prevented (it reports what already happened). */
   protected notify<T>(name: string, detail: T): void {
     this.dispatchEvent(new CustomEvent<T>(name, { detail, bubbles: true, composed: true, cancelable: false }));
+  }
+
+  /**
+   * Play an interface cue for what the user just did (`@2lab.ai/ui/sound`): silent unless the page turned sound on,
+   * and inside a `data-ui-sound="off"` region. `event` supplies what did the activating. Call it from a user's
+   * handler after the action went through (its event not prevented) — never from a render or for data the app set.
+   */
+  protected sound(cue: SoundCue, options?: SoundOptions, event?: Event): void {
+    const input = options?.input ?? soundInput(event);
+    playSound(cue, input ? { ...options, input } : options, this);
   }
 
   /** Query inside the shadow root. */

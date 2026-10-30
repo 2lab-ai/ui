@@ -1,5 +1,6 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
+import { typedKey } from '../../sound/sound';
 import {
   APPROVAL_ICONS,
   type ApprovalAnswerDetail,
@@ -263,10 +264,11 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
       this.#decide(
         d,
         this.#always && (d as ApprovalPermissionData).canDisableRule ? 'approve_disable_rule' : 'approve',
+        e,
       );
-    else if (act === 'deny' || act === 'explain') this.#decide(d, act);
-    else if (act === 'submit') this.#submit(d);
-    else if (act === 'retry') this.#retry(d);
+    else if (act === 'deny' || act === 'explain') this.#decide(d, act, e);
+    else if (act === 'submit') this.#submit(d, e);
+    else if (act === 'retry') this.#retry(d, e);
   }
 
   #select(id: string, byPointer: boolean): void {
@@ -277,31 +279,31 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     this.renderNow();
   }
 
-  #decide(d: ApprovalCardData, decision: ApprovalDecision): void {
+  #decide(d: ApprovalCardData, decision: ApprovalDecision, e?: Event): void {
     if (this.#kind(d) !== 'permission' || !this.#canAct(d, this.#eff(d))) return;
     const p = d as ApprovalPermissionData;
     if (decision === 'approve_disable_rule' && !p.canDisableRule) return;
     if (decision === 'explain' && !p.canExplain) return;
-    this.#send({ decision });
+    this.#send({ decision }, e);
   }
 
-  #submit(d: ApprovalCardData): void {
+  #submit(d: ApprovalCardData, e?: Event): void {
     if (this.#kind(d) !== 'question' || !this.#canAct(d, this.#eff(d))) return;
     const q = d as ApprovalQuestionData;
     const sel = this.#selected(q);
     if (sel === OTHER) {
       const answer = this.#other.trim();
-      if (answer) this.#send({ text: answer });
-    } else if (sel !== undefined) this.#send({ choiceId: sel });
+      if (answer) this.#send({ text: answer }, e);
+    } else if (sel !== undefined) this.#send({ choiceId: sel }, e);
   }
 
-  #retry(d: ApprovalCardData): void {
+  #retry(d: ApprovalCardData, e?: Event): void {
     const last = this.#last;
-    if (last && this.#canAct(d, this.#eff(d))) this.#send(last);
+    if (last && this.#canAct(d, this.#eff(d))) this.#send(last, e);
   }
 
-  /** Emit the answer; not cancelled → the answers lock with a spinner until the host changes `state`. */
-  #send(intent: Intent): void {
+  /** Emit the answer; not cancelled → the answers lock with a spinner until the host changes `state`. Deny closes. */
+  #send(intent: Intent, e?: Event): void {
     const id = text(this.data?.id);
     const ok = intent.decision
       ? this.emit<ApprovalDecideDetail>('ui-decide', { id, decision: intent.decision })
@@ -310,6 +312,7 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
           intent.text !== undefined ? { id, text: intent.text } : { id, choiceId: intent.choiceId },
         );
     if (!ok) return;
+    this.sound(intent.decision === 'deny' ? 'close' : 'tap', undefined, e);
     this.#sent = intent;
     this.#last = intent;
     this.#sentKey = stateKey(this.data?.state);
@@ -346,11 +349,15 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     if (kind !== 'question' || e.altKey || e.metaKey || e.ctrlKey) return;
     if (e.key === 'Enter' && target?.matches?.('.ac-other input')) {
       e.preventDefault();
-      this.#submit(d);
+      this.#submit(d, e);
       return;
     }
     const opt = target?.closest?.('.ac-opt') as HTMLElement | null;
-    if (!opt) return;
+    if (!opt) {
+      const key = target?.matches?.('.ac-other input') ? typedKey(e, target) : undefined;
+      if (key) this.sound('type', { key }, e);
+      return;
+    }
     if (e.key === 'Enter') {
       e.preventDefault();
       if (opt.getAttribute('aria-disabled') === 'true') return;
@@ -358,7 +365,7 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
       if (this.#choice === OTHER && !this.#other.trim()) {
         this.#focusOther = true;
         this.renderNow();
-      } else this.#submit(d);
+      } else this.#submit(d, e);
       return;
     }
     const opts = this.$$<HTMLElement>('.ac-opt');

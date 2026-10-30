@@ -580,7 +580,7 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
     const t = e.target as Element | null;
     const jump = t?.closest?.<HTMLElement>('[data-jump]');
     if (jump) {
-      this.#jump(jump.dataset.jump as AgentTreeStatus);
+      this.#jump(jump.dataset.jump as AgentTreeStatus, e);
       return;
     }
     const item = t?.closest?.<HTMLElement>('.at-item[data-id]');
@@ -592,10 +592,10 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
     if (!it) return;
     this.#setStop(id);
     if (t?.closest?.('[data-toggle]') && it.children.length) {
-      this.#toggle(id, !this.#isOpen(id), true);
+      this.#toggle(id, !this.#isOpen(id), true, e);
       return;
     }
-    this.#select(id);
+    this.#select(id, e);
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -638,18 +638,20 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
         return;
       case 'expand':
       case 'collapse':
-        this.#toggle(id, act === 'expand', true);
+        this.#toggle(id, act === 'expand', true, e);
         return;
       case 'siblings': {
         const sibs = it.parent ? it.parent.children : this.#model.roots;
         let any = false;
         for (const s of sibs)
           if (s.children.length && !this.#isOpen(s.id)) any = this.#toggle(s.id, true, false) || any;
-        if (any) this.renderNow();
+        if (!any) return;
+        this.renderNow();
+        this.sound('open', { emphasis: 'subtle' }, e);
         return;
       }
       case 'select':
-        this.#select(id);
+        this.#select(id, e);
         return;
     }
   }
@@ -671,18 +673,24 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
   }
 
   /** A pick leaves as ui-select (cancelable); uncontrolled, the tree moves its own selection. */
-  #select(id: string): void {
+  #select(id: string, e: Event): void {
+    const changed = this.selectedId !== id;
     if (!this.emit<AgentTreeSelectDetail>('ui-select', { id })) return;
+    if (changed) this.sound('select', undefined, e);
     if (this.data?.selectedId === undefined && this.#selected !== id) {
       this.#selected = id;
       this.renderNow();
     }
   }
 
-  /** A fold leaves as ui-toggle (cancelable); uncontrolled, the tree folds itself. Returns whether it went ahead. */
-  #toggle(id: string, open: boolean, render: boolean): boolean {
+  /**
+   * A fold leaves as ui-toggle (cancelable); uncontrolled, the tree folds itself. Returns whether it went ahead.
+   * `e` is the person's event (sounded); `reveal()` passes none.
+   */
+  #toggle(id: string, open: boolean, render: boolean, e?: Event): boolean {
     this.#active = id;
     if (!this.emit<AgentTreeToggleDetail>('ui-toggle', { id, expanded: open })) return false;
+    if (e) this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
     if (this.#controlledOpen) return true;
     if (open) this.#closed.delete(id);
     else this.#closed.add(id);
@@ -691,14 +699,14 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
   }
 
   /** The bar's “needs you” / “failed”: the next such agent after the selected one — shown, selected and focused. */
-  #jump(status: AgentTreeStatus): void {
+  #jump(status: AgentTreeStatus, e: Event): void {
     const all = this.#model.all;
     const list = all.filter((it) => it.node.status === status);
     if (!list.length) return;
     const from = all.findIndex((it) => it.id === this.selectedId);
     const next = list.find((it) => all.indexOf(it) > from) ?? list[0];
     this.reveal(next.id);
-    this.#select(next.id);
+    this.#select(next.id, e);
   }
 }
 

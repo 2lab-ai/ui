@@ -190,6 +190,7 @@ export const doc: ComponentDoc = {
     'aria-busy while a page loads; the older row is a real button so keyboard and switch users never depend on scroll-triggered loading.',
     'The pill’s name carries the count (“Jump to latest, 3 new items”); hidden, it is out of the tab order.',
     'Reduced motion: items fade only (no rise, no blur); the jump is instant; the pill does not slide.',
+    'Sound (opt-in, @2lab.ai/ui/sound): pressing the latest pill plays a subtle navigate; scrolling, new items and loading older ones are silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-log-scroller style="height: 420px"></ui-log-scroller>
 <script type="module">

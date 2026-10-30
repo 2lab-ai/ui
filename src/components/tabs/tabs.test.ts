@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { styles } from './styles';
 import { endIndex, pinnedCount, selectedIndex, type TabsData, tabItems, type UiTabs } from './tabs';
 
@@ -368,5 +369,56 @@ describe('<ui-tabs>', () => {
     const el = mount({ label: '세션 섹션', tabs: [{ id: 'log', label: '작업 로그' }] }, { lang: 'ko' });
     expect(q(el, '[role="tablist"]')?.getAttribute('aria-label')).toBe('세션 섹션');
     expect(q(el, '.tb-label')?.textContent).toBe('작업 로그');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (t: HTMLElement, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+
+  it('another tab plays a subtle select, forward to a later tab and back to an earlier one', async () => {
+    const el = mount(DATA);
+    click(qa(el, '.tb-tab')[2]);
+    await spy.settle();
+    el.renderNow();
+    key(qa(el, '.tb-tab')[2], 'Home');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['select', { emphasis: 'subtle', direction: 'forward', input: 'mouse' }],
+      ['select', { emphasis: 'subtle', direction: 'back', input: 'keyboard' }],
+    ]);
+  });
+
+  it('manual activation: arrows only move focus; Enter (a click from the keyboard) selects', async () => {
+    const el = mount(DATA, { activation: 'manual' });
+    key(qa(el, '.tb-tab')[1], 'ArrowLeft');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    click(qa(el, '.tb-tab')[0], 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([['select', { emphasis: 'subtle', direction: 'back', input: 'keyboard' }]]);
+  });
+
+  it('silent for the current tab, a cancelled change, data the app sets, and a quiet region', async () => {
+    const el = mount(DATA);
+    click(qa(el, '.tb-tab')[1]);
+    el.addEventListener('ui-change', (e) => e.preventDefault(), { once: true });
+    click(qa(el, '.tb-tab')[0]);
+    el.data = { ...DATA, value: 'tree' };
+    el.renderNow();
+    await spy.settle();
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    click(qa(el, '.tb-tab')[0]);
+    await spy.settle();
+    expect(el.value).toBe('chat');
+    expect(spy.calls).toEqual([]);
   });
 });

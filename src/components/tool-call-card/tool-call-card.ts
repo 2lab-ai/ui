@@ -415,11 +415,12 @@ export class UiToolCallCard extends UiElement<ToolCallData> {
     if (!btn || !d) return;
     const act = btn.getAttribute('data-act');
     const part = btn.getAttribute('data-part') === 'result' ? 'result' : 'args';
-    if (act === 'toggle') this.#toggle(d);
-    else if (act === 'copy') this.#copy(part);
+    if (act === 'toggle') this.#toggle(d, e);
+    else if (act === 'copy') this.#copy(part, e);
     else if (act === 'more') this.#more(part);
-    else if (act === 'retry') this.emit<ToolCallActionDetail>('ui-retry', this.#withId({}));
-    else if (act === 'reload') this.emit<ToolCallActionDetail>('ui-reload', this.#withId({}));
+    else if (act === 'retry' || act === 'reload') {
+      if (this.emit<ToolCallActionDetail>(`ui-${act}`, this.#withId({}))) this.sound('tap', undefined, e);
+    }
   }
 
   #withId<T extends object>(detail: T): T & { id?: string } {
@@ -427,9 +428,10 @@ export class UiToolCallCard extends UiElement<ToolCallData> {
     return id === undefined || id === null ? detail : { ...detail, id: String(id) };
   }
 
-  #toggle(d: ToolCallData): void {
+  #toggle(d: ToolCallData, e: Event): void {
     const next = !this.#isOpen(d);
     if (!this.emit<ToolCallToggleDetail>('ui-toggle', this.#withId({ open: next }))) return;
+    this.sound(next ? 'open' : 'close', { emphasis: 'subtle' }, e);
     this.#auto = false;
     if (d.open !== undefined) return; // controlled: the host answers with data.open
     this.#open = next;
@@ -482,11 +484,14 @@ export class UiToolCallCard extends UiElement<ToolCallData> {
     for (const code of this.$$('pre.tc-code > code')) this.#ro.observe(code);
   }
 
-  #copy(part: ToolCallPart): void {
+  #copy(part: ToolCallPart, e: Event): void {
     const c = this.#code.get(part);
     if (!c) return;
     if (!this.emit<ToolCallCopyDetail>('ui-copy', this.#withId({ part, text: c.text }))) return;
-    const done = () => this.#flashCopied(part);
+    const done = () => {
+      this.#flashCopied(part);
+      this.sound('success', { emphasis: 'subtle' }, e);
+    };
     const fallback = () => this.#select(part);
     try {
       const clip = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;

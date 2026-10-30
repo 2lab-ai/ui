@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import './disclosure';
 import { cssMs, type DisclosureData, type UiDisclosure } from './disclosure';
 import { styles } from './styles';
@@ -328,5 +329,77 @@ describe('<ui-disclosure>', () => {
   it('carries Korean text with lang="ko"', () => {
     const el = mount({ summary: '자세히', meta: '3' }, { lang: 'ko' });
     expect(q(el, '.dc-summary')?.textContent).toBe('자세히');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => {
+    spy.restore();
+    Reflect.deleteProperty(navigator, 'userActivation');
+  });
+  const tap = (t: EventTarget, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const activation = (isActive: boolean) =>
+    Object.defineProperty(navigator, 'userActivation', { configurable: true, get: () => ({ isActive }) });
+
+  it('the row opens and closes with a subtle open / close', async () => {
+    const el = mount({ summary: 'Info' });
+    tap(q(el, '.dc-head')!);
+    await spy.settle();
+    tap(q(el, '.dc-head')!, 0);
+    await spy.settle();
+    expect(el.open).toBe(false);
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('the external trigger sounds; the host’s own toggle() / show() / hide() only inside a user gesture', async () => {
+    const btn = document.createElement('button');
+    btn.id = 'more';
+    document.body.append(btn);
+    const el = mount(undefined, { trigger: 'external', for: 'more' });
+    tap(btn);
+    await spy.settle();
+    activation(false);
+    el.hide();
+    el.toggle();
+    await spy.settle();
+    activation(true);
+    el.hide();
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle' }],
+    ]);
+  });
+
+  it('silent for a cancelled toggle, the open property / attribute, a disabled row, and a quiet region', async () => {
+    const el = mount({ summary: 'Info' });
+    el.addEventListener('ui-toggle', (e) => e.preventDefault(), { once: true });
+    tap(q(el, '.dc-head')!);
+    el.open = true;
+    el.removeAttribute('open');
+    el.data = { summary: 'Info', disabled: true };
+    el.renderNow();
+    tap(q(el, '.dc-head')!);
+    expect(el.open).toBe(false);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    el.data = { summary: 'Info' };
+    el.renderNow();
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    tap(q(el, '.dc-head')!);
+    expect(el.open).toBe(true);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

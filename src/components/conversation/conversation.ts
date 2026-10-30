@@ -699,7 +699,7 @@ export class UiConversation extends UiElement<ConversationData> {
     // Only this element's own controls (a host's slotted button is the host's business).
     if (!btn || btn.getRootNode() !== this.root) return;
     if (btn.dataset.act === 'retry') {
-      this.emit<ConversationRetryDetail>('ui-retry', { id: null });
+      if (this.emit<ConversationRetryDetail>('ui-retry', { id: null })) this.sound('tap', undefined, e);
       return;
     }
     const node = btn.closest<HTMLElement>('.cv-turn');
@@ -708,7 +708,7 @@ export class UiConversation extends UiElement<ConversationData> {
     if (btn.classList.contains('cv-more')) this.#toggleClamp(node, id, btn);
     else if (btn.dataset.act === 'raw' || btn.dataset.act === 'sys') this.#toggleDisc(node, id, btn.dataset.act);
     else if (btn.classList.contains('cv-tab')) this.#setView(node, id, btn.dataset.view as AnswerView);
-    else if (btn.classList.contains('raw-copy')) void this.#copy(id, btn);
+    else if (btn.classList.contains('raw-copy')) void this.#copy(id, btn, e);
     else if (btn.classList.contains('skill-badge')) this.#toggleSkill(node, id, Number(btn.dataset.skill));
   }
 
@@ -807,13 +807,14 @@ export class UiConversation extends UiElement<ConversationData> {
     swap(box, skillBadgesHtml(turn.skills, { lang: this.#ctx.lang, open: st.skill, keyPrefix: st.dom }), this.root);
   }
 
-  async #copy(id: string, btn: HTMLElement): Promise<void> {
+  async #copy(id: string, btn: HTMLElement, e: Event): Promise<void> {
     const from = btn.closest<HTMLElement>('.cv-rawview')?.dataset.from as RawFrom | undefined;
     const turn = this.#turns.get(id);
     if (!turn || (from !== 'summary' && from !== 'source' && from !== 'raw')) return;
     const text = this.#rawText(turn, from);
     if (!(await copyText(text, this.root))) return;
     this.#flash(`${id}\n${from}`);
+    this.sound('success', { emphasis: 'subtle' }, e);
     this.notify<ConversationCopyDetail>('ui-copy', { id, text, from });
   }
 

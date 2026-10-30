@@ -158,6 +158,7 @@ export const doc: ComponentDoc = {
     'While a sign-in is on its way the pressed button is aria-busy with “Redirecting…”, the others aria-disabled.',
     'The two sessions are a list with “Signed in now” / “New session” before each name — never colour alone.',
     'Works without JavaScript when rendered with authCardHtml (declarative shadow DOM, real links and form).',
+    'Sound (opt-in, @2lab.ai/ui/sound): a provider, the brand, Continue, Sign out and Cancel play navigate — also when the host cancels ui-provider / ui-navigate to take the sign-in or the route over; confirming a session switch plays tap once ui-confirm does. Silent until the page turns sound on.',
   ],
   usage: `<ui-auth-card page></ui-auth-card>
 <script type="module">

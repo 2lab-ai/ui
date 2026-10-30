@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
+import { resetSoundQueue } from '../../sound/sound';
 import {
   type AgentRunApproval,
   type AgentRunData,
@@ -676,5 +678,49 @@ describe('lang="ko"', () => {
     el.setAttribute('lang', 'ko');
     await Promise.resolve();
     expect(q(el, '.ps-word')?.textContent).toBe('입력 대기');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+
+  it('Stop plays close once ui-stop goes through; a second press while it stops is silent', () => {
+    const el = mount(BASE);
+    click(q(el, '.ar-stop'));
+    vi.advanceTimersByTime(40);
+    expect(spy.calls).toEqual([['close', { input: 'mouse' }]]);
+    resetSoundQueue();
+    el.renderNow();
+    click(q(el, '.ar-stop'));
+    vi.advanceTimersByTime(40);
+    expect(spy.calls).toHaveLength(1);
+  });
+
+  it('a prevented ui-stop is silent; so is data from code and a run inside data-ui-sound="off"', () => {
+    const el = mount(BASE);
+    el.addEventListener('ui-stop', (e) => e.preventDefault(), { once: true });
+    click(q(el, '.ar-stop'));
+    el.data = { ...BASE, stopping: true };
+    el.renderNow();
+    el.data = { ...BASE, status: 'stopped' };
+    el.renderNow();
+    vi.advanceTimersByTime(40);
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const muted = document.createElement('ui-agent-run') as UiAgentRun;
+    quiet.append(muted);
+    muted.data = BASE;
+    muted.renderNow();
+    click(q(muted, '.ar-stop'));
+    vi.advanceTimersByTime(40);
+    expect(spy.calls).toEqual([]);
   });
 });

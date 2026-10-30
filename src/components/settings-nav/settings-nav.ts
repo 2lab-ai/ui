@@ -2,6 +2,7 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { attrs, esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
+import { typedKey } from '../../sound/sound';
 import { styles } from './styles';
 
 /** One link of the nav: a section of the settings page, found by `id` in the nav's root node. */
@@ -442,6 +443,8 @@ export class UiSettingsNav extends UiElement<SettingsNavData> {
     if (!el?.classList?.contains('sn-modchk')) return;
     this.#mod = el.checked;
     this.#emitFilter();
+    // No event: a checkbox's change tells nothing of what pressed it.
+    this.sound('toggle', { direction: el.checked ? 'forward' : 'back' });
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -456,6 +459,9 @@ export class UiSettingsNav extends UiElement<SettingsNavData> {
       e.stopPropagation();
       this.#setQuery('');
       this.#emitFilter();
+    } else if (!e.defaultPrevented) {
+      const key = typedKey(e, el);
+      if (key) this.sound('type', { key }, e);
     }
   }
 
@@ -463,7 +469,7 @@ export class UiSettingsNav extends UiElement<SettingsNavData> {
     const t = e.target as Element | null;
     const link = t?.closest?.<HTMLElement>('.sn-link');
     if (link?.dataset.id) {
-      this.navigate(link.dataset.id);
+      if (this.navigate(link.dataset.id)) this.sound('navigate', { emphasis: 'subtle' }, e);
       return;
     }
     if (t?.closest?.('.sn-qclear')) {

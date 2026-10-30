@@ -289,6 +289,7 @@ export const doc: ComponentDoc = {
     'Busy actions use aria-disabled + aria-busy instead of disabled, so the focused button keeps focus. When the focused control’s goal leaves (deleted, finished), focus moves to the card, not to another goal’s button.',
     'Errors use role="alert". Past goals is a disclosure (aria-expanded) whose region is inert while closed.',
     'Reduced motion: the chevrons and progress fill jump, the history region only fades, the spinner holds still.',
+    'Sound (opt-in, @2lab.ai/ui/sound): Add taps; Pause and Resume play toggle (back, forward); the first press of Complete, Delete or Remove plays a subtle tap, the confirming press a tap for Complete and a strong close for a delete — each once its event is not prevented; keystrokes in the add box play type while typing sounds are on. Silent until the page turns sound on.',
   ],
   usage: `<ui-goal-card></ui-goal-card>
 <script type="module">

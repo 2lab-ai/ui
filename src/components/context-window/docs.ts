@@ -101,6 +101,7 @@ export const doc: ComponentDoc = {
     'Only state transitions (sending, sent, armed, observed, failed, timeout, pending) are announced via aria-live; distances are not, so updates do not chatter. Updates patch the tree in place, so the live node persists and speaks once per transition; the tray line swaps in only when its state changes, and the cells sweep to their new colour.',
     'Warn text (pill, tray, armed button) is st-wait mixed toward the text colour: ≥4.5:1 in light and dark.',
     'Reduced motion: the number jumps instead of rolling, the busy wave and spinner stop.',
+    "Sound (opt-in, @2lab.ai/ui/sound): the compact action's arming press plays a subtle tap, the confirming press a tap once ui-compact is not prevented. Silent until the page turns sound on.",
   ],
   usage: `<ui-context-window lang="en"></ui-context-window>
 <script type="module">

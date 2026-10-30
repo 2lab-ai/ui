@@ -4,6 +4,7 @@ import { fmtClock, fmtInt } from '../../core/format';
 import { esc, escAttr, safeSrc } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
+import { typedKey } from '../../sound/sound';
 import {
   type ComposerData,
   type ComposerFilesDetail,
@@ -396,7 +397,7 @@ export class UiComposer extends UiElement<ComposerData> {
   }
 
   /** The user's remove: focus goes to the next chip's remove button, else the previous one, else the field. */
-  #removeById(id: number): void {
+  #removeById(id: number, e: Event): void {
     if (this.#s.disabled) return;
     const i = this.#entries.findIndex((e) => e.id === id);
     if (i < 0) return;
@@ -405,6 +406,7 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#wantFocus = next ? `rm-${next.id}` : 'field';
     }
     this.#removeAt(i);
+    this.sound('close', { emphasis: 'subtle' }, e);
   }
 
   #release(e: Entry): void {
@@ -436,10 +438,14 @@ export class UiComposer extends UiElement<ComposerData> {
     return e.url;
   }
 
-  /** User paths (picker, paste, drop) are off while the composer is disabled. */
+  /**
+   * User paths (picker, paste, drop) are off while the composer is disabled. A file refused plays a subtle error
+   * (no event passed: a change, paste or drop event does not tell what did the activating).
+   */
   #userAdd(files: File[]): void {
     if (this.#s.disabled || !files.length) return;
     this.#add(files);
+    if (this.#error) this.sound('error', { emphasis: 'subtle' });
   }
 
   #pick(which: 'file' | 'image' | 'camera'): void {
@@ -507,25 +513,25 @@ export class UiComposer extends UiElement<ComposerData> {
         this.#pick('camera');
         break;
       case 'voice':
-        void this.#startRecording();
+        void this.#startRecording(e);
         break;
       case 'tool':
-        this.#tool(id);
+        this.#tool(id, e);
         break;
       case 'send':
-        this.#submit();
+        this.#submit(e);
         break;
       case 'remove':
-        this.#removeById(Number(id));
+        this.#removeById(Number(id), e);
         break;
       case 'play':
         this.#play(Number(id));
         break;
       case 'rec-cancel':
-        this.#stopRecording(false);
+        this.#stopRecording(false, e);
         break;
       case 'rec-done':
-        this.#stopRecording(true);
+        this.#stopRecording(true, e);
         break;
     }
   }
@@ -535,14 +541,18 @@ export class UiComposer extends UiElement<ComposerData> {
     if (e.key === 'Escape' && (this.#rec || this.#recPending)) {
       e.preventDefault();
       e.stopPropagation();
-      this.#stopRecording(false);
+      this.#stopRecording(false, e);
       return;
     }
     if (!this.#ta || e.target !== this.#ta) return;
-    if (composerEnterAction(e, { touch: isTouch(), enter: this.enter }) !== 'send') return;
+    if (composerEnterAction(e, { touch: isTouch(), enter: this.enter }) !== 'send') {
+      const key = typedKey(e, this.#ta);
+      if (key) this.sound('type', { key }, e);
+      return;
+    }
     // Enter never inserts a new line here, even when there is nothing to send (or sending is off).
     e.preventDefault();
-    this.#submit();
+    this.#submit(e);
   }
 
   /** Typing: no re-render — the height, counter and send state update in place (IME-safe). */
@@ -640,14 +650,19 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#userAdd(files);
   }
 
-  #tool(id: string): void {
+  /** A tool plays select; one that stays pressed plays toggle by its new state. */
+  #tool(id: string, e: Event): void {
     const tool = composerTools(this.data?.tools).find((x) => x.id === id);
     if (!tool || tool.disabled || this.#s.disabled) return;
     const toggle = typeof tool.pressed === 'boolean';
     const cur = this.#isPressed(tool);
     const detail: ComposerToolDetail = toggle ? { id, pressed: !cur } : { id };
     if (!this.emit<ComposerToolDetail>('ui-tool', detail)) return;
-    if (!toggle) return;
+    if (!toggle) {
+      this.sound('select', undefined, e);
+      return;
+    }
+    this.sound('toggle', { direction: cur ? 'back' : 'forward' }, e);
     this.#pressed.set(id, !cur);
     this.#paint();
   }
@@ -656,18 +671,23 @@ export class UiComposer extends UiElement<ComposerData> {
     return this.#pressed.get(tool.id) ?? !!tool.pressed;
   }
 
-  #submit(): void {
+  /**
+   * `e`: the user's press. Pressed while recording, it stops the recording (that press sounds) and the send follows
+   * once the recording is filed, without a sound of its own.
+   */
+  #submit(e?: Event): void {
     const s = this.#s;
     if (s.disabled || s.busy || this.#recPending) return;
     if (this.#rec) {
       // Send what was said too: the recording is filed first, then the message goes.
       this.#sendAfterRec = true;
-      this.#stopRecording(true);
+      this.#stopRecording(true, e);
       return;
     }
     if (!this.#sendable(s)) return;
     const detail: ComposerSubmitDetail = { text: this.value.trim(), files: this.files };
     if (!this.emit<ComposerSubmitDetail>('ui-submit', detail)) return;
+    if (e) this.sound('tap', undefined, e);
     this.clear();
     this.#ta?.focus({ preventScroll: true });
   }
@@ -708,13 +728,15 @@ export class UiComposer extends UiElement<ComposerData> {
 
   // ── Voice recorder ──
 
-  async #startRecording(): Promise<void> {
+  async #startRecording(e: Event): Promise<void> {
     if (this.#s.disabled || this.#rec || this.#recPending || !composerCanRecord()) return;
     this.#error = '';
     this.#audio?.pause();
     const gen = ++this.#recGen;
     this.#recPending = true;
     this.#paint();
+    // On the press, before the microphone prompt: what follows is no longer the user's gesture.
+    this.sound('tap', undefined, e);
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -833,14 +855,18 @@ export class UiComposer extends UiElement<ComposerData> {
     rec.raf = requestAnimationFrame(step);
   }
 
-  /** Done (`keep`) files the recording as a voice note; Cancel discards it. Tracks stop and the analyser closes. */
-  #stopRecording(keep: boolean): void {
+  /**
+   * Done (`keep`) files the recording as a voice note; Cancel discards it. Tracks stop and the analyser closes.
+   * `e`: the user's press — Done taps subtly, Cancel closes subtly; a stop by a timer or by code is silent.
+   */
+  #stopRecording(keep: boolean, e?: Event): void {
     const rec = this.#rec;
     if (!rec) {
       if (this.#recPending) {
         this.#recGen++;
         this.#recPending = false;
         this.#sendAfterRec = false;
+        if (e) this.sound('close', { emphasis: 'subtle' }, e);
         this.#paint();
       }
       return;
@@ -871,6 +897,7 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#sendAfterRec = false;
       this.notify<ComposerRecordDetail>('ui-record', { state: 'cancel' });
     }
+    if (e) this.sound(keep ? 'tap' : 'close', { emphasis: 'subtle' }, e);
     this.#paint();
   }
 

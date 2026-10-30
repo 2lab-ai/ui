@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import '../setting-row/setting-row';
 import type { SettingRowData } from '../setting-row/setting-row';
 import { applySettingsFilter, settingMatches, settingRowText } from './filter';
@@ -559,6 +560,80 @@ describe('<ui-settings-nav> layout and notice', () => {
     el.querySelector('[slot="notice"]')!.remove();
     el.renderNow();
     expect(q(el, '.sn-notice')?.hasAttribute('hidden')).toBe(true);
+  });
+});
+
+describe('<ui-settings-nav> sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy({ typing: true });
+  });
+  afterEach(() => spy.restore());
+  const press = (t: Element) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+
+  it('a section link plays a subtle navigate', async () => {
+    page();
+    const el = mount();
+    press(link(el, 'models'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['navigate', { emphasis: 'subtle', input: 'mouse' }]]);
+  });
+
+  it('“Modified only” plays toggle by its new state', async () => {
+    const el = mount();
+    check(el, true);
+    await spy.settle();
+    check(el, false);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['toggle', { direction: 'forward' }],
+      ['toggle', { direction: 'back' }],
+    ]);
+  });
+
+  it('keystrokes that edit the search play type; Enter, Escape, arrows and deleting nothing do not', async () => {
+    const el = mount();
+    key(el, 'a');
+    await spy.settle();
+    key(el, ' ');
+    await spy.settle();
+    key(el, 'Enter');
+    key(el, 'Escape');
+    key(el, 'Backspace');
+    key(el, 'ArrowLeft');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'space', input: 'keyboard' }],
+    ]);
+  });
+
+  it('a cancelled ui-navigate, a prevented keystroke or data from code plays nothing', async () => {
+    page();
+    const el = mount();
+    el.addEventListener('ui-navigate', (e) => e.preventDefault());
+    press(link(el, 'models'));
+    q(el, '.sn-q')!.addEventListener('keydown', (e) => e.preventDefault());
+    key(el, 'a');
+    el.data = { sections: SECTIONS, current: 'alerts', query: 'model', modifiedOnly: true };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('is silent inside data-ui-sound="off"', async () => {
+    page();
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount();
+    wrap.append(el);
+    press(link(el, 'models'));
+    check(el, true);
+    key(el, 'a');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });
 

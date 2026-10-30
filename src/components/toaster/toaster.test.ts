@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   errorText,
   messageFields,
@@ -230,5 +231,117 @@ describe('toast() helper', () => {
     expect(page.toasts.map((t) => t.id)).toContain(id);
     toast.dismiss(id);
     expect(page.toasts.map((t) => t.id)).not.toContain(id);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail: 1 }));
+
+  it('a toast plays its outcome, subtle, as it appears: a plain one is ready', async () => {
+    const el = mount();
+    const tones = [
+      ['success', 'success'],
+      ['error', 'error'],
+      ['warning', 'warning'],
+      ['loading', 'loading'],
+      ['neutral', 'ready'],
+    ] as const;
+    for (const [tone] of tones) {
+      el.show('Done', { tone });
+      await spy.settle();
+    }
+    expect(spy.calls).toEqual(tones.map(([, cue]) => [cue, { emphasis: 'subtle' }]));
+  });
+
+  it('once per state: an update in the same tone is silent; a promise plays loading, then how it settled', async () => {
+    const el = mount();
+    let done!: (v: string) => void;
+    const p = el.promise(new Promise<string>((r) => (done = r)), { loading: 'Saving…', success: 'Saved' });
+    await spy.settle();
+    el.update(el.toasts[0].id, { title: 'Still saving…' });
+    await spy.settle();
+    expect(spy.cues()).toEqual(['loading']);
+    done('ok');
+    await p;
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['loading', { emphasis: 'subtle' }],
+      ['success', { emphasis: 'subtle' }],
+    ]);
+    const bad = el.promise(Promise.reject(new Error('HTTP 502')));
+    await bad.catch(() => {});
+    await spy.settle();
+    expect(spy.cues().slice(2)).toEqual(['error']);
+  });
+
+  it('closing, Esc, dismiss() and the timer are silent', async () => {
+    const el = mount();
+    el.data = { duration: 20 };
+    el.renderNow();
+    el.show('Expires', { tone: 'success' });
+    await spy.settle();
+    expect(el.toasts).toHaveLength(0);
+    const a = el.show('A', { duration: 0 });
+    await spy.settle();
+    click(el.shadowRoot?.querySelector(`[data-id="${a}"] [data-act="close"]`));
+    el.show('B', { tone: 'warning', duration: 0 });
+    await spy.settle();
+    items(el)[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    el.show('C', { tone: 'error', duration: 0 });
+    await spy.settle();
+    el.dismiss();
+    await spy.settle();
+    expect(spy.cues()).toEqual(['success', 'ready', 'warning', 'error']);
+  });
+
+  it('the action button taps when ui-action goes through; a prevented one is silent', async () => {
+    const el = mount();
+    const id = el.show('Deleted', { tone: 'success', action: { id: 'undo' } });
+    await spy.settle();
+    spy.calls.length = 0;
+    click(el.shadowRoot?.querySelector(`[data-id="${id}"] [data-act="action"]`));
+    await spy.settle();
+    expect(spy.calls).toEqual([['tap', { input: 'mouse' }]]);
+    const id2 = el.show('Deleted', { tone: 'success', action: { id: 'undo' } });
+    await spy.settle();
+    spy.calls.length = 0;
+    el.addEventListener('ui-action', (e) => e.preventDefault(), { once: true });
+    click(el.shadowRoot?.querySelector(`[data-id="${id2}"] [data-act="action"]`));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('a Retry that turns the toast back into a spinner plays loading, not the tap', async () => {
+    const el = mount();
+    const id = el.show('Couldn’t stop', { tone: 'error', action: { id: 'retry' } });
+    await spy.settle();
+    el.addEventListener('ui-action', () => el.update(id, { title: 'Stopping…', tone: 'loading', action: undefined }), {
+      once: true,
+    });
+    click(el.shadowRoot?.querySelector('[data-act="action"]'));
+    await spy.settle();
+    expect(spy.cues()).toEqual(['error', 'loading']);
+  });
+
+  it('el.data from code is silent, and so is a toaster inside data-ui-sound="off"', async () => {
+    const el = mount();
+    el.data = { duration: 1000, placement: 'top-center' };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    el.show('Saved', { tone: 'success', action: { id: 'undo' } });
+    click(el.shadowRoot?.querySelector('[data-act="action"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

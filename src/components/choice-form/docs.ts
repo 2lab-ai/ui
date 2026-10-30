@@ -338,6 +338,7 @@ export const doc: ComponentDoc = {
     'Recommended is a word as well as a tint; the answered state is a check, the word in the chip and the number turning into a check — never colour alone.',
     'Busy controls stay focusable (aria-disabled), so focus is not lost while sending; an error is a role="alert" line.',
     'Disabled Submit is described by “Answer 2 more to submit”.',
+    'Sound (opt-in, @2lab.ai/ui/sound): picking a choice or confirming an own answer plays select (back when the answer moves up the list), Submit taps, Reset plays a subtle navigate back, keystrokes in the own-answer box play type while typing sounds are on. Silent until the page turns sound on.',
   ],
   usage: `<ui-choice-form></ui-choice-form>
 <script type="module">

@@ -4,6 +4,7 @@ import { morphInto } from '../../core/morph';
 import { deepActive } from '../../core/popover';
 import { applyViewportVars, type ViewportBox, viewportVars, watchVisualViewport } from '../../core/viewport';
 import { icon } from '../../icons/icons';
+import { userGesture } from '../../sound/sound';
 import { styles } from './styles';
 
 /** Panel width: 400 · 560 · 720 · 960 px, or the whole viewport less 16px on each side (edge to edge on phones). */
@@ -222,12 +223,19 @@ export class UiDialog extends UiElement {
 
   // ── open / close ──────────────────────────────────────────────────────────
 
-  #setOpen(v: boolean): void {
+  /**
+   * `user`: the person's close (`ui-close` went through) — it sounds. The host's own open / close sounds only inside
+   * a user's gesture (a click that opened it, not a timer or a stream). Starting open never does: on connect, or
+   * markup upgraded in place (its `open` arrives before anything is drawn).
+   */
+  #setOpen(v: boolean, user = false, e?: Event): void {
     this.#want = v;
     this.#reflect(v);
     if (!this.isConnected) return;
+    const was = this.#dlg() ? this.#state : null;
     if (v) this.#enter();
     else this.#leave();
+    if (was !== null && this.#state !== was && (user || userGesture())) this.sound(v ? 'open' : 'close', undefined, e);
   }
 
   #reflect(v: boolean): void {
@@ -321,9 +329,9 @@ export class UiDialog extends UiElement {
     return false;
   }
 
-  #request(reason: DialogCloseReason): void {
+  #request(reason: DialogCloseReason, e?: Event): void {
     if (this.#state !== 'open') return;
-    if (this.emit<DialogCloseDetail>('ui-close', { reason })) this.#setOpen(false);
+    if (this.emit<DialogCloseDetail>('ui-close', { reason })) this.#setOpen(false, true, e);
   }
 
   // ── events ────────────────────────────────────────────────────────────────
@@ -336,7 +344,7 @@ export class UiDialog extends UiElement {
     setTimeout(() => {
       this.#escHandled = false;
     }, 0);
-    this.#request('escape');
+    this.#request('escape', e);
   }
 
   #onCancel(e: Event): void {
@@ -370,11 +378,11 @@ export class UiDialog extends UiElement {
     const scrim = this.#downOnScrim && t === this.$('.dg-scrim');
     this.#downOnScrim = false;
     if (scrim) {
-      this.#request('scrim');
+      this.#request('scrim', e);
       return;
     }
     const b = t?.closest?.('.dg-close');
-    if (b && b.getRootNode() === this.root) this.#request('close-button');
+    if (b && b.getRootNode() === this.root) this.#request('close-button', e);
   }
 
   #onTransitionEnd(e: Event): void {

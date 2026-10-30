@@ -442,7 +442,7 @@ export class UiAgentRun extends UiElement<AgentRunData> {
     } else if (btn.dataset.choice !== undefined && card?.dataset.id !== undefined) {
       this.#answer(card.dataset.id, btn.dataset.choice);
     } else if (btn.classList.contains('ar-stop')) {
-      this.#stop();
+      this.#stop(e);
     } else if (btn.classList.contains('pl-fold-btn')) {
       this.#expanded = !this.#expanded;
       this.requestRender();
@@ -490,10 +490,11 @@ export class UiAgentRun extends UiElement<AgentRunData> {
     }
   }
 
-  #stop(): void {
+  #stop(e: Event): void {
     const d = this.data;
     if (!d || d.canStop !== true || d.stopping || this.#stopSent || !LIVE.has(d.status)) return;
     if (this.emit('ui-stop', {})) {
+      this.sound('close', undefined, e);
       this.#stopSent = true;
       this.requestRender();
     }

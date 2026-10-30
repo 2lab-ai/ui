@@ -284,6 +284,7 @@ export const doc: ComponentDoc = {
     'Focus survives host updates; when a note’s control goes away it moves to the next note, the one before, or the field.',
     'With a slotted composer, its field carries this element’s name and placeholder; its chips, recorder and errors keep the composer’s own semantics.',
     'Touch targets are 44px on coarse pointers; reduced motion drops the enter/leave motion and the spinners.',
+    'Sound (opt-in, @2lab.ai/ui/sound): sending, queuing, Send now and Retry tap, Cancel plays a subtle close and a saved edit a subtle tap — once their event is not prevented; keystrokes in the field and the edit box play type while typing sounds are on. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-steering lang="ko"></ui-agent-steering>
 <script type="module">

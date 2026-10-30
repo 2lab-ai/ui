@@ -227,6 +227,7 @@ export const doc: ComponentDoc = {
     'One polite status line speaks state changes only (deleted, saved, hints, counts) — the rolling caption is aria-hidden.',
     'After Delete focus moves to the next shown row (then previous, the add button, search, chip); Undo focuses the restored entry. Undo’s 5 s pause while focus is in the panel or the pointer is on the tray (WCAG 2.2.1).',
     'Touch: targets are 44 px; reduced motion: folds, cross-fades and number rolls are instant.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a tap for Add and Save, close for Delete, a soft navigate back for Undo; Clear all taps softly when it arms and closes strongly when the second press clears; keystrokes in the fields sound only with typing sounds on. A refused or prevented write stays quiet. Silent until the page turns sound on.',
   ],
   usage: `<ui-memory-panel lang="en"></ui-memory-panel>
 <script type="module">

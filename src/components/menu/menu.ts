@@ -289,7 +289,11 @@ export class UiMenu extends UiElement<MenuData> {
 
   // ── open / close ──────────────────────────────────────────────────────────
 
-  #setOpen(v: boolean, o: { user: boolean; focus?: FocusTo; returnFocus?: boolean; opener?: Element | null }): void {
+  /** `o.event`: the person's click or key that did it (it sounds); a close with no event of its own is silent. */
+  #setOpen(
+    v: boolean,
+    o: { user: boolean; focus?: FocusTo; returnFocus?: boolean; opener?: Element | null; event?: Event },
+  ): void {
     if (v && this.#open) {
       // Already open: another anchor takes the menu over; focus moves in when asked.
       const next = o.opener ?? this.#opener;
@@ -325,7 +329,10 @@ export class UiMenu extends UiElement<MenuData> {
       this.#detach();
       if (this.isConnected) this.renderNow();
     }
-    if (o.user) this.emit<MenuOpenChange>('ui-open-change', { open: v });
+    if (!o.user) return;
+    this.emit<MenuOpenChange>('ui-open-change', { open: v });
+    // Opening a menu sounds like picking (Morphin).
+    if (o.event) this.sound(v ? 'select' : 'close', v ? undefined : { emphasis: 'subtle' }, o.event);
   }
 
   #reflect(v: boolean): void {
@@ -353,7 +360,8 @@ export class UiMenu extends UiElement<MenuData> {
     if (!this.#open) return;
     const path = e.composedPath();
     if (path.includes(this) || (this.#opener && path.includes(this.#opener))) return;
-    this.#setOpen(false, { user: true });
+    // A press outside sounds; focus that moved away does not.
+    this.#setOpen(false, { user: true, event: e.type === 'pointerdown' ? e : undefined });
   };
 
   #attach(): void {
@@ -441,8 +449,8 @@ export class UiMenu extends UiElement<MenuData> {
   #onTriggerClick(e: Event): void {
     const t = this.#triggerEl();
     if (!t || !t.contains(e.target as Node) || this.#off(t)) return;
-    if (this.#open && this.#opener === t) this.#setOpen(false, { user: true, returnFocus: true });
-    else this.#setOpen(true, { user: true, focus: 'checked', opener: t });
+    if (this.#open && this.#opener === t) this.#setOpen(false, { user: true, returnFocus: true, event: e });
+    else this.#setOpen(true, { user: true, focus: 'checked', opener: t, event: e });
   }
 
   /** ↓ opens on the checked radio (else the first row), ↑ on the last row; Enter / Space are the button's click. */
@@ -452,19 +460,19 @@ export class UiMenu extends UiElement<MenuData> {
     if (e.key === 'Escape' && this.#open) {
       e.preventDefault();
       e.stopPropagation();
-      this.#setOpen(false, { user: true, returnFocus: true });
+      this.#setOpen(false, { user: true, returnFocus: true, event: e });
       return;
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
     if (this.#off(t)) return;
-    this.#setOpen(true, { user: true, focus: e.key === 'ArrowDown' ? 'checked' : 'last', opener: t });
+    this.#setOpen(true, { user: true, focus: e.key === 'ArrowDown' ? 'checked' : 'last', opener: t, event: e });
   }
 
   #onClick(e: Event): void {
     if (!this.#open) return;
     const item = (e.target as Element | null)?.closest?.<HTMLElement>('.mn-item');
-    if (item && this.root.contains(item)) this.#activate(item);
+    if (item && this.root.contains(item)) this.#activate(item, e);
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -490,12 +498,12 @@ export class UiMenu extends UiElement<MenuData> {
     if (k === 'Escape' || k === 'Tab') {
       // A non-modal menu never keeps focus: Tab closes it onto the anchor too.
       e.preventDefault();
-      this.#setOpen(false, { user: true, returnFocus: true });
+      this.#setOpen(false, { user: true, returnFocus: true, event: e });
       return;
     }
     if (k === 'Enter' || (k === ' ' && !this.#typed)) {
       e.preventDefault();
-      if (at >= 0) this.#activate(items[at]);
+      if (at >= 0) this.#activate(items[at], e);
       return;
     }
     if (k.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -525,7 +533,7 @@ export class UiMenu extends UiElement<MenuData> {
   }
 
   /** A row was chosen: item → close; radio → check (its group unchecks) and close; checkbox → toggle, stay open. */
-  #activate(el: HTMLElement): void {
+  #activate(el: HTMLElement, e: Event): void {
     if (isOff(el)) return;
     const d = this.data;
     const items = Array.isArray(d?.items) ? d.items : [];
@@ -534,7 +542,7 @@ export class UiMenu extends UiElement<MenuData> {
     const kind = menuItemKind(it);
     if (!d || !it || kind === null || kind === 'separator' || kind === 'heading') return;
     if (kind === 'radio' && it.checked) {
-      this.#setOpen(false, { user: true, returnFocus: true });
+      this.#setOpen(false, { user: true, returnFocus: true, event: e });
       return;
     }
     const detail: MenuSelect = {
@@ -543,6 +551,9 @@ export class UiMenu extends UiElement<MenuData> {
       checked: kind === 'radio' ? true : kind === 'checkbox' ? !it.checked : false,
     };
     if (!this.emit<MenuSelect>('ui-select', detail)) return;
+    // The close that follows a choice stays silent: one cue per press.
+    if (kind === 'checkbox') this.sound('toggle', { direction: detail.checked ? 'forward' : 'back' }, e);
+    else this.sound('select', undefined, e);
     // Optimistic on top of the LATEST data: a listener that replaced the items wins.
     if (kind !== 'item' && this.data && this.data.items === items)
       this.data = { ...this.data, items: applyMenuSelect(items, i) };

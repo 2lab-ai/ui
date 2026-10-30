@@ -69,6 +69,21 @@ Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set �
 `.ui-status`, `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`,
 `.ui-section-head` with a `.ui-count` badge, and for page parts `.ui-input`, `.ui-switch`, `.ui-card`, `.ui-notice`, `.ui-row`).
 
+Sound — opt-in interface cues (0.11.0): every element plays a short cue for what the person just did (a detent when a tab
+changes, air when a dialog opens, a soft chord when a run is done). Off until the person turns it on. `@2lab.ai/ui/sound` is
+the policy (`setSound`, `bindSound`, quiet regions, opt-in typing) and loads no audio; `@2lab.ai/ui/sound-cuelume` is the
+player — [Cuelume](https://github.com/danielwh2/cuelume)'s fourteen cues synthesized live with Web Audio, no audio files,
+bundled so the package keeps zero runtime dependencies. See https://ui.2lab.ai/docs/sound.
+
+```js
+import { bindSound, setSound } from '@2lab.ai/ui/sound';
+bindSound();                                   // your own <button data-ui-sound> … sound too
+// in the click that turns sound on (keep the choice beside the theme switch):
+const { cuelumeSound, unlockSound } = await import('@2lab.ai/ui/sound-cuelume');
+setSound({ player: cuelumeSound, enabled: true });
+unlockSound();
+```
+
 ## Install
 
 ```
@@ -110,3 +125,7 @@ See `AGENTS.md` for the component contract.
 ## Credits
 Interaction patterns were studied from [affectUI](https://www.affectui.com) and re-implemented for the soma-work dashboard's
 own data. No affectUI code or assets are included.
+
+Interface sounds: [Cuelume](https://github.com/danielwh2/cuelume) (MIT, Daniel Belyi) is bundled into
+`dist/sound-cuelume.js`; the sound policy is ported from [Morphin UI](https://morphin.dev/docs/sound) (MIT, Ivan Oliinyk).
+Their notices ship in `dist/THIRD_PARTY_NOTICES.md`.

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import tokens from '../../core/tokens.json';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   EPISODE_ARM_MS,
   type EpisodeAddDetail,
@@ -303,6 +304,121 @@ describe('<ui-episode-log>', () => {
     expect(btn(el, 'edit').textContent).toBe('수정');
     expect(q(el, '.el-add-label')?.textContent).toBe('오늘 기록에 메모 추가');
     expect(q(el, 'option')?.textContent).toBe('모든 날짜');
+  });
+});
+
+describe('<ui-episode-log> sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy({ typing: true });
+  });
+  afterEach(() => spy.restore());
+  // Fake timers (performance.now too): advancing them plays the queue and starts a fresh gesture.
+  const settle = () => vi.advanceTimersByTime(300);
+  const press = (t: Element, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const pick = (el: UiEpisodeLog, date: string) => {
+    const sel = q<HTMLSelectElement>(el, 'select')!;
+    sel.value = date;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    el.renderNow();
+  };
+
+  it('adding a note and saving an edit play tap (button or ⌘↵)', () => {
+    const el = mount(DATA);
+    type(q<HTMLTextAreaElement>(el, '.el-note')!, 'A note');
+    press(btn(el, 'add'));
+    settle();
+    btn(el, 'edit').click();
+    settle();
+    const ta = q<HTMLTextAreaElement>(el, '.el-edit')!;
+    type(ta, 'Moved the staging deploy to 15:00.');
+    key(ta, 'Enter', { metaKey: true });
+    settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['tap', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('Delete: the arming press is a subtle tap, the confirming press a strong close', () => {
+    const el = mount(DATA);
+    press(btn(el, 'delete'));
+    settle();
+    press(btn(el, 'delete'), 0);
+    settle();
+    expect(spy.calls).toEqual([
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'strong', input: 'keyboard' }],
+    ]);
+  });
+
+  it('a day picked plays a subtle navigate: a later day forward, an earlier one or All days back', () => {
+    const el = mount(DATA);
+    for (const date of ['2026-10-29', TODAY, '2026-10-29', '']) {
+      pick(el, date);
+      settle();
+    }
+    const nav = (direction: string) => ['navigate', { emphasis: 'subtle', direction }];
+    expect(spy.calls).toEqual([nav('forward'), nav('forward'), nav('back'), nav('back')]);
+  });
+
+  it('keystrokes that edit the note or an entry play type; ⌘↵ does not', () => {
+    const el = mount(DATA);
+    const box = q<HTMLTextAreaElement>(el, '.el-note')!;
+    key(box, 'a');
+    settle();
+    key(box, 'Enter');
+    settle();
+    key(box, 'Enter', { metaKey: true });
+    key(box, 'ArrowUp');
+    settle();
+    btn(el, 'edit').click();
+    key(q(el, '.el-edit')!, ' ');
+    settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'enter', input: 'keyboard' }],
+      ['type', { key: 'space', input: 'keyboard' }],
+    ]);
+  });
+
+  it('cancelled events, a prevented keystroke or data from code play nothing (the arming press still taps)', () => {
+    const el = mount(DATA);
+    for (const n of ['ui-add', 'ui-edit', 'ui-delete', 'ui-date']) listen(el, n, true);
+    el.data = { ...DATA, date: '2026-10-29', status: 'Synced' };
+    el.renderNow();
+    pick(el, TODAY);
+    const box = q<HTMLTextAreaElement>(el, '.el-note')!;
+    type(box, 'A note');
+    press(btn(el, 'add'));
+    box.addEventListener('keydown', (e) => e.preventDefault());
+    key(box, 'a');
+    btn(el, 'edit').click();
+    type(q<HTMLTextAreaElement>(el, '.el-edit')!, 'Changed');
+    press(btn(el, 'save'));
+    key(q(el, '.el-edit')!, 'Escape');
+    settle();
+    expect(spy.calls).toEqual([]);
+    press(btn(el, 'delete'));
+    settle();
+    press(btn(el, 'delete'));
+    settle();
+    expect(spy.calls).toEqual([['tap', { emphasis: 'subtle', input: 'mouse' }]]);
+  });
+
+  it('is silent inside data-ui-sound="off"', () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount(DATA);
+    wrap.append(el);
+    el.renderNow();
+    pick(el, '2026-10-29');
+    press(btn(el, 'delete'));
+    key(q(el, '.el-note')!, 'a');
+    settle();
+    expect(spy.calls).toEqual([]);
   });
 });
 

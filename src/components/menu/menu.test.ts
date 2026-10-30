@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   applyMenuSelect,
   type MenuData,
@@ -483,5 +484,118 @@ describe('<ui-menu>', () => {
     );
     expect(styles).toContain('outline: 2px solid var(--border-focus); outline-offset: -2px;');
     expect(styles).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (t: Element, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const row = (el: UiMenu, text: string) =>
+    items(el).find((x) => x.querySelector('.mn-label')?.textContent === text) as HTMLElement;
+
+  it('the trigger opens with select and closes with a subtle close', async () => {
+    const { el, trig } = mount(ACTIONS);
+    click(trig);
+    await spy.settle();
+    expect(el.open).toBe(true);
+    click(trig, 0);
+    await spy.settle();
+    expect(el.open).toBe(false);
+    expect(spy.calls).toEqual([
+      ['select', { input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('arrows on the trigger open; Escape, Tab and a press outside close', async () => {
+    const { el, trig } = mount(ACTIONS);
+    key(trig, 'ArrowDown');
+    await spy.settle();
+    key(focused(el)!, 'Escape');
+    await spy.settle();
+    key(trig, 'ArrowUp');
+    await spy.settle();
+    key(focused(el)!, 'Tab');
+    await spy.settle();
+    click(trig);
+    await spy.settle();
+    document.body.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, composed: true, pointerType: 'touch' }),
+    );
+    await spy.settle();
+    expect(el.open).toBe(false);
+    expect(spy.calls).toEqual([
+      ['select', { input: 'keyboard' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+      ['select', { input: 'keyboard' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+      ['select', { input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'touch' }],
+    ]);
+  });
+
+  it('an action or a radio plays select once (not the close that follows); a checkbox toggles by its new state', async () => {
+    const { el, trig } = mount(DEFAULTS);
+    click(trig);
+    await spy.settle();
+    spy.calls.length = 0;
+    click(row(el, 'Opus 5.5'));
+    await spy.settle();
+    expect(el.open).toBe(false);
+    expect(spy.calls).toEqual([['select', { input: 'mouse' }]]);
+    click(trig);
+    await spy.settle();
+    spy.calls.length = 0;
+    key(row(el, 'Apply to open sessions'), 'Enter');
+    await spy.settle();
+    el.renderNow();
+    click(row(el, 'Apply to open sessions'));
+    await spy.settle();
+    click(row(el, 'Opus 5.5')); // the checked radio: it only closes
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['toggle', { direction: 'forward', input: 'keyboard' }],
+      ['toggle', { direction: 'back', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'mouse' }],
+    ]);
+    const { el: acts, trig: t2 } = mount(ACTIONS);
+    click(t2);
+    await spy.settle();
+    spy.calls.length = 0;
+    click(row(acts, 'Copy link'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['select', { input: 'mouse' }]]);
+  });
+
+  it('silent for a cancelled choice, the host’s own calls, data, focus moving away, and a quiet region', async () => {
+    const { el, trig } = mount(DEFAULTS);
+    el.open = true;
+    el.hide();
+    el.show();
+    el.data = { ...DEFAULTS };
+    el.renderNow();
+    el.addEventListener('ui-select', (e) => e.preventDefault(), { once: true });
+    click(row(el, 'Haiku 5'));
+    expect(el.open).toBe(true);
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    expect(el.open).toBe(false);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    click(trig);
+    expect(el.open).toBe(true);
+    click(row(el, 'Haiku 5'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });
