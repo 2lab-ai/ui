@@ -1,4 +1,7 @@
 import type { ComponentDoc } from '../../docs/types';
+import '../app-bar/app-bar';
+import '../elapsed/elapsed';
+import { icon } from '../../icons/icons';
 import './conversation';
 import type { UiConversation } from './conversation';
 import type { ConversationData, ConversationTurn } from './logic';
@@ -376,6 +379,153 @@ function koreanDemo(): UiConversation {
   );
 }
 
+/**
+ * An archive page built from parts: <ui-app-bar> on top, the conversations as kit `.ui-row` buttons (with
+ * <ui-elapsed> times) on the left, the open one in <ui-conversation>. Narrow, it is the list, then the
+ * conversation with a back button. No new element: this is the page the old standalone viewer becomes.
+ */
+function archiveDemo(): HTMLElement {
+  const now = Date.now();
+  const list = [
+    { id: 'c1', title: 'Release notes for 2.4', who: 'Mina Park', turns: firstPage(), at: now - 18 * MIN },
+    {
+      id: 'c2',
+      title: 'Flaky sign-in test',
+      who: 'Jon Lee',
+      at: now - 3 * 60 * MIN,
+      turns: [
+        {
+          id: 'u-1',
+          role: 'user',
+          name: 'Jon Lee',
+          at: now - 3 * 60 * MIN - 9 * MIN,
+          text: 'The sign-in test fails about one run in ten. Find out why.',
+        },
+        {
+          id: 'a-1',
+          role: 'assistant',
+          at: now - 3 * 60 * MIN,
+          responseMs: 9 * MIN,
+          markdown:
+            'The test waits for the **redirect**, not for the session cookie. On a slow runner the cookie lands after the check.\n\n- Wait for `GET /me` to return 200 instead of the URL change.\n- I ran it 200 times with the fix: 0 failures.',
+          summary: { title: 'Found the race', text: 'The check ran before the session cookie was set.' },
+        },
+      ] as ConversationTurn[],
+    },
+    {
+      id: 'c3',
+      title: 'Invoice export to CSV',
+      who: 'Ada Kim',
+      at: now - 26 * 60 * MIN,
+      turns: [
+        {
+          id: 'u-1',
+          role: 'user',
+          name: 'Ada Kim',
+          at: now - 26 * 60 * MIN - 4 * MIN,
+          text: 'Export last month’s invoices as CSV, one row per line item.',
+        },
+        {
+          id: 'a-1',
+          role: 'assistant',
+          at: now - 26 * 60 * MIN,
+          responseMs: 4 * MIN,
+          markdown: 'Exported **1,284 line items** from 212 invoices. Totals match the ledger to the cent.',
+        },
+      ] as ConversationTurn[],
+    },
+    {
+      id: 'c4',
+      title: 'Onboarding checklist',
+      who: 'Mina Park',
+      at: now - 4 * 24 * 60 * MIN,
+      turns: [] as ConversationTurn[],
+    },
+  ];
+  const page = document.createElement('div');
+  page.className = 'ca-page';
+  const style = document.createElement('style');
+  style.textContent = `
+.ca-page { display: flex; flex-direction: column; height: 620px; container: ca / inline-size;
+  background: var(--ui-bg); color: var(--ui-ib-text); font-size: 13.5px; }
+.ca-body { display: grid; grid-template-columns: 232px minmax(0, 1fr); flex: 1; min-height: 0; }
+.ca-side { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 14px 10px 14px 14px; border-right: 1px solid var(--ui-ib-card-border); overflow: auto; }
+.ca-side h2 { margin: 2px 4px 2px; font-size: 13px; font-weight: 650; letter-spacing: -0.006em; }
+.ca-side ul { margin: 0; padding: 0; list-style: none; }
+.ca-side .ui-row + .ui-row { border-top: 0; }
+.ca-side .ui-row[aria-current="true"] { background: var(--ui-ib-pill); }
+.ca-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 14px 16px 16px; gap: 10px; }
+.ca-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ca-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-back { display: none; }
+.ca-main ui-conversation { flex: 1; min-height: 0; }
+@container ca (max-width: 560px) {
+  .ca-body { grid-template-columns: minmax(0, 1fr); }
+  .ca-side { border-right: 0; padding-right: 14px; }
+  .ca-page[data-view="list"] .ca-main, .ca-page[data-view="detail"] .ca-side { display: none; }
+  .ca-back { display: inline-grid; }
+}`;
+  const bar = document.createElement('ui-app-bar');
+  bar.data = {
+    brand: { label: 'Workbench', mark: true, href: '#' },
+    nav: [
+      { id: 'board', label: 'Board', href: '#', icon: 'board' },
+      { id: 'archive', label: 'Conversations', href: '#', icon: 'list', current: true },
+      { id: 'settings', label: 'Settings', href: '#', icon: 'gear' },
+    ],
+    account: { name: 'Mina Park' },
+  };
+  bar.addEventListener('ui-navigate', (e) => e.preventDefault());
+  const body = document.createElement('div');
+  body.className = 'ca-body';
+  const side = document.createElement('nav');
+  side.className = 'ca-side';
+  side.setAttribute('aria-label', 'Conversations');
+  side.innerHTML = '<h2>Conversations</h2><ul></ul>';
+  const ul = side.querySelector('ul') as HTMLUListElement;
+  const main = document.createElement('section');
+  main.className = 'ca-main';
+  main.innerHTML = `<div class="ca-head"><button type="button" class="ui-icon-btn ca-back" aria-label="All conversations">${icon('chevron-left')}</button><h2></h2><button type="button" class="ui-btn is-sm" disabled title="Turn selection and export are not in <ui-conversation> yet">${icon('download', { size: 14 })}Export</button></div>`;
+  const title = main.querySelector('h2') as HTMLElement;
+  const chat = document.createElement('ui-conversation');
+  main.append(chat);
+  body.append(side, main);
+  page.append(style, bar, body);
+  const open = (id: string, focus = false) => {
+    const c = list.find((x) => x.id === id) ?? list[0];
+    for (const b of Array.from(ul.querySelectorAll('button')))
+      b.setAttribute('aria-current', String(b.dataset.id === c.id));
+    title.textContent = c.title;
+    chat.data = { turns: c.turns, startText: 'Start of conversation', emptyText: 'This conversation has no turns.' };
+    page.dataset.view = 'detail';
+    if (focus) (main.querySelector('.ca-back') as HTMLElement | null)?.focus();
+  };
+  for (const c of list) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ui-row';
+    b.dataset.id = c.id;
+    b.innerHTML = `${icon('chat')}<div><strong></strong><small><span></span> · </small></div>`;
+    (b.querySelector('strong') as HTMLElement).textContent = c.title;
+    (b.querySelector('small span') as HTMLElement).textContent = `${c.who} · ${c.turns.length} turns`;
+    const t = document.createElement('ui-elapsed');
+    t.setAttribute('since', String(c.at));
+    t.setAttribute('format', 'ago');
+    (b.querySelector('small') as HTMLElement).append(t);
+    b.addEventListener('click', () => open(c.id));
+    li.append(b);
+    ul.append(li);
+  }
+  (main.querySelector('.ca-back') as HTMLElement).addEventListener('click', () => {
+    page.dataset.view = 'list';
+    (ul.querySelector('[aria-current="true"]') as HTMLElement | null)?.focus();
+  });
+  open('c1');
+  page.dataset.view = 'list';
+  return page;
+}
+
 export const doc: ComponentDoc = {
   slug: 'conversation',
   name: 'Conversation',
@@ -586,6 +736,15 @@ export const doc: ComponentDoc = {
         'Skeleton turns for the first page; the empty text; a failed load as the whole box (Try again loads it); a bar above the turns, and an answer that failed with its own Try again.',
       height: 600,
       create: statesDemo,
+    },
+    {
+      id: 'archive',
+      title: 'Archive page',
+      description:
+        'A conversation archive built from parts — no new element: <ui-app-bar>, the conversations as kit .ui-row buttons with <ui-elapsed> times, the open one in <ui-conversation>. Narrow, it is the list, then the conversation with a back button. Not covered yet (the old viewer had them): choosing turns to export as Markdown, and loading a turn’s raw output only when Raw opens.',
+      height: 640,
+      frame: false,
+      create: archiveDemo,
     },
     {
       id: 'ko',

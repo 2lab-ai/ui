@@ -39,6 +39,16 @@ Surfaces — the page-level pieces around the agent (0.6.0):
 | Artifact Viewer | `<ui-artifact-viewer>` | What the agent made — a strip or grid of files, a hover peek, and a lightbox with previous / next, preview and Download |
 | Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, Enter to send |
 
+Page parts — the pages around the app: settings, memory, sign-in (0.9.0):
+
+| Page part | Tag | What it tells you |
+|---|---|---|
+| Settings Nav | `<ui-settings-nav>` | Where you are in a long settings page — section links that follow your scroll, search and Modified only, a notice slot; a chip row on phones |
+| Setting Row | `<ui-setting-row>` | One preference — label, description, default, your own control, Saving… / Saved / an error, locked with the reason, modified |
+| Knowledge Pages | `<ui-knowledge-pages>` | What the agent knows by topic — a searchable page list and an editor (title, aliases, markdown with preview, history), save, delete twice, no lost drafts |
+| Episode Log | `<ui-episode-log>` | What the agent noticed and when — entries by day, edit in place, delete twice, add a note to today |
+| Auth Card | `<ui-auth-card>` | Who you are signing in as — providers, the account you have, or the session you are switching to; `authCardHtml()` renders it on the server, working without JavaScript |
+
 Primitives — the building blocks the dashboard shares, in the same tone and motion:
 
 | Primitive | Tag | What it does |
@@ -52,11 +62,12 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Drawer | `<ui-drawer>` | Side sheet that docks beside the page on wide screens; resizable edge, scrim, interruptible slide |
 | Disclosure | `<ui-disclosure>` | Summary row over a region that grows 0fr → 1fr and is inert while closed |
 | Log Scroller | `<ui-log-scroller>` | Newest-at-bottom scroll box: follows the latest, pages older items in without moving your place, “jump to latest” with an unread count |
+| Elapsed | `<ui-elapsed>` | A live time — running for, stopwatch, how long ago, countdown — on one shared whole-second tick, text changed in place |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
 `@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab`, `.ui-chip`,
 `.ui-status`, `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`,
-`.ui-section-head` with a `.ui-count` badge).
+`.ui-section-head` with a `.ui-count` badge, and for page parts `.ui-input`, `.ui-switch`, `.ui-card`, `.ui-notice`, `.ui-row`).
 
 ## Install
 
