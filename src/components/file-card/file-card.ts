@@ -55,12 +55,12 @@ export class UiFileCard extends UiElement<FileItem> {
     this.root.addEventListener('click', (e) => {
       const t = e.target as Element | null;
       if (t?.closest?.('.fc-play')) {
-        this.#toggle();
+        this.#toggle(e);
         return;
       }
       if (!t?.closest?.('.fc')) return;
       const d = this.data;
-      if (d) this.emit<FileOpenDetail>('ui-open', { id: String(d.id ?? '') });
+      if (d && this.emit<FileOpenDetail>('ui-open', { id: String(d.id ?? '') })) this.sound('tap', undefined, e);
     });
     // `error` does not bubble: catch it on the way down.
     this.root.addEventListener(
@@ -182,11 +182,12 @@ export class UiFileCard extends UiElement<FileItem> {
     return this.getAttribute('lang') ?? 'en';
   }
 
-  #toggle(): void {
+  #toggle(e?: Event): void {
     const src = this.#playSrc();
     if (!src) return;
     const want = !this.#playing;
     if (!this.emit<FilePlayDetail>('ui-play', { id: String(this.data?.id ?? ''), playing: want, url: src })) return;
+    this.sound('toggle', { direction: want ? 'forward' : 'back' }, e);
     if (want) this.play();
     else this.pause();
   }

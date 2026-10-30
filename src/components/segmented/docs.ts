@@ -103,6 +103,7 @@ export const doc: ComponentDoc = {
     'Icon-only options carry their label as aria-label and tooltip.',
     'The chip is aria-hidden decoration; state is in aria-checked, colour is never the only signal (the label turns to ink too).',
     'Reduced motion: the chip jumps instead of sliding.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a new choice by click or arrow plays select, forward to a later option and back to an earlier one. Silent until the page turns sound on.',
   ],
   usage: `<ui-segmented id="period"></ui-segmented>
 <script type="module">

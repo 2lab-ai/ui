@@ -121,7 +121,7 @@ export class UiSegmented extends UiElement<SegmentedData> {
   }
 
   /** Check option `i` (by index into the drawn options); `focus` moves focus there first (keyboard). */
-  #choose(i: number, focus: boolean): void {
+  #choose(i: number, focus: boolean, e: Event): void {
     const d = this.data;
     const opts = segmentedOptions(d);
     const o = opts[i];
@@ -134,15 +134,17 @@ export class UiSegmented extends UiElement<SegmentedData> {
     }
     if (this.#off() || o.disabled || o.value === d.value) return;
     const detail: SegmentedChange = { value: o.value, previous: d.value };
+    if (!this.emit('ui-change', detail)) return;
+    const from = opts.findIndex((x) => x.value === d.value);
+    this.sound('select', { direction: i > from ? 'forward' : 'back' }, e);
     // Optimistic on top of the LATEST data: a listener that set a value of its own wins.
-    if (this.emit('ui-change', detail) && this.data && this.data.value === d.value)
-      this.data = { ...this.data, value: o.value };
+    if (this.data && this.data.value === d.value) this.data = { ...this.data, value: o.value };
   }
 
   #onClick(e: Event): void {
     const b = (e.target as Element | null)?.closest?.<HTMLElement>('.sg-opt');
     if (!b) return;
-    this.#choose(Number(b.dataset.i), false);
+    this.#choose(Number(b.dataset.i), false, e);
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -176,7 +178,7 @@ export class UiSegmented extends UiElement<SegmentedData> {
         return;
     }
     e.preventDefault();
-    if (next >= 0) this.#choose(next, true);
+    if (next >= 0) this.#choose(next, true, e);
   }
 }
 

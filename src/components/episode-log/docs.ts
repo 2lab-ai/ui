@@ -220,6 +220,7 @@ export const doc: ComponentDoc = {
     'The editor is labelled with the entry’s time; an empty entry says why Save is off (role="alert").',
     'Delete asks twice: the armed button reads “Delete?” and disarms after 4 s, on Esc or when focus leaves.',
     'Status lines are role="status"; errors are role="alert" with an icon and words.',
+    'Sound (opt-in, @2lab.ai/ui/sound): adding a note and saving an edit play tap once ui-add / ui-edit go through; Delete taps subtly when it arms and plays a strong close when it confirms; picking a day plays a subtle navigate (a later day forward, an earlier one or All days back); keystrokes in the note and the editor play type while the page has typing sounds on. Silent until the page turns sound on.',
   ],
   usage: `<ui-episode-log id="log"></ui-episode-log>
 <script type="module">

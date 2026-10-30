@@ -217,6 +217,7 @@ export const doc: ComponentDoc = {
     'Status dots are decoration next to a text label — put the state in the label or title when it matters.',
     'The underline is aria-hidden; selection is also carried by the ink label colour, not colour alone.',
     'Reduced motion: the underline jumps, the panel does not fade, the running dot stops pulsing.',
+    'Sound (opt-in, @2lab.ai/ui/sound): choosing another tab plays a subtle select, forward to a later tab and back to an earlier one. Silent until the page turns sound on.',
   ],
   usage: `<ui-tabs id="sections">
   <section slot="chat">…</section>

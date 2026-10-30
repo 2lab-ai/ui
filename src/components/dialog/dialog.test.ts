@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { DIALOG_EXIT_MS, dialogSize, type UiDialog } from './dialog';
 import { styles } from './styles';
 
@@ -511,5 +512,84 @@ describe('<ui-dialog>', () => {
     );
     expect(styles).toContain('outline: 2px solid var(--border-focus); outline-offset: 2px;');
     expect(styles).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers();
+    spy = soundSpy();
+  });
+  afterEach(() => {
+    spy.restore();
+    Reflect.deleteProperty(navigator, 'userActivation');
+  });
+  const tap = (t: EventTarget) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+  const activation = (isActive: boolean) =>
+    Object.defineProperty(navigator, 'userActivation', { configurable: true, get: () => ({ isActive }) });
+
+  it('the close button, Escape and the scrim play close once ui-close goes through', async () => {
+    const el = mount({ heading: 'Hi', open: '' });
+    tap(q(el, '.dg-close')!);
+    await spy.settle();
+    el.show();
+    await spy.settle();
+    key(q(el, '.dg-panel')!, 'Escape');
+    await spy.settle();
+    el.show();
+    await spy.settle();
+    pointer(q(el, '.dg-scrim')!);
+    tap(q(el, '.dg-scrim')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['close', { input: 'mouse' }],
+      ['open', undefined],
+      ['close', { input: 'keyboard' }],
+      ['open', undefined],
+      ['close', { input: 'mouse' }],
+    ]);
+  });
+
+  it('the host opening or closing it sounds only inside a user gesture', async () => {
+    const el = mount({ heading: 'Hi' });
+    activation(false);
+    el.open = true;
+    el.hide();
+    el.setAttribute('open', '');
+    el.removeAttribute('open');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    activation(true);
+    el.setAttribute('open', '');
+    await spy.settle();
+    el.open = false;
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', undefined],
+      ['close', undefined],
+    ]);
+  });
+
+  it('silent when it starts open, for a cancelled close or the state it is already in, and in a quiet region', async () => {
+    document.body.innerHTML = '<ui-dialog open heading="Hi"></ui-dialog>';
+    const el = mount({ heading: 'Hi', open: '' });
+    el.addEventListener('ui-close', (e) => e.preventDefault(), { once: true });
+    tap(q(el, '.dg-close')!);
+    el.show();
+    el.open = true;
+    expect(el.open).toBe(true);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    tap(q(el, '.dg-close')!);
+    expect(el.open).toBe(false);
+    el.show();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

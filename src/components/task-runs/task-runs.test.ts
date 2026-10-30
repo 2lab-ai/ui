@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type TaskRun,
   type TaskRunOpen,
@@ -458,5 +459,51 @@ describe('lang="ko"', () => {
     el.setAttribute('lang', 'ko');
     await Promise.resolve();
     expect(text(q(el, '.tr-total-k'))).toBe('합계');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers(); // settle() waits real time
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (n: Element | null, detail = 1) =>
+    n!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+
+  it('a row opens / closes its detail; Open → navigate', async () => {
+    const el = mount(BASE);
+    tap(row(el, 'T3'));
+    await spy.settle();
+    tap(row(el, 'T3'), 0);
+    await spy.settle();
+    el.setOpen('T3', true);
+    el.renderNow();
+    tap(run(el, 'T3').querySelector('button.tr-open'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+      ['navigate', { input: 'mouse' }],
+    ]);
+  });
+
+  it('nothing for a prevented ui-open, setOpen() / data from the app, or a data-ui-sound="off" region', async () => {
+    const el = mount(BASE);
+    el.setOpen('T3', true);
+    el.data = { runs: RUNS.map((r) => ({ ...r, status: 'done' as const })) };
+    el.renderNow();
+    el.addEventListener('ui-open', (e) => e.preventDefault());
+    tap(run(el, 'T3').querySelector('button.tr-open'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    tap(row(el, 'T1'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

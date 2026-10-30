@@ -797,6 +797,7 @@ export const doc: ComponentDoc = {
     'While the board loads it is aria-busy and makes no claims: no counts, no “Nothing here”, no announcement.',
     'Host face extras are text only (escaped): a metric’s label is its accessible name; a file chip button says “Open <name>” (`artOpen`).',
     'Reduced motion: no hold, no travel — a card that changes column fades in where it lands; the ring and pulses stop.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or closes a card or a group (not for reveal()), a tap for an action, a navigate for Open, a softer navigate for a file chip. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-inbox lang="en"></ui-agent-inbox>
 <script type="module">

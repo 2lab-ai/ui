@@ -738,3 +738,38 @@ ul.plain li {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Sound page: the switches row, and the cue board (one button per cue, its job under the name). */
+.snd-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin: 18px 0 8px;
+}
+.snd-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 8px;
+  margin: 14px 0 6px;
+}
+.snd-board .snd-cue {
+  height: auto;
+  min-height: 56px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 12px;
+  text-align: left;
+  white-space: normal;
+}
+.snd-board .snd-cue b {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-weight: 600;
+}
+.snd-board .snd-cue small {
+  font-weight: 400;
+  opacity: 0.72;
+  line-height: 1.3;
+}

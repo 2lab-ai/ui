@@ -358,9 +358,14 @@ export class UiAuthCard extends UiElement<AuthCardData> {
     const newTab = e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1;
     const act = el.dataset.act;
     const href = el.getAttribute('href');
+    // Both events sound whether or not the host takes them over: cancelling is how it starts a sign-in popup or
+    // routes in-app, so the person still went somewhere.
     if (act === 'provider') {
       const id = el.dataset.id ?? '';
-      if (!this.emit<AuthProviderDetail>('ui-provider', { id, href: href ?? '#' })) {
+      const sent = this.emit<AuthProviderDetail>('ui-provider', { id, href: href ?? '#' });
+      // A new tab is the browser's, not this page going somewhere (as on the app bar).
+      if (!newTab) this.sound('navigate', undefined, e);
+      if (!sent) {
         e.preventDefault();
         return;
       }
@@ -369,6 +374,7 @@ export class UiAuthCard extends UiElement<AuthCardData> {
     }
     if (act === 'brand' || act === 'continue' || act === 'sign-out' || act === 'cancel') {
       if (!this.emit<AuthNavigateDetail>('ui-navigate', { id: act, href })) e.preventDefault();
+      this.sound('navigate', undefined, e);
     }
   }
 
@@ -384,6 +390,8 @@ export class UiAuthCard extends UiElement<AuthCardData> {
       e.preventDefault();
       return;
     }
+    // No event: a submit tells nothing of what pressed the button.
+    this.sound('tap');
     const submit = this.$<HTMLElement>('button[type="submit"]');
     if (submit) this.#hold(submit);
   }

@@ -416,6 +416,7 @@ export const doc: ComponentDoc = {
     'Touch targets grow to 44 px on coarse pointers; the run pulse stops under reduced motion.',
     'Fold toggles are buttons with aria-expanded; the visible word says what a press does and the accessible name adds the section (“Expand LLM capacity”). On a narrow section the word is visually hidden, never removed.',
     'A collapsed capacity chip draws its numbers aria-hidden and carries one sentence for screen readers: provider, both measures with totals and %, flags, state, limited count with the first return, and the next line.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a fold toggle plays a subtle open or close once ui-collapse goes through; an account mark plays open for its card and close when the mark, the close button or Esc shuts it (a press elsewhere closes it quietly); a job plays navigate once ui-job-open goes through. Live figures and countdowns never sound. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-queue lang="en"></ui-agent-queue>
 <script type="module">

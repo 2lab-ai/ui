@@ -2,6 +2,7 @@ import { define, UiElement } from '../../core/element';
 import { attrs, esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
+import { userGesture } from '../../sound/sound';
 import { styles } from './styles';
 
 export interface DeckNavData {
@@ -84,7 +85,7 @@ export class UiDeckNav extends UiElement<DeckNavData> {
     super();
     this.root.addEventListener('click', (e) => {
       const b = (e.target as Element | null)?.closest?.('.dn-btn') as HTMLElement | null;
-      if (b) this.#go(b.dataset.dir === '-1' ? -1 : 1);
+      if (b) this.#go(b.dataset.dir === '-1' ? -1 : 1, e);
     });
     this.root.addEventListener('keydown', (e) => {
       const ke = e as KeyboardEvent;
@@ -92,7 +93,7 @@ export class UiDeckNav extends UiElement<DeckNavData> {
       if (ke.key !== 'ArrowLeft' && ke.key !== 'ArrowRight') return;
       if (!(ke.target as Element | null)?.closest?.('.dn-nav')) return;
       ke.preventDefault();
-      this.#go(ke.key === 'ArrowLeft' ? -1 : 1);
+      this.#go(ke.key === 'ArrowLeft' ? -1 : 1, ke);
     });
   }
 
@@ -132,13 +133,16 @@ export class UiDeckNav extends UiElement<DeckNavData> {
     } else this.#index = deckClamp(this.#index, this.#count);
   }
 
-  #go(dir: 1 | -1): boolean {
+  /** `e`: the person's press or key. Without one (the host's prev() / next()) it sounds only inside a user's gesture. */
+  #go(dir: 1 | -1, e?: Event): boolean {
     this.#sync();
     const from = this.#index;
     const to = deckStep(from, this.#count, dir, this.hasAttribute('wrap'));
     if (to < 0 || !this.emit<DeckNavPage>('ui-page', { index: to, from })) return false;
     this.#index = to;
     this.requestRender();
+    // The way the person went: › wrapping from the last card to the first is still forward.
+    if (e || userGesture()) this.sound('navigate', { emphasis: 'subtle', direction: dir < 0 ? 'back' : 'forward' }, e);
     return true;
   }
 

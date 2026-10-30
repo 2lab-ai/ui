@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { FLIP_MS, ROLL_FIRST_MS, ROLL_MS, type UiCompactBreakdown } from './compact-breakdown';
 import './compact-breakdown';
 import {
@@ -705,5 +706,51 @@ describe('<ui-compact-breakdown>', () => {
     set(el, { parts: [], loading: true });
     expect(text(el, '.cb-cap')).toBe('불러오는 중…');
     expect(STRINGS.ko.other(0)).toBe('기타');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (t: Element) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+
+  it('a grouping pick plays select, forward to a later option and back to an earlier one', async () => {
+    const el = mount({ ...SPEND, options: PERIODS });
+    press(optOf(el, 'month'));
+    await spy.settle();
+    key(optOf(el, 'month'), 'Home');
+    await spy.settle();
+    press(optOf(el, 'day'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['select', { direction: 'forward', input: 'mouse' }],
+      ['select', { direction: 'back', input: 'keyboard' }],
+    ]);
+  });
+
+  it('a cancelled ui-change or a value set from code plays nothing', async () => {
+    const el = mount({ ...SPEND, options: PERIODS });
+    el.addEventListener('ui-change', (e) => e.preventDefault());
+    press(optOf(el, 'week'));
+    key(optOf(el, 'day'), 'End');
+    set(el, { value: 'month' });
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('is silent inside data-ui-sound="off"', async () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount({ ...SPEND, options: PERIODS });
+    wrap.append(el);
+    press(optOf(el, 'week'));
+    await spy.settle();
+    expect(el.value).toBe('week');
+    expect(spy.calls).toEqual([]);
   });
 });

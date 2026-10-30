@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type PlanStep, planCss } from '../../core/plan';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type TaskPlanData,
   type TaskPlanToggle,
@@ -415,5 +416,43 @@ describe('lang="ko"', () => {
     el.setAttribute('lang', 'ko');
     await Promise.resolve();
     expect(text(q(el, '.pl-foot-st'))).toBe('실행 중 · 2/5');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers(); // settle() waits real time
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (n: Element | null, detail = 1) =>
+    n!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail }));
+
+  it('an earlier fold opens / closes (ui-toggle cannot be prevented, so every press sounds)', async () => {
+    const el = mount(BASE);
+    tap(q(el, '.pl-earlier-btn'));
+    await spy.settle();
+    tap(q(el, '.pl-earlier-btn'), 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('nothing for data the app sets or in a data-ui-sound="off" region', async () => {
+    const el = mount(BASE);
+    el.data = { ...BASE, steps: STEPS.map((s) => ({ ...s, status: 'done' as const })) };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    tap(q(el, '.pl-earlier-btn'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

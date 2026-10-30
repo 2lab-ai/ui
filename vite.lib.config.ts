@@ -45,8 +45,11 @@ const COMPONENTS = [
   'auth-card',
   'elapsed',
 ];
-/** Non-element entries: the icon set and the CSS kit (as a string; copy-assets also writes dist/ui-kit.css). */
-const MODULES = ['icons', 'kit'];
+/**
+ * Non-element entries: the icon set, the CSS kit (as a string; copy-assets also writes dist/ui-kit.css) and the sound
+ * policy. `sound-cuelume` is its own entry so Cuelume (bundled from the devDependency) loads only when a page asks.
+ */
+const MODULES = ['icons', 'kit', 'sound'];
 
 export default defineConfig({
   build: {
@@ -60,6 +63,7 @@ export default defineConfig({
         index: resolve(__dirname, 'src/index.ts'),
         ...Object.fromEntries(COMPONENTS.map((c) => [c, resolve(__dirname, `src/components/${c}/index.ts`)])),
         ...Object.fromEntries(MODULES.map((m) => [m, resolve(__dirname, `src/${m}/index.ts`)])),
+        'sound-cuelume': resolve(__dirname, 'src/sound/cuelume.ts'),
       },
       formats: ['es'],
       fileName: (_format, name) => `${name}.js`,

@@ -142,7 +142,7 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     this.root.addEventListener('click', (e) => {
       const t = e.target as Element | null;
       if (t?.closest?.('.ls-older')) this.#requestOlder(true);
-      else if (t?.closest?.('.ls-jump')) this.#jump();
+      else if (t?.closest?.('.ls-jump')) this.#jump(e);
     });
     this.root.addEventListener('slotchange', () => this.requestRender());
     // The entry motion runs once: the attribute goes when it ends (the event bubbles from the slotted item).
@@ -615,9 +615,11 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     this.renderNow();
   }
 
-  #jump(): void {
+  #jump(e: Event): void {
+    const away = !this.#pinned;
     this.scrollToLatest();
     this.#vp?.focus({ preventScroll: true });
+    if (away) this.sound('navigate', { emphasis: 'subtle' }, e);
   }
 }
 

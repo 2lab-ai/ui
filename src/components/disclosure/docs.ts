@@ -234,6 +234,7 @@ export const doc: ComponentDoc = {
     'Reduced motion: the region opens at once with a short fade; the chevron does not turn.',
     'trigger="external" with for=: the host’s button carries aria-expanded and aria-controls → this element; focus stays on it when the region opens.',
     'head-tabindex="-1": the row leaves the tab order for a roved list; Enter / Space on the focused row still toggle, and a click on slotted summary content toggles like a click on the row.',
+    'Sound (opt-in, @2lab.ai/ui/sound): the row or the external trigger plays a subtle open / close unless ui-toggle is cancelled; toggle() / show() / hide() do the same only inside a click or key press; the open property and attribute are silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-disclosure summary="Session info" meta="6">
   <dl class="ui-dl">…</dl>

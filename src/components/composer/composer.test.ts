@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiComposer } from './composer';
 import { composerCanRecord } from './composer';
 import type {
@@ -1632,5 +1633,182 @@ describe('styles', () => {
     expect(coarse).toContain('.cp-remove, .cp-play { width: 44px; height: 44px; }');
     expect(coarse).toMatch(/\.cp-rec-btn \{ min-width: 44px; height: 44px;/);
     expect(coarse).toContain('.cp-field { font-size: 16px; }');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+  const tool = (el: UiComposer, id: string) => qa(el, '[data-act="tool"]').find((b) => b.dataset.id === id);
+
+  it('sending taps — Enter or the send button; a prevented ui-submit is silent', async () => {
+    const el = mount();
+    type(el, 'Hello');
+    key(field(el), 'Enter');
+    await spy.settle();
+    type(el, 'Again');
+    click(sendBtn(el));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'keyboard' }],
+      ['tap', { input: 'mouse' }],
+    ]);
+    el.addEventListener('ui-submit', (e) => e.preventDefault());
+    type(el, 'Kept');
+    key(field(el), 'Enter');
+    await spy.settle();
+    expect(spy.calls).toHaveLength(2);
+  });
+
+  it('keystrokes play type only while typing sounds are on; the Enter that sends taps instead', async () => {
+    const el = mount();
+    key(field(el), 'a');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    spy.restore();
+    spy = soundSpy({ typing: true });
+    key(field(el), 'a');
+    await spy.settle();
+    key(field(el), 'Enter', { shiftKey: true });
+    await spy.settle();
+    type(el, 'Hello');
+    key(field(el), 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'enter', input: 'keyboard' }],
+      ['tap', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('a tool plays select, a toggle tool toggle by its new state; a prevented ui-tool is silent', async () => {
+    const el = mount({
+      tools: [
+        { id: 'plan', label: 'Plan first', pressed: false },
+        { id: 'model', label: 'Model' },
+      ],
+    });
+    click(tool(el, 'model'));
+    await spy.settle();
+    click(tool(el, 'plan'));
+    await spy.settle();
+    click(tool(el, 'plan'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['select', { input: 'mouse' }],
+      ['toggle', { direction: 'forward', input: 'mouse' }],
+      ['toggle', { direction: 'back', input: 'mouse' }],
+    ]);
+    el.addEventListener('ui-tool', (e) => e.preventDefault());
+    click(tool(el, 'model'));
+    click(tool(el, 'plan'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(3);
+  });
+
+  it('removing an attachment closes subtly; a refused file plays a subtle error; the file API is silent', async () => {
+    const el = mount({ maxFiles: 1 });
+    el.addFiles([pdf(), txt()]);
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    click(q(el, '[data-act="remove"]'));
+    await spy.settle();
+    field(el).dispatchEvent(paste([png(), png('two.png')]));
+    await spy.settle();
+    el.removeFile(0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['close', { emphasis: 'subtle', input: 'mouse' }],
+      ['error', { emphasis: 'subtle' }],
+    ]);
+  });
+
+  it('voice: start taps, Done taps subtly, Cancel and Esc close subtly', async () => {
+    stubMic();
+    const el = mount();
+    click(act(el, 'voice'));
+    await spy.settle();
+    click(act(el, 'rec-done'));
+    await spy.settle();
+    click(act(el, 'voice'));
+    await spy.settle();
+    click(act(el, 'rec-cancel'));
+    await spy.settle();
+    click(act(el, 'voice'));
+    await spy.settle();
+    key(act(el, 'rec-done')!, 'Escape');
+    await spy.settle();
+    const start = ['tap', { input: 'mouse' }];
+    expect(spy.calls).toEqual([
+      start,
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+      start,
+      ['close', { emphasis: 'subtle', input: 'mouse' }],
+      start,
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('sending while recording: the press stops it (subtle tap), the send that follows is silent', async () => {
+    stubMic();
+    const el = mount();
+    const sub = events<ComposerSubmitDetail>(el, 'ui-submit');
+    click(act(el, 'voice'));
+    await spy.settle();
+    type(el, 'Listen to this');
+    key(field(el), 'Enter');
+    await spy.settle();
+    expect(sub).toHaveLength(1);
+    expect(spy.calls.slice(1)).toEqual([['tap', { emphasis: 'subtle', input: 'keyboard' }]]);
+  });
+
+  it('a recording stopped by maxRecordMs, by data or by clear() is silent', async () => {
+    const realNow = Date.now.bind(Date);
+    let offset = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => realNow() + offset);
+    stubMic();
+    const el = mount({ maxRecordMs: 5000 });
+    const rec = events<ComposerRecordDetail>(el, 'ui-record');
+    click(act(el, 'voice'));
+    await spy.settle();
+    offset = 6000;
+    await until(() => rec.some((r) => r.state === 'stop'));
+    await spy.settle();
+    click(act(el, 'voice'));
+    await spy.settle();
+    set(el, { maxRecordMs: 5000, disabled: true });
+    set(el, { disabled: false });
+    click(act(el, 'voice'));
+    await spy.settle();
+    el.clear();
+    await spy.settle();
+    expect(rec.map((r) => r.state)).toEqual(['start', 'stop', 'start', 'cancel', 'start', 'cancel']);
+    expect(spy.cues()).toEqual(['tap', 'tap', 'tap']);
+  });
+
+  it('el.data from code is silent, and so is a composer inside data-ui-sound="off"', async () => {
+    const el = mount();
+    set(el, { value: 'From the host', busy: true });
+    set(el, { busy: false, disabled: 'Ended' });
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const muted = document.createElement('ui-composer');
+    quiet.append(muted);
+    muted.data = { tools: [{ id: 'model', label: 'Model' }] };
+    muted.renderNow();
+    click(qa(muted, '[data-act="tool"]').find((b) => b.dataset.id === 'model'));
+    muted.value = 'Hello';
+    key(muted.shadowRoot!.querySelector('.cp-field')!, 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

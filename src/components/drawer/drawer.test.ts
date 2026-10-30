@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   clampDrawerWidth,
   DRAWER_EXIT_MS,
@@ -607,5 +608,85 @@ describe('ui-drawer — notifications', () => {
     el.setAttribute('mode', 'dock');
     expect(dlg(el).dataset.mode).toBe('dock');
     expect(scrim.animate).toHaveBeenCalledTimes(1); // only the first (non-reduced) switch faded the scrim
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers();
+    spy = soundSpy();
+  });
+  afterEach(() => {
+    spy.restore();
+    Reflect.deleteProperty(navigator, 'userActivation');
+  });
+  const tap = (t: EventTarget) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+  const activation = (isActive: boolean) =>
+    Object.defineProperty(navigator, 'userActivation', { configurable: true, get: () => ({ isActive }) });
+
+  it('the close button, Escape and the scrim play close once ui-close goes through', async () => {
+    const el = mount({ heading: 'Hi', mode: 'sheet', open: '' });
+    tap(q(el, '.dr-close')!);
+    await spy.settle();
+    el.toggle();
+    await spy.settle();
+    key(q(el, '.dr-panel')!, 'Escape');
+    await spy.settle();
+    el.show();
+    await spy.settle();
+    ptr(q(el, '.dr-scrim')!, 'pointerdown');
+    tap(q(el, '.dr-scrim')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['close', { input: 'mouse' }],
+      ['open', undefined],
+      ['close', { input: 'keyboard' }],
+      ['open', undefined],
+      ['close', { input: 'mouse' }],
+    ]);
+  });
+
+  it('the host opening or closing it sounds only inside a user gesture', async () => {
+    const el = mount({ heading: 'Hi', mode: 'sheet' });
+    activation(false);
+    el.open = true;
+    el.toggle();
+    el.setAttribute('open', '');
+    el.hide();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    activation(true);
+    el.show();
+    await spy.settle();
+    el.removeAttribute('open');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', undefined],
+      ['close', undefined],
+    ]);
+  });
+
+  it('silent when it starts open, for a cancelled close, a mode switch, a resize, and in a quiet region', async () => {
+    const el = mount({ heading: 'Hi', mode: 'sheet', resizable: '', open: '' });
+    el.addEventListener('ui-close', (e) => e.preventDefault(), { once: true });
+    tap(q(el, '.dr-close')!);
+    el.show();
+    el.setAttribute('mode', 'dock');
+    key(q(el, '.dr-handle')!, 'ArrowLeft');
+    expect(el.docked).toBe(true);
+    expect(el.width).toBe(496);
+    expect(el.open).toBe(true);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    tap(q(el, '.dr-close')!);
+    expect(el.open).toBe(false);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

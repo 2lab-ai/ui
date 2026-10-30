@@ -476,6 +476,7 @@ export const doc: ComponentDoc = {
     'More is a button with aria-expanded and aria-controls; the closed region is inert, so nothing inside takes focus.',
     'Every control is ≥ 44px tall on coarse pointers (figures through a larger hit area, so the line stays one line); More is 44px on phone-width windows too.',
     'Reduced motion: figures jump instead of rolling, the region and chevron do not animate, skeletons stop pulsing.',
+    'Sound (opt-in, @2lab.ai/ui/sound): the More toggle plays a subtle open or close when its ui-more goes through; a period change sounds in the inner segmented control (select). Silent until the page turns sound on.',
   ],
   usage: `<ui-stat-strip lang="en">
   <!-- optional: shown under the strip when More is open -->

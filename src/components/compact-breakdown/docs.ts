@@ -352,6 +352,7 @@ export const doc: ComponentDoc = {
     'Rows are focusable, so the highlight and the part’s value are reachable without a mouse. The bar is decorative: everything it shows is in the list.',
     'After a pick, a polite live region outside the re-rendered markup says the new total and the largest part once its data is in (or the error).',
     'Touch: options and rows are 44px tall on coarse pointers. Reduced motion: numbers, bar, rows and the switch fill change at once.',
+    'Sound (opt-in, @2lab.ai/ui/sound): picking another grouping plays select (forward to a later option, back to an earlier one) when its ui-change goes through; hovering or focusing a row is silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-compact-breakdown></ui-compact-breakdown>
 <script type="module">

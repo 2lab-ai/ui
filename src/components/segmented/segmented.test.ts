@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lastEnabled, rovingIndex } from '../../core/roving';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { type SegmentedData, segmentedOptions, type UiSegmented } from './segmented';
 import { styles } from './styles';
 
@@ -210,5 +211,53 @@ describe('<ui-segmented>', () => {
     const el = mount({ label: '기간', value: 'a', options: [{ value: 'a', label: '오늘' }] }, { lang: 'ko' });
     expect(q(el, '.sg')?.getAttribute('aria-label')).toBe('기간');
     expect(q(el, '.sg-label')?.textContent).toBe('오늘');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (t: HTMLElement, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+
+  it('a new choice plays select, forward to a later option and back to an earlier one', async () => {
+    const el = mount(DATA);
+    click(qa(el, '.sg-opt')[2]);
+    await spy.settle();
+    el.renderNow();
+    click(qa(el, '.sg-opt')[0], 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['select', { direction: 'forward', input: 'mouse' }],
+      ['select', { direction: 'back', input: 'keyboard' }],
+    ]);
+  });
+
+  it('arrows choose with the keyboard input', async () => {
+    const el = mount(DATA);
+    key(qa(el, '.sg-opt')[1], 'ArrowLeft');
+    await spy.settle();
+    expect(spy.calls).toEqual([['select', { direction: 'back', input: 'keyboard' }]]);
+  });
+
+  it('silent for the current value, a cancelled change, data the app sets, and a quiet region', async () => {
+    const el = mount(DATA);
+    click(qa(el, '.sg-opt')[1]);
+    el.addEventListener('ui-change', (e) => e.preventDefault(), { once: true });
+    click(qa(el, '.sg-opt')[0]);
+    el.data = { ...DATA, value: '30d' };
+    el.renderNow();
+    await spy.settle();
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    click(qa(el, '.sg-opt')[0]);
+    await spy.settle();
+    expect(el.value).toBe('today');
+    expect(spy.calls).toEqual([]);
   });
 });

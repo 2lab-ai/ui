@@ -4,8 +4,10 @@ import { DOCS, docBySlug } from '@2lab.ai/ui/docs/registry';
 import type { ComponentDoc, DemoDoc } from '@2lab.ai/ui/docs/types';
 import { icon } from '@2lab.ai/ui/icons/icons';
 import { kitCss } from '@2lab.ai/ui/kit/kit';
+import { playSound } from '@2lab.ai/ui/sound/sound';
 import pkg from '../package.json';
 import { iconsPage, kitPage, wireKit } from './foundations';
+import { setSiteSound, soundButton, soundNow, soundPage, startSiteSound, wireSoundPage } from './sound';
 import './style.css';
 
 // Page-level component tokens (each preview stage switches with data-theme) and the light-DOM kit the demos use.
@@ -57,6 +59,7 @@ function shell(active: string, body: string): string {
   <nav>${link('/components', 'Components')}${link('/docs/installation', 'Docs')}</nav>
   <div class="grow"></div>
   <span class="ver">v${esc(pkg.version)}</span>
+  ${soundButton()}
   <button class="icon-btn" id="theme" aria-label="Toggle site theme">${themeNow() === 'dark' ? ICON.sun : ICON.moon}</button>
 </header>
 <div class="layout">
@@ -64,7 +67,7 @@ function shell(active: string, body: string): string {
     <h4>Getting started</h4>
     ${link('/', 'Introduction')}${link('/docs/installation', 'Installation')}${link('/docs/theming', 'Theming')}
     <h4>Foundations</h4>
-    ${link('/docs/icons', 'Icons')}${link('/docs/kit', 'UI kit', '<small>css</small>')}
+    ${link('/docs/icons', 'Icons')}${link('/docs/kit', 'UI kit', '<small>css</small>')}${link('/docs/sound', 'Sound', '<small>opt-in</small>')}
     <h4>Screens</h4>
     ${screens.map((d) => link(`/components/${d.slug}`, esc(d.name), '<small>screen</small>')).join('')}
     <h4>Components</h4>
@@ -319,6 +322,9 @@ function route(): void {
   } else if (path === '/docs/kit') {
     body = kitPage(codeBlock);
     document.title = 'UI kit — 2lab/ui';
+  } else if (path === '/docs/sound') {
+    body = soundPage(codeBlock);
+    document.title = 'Sound — 2lab/ui';
   } else {
     body = homePage();
     active = '/';
@@ -328,6 +334,7 @@ function route(): void {
   document.body.classList.remove('nav-open');
   if (current) mountDemo();
   else if (path === '/docs/kit') wireKit(app);
+  else if (path === '/docs/sound') wireSoundPage(app, route);
   else mountThumbs();
 }
 
@@ -351,6 +358,14 @@ document.addEventListener('click', (e) => {
       localStorage.setItem('2lab-ui-theme', next);
     } catch {}
     route();
+    return;
+  }
+  if (t.closest('#sound')) {
+    const on = !soundNow();
+    void setSiteSound(on).then(() => {
+      if (on) playSound('toggle', { direction: 'forward' });
+      route();
+    });
     return;
   }
   if (t.closest('#menu')) {
@@ -405,4 +420,5 @@ document.addEventListener('click', (e) => {
   }
 });
 window.addEventListener('popstate', route);
+startSiteSound();
 route();

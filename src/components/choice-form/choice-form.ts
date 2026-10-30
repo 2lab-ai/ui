@@ -2,9 +2,11 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
+import { typedKey } from '../../sound/sound';
 import { answerMarkdown } from '../ai-answer/ai-answer';
 import {
   type ChoiceFormAction,
+  type ChoiceFormAnswer,
   type ChoiceFormAnswerOut,
   type ChoiceFormAnswers,
   type ChoiceFormChangeDetail,
@@ -191,18 +193,26 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     const qid = str(el.dataset.q);
     // Confirm stays pressable while empty: pressing it says why nothing happened.
     if (act === 'custom') {
-      if (!this.#busy(d)) this.#confirmCustom(qid);
+      if (!this.#busy(d)) this.#confirmCustom(qid, e);
       return;
     }
     if (el.getAttribute('aria-disabled') === 'true') return;
-    if (act === 'pick') this.#pick(qid, str(el.dataset.choice));
+    if (act === 'pick') this.#pick(qid, str(el.dataset.choice), e);
     else if (act === 'change') this.#change(qid);
-    else if (act === 'reset') this.#reset();
-    else if (act === 'submit') this.#submit('submit');
-    else if (act === 'recommended') this.#submit('recommended');
+    else if (act === 'reset') this.#reset(e);
+    else if (act === 'submit') this.#submit('submit', e);
+    else if (act === 'recommended') this.#submit('recommended', e);
   }
 
-  #pick(qid: string, cid: string): void {
+  /** A pick plays `select`, back when it moves up the question's list (an own answer sits after the choices). */
+  #soundPick(q: ChoiceFormQuestion, prev: ChoiceFormAnswer | undefined, next: ChoiceFormAnswer, e?: Event): void {
+    const order = choiceFormOrder(q.choices);
+    const at = (a: ChoiceFormAnswer) =>
+      a.choiceId === undefined ? order.length : order.findIndex((c) => c.id === a.choiceId);
+    this.sound('select', { direction: prev && at(next) < at(prev) ? 'back' : 'forward' }, e);
+  }
+
+  #pick(qid: string, cid: string, e?: Event): void {
     const d = this.data;
     if (!d) return;
     const qs = this.#sync(d);
@@ -210,14 +220,16 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     const qi = qs.findIndex((q) => q.id === qid);
     if (qi < 0 || !qs[qi].choices.some((c) => c.id === cid)) return;
     if (this.#pickSubmits(d, qs)) {
+      const prev = this.#answers[qid];
       const answers = choiceFormReduce(this.#answers, { type: 'pick', questionId: qid, choiceId: cid }, qs);
-      this.#send(answers, 'submit', qs, { source: 'submit', questionId: qid, choiceId: cid });
+      if (this.#send(answers, 'submit', qs, { source: 'submit', questionId: qid, choiceId: cid }))
+        this.#soundPick(qs[qi], prev, { choiceId: cid }, e);
       return;
     }
-    this.#apply({ type: 'pick', questionId: qid, choiceId: cid }, qs, qi, 'pick');
+    this.#apply({ type: 'pick', questionId: qid, choiceId: cid }, qs, qi, 'pick', e);
   }
 
-  #confirmCustom(qid: string): void {
+  #confirmCustom(qid: string, e?: Event): void {
     const d = this.data;
     if (!d) return;
     const qs = this.#sync(d);
@@ -233,18 +245,22 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
       return;
     }
     if (this.#pickSubmits(d, qs)) {
+      const prev = this.#answers[qid];
       const answers = choiceFormReduce(this.#answers, { type: 'custom', questionId: qid, text }, qs);
-      this.#send(answers, 'submit', qs, { source: 'submit', questionId: qid });
+      if (this.#send(answers, 'submit', qs, { source: 'submit', questionId: qid }))
+        this.#soundPick(qs[qi], prev, { custom: text }, e);
       return;
     }
-    this.#apply({ type: 'custom', questionId: qid, text }, qs, qi, 'custom');
+    this.#apply({ type: 'custom', questionId: qid, text }, qs, qi, 'custom', e);
   }
 
   /** Record a pick / own answer, fold the card, notify, and move on to the next open question. */
-  #apply(action: ChoiceFormAction, qs: ChoiceFormQuestion[], qi: number, reason: 'pick' | 'custom'): void {
+  #apply(action: ChoiceFormAction, qs: ChoiceFormQuestion[], qi: number, reason: 'pick' | 'custom', e?: Event): void {
     const qid = qs[qi].id;
+    const prev = this.#answers[qid];
     const next = choiceFormReduce(this.#answers, action, qs);
     const changed = next !== this.#answers;
+    if (changed) this.#soundPick(qs[qi], prev, next[qid], e);
     this.#answers = next;
     this.#editing.delete(qid);
     this.#invalid.delete(qid);
@@ -307,12 +323,13 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     this.#cardOf(qid)?.querySelector<HTMLElement>('.cf-change')?.focus({ preventScroll: true });
   }
 
-  #reset(): void {
+  #reset(e?: Event): void {
     const d = this.data;
     if (!d) return;
     const qs = this.#sync(d);
     if (this.#busy(d)) return;
     const had = Object.keys(this.#answers).length > 0;
+    const changed = had || this.#editing.size > 0 || this.#drafts.size > 0;
     this.#answers = {};
     this.#editing.clear();
     this.#drafts.clear();
@@ -321,32 +338,37 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     this.renderNow();
     if (qs[0]) this.#stopOf(qs[0].id)?.focus({ preventScroll: true });
     this.#say(this.#t.cleared);
+    if (changed) this.sound('navigate', { emphasis: 'subtle', direction: 'back' }, e);
     if (had)
       this.notify<ChoiceFormChangeDetail>('ui-change', { answers: [], answered: 0, total: qs.length, reason: 'reset' });
   }
 
-  #submit(source: ChoiceFormSource): void {
+  #submit(source: ChoiceFormSource, e?: Event): void {
     const d = this.data;
     if (!d || d.submitted) return;
     const qs = this.#sync(d);
     if (this.#busy(d)) return;
     if (source === 'recommended') {
       if (this.#single(qs) || !choiceFormHero(qs, this.#answers).enabled) return;
-      this.#send(choiceFormRecommendedAnswers(qs, this.#answers).answers, source, qs, { source });
+      if (this.#send(choiceFormRecommendedAnswers(qs, this.#answers).answers, source, qs, { source }))
+        this.sound('tap', undefined, e);
       return;
     }
     if (!choiceFormCanSubmit(qs, this.#answers, !!d.allowPartial)) return;
-    this.#send(this.#answers, source, qs, { source });
+    if (this.#send(this.#answers, source, qs, { source })) this.sound('tap', undefined, e);
   }
 
-  /** Emit `ui-submit`; not cancelled → the answers are kept and the form locks until the host assigns data again. */
-  #send(answers: ChoiceFormAnswers, source: ChoiceFormSource, qs: ChoiceFormQuestion[], sending: Sending): void {
+  /**
+   * Emit `ui-submit`; not cancelled → the answers are kept and the form locks until the host assigns data again.
+   * True when it went through.
+   */
+  #send(answers: ChoiceFormAnswers, source: ChoiceFormSource, qs: ChoiceFormQuestion[], sending: Sending): boolean {
     const ok = this.emit<ChoiceFormSubmitDetail>('ui-submit', { answers: choiceFormAnswerList(qs, answers), source });
-    if (!ok) return;
+    if (!ok) return false;
     // A listener may already have replaced the form (another identity): that one starts clean.
     if (this.data && choiceFormKey(this.data) !== this.#key) {
       this.renderNow();
-      return;
+      return true;
     }
     this.#answers = answers;
     this.#editing.clear();
@@ -355,6 +377,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     this.#lastSent = sending;
     this.#sentFor = this.data;
     this.renderNow();
+    return true;
   }
 
   /** Digits pick, arrows walk the choices, Enter confirms an own answer, Esc folds a reopened card, ⌘/Ctrl+Enter submits. */
@@ -382,8 +405,11 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     if (target?.matches?.('input, textarea')) {
       if (e.key === 'Enter' && target.matches('.cf-input') && !e.isComposing) {
         e.preventDefault();
-        this.#confirmCustom(str(target.dataset.q));
+        this.#confirmCustom(str(target.dataset.q), e);
+        return;
       }
+      const key = target.matches('.cf-input') ? typedKey(e, target) : undefined;
+      if (key) this.sound('type', { key }, e);
       return;
     }
     if (/^[1-9]$/.test(e.key) && !e.shiftKey) {
@@ -393,7 +419,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
       const c = choiceFormOrder(q.choices)[Number(e.key) - 1];
       if (!c) return;
       e.preventDefault();
-      this.#pick(q.id, c.id);
+      this.#pick(q.id, c.id, e);
       return;
     }
     const choice = target?.closest?.('.cf-choice') as HTMLElement | null;

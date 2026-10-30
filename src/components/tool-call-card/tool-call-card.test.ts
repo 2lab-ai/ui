@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   formatToolClock,
   formatToolMs,
@@ -754,5 +755,85 @@ describe('STRINGS', () => {
     expect(Object.keys(STRINGS.ko).sort()).toEqual(Object.keys(STRINGS.en).sort());
     expect(STRINGS.ko.used(3)).toBe('툴 3개 사용');
     expect(STRINGS.ko.sayRunning('Read')).toBe('Read 실행 중');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (el: HTMLElement, s: string, detail = 1) =>
+    q(el, s)!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail }));
+
+  it('card: open / close on the header press, by the input that did it', async () => {
+    const el = mount(READ);
+    press(el, '.tc-head');
+    await spy.settle();
+    expect(spy.calls).toEqual([['open', { emphasis: 'subtle', input: 'mouse' }]]);
+    press(el, '.tc-head', 0);
+    await spy.settle();
+    expect(spy.calls.at(-1)).toEqual(['close', { emphasis: 'subtle', input: 'keyboard' }]);
+  });
+
+  it('card: copy succeeds → success; Retry and Try again → tap', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as unknown as Clipboard);
+    const el = mount({ ...READ, status: 'error', canRetry: true, detailError: 'x', defaultOpen: true });
+    press(el, '.tc-copy[data-part="args"]');
+    await spy.settle();
+    expect(spy.calls).toEqual([['success', { emphasis: 'subtle', input: 'mouse' }]]);
+    press(el, '[data-act="retry"]');
+    await spy.settle();
+    press(el, '[data-act="reload"]', 0);
+    await spy.settle();
+    expect(spy.calls.slice(1)).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['tap', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('card: nothing for a prevented event, data the app sets, or a data-ui-sound="off" region', async () => {
+    const el = mount({ ...READ, status: 'running' });
+    for (const n of ['ui-toggle', 'ui-retry']) el.addEventListener(n, (e) => e.preventDefault());
+    press(el, '.tc-head');
+    set(el, { status: 'error', canRetry: true, open: true });
+    press(el, '[data-act="retry"]');
+    set(el, { open: false });
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount(READ);
+    quiet.append(off);
+    press(off, '.tc-head');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('group: open / close on its header; a card inside plays its own; prevented and app data are silent', async () => {
+    const el = mountGroup({ calls: [{ id: 'a', name: 'Read', status: 'success' }] });
+    press(el, '.tcg-head');
+    await spy.settle();
+    press(el, '.tcg-head', 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+    const card = el.cards[0];
+    card.renderNow();
+    press(card, '.tc-head');
+    await spy.settle();
+    expect(spy.calls.at(-1)).toEqual(['open', { emphasis: 'subtle', input: 'mouse' }]);
+    expect(spy.calls).toHaveLength(3);
+    el.addEventListener('ui-toggle', (e) => e.preventDefault());
+    press(el, '.tcg-head');
+    el.data = { calls: el.data!.calls, open: true };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toHaveLength(3);
   });
 });

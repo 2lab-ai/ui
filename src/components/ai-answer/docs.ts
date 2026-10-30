@@ -200,6 +200,7 @@ export const doc: ComponentDoc = {
     'While streaming or loading the card is aria-busy; the pulsing dot is aria-hidden.',
     'Reduced motion: no entry fade or pop, the sweep and pulse stop (the writing text turns static), the row jumps instead of gliding.',
     'Coarse pointers: buttons are 44px, chips are never truncated and get a 10px-taller hit area.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again, a navigate when the user follows a link. Silent until the page turns sound on.',
   ],
   usage: `<ui-ai-answer lang="en"></ui-ai-answer>
 <script type="module">

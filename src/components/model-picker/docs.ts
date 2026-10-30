@@ -226,6 +226,7 @@ export const doc: ComponentDoc = {
     'One polite live region reads the tray sentence once when the row in view changes. Errors use role="alert" (in the open menu, else under the trigger); a waiting switch uses role="status" under the trigger.',
     'Keys inside the menu do not propagate, so page shortcuts and outer Esc handlers stay quiet while it is open.',
     'Reduced motion: the menu fades without scaling, meters fill without the stagger, prices jump instead of rolling. Coarse pointers / narrow viewports: trigger and levels ≥44px, rows ≥54px.',
+    'Sound (opt-in, @2lab.ai/ui/sound): opening the menu plays select and closing it (Esc, the trigger, Tab out, a press outside) a subtle close; a model or effort change plays select, back when it moves up the list — once ui-change is not prevented. Silent until the page turns sound on.',
   ],
   usage: `<ui-model-picker></ui-model-picker>
 <script type="module">

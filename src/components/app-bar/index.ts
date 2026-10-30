@@ -5,6 +5,7 @@ export type {
   AppBarData,
   AppBarLink,
   AppBarNavigate,
+  AppBarSoundChange,
   AppBarStatus,
   AppBarTheme,
   AppBarThemeChange,

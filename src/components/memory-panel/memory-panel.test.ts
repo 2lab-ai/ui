@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { doc } from './docs';
 import {
   entryKeys,
@@ -944,5 +945,106 @@ describe('docs', () => {
     expect(el.data?.stores[0].entries).toHaveLength(before - 1);
     expect(rowsOf(el, 'memory')).toHaveLength(before - 1);
     expect(q<HTMLButtonElement>(el, '.mm-undo')?.hidden).toBe(false);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers(); // settle() waits real time
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (t: Element | null, detail = 1) =>
+    t!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const type = (el: UiMemoryPanel, field: string, text: string) => {
+    const ta = byKey(el, field) as HTMLTextAreaElement;
+    ta.value = text;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    return ta;
+  };
+
+  it('add and save → tap; delete → close; Undo → a soft navigate back; Clear all: arm → soft tap, confirm → strong close', async () => {
+    const el = mount();
+    tap(byKey(el, 'add|user'));
+    type(el, 'new|user', 'Likes diagrams');
+    tap(byKey(el, 'adds|user'));
+    await spy.settle();
+    tap(act(el, 'memory', 1, 'edit'));
+    key(type(el, 'edit|memory', 'Deploys via release/* only'), 'Enter');
+    await spy.settle();
+    tap(act(el, 'memory', 0, 'delete'));
+    await spy.settle();
+    tap(q(el, '.mm-undo'), 0);
+    await spy.settle();
+    tap(byKey(el, 'clear|memory'));
+    await spy.settle();
+    tap(byKey(el, 'clear|memory'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['tap', { input: 'keyboard' }],
+      ['close', { input: 'mouse' }],
+      ['navigate', { emphasis: 'subtle', direction: 'back', input: 'keyboard' }],
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'strong', input: 'mouse' }],
+    ]);
+  });
+
+  it('keystrokes in its fields sound only when the page turned typing on; Enter that saves is the save', async () => {
+    const el = mount();
+    tap(byKey(el, 'add|user'));
+    const ta = byKey(el, 'new|user') as HTMLTextAreaElement;
+    key(ta, 'a');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    spy.restore();
+    spy = soundSpy({ typing: true });
+    key(ta, 'a');
+    await spy.settle();
+    key(ta, 'Enter', { shiftKey: true });
+    await spy.settle();
+    key(type(el, 'new|user', 'x'), 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'enter', input: 'keyboard' }],
+      ['tap', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('nothing for a prevented or refused write, an unchanged save, data the app sets, or a data-ui-sound="off" region', async () => {
+    const el = mount();
+    for (const n of ['ui-add', 'ui-edit', 'ui-delete', 'ui-restore', 'ui-clear'])
+      el.addEventListener(n, (e) => (n === 'ui-add' ? el.refuse(e, 'Busy') : e.preventDefault()));
+    tap(byKey(el, 'add|user'));
+    type(el, 'new|user', 'Likes diagrams');
+    tap(byKey(el, 'adds|user'));
+    tap(act(el, 'memory', 1, 'edit'));
+    key(type(el, 'edit|memory', 'changed'), 'Enter');
+    tap(byKey(el, 'cancel|memory'));
+    tap(act(el, 'memory', 0, 'edit'));
+    key(byKey(el, 'edit|memory')!, 'Enter'); // unchanged: closes without an event
+    tap(act(el, 'memory', 0, 'delete'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    tap(byKey(el, 'clear|memory'));
+    await spy.settle();
+    expect(spy.cues()).toEqual(['tap']); // the arming press went through
+    tap(byKey(el, 'clear|memory'));
+    el.data = { stores: [store({ entries: ['One'] }), user()] };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.cues()).toEqual(['tap']);
+    spy.calls.length = 0;
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount();
+    quiet.append(off);
+    tap(act(off, 'memory', 0, 'delete'));
+    tap(byKey(off, 'clear|memory'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

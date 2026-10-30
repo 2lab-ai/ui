@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { DIALOG_EXIT_MS, type UiDialog } from '../dialog/dialog';
 import type { FileItem } from '../file-card/render';
 import type {
@@ -1045,5 +1046,95 @@ describe('styles', () => {
     expect(styles).toMatch(
       /prefers-reduced-motion: reduce\) \{[\s\S]*?\.av-peek[^{]*\{ transform: none !important; \}/,
     );
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers(); // settle() waits real time
+    spy = soundSpy();
+    // Links never navigate the test page.
+    document.addEventListener('click', (e) => e.preventDefault(), { signal: ac.signal });
+  });
+  afterEach(() => {
+    spy.restore();
+    Reflect.deleteProperty(navigator, 'userActivation');
+  });
+  const tap = (t: Element, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  /** Outside a click or key press (a timer, a stream): the inner dialog keeps the host's show() / hide() quiet. */
+  const idle = () =>
+    Object.defineProperty(navigator, 'userActivation', { configurable: true, get: () => ({ isActive: false }) });
+  const nav = (direction: string, input: string) => ['navigate', { emphasis: 'subtle', direction, input }];
+
+  it('a tile opens the viewer once; steps and ← / → / Home navigate with direction; Esc closes', async () => {
+    const el = mount({ items: files() });
+    tap(tiles(el)[1]);
+    await spy.settle();
+    tap(navBtn(el, 'next'));
+    await spy.settle();
+    key(q(el, '.av-stage')!, 'ArrowLeft');
+    await spy.settle();
+    key(q(el, '.av-stage')!, 'Home');
+    await spy.settle();
+    key(q(el, '.av-stage')!, 'Home'); // already there: nothing moved
+    await spy.settle();
+    key(q(el, '.av-stage')!, 'Escape');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { input: 'mouse' }],
+      nav('forward', 'mouse'),
+      nav('back', 'keyboard'),
+      nav('back', 'keyboard'),
+      ['close', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('Download → tap; Open in new tab → navigate', async () => {
+    idle();
+    const el = mount({ items: files() });
+    el.open(3);
+    tap(q(el, '.av-vf a.av-act[data-act="download"]')!);
+    await spy.settle();
+    tap(q(el, '.av-vf a.av-act[data-act="open"]')!, 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['navigate', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('nothing for the host’s calls and data, a hover peek, a prevented event, or a data-ui-sound="off" region', async () => {
+    idle();
+    const el = mount({ items: files() });
+    el.data = { items: files(), index: 1 };
+    el.renderNow();
+    el.next();
+    el.prev();
+    el.close();
+    vi.useFakeTimers();
+    pointer(tiles(el)[0], 'pointerover');
+    vi.advanceTimersByTime(PEEK_DELAY_MS);
+    expect(q(el, '.av-peek')?.classList.contains('is-open')).toBe(true);
+    vi.useRealTimers();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    for (const n of ['ui-open', 'ui-close', 'ui-action']) el.addEventListener(n, (e) => e.preventDefault());
+    tap(tiles(el)[0]);
+    el.open(3);
+    key(q(el, '.av-stage')!, 'Escape');
+    tap(q(el, '.av-vf a.av-act[data-act="download"]')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount({ items: files() });
+    quiet.append(off);
+    tap(tiles(off)[1]);
+    tap(navBtn(off, 'next'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

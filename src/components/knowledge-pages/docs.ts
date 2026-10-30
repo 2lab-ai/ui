@@ -489,6 +489,7 @@ export const doc: ComponentDoc = {
     'Delete arms with the word “Delete?” and a polite announcement; Esc, blur or 4 s disarm. Errors and conflicts are role="alert" with icon + words.',
     'Below 640 px container width one column shows at a time, with “All pages” to go back; targets are 44 px on touch and narrow screens.',
     'Reduced motion: no press scale; new history rows fade only.',
+    'Sound (opt-in, @2lab.ai/ui/sound): choosing a page plays select; New, Save (and ⌘S) play tap, Reload a subtle tap — each once its event goes through; Delete taps subtly when it arms and plays a strong close when it confirms; keystrokes in the fields play type while the page has typing sounds on. Silent until the page turns sound on.',
   ],
   usage: `<ui-knowledge-pages style="height: 640px"></ui-knowledge-pages>
 <script type="module">

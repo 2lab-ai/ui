@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import tokens from '../../core/tokens.json';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { CELLS, cellMap, contextLevel, LEAVE_MS, markIndex, type UiContextWindow } from './context-window';
 import { styles } from './styles';
 
@@ -272,5 +273,61 @@ describe('<ui-context-window> host gaps', () => {
     expect(ratio(warn, surface)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(warn, tint)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(warn, rgb(L['surface-raised']))).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+
+  it('compact: the arming press taps subtly, the confirming press taps', async () => {
+    const el = mount({ ...BASE, canCompact: true });
+    click(q(el, '.cw-compact'));
+    await spy.settle();
+    el.renderNow();
+    click(q(el, '.cw-compact'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+      ['tap', { input: 'mouse' }],
+    ]);
+  });
+
+  it('a prevented ui-compact plays only the arming tap; a locked action is silent', async () => {
+    const el = mount({ ...BASE, canCompact: true });
+    el.addEventListener('ui-compact', (e) => e.preventDefault());
+    click(q(el, '.cw-compact'));
+    await spy.settle();
+    click(q(el, '.cw-compact'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['tap', { emphasis: 'subtle', input: 'mouse' }]]);
+    const off = mount({ ...BASE, canCompact: 'Only the owner can compact' });
+    click(q(off, '.cw-compact'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(1);
+  });
+
+  it('el.data from code is silent, and so is a meter inside data-ui-sound="off"', async () => {
+    const el = mount({ ...BASE, canCompact: true });
+    el.data = { ...BASE, canCompact: true, compactState: 'observed', unsplit: { tokens: 41_200, kind: 'compact' } };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const muted = document.createElement('ui-context-window') as UiContextWindow;
+    quiet.append(muted);
+    muted.data = { ...BASE, canCompact: true };
+    muted.renderNow();
+    click(q(muted, '.cw-compact'));
+    click(q(muted, '.cw-compact'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

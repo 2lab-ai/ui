@@ -148,6 +148,7 @@ export const doc: ComponentDoc = {
     'The visual “2 / 5” is hidden; a status region says “2 of 5” once per change.',
     'The peek edges are decorative (aria-hidden). New edges grow and fade in; reduced motion: an opacity fade only, no press scale.',
     'Buttons are 44px on coarse pointers and narrow screens.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a page change by press or arrow plays a subtle navigate, back for ‹ and forward for ›, unless ui-page is cancelled; prev() / next() do the same only inside a click or key press. Silent until the page turns sound on.',
   ],
   usage: `<ui-deck-nav peek></ui-deck-nav>
 <article class="card">…</article>

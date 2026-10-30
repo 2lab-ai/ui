@@ -1044,7 +1044,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       ?.focus({ preventScroll: true });
   }
 
-  #toggle(pid: string, aid: string | null, grp: string | null): void {
+  #toggle(pid: string, aid: string | null, grp: string | null, e: Event): void {
     const next: OpenCard = { pid, aid, grp: aid === null ? (grp ?? OK_STACK) : null };
     const key = openKey(next);
     const o = this.#open;
@@ -1052,6 +1052,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       this.#open = null;
       this.renderNow();
       this.#focusKey(key);
+      this.sound('close', undefined, e);
       return;
     }
     if (aid !== null && !this.emit<AqAccountOpenDetail>('ui-account-open', { providerId: pid, accountId: aid })) return;
@@ -1059,14 +1060,17 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     this.#stops.set(keyOf('cap', pid), key);
     this.renderNow();
     this.#focusKey(key);
+    this.sound('open', undefined, e);
   }
 
-  #close(refocus: boolean): void {
+  /** Close the account card; false when none was open. */
+  #close(refocus: boolean): boolean {
     const o = this.#open;
-    if (!o) return;
+    if (!o) return false;
     this.#open = null;
     this.renderNow();
     if (refocus) this.#focusKey(openKey(o));
+    return true;
   }
 
   /** A press outside the element's own markup closes the card — also one on the host's slotted content. */
@@ -1080,11 +1084,12 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     return !!el && this.root.contains(el);
   }
 
-  #toggleFold(section: AqSection): void {
+  #toggleFold(section: AqSection, e: Event): void {
     const collapsed = !this.#fold[section];
     if (!this.emit<AqCollapseDetail>('ui-collapse', { section, collapsed })) return;
     this.#fold[section] = collapsed;
     this.renderNow();
+    this.sound(collapsed ? 'close' : 'open', { emphasis: 'subtle' }, e);
   }
 
   #onClick(e: Event): void {
@@ -1093,20 +1098,22 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     if (!this.#own(el)) return;
     const fold = el.closest<HTMLElement>('.aq-fold[data-fold]');
     if (fold) {
-      if (fold.dataset.fold === 'capacity' || fold.dataset.fold === 'lane') this.#toggleFold(fold.dataset.fold);
+      if (fold.dataset.fold === 'capacity' || fold.dataset.fold === 'lane') this.#toggleFold(fold.dataset.fold, e);
       return;
     }
     if (el.closest('.aq-pop-close')) {
-      this.#close(true);
+      if (this.#close(true)) this.sound('close', undefined, e);
       return;
     }
     const mark = el.closest<HTMLElement>('.aq-mark[data-pid]');
     if (mark) {
-      this.#toggle(mark.dataset.pid ?? '', mark.dataset.aid ?? null, mark.dataset.grp ?? null);
+      this.#toggle(mark.dataset.pid ?? '', mark.dataset.aid ?? null, mark.dataset.grp ?? null, e);
       return;
     }
     const job = el.closest<HTMLElement>('[data-job]');
-    if (job) this.emit<AqJobOpenDetail>('ui-job-open', { jobId: job.dataset.job ?? '' });
+    if (job && this.emit<AqJobOpenDetail>('ui-job-open', { jobId: job.dataset.job ?? '' }))
+      this.sound('navigate', undefined, e);
+    // Closed by a press elsewhere: silent, the press may sound for itself.
     if (this.#open && !el.closest('.aq-pop')) this.#close(false);
   }
 
@@ -1116,6 +1123,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       e.preventDefault();
       e.stopPropagation();
       this.#close(true);
+      this.sound('close', undefined, e);
       return;
     }
     const el = e.target as Element | null;

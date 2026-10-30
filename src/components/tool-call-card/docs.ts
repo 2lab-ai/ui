@@ -354,6 +354,7 @@ export const doc: ComponentDoc = {
     'A polite live region outside the re-rendered markup announces status changes once (“Read finished”, “Bash failed: …”, “Task ended without a result”); a card that first appears finished stays quiet, so a long log does not chatter.',
     'Copy buttons are labelled “Copy arguments” / “Copy result” and say “Copied”; without clipboard access the text is selected and the region says how to copy.',
     'Touch: every control has a 44px target on coarse pointers. Reduced motion: no spinner turn, no sweep, no drawn check, no height animation.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the user opens or closes a card or a group, a soft success when a copy lands, a tap for Retry and Try again. Silent until the page turns sound on.',
   ],
   usage: `<ui-tool-call-card lang="ko"></ui-tool-call-card>
 <script type="module">

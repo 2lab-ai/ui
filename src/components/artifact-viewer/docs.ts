@@ -382,6 +382,7 @@ export const doc: ComponentDoc = {
     'An HTML page renders from srcdoc in a sandbox="" frame (no scripts, no forms, its own origin, no referrer). Markdown is escaped before it is marked up; every name, meta line and title is escaped; media and links pass safeSrc / safeLink.',
     'Kind is never colour alone: the badge carries a glyph and the kind word. Focus ring 2px; 44px targets on coarse pointers; press scales to .97; hover changes colour only.',
     'Reduced motion: the peek fades without scale or slide; the dialog keeps a 120ms fade.',
+    'Sound (opt-in, @2lab.ai/ui/sound): open when the person opens a file, a soft navigate (forward / back) for Previous / Next and the arrow keys, close when they close the viewer, a tap for Download and a navigate for Open in new tab; the hover peek and the host’s open() / next() / prev() / close() stay quiet. Silent until the page turns sound on.',
   ],
   usage: `<ui-artifact-viewer id="files" lang="en"></ui-artifact-viewer>
 <script type="module">

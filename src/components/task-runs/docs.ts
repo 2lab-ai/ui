@@ -240,6 +240,7 @@ export const doc: ComponentDoc = {
     'A closed detail is `inert`: nothing inside takes focus or clicks. Details are definition lists.',
     'Running clocks tick in text nodes, never re-rendering; the total time ticks in place while a run is running.',
     'Reduced motion: details fade (120 ms) without growing; the chevron does not turn.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or closes a run’s detail (not for setOpen()), a navigate for Open. Silent until the page turns sound on.',
   ],
   usage: `<ui-task-runs id="runs"></ui-task-runs>
 <script type="module">

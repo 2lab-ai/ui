@@ -242,7 +242,7 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
       this.#applyHot();
     });
     this.root.addEventListener('click', (e) => {
-      if ((e.target as Element | null)?.closest?.('.cw-compact')) this.#press();
+      if ((e.target as Element | null)?.closest?.('.cw-compact')) this.#press(e);
     });
     this.root.addEventListener('keydown', (e) => {
       const ke = e as KeyboardEvent;
@@ -268,20 +268,22 @@ export class UiContextWindow extends UiElement<ContextWindowData> {
     cancelAnimationFrame(this.#raf);
   }
 
-  #press(): void {
+  /** Two presses: the first arms (a subtle tap), the second compacts (a tap once ui-compact is not prevented). */
+  #press(e: Event): void {
     const d = this.data;
     if (!d || d.canCompact !== true) return;
     const st = d.compactState ?? 'idle';
     if (st === 'sending' || st === 'sent' || st === 'queued') return;
     if (this.#armedAt && Date.now() - this.#armedAt < ARM_MS) {
       this.#disarm(false);
-      this.emit('ui-compact', {});
+      if (this.emit('ui-compact', {})) this.sound('tap', undefined, e);
       this.requestRender();
       return;
     }
     this.#armedAt = Date.now();
     clearTimeout(this.#armTimer);
     this.#armTimer = window.setTimeout(() => this.#disarm(), ARM_MS);
+    this.sound('tap', { emphasis: 'subtle' }, e);
     this.requestRender();
   }
 
