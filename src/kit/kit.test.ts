@@ -102,6 +102,12 @@ describe('ui-kit.css', () => {
     expect(rm).toContain('.ui-expand { transition: none; }');
   });
 
+  it('keeps Korean words whole in the prose classes under lang="ko" (D5 G4-4)', () => {
+    expect(kitCss).toMatch(
+      /:is\(\.ui-notice, \.ui-card, \.ui-row, \.ui-dl,[^)]*\):lang\(ko\) \{ word-break: keep-all; \}/,
+    );
+  });
+
   it('parses as CSS in the DOM', () => {
     const style = document.createElement('style');
     style.textContent = kitCss;

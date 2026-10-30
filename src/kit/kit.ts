@@ -332,6 +332,9 @@ ${TONES.map(([k, , text]) => `.ui-status-line[data-tone="${k}"] { color: ${toneT
 ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${toneTint(dot)}; color: ${toneText(text)}; }`).join('\n')}
 .ui-count[data-pop] { animation: ui-count-pop ${T('dur-move')} ${T('ease-out')} both; }
 
+/* ── Korean: prose breaks between words, never inside them (the page's or the element's lang="ko") ── */
+:is(.ui-notice, .ui-card, .ui-row, .ui-dl, .ui-empty, .ui-status-line, .ui-section-head, .ui-input, .ui-btn, .ui-chip, .ui-status):lang(ko) { word-break: keep-all; }
+
 /* ── Focus, press ── */
 :is(.ui-btn, .ui-icon-btn, .ui-fab, .ui-chip):focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
 .ui-section-head:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; border-radius: 6px; }

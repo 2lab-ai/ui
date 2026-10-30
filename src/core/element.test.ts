@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { define, UiElement } from './element';
+import { baseCss } from './tokens';
 
 class UiProbe extends UiElement<{ n: number }> {
   renders = 0;
@@ -82,5 +83,53 @@ describe('UiElement', () => {
     el.data = { keep: false };
     el.renderNow();
     expect((el.shadowRoot?.activeElement as HTMLElement | null)?.dataset.key).toBe('head');
+  });
+
+  it('adopts a declarative shadow root (server-rendered) and hydrates its nodes in place on the first render', () => {
+    // happy-dom does not parse <template shadowrootmode>; stand in for the parser: the root exists before the
+    // constructor runs, with the server's <style> and .ui-root already in it.
+    const donor = document.createElement('div');
+    const declared = donor.attachShadow({ mode: 'open' });
+    declared.innerHTML = '<style>old</style><div part="root" class="ui-root"><b class="card">7</b><i>x</i></div>';
+    class UiSsrProbe extends UiElement<{ n: number }> {
+      override get shadowRoot(): ShadowRoot {
+        return declared;
+      }
+      get isDeclarative(): boolean {
+        return this.declarative;
+      }
+      protected render(): string {
+        return `<b class="card">${this.data?.n ?? 'none'}</b>`;
+      }
+    }
+    define('ui-ssr-probe', UiSsrProbe);
+    const style = declared.querySelector('style')!;
+    const root = declared.querySelector('.ui-root')!;
+    const card = declared.querySelector('.card')!;
+    const el = document.createElement('ui-ssr-probe') as UiSsrProbe;
+    expect(el.isDeclarative).toBe(true);
+    // The parser's nodes stay; the sheet is brought up to date in place.
+    expect(declared.querySelector('style')).toBe(style);
+    expect(style.textContent).toBe(baseCss);
+    expect(declared.querySelector('.ui-root')).toBe(root);
+    expect(declared.children).toHaveLength(2);
+    document.body.append(el);
+    el.data = { n: 8 };
+    el.renderNow();
+    // First render: hydrated — the card node is the same one, patched; the node the markup lacks is gone.
+    expect(declared.querySelector('.card')).toBe(card);
+    expect(card.textContent).toBe('8');
+    expect(declared.querySelector('i')).toBeNull();
+    // Later renders are the usual replace.
+    el.data = { n: 9 };
+    el.renderNow();
+    expect(declared.querySelector('.card')).not.toBe(card);
+    expect(declared.querySelector('.card')?.textContent).toBe('9');
+    const plain = document.createElement('ui-probe') as UiProbe;
+    expect(plain.shadowRoot?.children).toHaveLength(2);
+  });
+
+  it('keeps Korean words whole in every element (base sheet)', () => {
+    expect(baseCss).toContain(':host([lang="ko"]), :host(:lang(ko)) { word-break: keep-all; }');
   });
 });
