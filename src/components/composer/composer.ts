@@ -8,6 +8,7 @@ import {
   type ComposerData,
   type ComposerFilesDetail,
   type ComposerInputDetail,
+  type ComposerOverCapDetail,
   type ComposerRecordDetail,
   type ComposerRejectDetail,
   type ComposerRejectReason,
@@ -209,7 +210,7 @@ export class UiComposer extends UiElement<ComposerData> {
     return this.#entries.map((e) => e.file);
   }
 
-  /** Attach files (checked against maxFiles / maxFileSize / accept). Returns the ones taken. */
+  /** Attach files (checked against maxFiles / maxFileSize / maxTotalBytes / accept). Returns the ones taken. */
   addFiles(list: FileList | Iterable<File> | ArrayLike<File> | null | undefined): File[] {
     if (!list) return this.#add([]);
     return this.#add(Array.from(list as ArrayLike<File>));
@@ -302,6 +303,7 @@ export class UiComposer extends UiElement<ComposerData> {
     const t = this.#t;
     const accepted: File[] = [];
     const rejected: Array<{ file: File; reason: ComposerRejectReason }> = [];
+    let total = this.#entries.reduce((n, e) => n + (Number(e.file.size) || 0), 0);
     for (const item of items) {
       if (!item || typeof item !== 'object' || typeof (item as Blob).size !== 'number') continue;
       const file = item as File;
@@ -310,11 +312,24 @@ export class UiComposer extends UiElement<ComposerData> {
         maxFiles: s.maxFiles,
         maxFileSize: s.maxFileSize,
         accept: s.accept,
+        total,
+        maxTotalBytes: s.maxTotalBytes,
       });
-      if (reason) {
+      // Over the total: the host may take it anyway (it compresses, or uploads it apart).
+      const refuse =
+        reason === 'total' &&
+        this.emit<ComposerOverCapDetail>('ui-over-cap', {
+          name: str(file.name),
+          file,
+          size: file.size,
+          total,
+          max: s.maxTotalBytes,
+        });
+      if (reason && (reason !== 'total' || refuse)) {
         rejected.push({ file, reason });
         continue;
       }
+      total += Number(file.size) || 0;
       this.#entries.push({ id: ++this.#seq, file, kind: fileKind(file), url: '', voiceMs, still: !this.#painted });
       accepted.push(file);
     }
@@ -336,7 +351,13 @@ export class UiComposer extends UiElement<ComposerData> {
     if (!other.length) return t.tooMany(s.maxFiles);
     const first = other[0];
     const why =
-      first.reason === 'size' ? t.tooLarge(fmtBytes(s.maxFileSize)) : first.reason === 'type' ? t.badType : t.empty;
+      first.reason === 'size'
+        ? t.tooLarge(fmtBytes(s.maxFileSize))
+        : first.reason === 'total'
+          ? t.tooLargeTotal(fmtBytes(s.maxTotalBytes))
+          : first.reason === 'type'
+            ? t.badType
+            : t.empty;
     const msg = `${first.file.name || t.untitled} — ${why}`;
     return list.length > 1 ? msg + t.more(list.length - 1) : msg;
   }
