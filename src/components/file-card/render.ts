@@ -193,7 +193,9 @@ function imgTag(src: string): string {
 
 /**
  * One file card as markup (a `<button class="fc fc-{variant}">`): the shared renderer of `<ui-file-card>` and
- * `<ui-artifact-viewer>`. Style it with `fileCardStyles`. Every string is escaped; image sources go through
+ * `<ui-artifact-viewer>`. Its pieces carry `part` names — `card`, `thumb` (a tile's thumbnail, a row's box),
+ * `glyph` (a chip's), `text`, `name`, `meta`, `sub`, `ext` — so a page can restyle `<ui-file-card>` by its own
+ * container (`@container (max-height: 360px) { ui-file-card::part(thumb) { display: none } }`). Style it with `fileCardStyles`. Every string is escaped; image sources go through
  * `safeSrc` (http(s), relative, `blob:`, base64 raster `data:image/…`).
  */
 export function fileCardHtml(
@@ -212,22 +214,23 @@ export function fileCardHtml(
   const glyph = icon(fileKindIcon(kind), { size: GLYPH_SIZE[variant] });
   let inner: string;
   if (variant === 'chip') {
-    inner = `<span class="fc-glyph">${glyph}</span><span class="fc-name">${esc(name)}</span>`;
+    inner = `<span class="fc-glyph" part="glyph">${glyph}</span><span class="fc-name" part="name">${esc(name)}</span>`;
   } else if (variant === 'row') {
     const line = [meta, extra].filter(Boolean).join(' · ');
-    inner = `<span class="${cls('fc-box', img && 'has-img')}">${img ? imgTag(img) : glyph}</span><span class="fc-text"><span class="fc-name">${esc(
+    inner = `<span class="${cls('fc-box', img && 'has-img')}" part="thumb">${img ? imgTag(img) : glyph}</span><span class="fc-text" part="text"><span class="fc-name" part="name">${esc(
       name,
-    )}</span>${line ? `<span class="fc-meta">${esc(line)}</span>` : ''}</span>`;
+    )}</span>${line ? `<span class="fc-meta" part="meta">${esc(line)}</span>` : ''}</span>`;
   } else {
     const ext = fileExt(item.name).toUpperCase().slice(0, 5);
-    const thumb = img ? imgTag(img) : `${glyph}${ext ? `<span class="fc-ext">${esc(ext)}</span>` : ''}`;
-    inner = `<span class="${cls('fc-thumb', img && 'has-img')}">${thumb}</span><span class="fc-text"><span class="fc-name">${esc(
+    const thumb = img ? imgTag(img) : `${glyph}${ext ? `<span class="fc-ext" part="ext">${esc(ext)}</span>` : ''}`;
+    inner = `<span class="${cls('fc-thumb', img && 'has-img')}" part="thumb">${thumb}</span><span class="fc-text" part="text"><span class="fc-name" part="name">${esc(
       name,
-    )}</span>${meta ? `<span class="fc-meta">${esc(meta)}</span>` : ''}${extra ? `<span class="fc-sub">${esc(extra)}</span>` : ''}</span>`;
+    )}</span>${meta ? `<span class="fc-meta" part="meta">${esc(meta)}</span>` : ''}${extra ? `<span class="fc-sub" part="sub">${esc(extra)}</span>` : ''}</span>`;
   }
   return `<button${attrs({
     type: 'button',
     class: cls('fc', `fc-${variant}`, opts.className),
+    part: 'card',
     'data-kind': kind,
     'aria-label': fileCardLabel(item, lang, now),
     ...opts.attrs,

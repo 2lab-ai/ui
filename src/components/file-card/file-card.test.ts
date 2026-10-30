@@ -403,3 +403,35 @@ describe('play in place (D2 G4-3)', () => {
     expect(styles).not.toMatch(/#[0-9a-f]{3,6}\b|rgba?\(/i);
   });
 });
+
+describe('part names for container hooks (D2 G4-4)', () => {
+  const parts = (el: UiFileCard) =>
+    qa(el, '[part]')
+      .map((n) => n.getAttribute('part'))
+      .join(' ');
+
+  it('a tile exposes card, thumb, ext, text, name, meta and sub', () => {
+    const el = mount({ id: 'a', name: 'notes.md', size: 2_048, time: Date.now() - 60_000, meta: 'from Build agent' });
+    expect(parts(el)).toBe('root card thumb ext text name meta sub');
+    expect(q(el, '.fc-thumb')!.getAttribute('part')).toBe('thumb');
+  });
+
+  it('a row exposes its box as thumb; a chip its glyph and name', () => {
+    expect(parts(mount({ id: 'a', name: 'a.txt', size: 10 }, { variant: 'row' }))).toBe(
+      'root card thumb text name meta',
+    );
+    expect(parts(mount({ id: 'a', name: 'a.txt' }, { variant: 'chip' }))).toBe('root card glyph name');
+  });
+
+  it('a playable tile adds play and progress (and video for a video)', () => {
+    const el = mount({ id: 'v', name: 'clip.mp4', url: '/c.mp4' }, { playable: '' });
+    expect(parts(el)).toBe('root card thumb ext text name video progress play');
+  });
+
+  it('fileCardHtml carries the names too (the viewer’s tiles), and attrs can still override part', () => {
+    expect(fileCardHtml({ id: '1', name: 'a.png' }, 'tile')).toContain('part="card"');
+    expect(fileCardHtml({ id: '1', name: 'a.png' }, 'tile', 'en', { attrs: { part: 'tile' } })).toContain(
+      'part="tile"',
+    );
+  });
+});
