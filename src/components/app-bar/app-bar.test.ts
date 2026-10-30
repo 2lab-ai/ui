@@ -610,4 +610,14 @@ describe('styles', () => {
     expect(styles).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
     expect(styles).not.toMatch(/:hover[^}]*(transform|scale)/);
   });
+
+  it('the blur lives on :host::before, so the host never becomes the containing block of the fixed menu', () => {
+    const css = styles.replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, sel, body]) => [sel.trim(), body] as const);
+    for (const [sel, body] of rules) {
+      if (/backdrop-filter:\s*(saturate|blur)/.test(body)) expect(sel).toBe(':host::before');
+      if (sel === ':host') expect(body).not.toMatch(/backdrop-filter|filter:|transform:|contain:|will-change/);
+    }
+    expect(styles).toMatch(/:host::before \{[^}]*position: absolute; inset: 0 0 -1px; z-index: -1/);
+  });
 });
