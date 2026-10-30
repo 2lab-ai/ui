@@ -117,13 +117,15 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 .ab-fold { display: none; flex: none; }
 :host([collapsed]) .ab-fold:not([hidden]) { display: flex; }
 :host([collapsed]) .ab-nav { display: none; }
-/* Narrow: the status keeps its dot (the word stays for screen readers), the account its avatar. */
-:host([narrow]) .ab-status-label {
+/* Narrow: the status keeps its dot (the word stays for screen readers), the account its avatar — and, folded
+   with the name still too long, the brand its mark (mark-only; the name stays the link's accessible name). */
+:host([narrow]) .ab-status-label, :host([mark-only]) .ab-brand-label {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 :host([narrow]) .ab-account { justify-content: center; width: 34px; padding: 0; }
 :host([narrow]) .ab-name, :host([narrow]) .ab-role { display: none; }
+:host([mark-only]) .ab-brand { min-width: 34px; }
 @media (max-width: 639px) {
   :host { height: 52px; }
   .ab-bar { gap: 8px; padding: 0 12px; }
@@ -142,6 +144,7 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
   a.ab-brand, .ab-link { min-height: 44px; }
   .ab-account { height: 44px; }
   .ab-icon-btn, :host([narrow]) .ab-account { width: 44px; height: 44px; }
+  :host([mark-only]) .ab-brand { min-width: 44px; }
 }
 
 @keyframes ab-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
