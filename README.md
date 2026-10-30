@@ -20,6 +20,17 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Memory Panel | `<ui-memory-panel>` | What the agent remembers about you — search, edit, delete with undo |
 | Model Picker | `<ui-model-picker>` | Which model and effort to run, with window, compaction and price |
 
+Surfaces — the page-level pieces around the agent (0.6.0):
+
+| Surface | Tag | What it tells you |
+|---|---|---|
+| App Bar | `<ui-app-bar>` | Where you are, whether it is live, who is signed in — chip nav that folds into a menu, status dot, account, theme toggle |
+| Stat Strip | `<ui-stat-strip>` | How the period went — a period segmented control, rolling figures, per-metric breakdown tooltips, a More disclosure |
+| Bar Chart | `<ui-bar-chart>` | How it moved over time — small single or stacked bars, axis ticks, keyboard and tooltip per bar, legend, empty state |
+| File Card | `<ui-file-card>` | What a file is — kind glyph or thumbnail, name, size and age as a tile, row or chip |
+| Artifact Viewer | `<ui-artifact-viewer>` | What the agent made — a strip or grid of files, a hover peek, and a lightbox with previous / next, preview and Download |
+| Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, Enter to send |
+
 Primitives — the building blocks the dashboard shares, in the same tone and motion:
 
 | Primitive | Tag | What it does |
