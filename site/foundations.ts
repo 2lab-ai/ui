@@ -135,6 +135,36 @@ const SPECIMENS: KitSpecimen[] = [
 <div class="ui-section-head"><h3>Waiting for you</h3><span class="ui-count" data-tone="wait">1</span></div>
 <div class="ui-section-head"><h3>Done today</h3><span class="ui-count">24</span></div></div>`,
   },
+  {
+    title: 'Input',
+    cls: 'ui-input',
+    desc: 'Text, number and search fields, selects and textareas: 34px, radius 8, on the raised surface; 44px and 16px type on touch (no iOS zoom). aria-invalid="true" turns the border to the fail tone.',
+    html: `<div class="kit-col"><input class="ui-input" type="text" value="claude-sonnet-4-5" aria-label="Model id" /><div class="kit-row"><select class="ui-input" aria-label="Effort"><option>Low</option><option selected>Medium</option><option>High</option></select><input class="ui-input" type="number" value="12" style="width:96px" aria-label="Turns" /><input class="ui-input is-sm" type="search" placeholder="Filter…" aria-label="Filter" /></div><textarea class="ui-input" rows="2" aria-label="Note">Ship the release notes before Friday.</textarea><input class="ui-input" type="text" value="not-a-model" aria-invalid="true" aria-label="Model id (invalid)" /></div>`,
+  },
+  {
+    title: 'Switch',
+    cls: 'ui-switch',
+    desc: 'A checkbox with role="switch" inside a label: the track turns ink when on, the knob slides on the press duration. Update the word next to it yourself.',
+    html: `<div class="kit-row"><label class="ui-switch"><input type="checkbox" role="switch" checked /><span>On</span></label><label class="ui-switch"><input type="checkbox" role="switch" /><span>Off</span></label><label class="ui-switch"><input type="checkbox" role="switch" checked disabled /><span>Locked</span></label></div>`,
+  },
+  {
+    title: 'Card',
+    cls: 'ui-card',
+    desc: 'A 12px surface with the whisper shadow for a group of rows or a form: a <header> with an h2 and a quiet line, .is-body for padded content, .is-danger for the destructive group.',
+    html: `<div class="kit-col"><section class="ui-card"><header><h2>Notifications</h2><p>When the agent writes to you outside this page.</p></header><div class="is-body">Daily digest at 09:00 · Mentions only</div></section><section class="ui-card is-danger"><header><h2>Danger zone</h2><p>These cannot be undone.</p></header><div class="is-body"><button class="ui-btn is-danger">Delete workspace</button></div></section></div>`,
+  },
+  {
+    title: 'Notice',
+    cls: 'ui-notice',
+    desc: 'A banner above a page or a form. Neutral by default; data-tone tints it, and a leading icon takes the tone.',
+    html: `<div class="kit-col"><p class="ui-notice">${I('info', 14)}<span>Changes apply to new sessions. Running sessions pick them up on their next turn.</span></p><p class="ui-notice" data-tone="wait">${I('lock', 14)}<span><strong>Read-only.</strong> An admin has to approve your account before you can change settings.</span></p><p class="ui-notice" data-tone="fail" role="alert">${I('alert', 14)}<span>Couldn’t load settings (HTTP 502). Try again in a moment.</span></p></div>`,
+  },
+  {
+    title: 'Row',
+    cls: 'ui-row',
+    desc: 'A list row — a run, a job, an entry: the leading glyph in the tone, a title with quiet meta, an error line, trailing actions in .is-end. As an <a> or <button> the whole row is the target.',
+    html: `<ul style="padding:0;margin:0;list-style:none"><li class="ui-row" data-tone="done">${I('check')}<div><strong>Daily digest</strong><small>Today 09:00 · took 42s</small></div><span class="is-end"><a class="ui-btn is-sm is-quiet" href="#row">Open</a></span></li><li class="ui-row" data-tone="fail">${I('cross')}<div><strong>Weekly report</strong><small>Mon 08:30 · took 3s</small><p class="ui-status-line" data-tone="fail">Couldn’t reach the calendar (HTTP 503)</p></div><span class="is-end"><a class="ui-btn is-sm is-quiet" href="#row">Open</a></span></li><li class="ui-row" data-tone="run">${I('clock')}<div><strong>Backup check</strong><small>Running · started 2m ago</small></div></li></ul>`,
+  },
 ];
 
 /** In the code sample an inline SVG reads as the call that makes it: \${icon('name')}. */
