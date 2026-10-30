@@ -51,6 +51,13 @@ export interface ComposerData {
   attach?: boolean;
   image?: boolean;
   voice?: boolean;
+  /**
+   * A camera tool on touch screens (phones, tablets): takes a photo with the back camera (`true` / `environment`) or
+   * the front one (`user`) and attaches it. Hidden on fine pointers, where the image tool covers it. Default off.
+   */
+  camera?: boolean | 'environment' | 'user';
+  /** Upload progress 0–1 while you send: a thin line above the toolbar (role="progressbar"). Leave unset when idle. */
+  progress?: number;
   /** A recording stops (and is kept) at this length. Default 10 min. */
   maxRecordMs?: number;
   /** Extra host tools → `ui-tool`. */
@@ -145,6 +152,10 @@ export interface ComposerSettings {
   attach: boolean;
   image: boolean;
   voice: boolean;
+  /** The camera tool's `capture` ('' = no camera tool). */
+  camera: '' | 'environment' | 'user';
+  /** 0–1, or null without progress. */
+  progress: number | null;
   busy: boolean;
   disabled: boolean;
   reason: string;
@@ -170,6 +181,11 @@ export function composerSettings(d: ComposerData | null | undefined): ComposerSe
     attach: o.attach !== false,
     image: o.image !== false,
     voice: o.voice !== false,
+    camera: o.camera === 'user' ? 'user' : o.camera === true || o.camera === 'environment' ? 'environment' : '',
+    progress:
+      o.progress === null || o.progress === undefined || !Number.isFinite(Number(o.progress))
+        ? null
+        : Math.max(0, Math.min(1, Number(o.progress))),
     busy: !!o.busy,
     disabled: !!o.disabled,
     reason: typeof o.disabled === 'string' ? o.disabled.trim() : '',

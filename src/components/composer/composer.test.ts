@@ -244,6 +244,8 @@ describe('logic', () => {
       attach: true,
       image: true,
       voice: true,
+      camera: '',
+      progress: null,
       busy: false,
       disabled: false,
       reason: '',
@@ -1479,6 +1481,132 @@ describe('<ui-composer> maxTotalBytes (D2 G5-3)', () => {
     el.renderNow();
     expect(el.files).toHaveLength(1);
     expect(errorText(el)).toBe('b.txt — 첨부 합계가 너무 큽니다 (모두 합쳐 최대 2 KB)');
+  });
+});
+
+describe('<ui-composer> smaller notes (D2 G5-4)', () => {
+  /** A chip playing its audio: Audio is stubbed so play() resolves and pause() is recorded. */
+  function playing(data: ComposerData = {}) {
+    const paused: number[] = [];
+    let n = 0;
+    class FakeAudio {
+      src = '';
+      paused = true;
+      addEventListener() {}
+      play() {
+        this.paused = false;
+        return Promise.resolve();
+      }
+      pause() {
+        this.paused = true;
+        paused.push(++n);
+      }
+    }
+    vi.stubGlobal('Audio', FakeAudio);
+    const el = mount(data);
+    el.addFiles([wav()]);
+    act(el, 'play')!.click();
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.stop('memo.wav'));
+    return { el, paused };
+  }
+
+  it('pause() stops a chip’s preview (no event); calling it idle does nothing', () => {
+    const { el, paused } = playing();
+    const seen = events(el, 'ui-files');
+    el.pause();
+    expect(paused).toHaveLength(1);
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.play('memo.wav'));
+    el.pause();
+    expect(paused).toHaveLength(1);
+    expect(seen).toEqual([]);
+  });
+
+  it('disabled stops the preview', () => {
+    const { el, paused } = playing();
+    set(el, { disabled: true });
+    expect(paused).toHaveLength(1);
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.play('memo.wav'));
+  });
+
+  it('hidden (its size drops to 0 — a closed sheet) stops the preview', () => {
+    let cb: ResizeObserverCallback | null = null;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(fn: ResizeObserverCallback) {
+          cb = fn;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { el, paused } = playing();
+    expect(cb).not.toBeNull();
+    const call = (width: number, height: number) =>
+      cb!([{ contentRect: { width, height } } as ResizeObserverEntry], {} as ResizeObserver);
+    call(400, 60);
+    expect(paused).toHaveLength(0);
+    call(0, 0);
+    expect(paused).toHaveLength(1);
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.play('memo.wav'));
+  });
+
+  it('cancelRecording() discards a recording and keeps the text and files', async () => {
+    stubMic();
+    const el = mount();
+    el.addFiles([pdf()]);
+    type(el, 'draft');
+    const rec = events<ComposerRecordDetail>(el, 'ui-record');
+    await startRec(el);
+    expect(q(el, '.cp-rec')).not.toBeNull();
+    el.cancelRecording();
+    await tick();
+    el.renderNow();
+    expect(q(el, '.cp-rec')).toBeNull();
+    expect(rec.map((r) => r.state)).toEqual(['start', 'cancel']);
+    expect(el.files).toHaveLength(1);
+    expect(el.value).toBe('draft');
+    expect(streams[0].tracks[0].stopped).toBe(true);
+    expect(() => el.cancelRecording()).not.toThrow();
+  });
+
+  it('camera: a tool on touch screens only, opening the camera input (capture)', () => {
+    touch(true);
+    const el = mount({ camera: true }, { lang: 'ko' });
+    const btn = act(el, 'camera')!;
+    expect(btn.getAttribute('aria-label')).toBe('사진 찍기');
+    const input = q<HTMLInputElement>(el, '.cp-in-camera')!;
+    expect(input.getAttribute('capture')).toBe('environment');
+    expect(input.getAttribute('accept')).toBe('image/*');
+    const clicked = vi.spyOn(input, 'click').mockImplementation(() => {});
+    btn.click();
+    expect(clicked).toHaveBeenCalledTimes(1);
+    expect(q(mount({ camera: 'user' }), '.cp-in-camera')!.getAttribute('capture')).toBe('user');
+    touch(false);
+    expect(act(mount({ camera: true }), 'camera')).toBeNull();
+    expect(q(mount({}), '.cp-in-camera')).toBeNull();
+    expect(composerSettings({ camera: 'front' as never }).camera).toBe('');
+  });
+
+  it('progress: a progressbar line above the toolbar, clamped; gone when unset', () => {
+    const el = mount({ busy: true, progress: 0.4213 });
+    const bar = q(el, '.cp-progress')!;
+    expect(bar.getAttribute('role')).toBe('progressbar');
+    expect(bar.getAttribute('aria-valuenow')).toBe('42');
+    expect(bar.getAttribute('aria-label')).toBe(T.uploading);
+    expect(q(el, '.cp-progress-bar')!.getAttribute('style')).toBe('transform:scaleX(0.421)');
+    expect(bar.nextElementSibling?.classList.contains('cp-bar')).toBe(true);
+    set(el, { progress: 7 });
+    expect(q(el, '.cp-progress')!.getAttribute('aria-valuenow')).toBe('100');
+    set(el, { progress: undefined });
+    expect(q(el, '.cp-progress')).toBeNull();
+    expect(composerSettings({ progress: Number.NaN }).progress).toBeNull();
+  });
+
+  it('fill stretches the card to the host: the field grows, no row cap', () => {
+    expect(styles).toMatch(/:host\(\[fill\]\) \.cp-card \{ flex: 1 1 auto; min-height: 0; \}/);
+    expect(styles).toMatch(/:host\(\[fill\]\) \.cp-field \{ flex: 1 1 auto; max-height: none; \}/);
+    expect(styles).not.toMatch(/#[0-9a-f]{3,6}\b|rgba?\(/i);
   });
 });
 
