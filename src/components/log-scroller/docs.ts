@@ -145,6 +145,12 @@ export const doc: ComponentDoc = {
         'Replace the item with data-item=key in place (or append it). Rows above the reader may change size without moving the view.',
     },
     {
+      name: 'noteUnread(n = 1)',
+      type: 'method',
+      description:
+        'Something new arrived inside an item already shown (a line added to an open group): a reader higher up sees the pill count n more; a pinned reader keeps following.',
+    },
+    {
       name: 'removeItem(key) · clearItems() · itemFor(key) · items',
       type: 'method',
       description: 'Remove one / all items; look one up; the item elements oldest first.',

@@ -212,6 +212,25 @@ describe('<ui-work-log> rendering', () => {
     expect(qa(el, '[data-anchor]').length).toBe(8);
   });
 
+  it('entries that arrive inside a shown group count on the scroller pill (new groups count themselves)', () => {
+    const el = mount({ groups: groups() });
+    const sc = scroller(el);
+    const note = vi.spyOn(sc, 'noteUnread');
+    const next = groups();
+    next[1].entries = [
+      ...(next[1].entries ?? []),
+      { id: 'n1', kind: 'narration', text: 'One more line', at: T0 },
+      { id: 'n2', kind: 'notice', text: 'And a notice', at: T0 },
+    ];
+    el.data = { groups: next };
+    el.renderNow();
+    expect(note).toHaveBeenCalledTimes(1);
+    expect(note).toHaveBeenCalledWith(2);
+    el.data = { groups: next.map((g) => ({ ...g })) };
+    el.renderNow();
+    expect(note).toHaveBeenCalledTimes(1);
+  });
+
   it('text kinds: icon + label + time + text', () => {
     const el = mount({ groups: groups() });
     const cases: Array<[string, string, string, string]> = [
