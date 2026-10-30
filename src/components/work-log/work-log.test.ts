@@ -845,7 +845,7 @@ describe('docs', () => {
     older.dispatchEvent(new CustomEvent('ui-load-older', { detail: { oldest: null } }));
     vi.advanceTimersByTime(800);
     older.renderNow();
-    expect(scroller(older).items.length).toBe(4);
+    expect(scroller(older).items.length).toBe(5); // three shown + a page of two
     const run = built.run as UiWorkLog;
     run.renderNow();
     expect(run.shadowRoot!.querySelector('img')).toBeNull();

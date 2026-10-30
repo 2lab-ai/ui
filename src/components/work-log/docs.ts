@@ -192,7 +192,7 @@ function stream(el: UiWorkLog, get: () => WorkGroup[], set: (g: WorkGroup[]) => 
   setTimeout(tick, 3_200);
 }
 
-/** Older page `page` (-1, -2): two groups each, numbered below the ones shown (T-5, T-6). */
+/** Older page `page` (-1, -2): two groups each, numbered below the ones shown (T-5 … T-7). */
 function olderPage(page: number, now: number): WorkGroup[] {
   const titles = ['Read the issue thread', 'Triage the bug report', 'Reproduce it locally', 'Check the last release'];
   const first = (2 + page) * 2;
@@ -481,9 +481,22 @@ export const doc: ComponentDoc = {
       height: 480,
       create: () => {
         const now = Date.now();
-        let groups: WorkGroup[] = runGroups(now)
-          .slice(1)
-          .map((g, i) => ({ ...g, ref: `T-${5 + i}` }));
+        // A first page taller than the box: nothing older is fetched until the reader scrolls up.
+        let groups: WorkGroup[] = runGroups(now).map((g, i) => ({ ...g, ref: `T-${5 + i}` }));
+        const newest = groups[groups.length - 1];
+        const bash = (id: string, summary: string, ago: number): WorkEntry => ({
+          id,
+          kind: 'tool',
+          tool: { name: 'Bash', status: 'success', summary },
+          at: now - ago,
+        });
+        newest.entries = [
+          ...(newest.entries ?? []),
+          bash('f1', 'git fetch origin main', 80_000),
+          bash('f2', 'git rebase origin/main', 70_000),
+          bash('f3', 'npm test — 128 passed', 45_000),
+          { id: 'f4', kind: 'narration', text: 'Rebased cleanly and the tests pass. Pushing again.', at: now - 20_000 },
+        ];
         let page = 0;
         const el = make({ groups, hasMore: true }, 440);
         el.addEventListener('ui-load-older', () => {
