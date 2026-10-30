@@ -1,7 +1,7 @@
 /**
  * One calm line: the period segments, label · figure pairs on a shared baseline (no card around each), and a quiet
- * More toggle at the end. Below 480px of its own width the period and More share the first line and the figures
- * take the second. The region below uses the disclosure recipe (grid rows 0fr → 1fr on --dur-expand with an
+ * More toggle at the end. Below 480px of its own width the period takes the first line and the figures the second,
+ * with More at its end — next to what it opens, whatever the period labels' width. The region below uses the disclosure recipe (grid rows 0fr → 1fr on --dur-expand with an
  * opacity fade, inert while closed). Figures roll in place (JS); the skeleton is the kit's 1.6s opacity pulse.
  */
 export const styles = `
@@ -74,7 +74,8 @@ export const styles = `
   .ss-more:hover { background: var(--ib-pill); color: var(--ib-text); }
 }
 @container ss (max-width: 479px) {
-  .ss-row[data-period] .ss-nums { order: 3; flex-basis: 100%; }
+  .ss-row[data-period] .ss-period { flex-basis: 100%; }
+  .ss-row[data-period] .ss-nums { flex: 1 1 0; }
 }
 @media (pointer: coarse) {
   .ss-more { min-height: 44px; }
