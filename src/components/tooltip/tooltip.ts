@@ -40,8 +40,9 @@ export function idrefList(value: string | null, add: string[], remove: string[] 
 
 /**
  * `<ui-tooltip>` — a short description for the element it wraps: after a hover delay, at once on keyboard focus,
- * never on touch. It stays while the pointer moves onto it, hides on Esc, when the pointer leaves or focus goes,
- * and pops from the side it sits on. The text lives in the light DOM and the trigger points at it with
+ * never on touch (unless `touch="tap"`: a tap on the trigger toggles it, a tap elsewhere closes it). It stays
+ * while the pointer moves onto it, hides on Esc, when the pointer leaves or focus goes, and pops from the side it
+ * sits on. The text lives in the light DOM and the trigger points at it with
  * aria-describedby, so screen readers read it as the trigger's description.
  */
 export class UiTooltip extends UiElement<TooltipData> {
@@ -63,6 +64,8 @@ export class UiTooltip extends UiElement<TooltipData> {
   #showTimer: ReturnType<typeof setTimeout> | undefined;
   #hideTimer: ReturnType<typeof setTimeout> | undefined;
   #unwatch: (() => void) | null = null;
+  /** touch="tap": a touch press on the trigger, waiting for its click; `open` is the state before the press. */
+  #tap: { open: boolean } | null = null;
 
   constructor() {
     super();
@@ -113,6 +116,11 @@ export class UiTooltip extends UiElement<TooltipData> {
 
   #off(): boolean {
     return this.hasAttribute('disabled');
+  }
+
+  /** `touch="tap"`: a touch tap toggles the tooltip (pages whose description exists nowhere else). */
+  get #tapMode(): boolean {
+    return this.getAttribute('touch') === 'tap';
   }
 
   #contents(): Element[] {
@@ -181,15 +189,20 @@ export class UiTooltip extends UiElement<TooltipData> {
       old.removeEventListener('pointerenter', this.#onEnter as EventListener);
       old.removeEventListener('pointerleave', this.#onLeave);
       old.removeEventListener('pointerdown', this.#onDown);
+      old.removeEventListener('pointercancel', this.#onCancel);
+      old.removeEventListener('click', this.#onClick);
       old.removeEventListener('focusin', this.#onFocusIn);
       old.removeEventListener('focusout', this.#onFocusOut as EventListener);
     }
     this.#trigger = t;
+    this.#tap = null;
     if (old && this.#open) this.#hide();
     if (t) {
       t.addEventListener('pointerenter', this.#onEnter as EventListener);
       t.addEventListener('pointerleave', this.#onLeave);
       t.addEventListener('pointerdown', this.#onDown);
+      t.addEventListener('pointercancel', this.#onCancel);
+      t.addEventListener('click', this.#onClick);
       t.addEventListener('focusin', this.#onFocusIn);
       t.addEventListener('focusout', this.#onFocusOut as EventListener);
     }
@@ -217,13 +230,45 @@ export class UiTooltip extends UiElement<TooltipData> {
     else this.#showTimer = setTimeout(() => this.#show(), tooltipDelay(this.getAttribute('delay')));
   };
 
-  readonly #onLeave = (): void => {
+  readonly #onLeave = (e: Event): void => {
+    // A touch tap ends with pointerleave before its click: in tap mode that click decides, not the leave.
+    if ((e as PointerEvent).pointerType === 'touch' && this.#tapMode) return;
     clearTimeout(this.#showTimer);
     if (this.#open) this.#graceHide();
   };
 
-  /** A press means the person is acting on the trigger: the tooltip gets out of the way. */
-  readonly #onDown = (): void => {
+  /**
+   * A press means the person is acting on the trigger: the tooltip gets out of the way. With touch="tap" a touch
+   * press instead arms a toggle for the click that follows (a pan that starts on the trigger sends no click, so
+   * scrolling never toggles it).
+   */
+  readonly #onDown = (e: Event): void => {
+    const touch = (e as PointerEvent).pointerType === 'touch';
+    if (touch && this.#tapMode) {
+      this.#tap = { open: this.#open };
+      return;
+    }
+    this.#tap = null;
+    this.#hide();
+  };
+
+  readonly #onCancel = (): void => {
+    this.#tap = null;
+  };
+
+  readonly #onClick = (): void => {
+    const tap = this.#tap;
+    this.#tap = null;
+    if (!tap || !this.#tapMode || this.#off()) return;
+    if (tap.open) this.#hide();
+    else this.#show();
+  };
+
+  /** touch="tap": a touch press anywhere but the trigger closes it (the bubble included — it is not interactive). */
+  readonly #onDocDown = (e: PointerEvent): void => {
+    if (e.pointerType !== 'touch' || !this.#tapMode) return;
+    const t = this.#trigger;
+    if (t && e.composedPath().includes(t)) return;
     this.#hide();
   };
 
@@ -276,6 +321,7 @@ export class UiTooltip extends UiElement<TooltipData> {
     this.#open = true;
     this.#placed = false;
     document.addEventListener('keydown', this.#onDocKey, true);
+    document.addEventListener('pointerdown', this.#onDocDown, true);
     this.#unwatch = watchViewport(() => this.#place());
     this.renderNow();
   }
@@ -288,6 +334,7 @@ export class UiTooltip extends UiElement<TooltipData> {
     lastHiddenAt = Date.now();
     if (current === this) current = null;
     document.removeEventListener('keydown', this.#onDocKey, true);
+    document.removeEventListener('pointerdown', this.#onDocDown, true);
     this.#unwatch?.();
     this.#unwatch = null;
     if (this.isConnected) this.renderNow();
