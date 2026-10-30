@@ -5,8 +5,8 @@ import {
   easeOutQuart,
   fmtMetric,
   metricFormat,
-  ROLL_MS,
   rollValue,
+  STAT_ROLL_MS,
   type StatStripData,
   statMetrics,
   type UiStatStrip,
@@ -146,7 +146,7 @@ describe('helpers', () => {
     expect(rollValue(100, 200, -1)).toBe(100);
     expect(rollValue(200, 100, 0.5)).toBeCloseTo(106.25);
     expect(easeOutQuart(0.25)).toBeCloseTo(1 - 0.75 ** 4);
-    expect(ROLL_MS).toBe(620);
+    expect(STAT_ROLL_MS).toBe(620);
   });
 
   it('statMetrics drops junk, gives a missing key an index key, keeps the first of each key', () => {
@@ -311,9 +311,9 @@ describe('<ui-stat-strip> rolling figures', () => {
     expect(frames.size).toBe(1);
     frame(1000); // first frame: the clock starts
     expect(node.textContent).toBe('100');
-    frame(1000 + ROLL_MS / 2);
+    frame(1000 + STAT_ROLL_MS / 2);
     expect(node.textContent).toBe(String(Math.round(rollValue(100, 200, 0.5))));
-    frame(1000 + ROLL_MS);
+    frame(1000 + STAT_ROLL_MS);
     expect(node.textContent).toBe('200');
     expect(frames.size).toBe(0);
   });
@@ -323,16 +323,16 @@ describe('<ui-stat-strip> rolling figures', () => {
     el.data = { metrics: [{ key: 's', label: 'Sessions', value: 1000 }] };
     el.renderNow();
     frame(0);
-    frame(ROLL_MS / 2);
+    frame(STAT_ROLL_MS / 2);
     const mid = fig(el, 's').textContent;
     el.data = { label: 'Other', metrics: [{ key: 's', label: 'Sessions', value: 1000 }] };
     el.renderNow();
     expect(fig(el, 's').textContent).toBe(mid);
     el.data = { metrics: [{ key: 's', label: 'Sessions', value: 2000 }] };
     el.renderNow();
-    frame(ROLL_MS / 2 + 1);
+    frame(STAT_ROLL_MS / 2 + 1);
     expect(fig(el, 's').textContent).toBe(mid);
-    frame(ROLL_MS / 2 + 1 + ROLL_MS);
+    frame(STAT_ROLL_MS / 2 + 1 + STAT_ROLL_MS);
     expect(fig(el, 's').textContent).toBe('2,000');
   });
 

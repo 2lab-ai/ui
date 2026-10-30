@@ -11,4 +11,4 @@ export type {
   StatPeriodOption,
   StatStripData,
 } from './stat-strip';
-export { easeOutQuart, fmtMetric, metricFormat, ROLL_MS, rollValue, statMetrics, UiStatStrip } from './stat-strip';
+export { easeOutQuart, fmtMetric, metricFormat, rollValue, STAT_ROLL_MS, statMetrics, UiStatStrip } from './stat-strip';

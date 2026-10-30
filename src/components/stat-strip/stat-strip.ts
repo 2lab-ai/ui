@@ -94,7 +94,7 @@ export interface StatMoreToggle {
 }
 
 /** A figure's change rolls over this long (ease-out quart). */
-export const ROLL_MS = 620;
+export const STAT_ROLL_MS = 620;
 
 const FORMATS: readonly MetricFormat[] = ['int', 'compact', 'tokens', 'usd', 'percent', 'duration'];
 
@@ -498,7 +498,7 @@ export class UiStatStrip extends UiElement<StatStripData> {
     const lang = this.#lang;
     for (const [key, r] of this.#rolls) {
       if (r.t0 < 0) r.t0 = now;
-      const p = Math.min(1, (now - r.t0) / ROLL_MS);
+      const p = Math.min(1, (now - r.t0) / STAT_ROLL_MS);
       const v = rollValue(r.from, r.to, p);
       this.#shown.set(key, { v, fmt: r.fmt });
       const el = this.#fig(key);
