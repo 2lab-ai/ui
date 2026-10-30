@@ -213,6 +213,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     // The dialog leaves the top layer by itself when it is removed; hide() also drops its wish to be open, or a
     // re-insert (a move in the page) would reopen it on a viewer that has closed.
     this.close();
+    clearTimeout(this.#emptyTimer); // close() may have armed it; a removed viewer has nothing to empty
   }
 
   get #lang(): string {

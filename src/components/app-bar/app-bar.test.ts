@@ -16,7 +16,7 @@ const XSS = '<img src=x onerror=alert(1)>';
 const BREAK = '"><b>x</b>';
 
 const DATA: AppBarData = {
-  brand: { label: 'Workbench', href: '/' },
+  brand: { label: 'Workbench', href: '/', mark: true },
   nav: [
     { id: 'conversations', label: 'Conversations', href: '/conversations', icon: 'chat', current: true, badge: 3 },
     { id: 'settings', label: 'Settings', href: '/settings', icon: 'gear' },
@@ -165,7 +165,8 @@ describe('helpers', () => {
       ['separator', undefined, undefined],
       ['item', 'account', undefined],
     ]);
-    expect(items[0]).toMatchObject({ label: 'Conversations', icon: 'chat', shortcut: '3' });
+    expect(items[0]).toMatchObject({ label: 'Conversations', icon: 'chat', description: '3' });
+    expect(items[0]).not.toHaveProperty('shortcut');
     expect(items[4]).toMatchObject({ label: 'Mina Park', description: 'Admin', icon: 'user' });
     expect(appBarMenuItems(DATA.nav).some((i) => i.kind === 'separator')).toBe(false);
     expect(appBarMenuItems([], DATA.account)).toEqual([]);
@@ -183,11 +184,17 @@ describe('rendering', () => {
     expect(q(el, 'slot[name="actions"]')).not.toBeNull();
   });
 
-  it('brand without href is plain text; mark: false hides the glyph; no brand leaves the slot empty', () => {
-    const el = mount({ brand: { label: 'Acme Ops', mark: false } });
+  it('brand without href is plain text; no glyph unless mark asks for one; no brand leaves the slot empty', () => {
+    const el = mount({ brand: { label: 'Acme Ops' } });
     expect(q(el, 'a.ab-brand')).toBeNull();
     expect(q(el, 'span.ab-brand')!.textContent).toBe('Acme Ops');
     expect(q(el, '.ab-mark')).toBeNull();
+    el.data = { brand: { label: 'Acme Ops', mark: 'chat' } };
+    el.renderNow();
+    expect(q(el, '.ab-mark svg')).not.toBeNull();
+    el.data = { brand: { label: 'Acme Ops', mark: true } };
+    el.renderNow();
+    expect(q(el, '.ab-mark svg')).not.toBeNull();
     el.data = {};
     el.renderNow();
     expect(q(el, '.ab-brand')).toBeNull();
@@ -500,7 +507,7 @@ describe('collapse', () => {
     FakeRO.fire(el, 330);
     expect(el.hasAttribute('mark-only')).toBe(true);
     size(36, 36);
-    el.data = { ...DATA, brand: { label: 'Acme', href: '/' } };
+    el.data = { ...DATA, brand: { label: 'Acme', href: '/', mark: true } };
     el.renderNow();
     expect(el.hasAttribute('mark-only')).toBe(false);
     size(80, 50);

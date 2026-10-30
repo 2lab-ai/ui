@@ -46,8 +46,8 @@ export interface AppBarAccount {
 export interface AppBarBrand {
   label: string;
   href?: string;
-  /** Draw the brand mark glyph before the label. Default true. */
-  mark?: boolean;
+  /** A glyph before the label: an icon name, or `true` for the library's own mark. Default none. */
+  mark?: boolean | IconName;
 }
 
 export type AppBarTheme = 'light' | 'dark';
@@ -219,7 +219,8 @@ export function appBarMenuItems(nav: unknown, account?: AppBarAccount | null): M
     label: l.label,
     icon: l.icon,
     checked: !!l.current,
-    shortcut: badgeText(l.badge) || undefined,
+    // A count is not a key hint: it reads as the row's description, never in the shortcut slot.
+    description: badgeText(l.badge) || undefined,
   }));
   const acc = accountOf(account);
   if (acc.name) {
@@ -390,7 +391,7 @@ export class UiAppBar extends UiElement<AppBarData> {
   /** Everything the unfolded content's width depends on. */
   #signature(): string {
     const d = this.data;
-    const parts: string[] = [str(d?.brand?.label), String(d?.brand?.mark !== false), str(d?.status?.label)];
+    const parts: string[] = [str(d?.brand?.label), String(d?.brand?.mark ?? ''), str(d?.status?.label)];
     for (const l of appBarLinks(d?.nav)) parts.push(l.label, str(l.icon), badgeText(l.badge));
     const acc = accountOf(d?.account);
     parts.push(acc.name, acc.role, String(!!themeOf(d?.theme)), this.getAttribute('lang') ?? '');
@@ -528,8 +529,8 @@ export class UiAppBar extends UiElement<AppBarData> {
   #brand(b: AppBarBrand | undefined): string {
     const label = str(b?.label).trim();
     if (!b || !label) return '<slot name="brand" data-mk="slot:brand"></slot>';
-    const mark =
-      b.mark === false ? '' : `<span class="ab-mark" aria-hidden="true">${icon('brand', { size: 20 })}</span>`;
+    const glyph: IconName | '' = b.mark === true ? 'brand' : typeof b.mark === 'string' ? b.mark : '';
+    const mark = glyph ? `<span class="ab-mark" aria-hidden="true">${icon(glyph, { size: 20 })}</span>` : '';
     const inner = `${mark}<span class="ab-brand-label">${esc(label)}</span>`;
     const brand = str(b.href).trim()
       ? `<a class="ab-brand" href="${safeLink(b.href)}" data-act="brand" data-key="brand">${inner}</a>`

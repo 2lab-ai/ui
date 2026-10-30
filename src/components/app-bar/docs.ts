@@ -110,7 +110,7 @@ function page(
 }
 
 const WORKBENCH: AppBarData = {
-  brand: { label: 'Workbench', href: '/' },
+  brand: { label: 'Workbench', href: '/', mark: true },
   nav: [
     { id: 'conversations', label: 'Conversations', href: '/conversations', icon: 'chat', current: true, badge: 3 },
     { id: 'settings', label: 'Settings', href: '/settings', icon: 'gear' },
@@ -142,9 +142,9 @@ export const doc: ComponentDoc = {
   props: [
     {
       name: 'data.brand',
-      type: '{ label: string; href?: string; mark?: boolean }',
+      type: '{ label: string; href?: string; mark?: boolean | IconName }',
       description:
-        'Brand mark glyph (default on; mark: false hides it) and label. A link when href is set (safe app links only, else #); its click sends ui-navigate with id "brand". The brand slot replaces it.',
+        'Label with an optional glyph before it (mark: an icon name, or true for the library mark; default none). A link when href is set (safe app links only, else #); its click sends ui-navigate with id "brand". The brand slot replaces it.',
     },
     {
       name: 'data.nav',
@@ -267,7 +267,7 @@ export const doc: ComponentDoc = {
   import '@2lab.ai/ui/app-bar';
   const bar = document.querySelector('ui-app-bar');
   bar.data = {
-    brand: { label: 'Workbench', href: '/' },
+    brand: { label: 'Workbench', href: '/', mark: true },
     nav: [
       { id: 'conversations', label: 'Conversations', href: '/conversations', icon: 'chat', current: true },
       { id: 'settings', label: 'Settings', href: '/settings', icon: 'gear' },
@@ -346,7 +346,7 @@ export const doc: ComponentDoc = {
       create: () =>
         page(
           make({
-            brand: { label: 'Workbench', href: '/' },
+            brand: { label: 'Workbench', href: '/', mark: true },
             nav: [
               { id: 'conversations', label: 'Conversations', href: '/conversations', icon: 'chat', current: true },
               { id: 'schedules', label: 'Schedules', href: '/schedules', icon: 'clock', badge: 2 },
