@@ -1,5 +1,7 @@
 import type { ComponentDoc } from '../../docs/types';
 import { demoFiles, demoPhoto } from '../file-card/demo';
+import '../file-card/file-card';
+import type { FileOpenDetail, UiFileCard } from '../file-card/file-card';
 import type { FileItem } from '../file-card/render';
 import './artifact-viewer';
 import type {
@@ -10,6 +12,48 @@ import type {
   ArtifactViewerData,
   UiArtifactViewer,
 } from './artifact-viewer';
+
+/**
+ * One viewer over the page's own cards: two groups of <ui-file-card> (an answer's chips, the attachments' tiles)
+ * and a <ui-artifact-viewer tiles="none"> that pages through all of them, whichever card opened it.
+ */
+function overHost(): HTMLElement {
+  const all = demoFiles();
+  const viewer = make({ items: [] }, { tiles: 'none' });
+  const group = (title: string, items: FileItem[], variant: 'chip' | 'tile') => {
+    const box = document.createElement('section');
+    box.style.cssText = 'display:flex;flex-direction:column;gap:8px;min-width:0';
+    const h = document.createElement('h4');
+    h.textContent = title;
+    h.style.cssText = 'margin:0;font-size:12px;font-weight:500;color:var(--ui-text-tertiary)';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+    for (const it of items) {
+      const card = document.createElement('ui-file-card') as UiFileCard;
+      card.setAttribute('variant', variant);
+      card.data = it;
+      row.append(card);
+    }
+    box.append(h, row);
+    return box;
+  };
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:16px;width:100%;min-width:0';
+  wrap.append(group('In this answer', all.slice(0, 3), 'chip'), group('Attachments', all.slice(3), 'tile'));
+  wrap.addEventListener('ui-open', (e) => {
+    const card = e.target as UiFileCard;
+    if (card.tagName !== 'UI-FILE-CARD') return;
+    const { id } = (e as CustomEvent<FileOpenDetail>).detail;
+    viewer.open(
+      all,
+      all.findIndex((f) => String(f.id) === id),
+      card,
+    );
+  });
+  const { box } = stage(viewer);
+  box.prepend(wrap);
+  return box;
+}
 
 function make(data: ArtifactViewerData, attrs: Record<string, string> = {}): UiArtifactViewer {
   const el = document.createElement('ui-artifact-viewer');
@@ -30,6 +74,8 @@ const SAY_EN: Say = (name, d, items) => {
   }
   if (name === 'ui-close') return `ui-close → ${(d as ArtifactCloseDetail).reason}`;
   const a = d as ArtifactActionDetail;
+  if (a.extra)
+    return `ui-action → ${a.action} on ${nameOf(items, a.id)}${a.url ? ` (${a.url})` : ''} — the host's own action`;
   return `ui-action → ${a.action} ${a.url} — prevented: the demo files live nowhere`;
 };
 
@@ -41,6 +87,7 @@ const SAY_KO: Say = (name, d, items) => {
   }
   if (name === 'ui-close') return '뷰어를 닫았어요';
   const a = d as ArtifactActionDetail;
+  if (a.extra) return `${a.action}: ${nameOf(items, a.id)} — 호스트가 처리해요`;
   return `${a.action === 'download' ? '다운로드' : '새 탭에서 열기'}: ${a.url} — 데모라서 막았어요`;
 };
 
@@ -65,6 +112,32 @@ function stage(el: UiArtifactViewer, say: Say = SAY_EN): { box: HTMLElement; lin
 }
 
 const MIN = 60_000;
+
+/**
+ * The run's files with the page's own actions: every file opens in Slack (its permalink), the log can be copied,
+ * and one file lives only in Slack (no url: no Open / Download, so its Slack link leads in ink).
+ */
+function withActions(): FileItem[] {
+  const slack = (id: string) => ({
+    id: 'slack',
+    label: 'Slack',
+    icon: 'chat' as const,
+    href: `https://example.slack.com/files/U0/${id}`,
+  });
+  const files = demoFiles().map((f) => ({
+    ...f,
+    actions: f.id === 'log' ? [slack(f.id), { id: 'copy', label: 'Copy', icon: 'copy' as const }] : [slack(f.id)],
+  }));
+  files.push({
+    id: 'slack-only',
+    name: 'customer-call.m4a',
+    size: 2_480_000,
+    time: Date.now() - 41 * MIN,
+    meta: 'Only in Slack',
+    actions: [{ id: 'slack', label: 'Open in Slack', icon: 'chat', href: 'https://example.slack.com/files/U0/call' }],
+  });
+  return files;
+}
 
 const SIGNUPS = `week,signups,activated,rate
 2026-09-28,1204,688,57%
@@ -158,6 +231,12 @@ export const doc: ComponentDoc = {
       type: "'image' | 'audio' | 'video' | 'markdown' | 'html' | 'pdf' | 'code' | 'text' | 'file'",
       description: 'Wins over mime and the extension.',
     },
+    {
+      name: 'data.items[].kindLabel',
+      type: 'string',
+      description:
+        'The kind word for the badge, the peek and the tile’s name instead of the kind’s own (“Answer” for the final answer). Glyph and tint stay the kind’s.',
+    },
     { name: 'data.items[].mime', type: 'string', description: 'MIME type, used for the kind when kind is missing.' },
     { name: 'data.items[].size', type: 'number', description: 'Bytes, drawn as 12.4 KB (tabular).' },
     {
@@ -185,11 +264,23 @@ export const doc: ComponentDoc = {
     { name: 'data.items[].meta', type: 'string', description: 'One extra quiet line (“from Build agent”).' },
     { name: 'data.items[].downloadName', type: 'string', description: 'File name for Download. Default: name.' },
     {
+      name: 'data.items[].actions',
+      type: 'Array<{ id: string; label: string; icon?: IconName; href?: string }>',
+      description:
+        'Extra actions after Open in new tab / Download — the file’s Slack permalink, Copy link, Retry. With a safe href (http(s), mailto, relative) a link to a new tab, else a button; both send ui-action with action = id and extra: true. Ids open / download are skipped, the first of each id counts, at most 4. Without an icon the action keeps its words on phones. A file with no url of its own shows them on its card, the first one in ink.',
+    },
+    {
       name: 'data.layout',
-      type: "'strip' | 'grid' | 'chips' | 'list'",
+      type: "'strip' | 'grid' | 'chips' | 'list' | 'none'",
       default: "'strip'",
       description:
-        'strip — one scrolling row with snap and edge fades · grid — tiles of at least 132px · chips — wrapping name pills · list — rows with size and age.',
+        'strip — one scrolling row with snap and edge fades · grid — tiles of at least 132px · chips — wrapping name pills · list — rows with size and age · none — no tiles, no title: only the viewer, opened over your own cards with open(items, index, opener).',
+    },
+    {
+      name: 'tiles',
+      type: "'none'",
+      description:
+        'Attribute: tiles="none" is layout none — the element draws nothing in the page; its viewer opens over the host’s cards.',
     },
     {
       name: 'data.title',
@@ -229,6 +320,12 @@ export const doc: ComponentDoc = {
       description:
         'Open at a file, step (held at the ends), close with the exit motion. They send ui-view for the shown file, never ui-open or ui-close.',
     },
+    {
+      name: 'open(items, index?, opener?)',
+      type: 'method',
+      description:
+        'Open over a list of your own — every file of a conversation, an instruction’s attachments — at index (default 0). The list becomes data.items (the rest of the data stays; an old data.index never reopens); Previous / Next, the kind badge and Open / Download page through it. opener (your card or button) takes focus back on close. Called while open, it swaps the list and shows index.',
+    },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
       name: 'theme',
@@ -258,13 +355,16 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-action',
-      detail: "{ action: 'open' | 'download'; id: string; url: string }",
+      detail: "{ action: 'open' | 'download' | string; id: string; url: string; extra?: true }",
       description:
-        'Open in new tab or Download was pressed; url is the safe link it follows. Cancelable: preventDefault() stops the link — fetch with the session token, log it, or route it yourself.',
+        'Open in new tab or Download was pressed — or one of the file’s own actions (action = its id, extra: true; url is its link, or empty for a button); id is the file’s. url is the safe link it follows. Cancelable: preventDefault() stops the link — fetch with the session token, log it, or route it yourself.',
     },
   ],
   keyboard: [
-    ['Tab', 'Move along the tiles; in the viewer: close, Previous, Next, Zoom, Open in new tab, Download'],
+    [
+      'Tab',
+      'Move along the tiles; in the viewer: close, Previous, Next, Zoom, Open in new tab, Download, the file’s own actions',
+    ],
     ['Enter / Space on a tile', 'Open the viewer at that file (ui-open)'],
     [
       '← / →',
@@ -346,10 +446,10 @@ export const doc: ComponentDoc = {
       id: 'actions',
       title: 'Events and host control',
       description:
-        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. The button opens the viewer through data.index; ui-close clears it.',
+        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. Each file also carries the page’s own actions (items[].actions): Slack on every file, Copy on the log, and customer-call.m4a lives only in Slack, so its card leads with Open in Slack. The button opens the viewer through data.index; ui-close clears it.',
       height: 330,
       create: () => {
-        const el = make({ title: 'Files', items: demoFiles() });
+        const el = make({ title: 'Files', items: withActions() });
         const { box } = stage(el);
         const open = document.createElement('button');
         open.type = 'button';
@@ -366,6 +466,14 @@ export const doc: ComponentDoc = {
         box.prepend(open);
         return box;
       },
+    },
+    {
+      id: 'over-host',
+      title: 'Over your own cards',
+      description:
+        'tiles="none": the element draws no tiles. The page’s own cards — an answer’s chips, the attachments’ tiles — open one viewer with open(items, index, opener), which pages through every file on the page; Esc returns focus to the card that opened it.',
+      height: 360,
+      create: () => overHost(),
     },
     {
       id: 'host-preview',

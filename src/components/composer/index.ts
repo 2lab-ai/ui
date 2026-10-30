@@ -2,8 +2,10 @@ export { composerCanRecord, UiComposer } from './composer';
 export type {
   ComposerData,
   ComposerEnterAction,
+  ComposerEnterMode,
   ComposerFilesDetail,
   ComposerInputDetail,
+  ComposerOverCapDetail,
   ComposerRecordDetail,
   ComposerRecordState,
   ComposerRejectDetail,
@@ -21,6 +23,7 @@ export {
   composerCheckFile,
   composerCounterTone,
   composerEnterAction,
+  composerEnterMode,
   composerLevel,
   composerPastedName,
   composerRecorderMime,

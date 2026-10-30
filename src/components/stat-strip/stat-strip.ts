@@ -1,5 +1,5 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
-import { clamp, fmtDuration, fmtInt, fmtTokens } from '../../core/format';
+import { clamp, fmtDuration, fmtDurationKo, fmtInt, fmtTokens } from '../../core/format';
 import { attrs, esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
@@ -46,7 +46,23 @@ export interface StatMetric {
   breakdown?: StatBreakdown;
   /** Plain tooltip text for the figure when there is no breakdown. */
   hint?: string;
+  /**
+   * Where the figure rolls from when it lands a value with none on screen (first paint, after loading or no
+   * data): a number, or `'last'` — the value it showed before its loading bar (kept under the bar). Without it
+   * such a value appears at once. A figure that already shows a value always rolls on from it.
+   */
+  from?: number | 'last';
+  /**
+   * A free-form figure: the name of a slot whose light-DOM content is drawn in the figure's place ("+1,204 /
+   * −318", a name: count list). No roll, no breakdown; `loading` still shows the bar.
+   */
+  slot?: string;
+  /** `layout: 'cards'`: the card spans two columns (a long free-form figure). */
+  wide?: boolean;
 }
+
+/** `line`: label · figure pairs on one line (default). `cards`: a grid of tiles — label above a large figure. */
+export type StatLayout = 'line' | 'cards';
 
 /** A period option (the inner `<ui-segmented>` option). */
 export interface StatPeriodOption {
@@ -80,6 +96,8 @@ export interface StatStripData {
   more?: boolean | StatMore;
   /** Accessible name of the strip. Default "Usage" / "사용량". */
   label?: string;
+  /** Default `'line'`. `'cards'` draws each figure as a tile in a grid (the detail behind More, a dashboard row). */
+  layout?: StatLayout;
 }
 
 /** `ui-period` detail. */
@@ -106,6 +124,11 @@ type Strings = (typeof STRINGS)['en'];
 
 const NONE = '—';
 
+/** The metric's slot name ('' = a plain figure). */
+function slotOf(m: StatMetric): string {
+  return typeof m.slot === 'string' ? m.slot.trim() : '';
+}
+
 /** A known format, else `'int'`. */
 export function metricFormat(f: unknown): MetricFormat {
   return FORMATS.includes(f as MetricFormat) ? (f as MetricFormat) : 'int';
@@ -129,15 +152,6 @@ function fmtMoney(v: number): string {
 
 function fmtPercent(v: number): string {
   return `${Math.abs(v) < 10 ? trim1(v) : String(Math.round(v))}%`;
-}
-
-function fmtDurationKo(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  if (s < 60) return `${s}초`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return s % 60 ? `${m}분 ${s % 60}초` : `${m}분`;
-  const h = Math.floor(m / 60);
-  return m % 60 ? `${h}시간 ${m % 60}분` : `${h}시간`;
 }
 
 /**
@@ -224,6 +238,8 @@ export class UiStatStrip extends UiElement<StatStripData> {
   #dataOpen: boolean | undefined;
   /** The value each figure shows right now (mid-roll included), with the format it was written in. */
   #shown = new Map<string, { v: number; fmt: MetricFormat }>();
+  /** What a figure showed when its loading bar came: `from: 'last'` rolls from it when the answer lands. */
+  #kept = new Map<string, { v: number; fmt: MetricFormat }>();
   #rolls = new Map<string, Roll>();
   #raf = 0;
   /** The breakdown tooltip pressed, and whether it was open before the press hid it. */
@@ -358,6 +374,7 @@ export class UiStatStrip extends UiElement<StatStripData> {
       role: 'group',
       'aria-label': d.label || t.label,
       'aria-busy': busy ? 'true' : undefined,
+      'data-layout': d.layout === 'cards' ? 'cards' : undefined,
       'data-open': open,
       'data-settled': open && this.#settled,
     })}><div${attrs({ class: 'ss-row', 'data-period': period })}>${seg}${
@@ -370,8 +387,11 @@ export class UiStatStrip extends UiElement<StatStripData> {
     const fmt = metricFormat(m.format);
     const loading = allLoading || !!m.loading;
     let fig: string;
+    const slot = slotOf(m);
     if (loading) {
       fig = `<span class="ss-sk" aria-hidden="true"></span><span class="sr-only">${esc(t.loading)}</span>`;
+    } else if (slot) {
+      fig = `<span class="ss-free"><slot name="${escAttr(slot)}"><span class="ss-fig is-none">${NONE}</span></slot></span>`;
     } else if (!isNum(m.value)) {
       fig = `<span class="ss-fig is-none" aria-hidden="true">${NONE}</span><span class="sr-only">${esc(t.noData)}</span>`;
     } else {
@@ -382,7 +402,7 @@ export class UiStatStrip extends UiElement<StatStripData> {
         fmtMetric(m.value, fmt, lang),
       )}</span>`;
     }
-    const tip = loading ? null : this.#tip(m, i, fmt, lang);
+    const tip = loading || slot ? null : this.#tip(m, i, fmt, lang);
     const val = tip
       ? `<ui-tooltip${attrs({
           class: 'ss-tip',
@@ -396,9 +416,9 @@ export class UiStatStrip extends UiElement<StatStripData> {
           'aria-describedby': tip.id,
         })}>${fig}</button>${tip.html}</ui-tooltip>`
       : fig;
-    return `<div class="ss-m" data-mk="m:${escAttr(m.key)}" data-metric="${escAttr(m.key)}" style="--i: ${i}"><dt class="ss-label">${esc(
-      m.label,
-    )}</dt><dd class="ss-val">${val}</dd></div>`;
+    return `<div class="ss-m" data-mk="m:${escAttr(m.key)}" data-metric="${escAttr(m.key)}"${
+      m.wide ? ' data-wide' : ''
+    } style="--i: ${i}"><dt class="ss-label">${esc(m.label)}</dt><dd class="ss-val">${val}</dd></div>`;
   }
 
   /**
@@ -456,7 +476,8 @@ export class UiStatStrip extends UiElement<StatStripData> {
 
   /**
    * Start, retarget or land each figure's roll. A figure jumps on first paint, on its first value (after loading
-   * or no data), on a change of format and under reduced motion.
+   * or no data), on a change of format and under reduced motion — unless its `from` gives it a start: a number,
+   * or `'last'` (the value kept under its loading bar).
    */
   #syncRolls(): void {
     const d = this.data;
@@ -467,6 +488,11 @@ export class UiStatStrip extends UiElement<StatStripData> {
       seen.add(m.key);
       const fmt = metricFormat(m.format);
       if (d?.loading || m.loading || !isNum(m.value)) {
+        // The loading bar hides the figure but keeps what it showed (mid-roll: the value on screen); no data
+        // ("—") forgets it.
+        const was = this.#shown.get(m.key);
+        if (was && (d?.loading || m.loading)) this.#kept.set(m.key, was);
+        else if (!(d?.loading || m.loading)) this.#kept.delete(m.key);
         this.#shown.delete(m.key);
         this.#rolls.delete(m.key);
         continue;
@@ -474,7 +500,18 @@ export class UiStatStrip extends UiElement<StatStripData> {
       const to = m.value;
       const roll = this.#rolls.get(m.key);
       if (roll && roll.to === to && roll.fmt === fmt) continue;
-      const prev = this.#shown.get(m.key);
+      let prev = this.#shown.get(m.key);
+      if (!prev) {
+        const start = m.from === 'last' ? this.#kept.get(m.key) : isNum(m.from) ? { v: m.from, fmt } : undefined;
+        if (start && start.fmt === fmt && start.v !== to && !still) {
+          prev = start;
+          this.#shown.set(m.key, start);
+          // Drawn with the answer a moment ago: back to the start before the first frame paints.
+          const el = this.#fig(m.key);
+          if (el) el.textContent = fmtMetric(start.v, fmt, lang);
+        }
+      }
+      this.#kept.delete(m.key);
       if (!prev || prev.fmt !== fmt || prev.v === to || still) {
         this.#rolls.delete(m.key);
         this.#shown.set(m.key, { v: to, fmt });
@@ -485,6 +522,7 @@ export class UiStatStrip extends UiElement<StatStripData> {
       this.#rolls.set(m.key, { from: prev.v, to, fmt, t0: -1 });
     }
     for (const key of Array.from(this.#shown.keys())) if (!seen.has(key)) this.#shown.delete(key);
+    for (const key of Array.from(this.#kept.keys())) if (!seen.has(key)) this.#kept.delete(key);
     for (const key of Array.from(this.#rolls.keys())) if (!seen.has(key)) this.#rolls.delete(key);
     if (this.#rolls.size && !this.#raf && this.isConnected) this.#raf = requestAnimationFrame(this.#tick);
     else if (!this.#rolls.size && this.#raf) {

@@ -12,7 +12,7 @@ import {
   fileCardHtml,
   fileDisplayName,
   fileItemKind,
-  fileKindLabel,
+  fileItemKindLabel,
   fileMeta,
 } from '../file-card/render';
 import {
@@ -21,6 +21,7 @@ import {
   actionUrl,
   artifactItems,
   artifactLayout,
+  extraActionsHtml,
   PEEK_DELAY_MS,
   PEEK_GRACE_MS,
   PEEK_WARM_MS,
@@ -36,7 +37,10 @@ import { styles } from './styles';
 
 export interface ArtifactViewerData {
   items: FileItem[];
-  /** `strip` (default) — one scrolling row with snap · `grid` — tiles ≥ 132px · `chips` — wrapping pills · `list` — rows. */
+  /**
+   * `strip` (default) — one scrolling row with snap · `grid` — tiles ≥ 132px · `chips` — wrapping pills · `list` —
+   * rows · `none` — no tiles: only the viewer, over the host's own tiles (`open(items, index, opener)`).
+   */
   layout?: ArtifactLayout;
   /** Section label above the files, with a count. */
   title?: string;
@@ -67,14 +71,26 @@ export interface ArtifactViewDetail {
 export interface ArtifactCloseDetail {
   reason: DialogCloseReason;
 }
-/** `ui-action` (cancelable): Open in new tab / Download; preventDefault() stops the link (the host handles it). */
+/**
+ * `ui-action` (cancelable): Open in new tab / Download, or one of the file's extra `actions` (its `id`);
+ * preventDefault() stops a link (the host handles it). An extra action without a safe `href` is a button: `url` ''.
+ */
 export interface ArtifactActionDetail {
-  action: 'open' | 'download';
+  action: 'open' | 'download' | (string & {});
+  /** The file's id. */
   id: string;
   url: string;
+  /** True for one of the file's extra `actions`. */
+  extra?: boolean;
 }
 
-const VARIANT: Record<ArtifactLayout, FileCardVariant> = { strip: 'tile', grid: 'tile', chips: 'chip', list: 'row' };
+const VARIANT: Record<ArtifactLayout, FileCardVariant> = {
+  strip: 'tile',
+  grid: 'tile',
+  chips: 'chip',
+  list: 'row',
+  none: 'tile',
+};
 
 /** Where arrow keys belong to the control (caret, seeking, a frame's own page). */
 function ownsArrows(t: EventTarget | undefined): boolean {
@@ -92,7 +108,7 @@ function ownsArrows(t: EventTarget | undefined): boolean {
 export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang', 'theme'];
+    return ['lang', 'theme', 'tiles'];
   }
 
   /** The item the viewer shows (-1 = closed), and its id: new data keeps showing that file wherever it moved. */
@@ -172,9 +188,22 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     return this.#index;
   }
 
-  /** Open the viewer at `index` (no `ui-open`; `ui-view` reports the shown item). */
-  open(index: number): void {
-    this.#show(Math.trunc(Number(index)));
+  /**
+   * Open the viewer at `index` (no `ui-open`; `ui-view` reports the shown item). Given a list, the viewer pages
+   * through it instead (it becomes `data.items`, the rest of the data stays) — the host's own tiles, a whole
+   * conversation — and `opener` (the host's tile) takes focus back when it closes.
+   */
+  open(index: number): void;
+  open(items: FileItem[], index?: number, opener?: HTMLElement | null): void;
+  open(a: number | FileItem[], index = 0, opener?: HTMLElement | null): void {
+    if (!Array.isArray(a)) {
+      this.#show(Math.trunc(Number(a)));
+      return;
+    }
+    // The list replaces the items; a host-controlled index of the old data must not reopen anything.
+    const { index: _drop, ...rest } = this.data ?? { items: [] };
+    this.data = { ...rest, items: a };
+    this.#show(Math.trunc(Number(index)) || 0, opener ?? null);
   }
 
   /** Close the viewer with its exit motion (no event). */
@@ -226,6 +255,11 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
 
   #items(): FileItem[] {
     return artifactItems(this.data?.items);
+  }
+
+  /** `tiles="none"` (attribute) wins over `data.layout`. */
+  #layout(): ArtifactLayout {
+    return this.getAttribute('tiles') === 'none' ? 'none' : artifactLayout(this.data?.layout);
   }
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -284,6 +318,8 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
 
   protected render(): string {
     const d = this.data;
+    // No tiles: the viewer is the whole element (its dialog lives outside this tree).
+    if (this.#layout() === 'none') return '';
     const items = this.#items();
     const title = String(d?.title ?? '').trim();
     if (!items.length) {
@@ -291,7 +327,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
         ? `<div class="av-head"><span class="av-title">${esc(title)}</span></div><p class="av-empty">${esc(this.#t.empty)}</p>`
         : '';
     }
-    const layout = artifactLayout(d?.layout);
+    const layout = this.#layout();
     const variant = VARIANT[layout];
     const lang = this.#lang;
     const now = Date.now();
@@ -348,7 +384,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       {
         size: 14,
       },
-    )}<span>${esc(fileKindLabel(kind, lang))}</span></span><span class="av-vt"><span class="av-vname">${esc(name)}</span>${
+    )}<span>${esc(fileItemKindLabel(item, lang))}</span></span><span class="av-vt"><span class="av-vname">${esc(name)}</span>${
       meta ? `<span class="av-vmeta">${esc(meta)}</span>` : ''
     }</span></span>`;
     const live = `<span class="av-live" role="status" aria-live="polite">${esc(this.#live)}</span>`;
@@ -388,7 +424,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
           })}>${icon('search')}<span class="av-act-t">${esc(t.zoom)}</span></button>`
         : '';
     // The fallback card carries the actions itself; the footer keeps them for every other body.
-    const footActs = body === 'fallback' ? '' : actionsHtml(item, acts, t);
+    const footActs = body === 'fallback' ? '' : actionsHtml(item, acts, t) + extraActionsHtml(item);
     const right = zoom || footActs ? `<div class="av-acts">${zoom}${footActs}</div>` : '';
     const footer = nav || right ? `<div slot="footer" class="av-vf">${nav}${right}</div>` : '';
     this.#dialog.setAttribute('label', name);
@@ -444,7 +480,8 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
   #go(i: number): void {
     const items = this.#items();
     const item = items[i];
-    if (this.#index < 0 || !item || i === this.#index) return;
+    // The same place may hold another file (a new list from open(items, …)): that is a move too.
+    if (this.#index < 0 || !item || (i === this.#index && String(item.id) === this.#shownId)) return;
     this.#index = i;
     this.#shownId = String(item.id);
     this.#zoomed = false;
@@ -513,6 +550,15 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     if (t.closest('.av-tg') || t.closest('.av-pic')) {
       this.#zoomed = !this.#zoomed;
       this.#syncViewer();
+      return;
+    }
+    const extra = t.closest<HTMLElement>('.av-act[data-x]');
+    if (extra) {
+      const item = this.#items()[this.#index];
+      if (!item) return;
+      const url = extra.tagName === 'A' ? (extra.getAttribute('href') ?? '') : '';
+      const detail: ArtifactActionDetail = { action: extra.dataset.x ?? '', id: String(item.id), url, extra: true };
+      if (!this.emit<ArtifactActionDetail>('ui-action', detail)) e.preventDefault();
       return;
     }
     const act = t.closest<HTMLAnchorElement>('a.av-act');

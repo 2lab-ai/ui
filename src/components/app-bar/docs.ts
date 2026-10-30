@@ -21,6 +21,36 @@ function newTask(label: string): HTMLButtonElement {
   return b;
 }
 
+/** A wide scope group for the toolbar slot: two picker chips, a user select and an admin toggle. */
+function scopeGroup(): HTMLElement {
+  const g = document.createElement('div');
+  g.slot = 'toolbar';
+  g.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0';
+  const chip = (prefix: string, value: string) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ui-chip';
+    b.innerHTML = `<span style="color:var(--ui-text-secondary)">${prefix}</span> <b style="font-weight:600">${value}</b>${icon('chevron-down', { size: 12 })}`;
+    return b;
+  };
+  const sel = document.createElement('select');
+  sel.className = 'ui-chip';
+  sel.setAttribute('aria-label', 'Whose board');
+  for (const name of ['All users', 'Mina Park', 'Sam Rivera']) sel.append(new Option(name));
+  const admin = document.createElement('button');
+  admin.type = 'button';
+  admin.className = 'ui-chip';
+  admin.setAttribute('aria-pressed', 'false');
+  admin.textContent = 'Admin: off';
+  admin.addEventListener('click', () => {
+    const on = admin.getAttribute('aria-pressed') !== 'true';
+    admin.setAttribute('aria-pressed', String(on));
+    admin.textContent = on ? 'Admin: on' : 'Admin: off';
+  });
+  g.append(chip('Model', 'Opus 4.5'), chip('Effort', 'High'), sel, admin);
+  return g;
+}
+
 const ROWS_EN: Array<[string, string]> = [
   ['Quarterly report draft', 'Edited 4 min ago'],
   ['Fix the flaky sign-in test', 'Running · 12 steps'],
@@ -142,15 +172,15 @@ export const doc: ComponentDoc = {
   props: [
     {
       name: 'data.brand',
-      type: '{ label: string; href?: string; mark?: boolean | IconName }',
+      type: '{ label: string; href?: string; mark?: boolean | IconName; heading?: boolean }',
       description:
-        'Label with an optional glyph before it (mark: an icon name, or true for the library mark; default none). A link when href is set (safe app links only, else #); its click sends ui-navigate with id "brand". The brand slot replaces it.',
+        'Label with an optional glyph before it (mark: an icon name, or true for the library mark; default none). A link when href is set (safe app links only, else #); its click sends ui-navigate with id "brand". heading: true draws it inside an <h1> — the brand is the page’s heading, looking exactly the same. The brand slot replaces it.',
     },
     {
       name: 'data.nav',
-      type: 'Array<{ id: string; label: string; href?: string; icon?: IconName; current?: boolean; badge?: number | string }>',
+      type: 'Array<{ id: string; label: string; href?: string; icon?: IconName; current?: boolean; badge?: number | string; title?: string }>',
       description:
-        'Page links. current draws the neutral pill and aria-current="page" (the first current link wins); badge is a small tabular count; icon is a 14px glyph. A repeated id keeps the first. Without href the link goes nowhere by itself — handle ui-navigate.',
+        'Page links. current draws the neutral pill and aria-current="page" (the first current link wins); badge is a small tabular count; icon is a 14px glyph; title says what the page is for — the link’s hover title and, folded, the menu row’s second line (after the count). A repeated id keeps the first. Without href the link goes nowhere by itself — handle ui-navigate.',
     },
     {
       name: 'data.navLabel',
@@ -160,9 +190,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.status',
-      type: "{ tone: 'run' | 'wait' | 'done' | 'fail' | 'idle'; label: string; live?: boolean }",
+      type: "{ tone: 'run' | 'wait' | 'done' | 'fail' | 'idle'; label: string; live?: boolean; description?: string }",
       description:
-        'Tone dot plus a short word, announced politely on change. idle is a hollow ring; live pulses the dot (1.6 s). Narrow, only the dot shows (the word stays for screen readers).',
+        'Tone dot plus a short word, announced politely on change. idle is a hollow ring; live pulses the dot (1.6 s). description says what the status is about (“Live updates”): read before the word (“Live updates: Connected”, visually hidden) and shown with it as the hover title. Narrow, only the dot shows (the word stays for screen readers).',
     },
     {
       name: 'data.account',
@@ -182,6 +212,13 @@ export const doc: ComponentDoc = {
       default: '720',
       description:
         'The bar’s own width (px) below which the links fold into the Menu button. In auto mode the bar also folds when its content would overflow.',
+    },
+    {
+      name: 'data.toolbarAt',
+      type: 'number',
+      default: '0',
+      description:
+        'The bar’s own width (px) below which the toolbar slot takes the row under the bar. 0: only when the bar would overflow with it inline.',
     },
     {
       name: 'collapse',
@@ -206,11 +243,28 @@ export const doc: ComponentDoc = {
       description:
         'Set by the bar while it is folded and narrow and the brand’s name would still be cut: the mark shows alone and the name stays the link’s accessible name. Cleared once the bar has the room it measured. Read-only.',
     },
+    {
+      name: 'toolbar-row',
+      type: 'boolean (reflected)',
+      description:
+        'Set by the bar while the toolbar slot sits in the row under it. Read-only — e.g. ui-app-bar[toolbar-row] .scope { flex-wrap: wrap }.',
+    },
     { name: 'slot="brand"', type: 'slot', description: 'Your own brand (logo, link); replaces data.brand.' },
+    {
+      name: 'slot="toolbar"',
+      type: 'slot',
+      description:
+        'Wide host controls (scope pickers, filters) that fold with the bar: inline before the actions while they fit; when the bar would overflow — or below toolbarAt — they take a row of their own under the bar (same translucent surface, a hairline between, wrapping), before any link folds. The host’s nodes never move, so their state and listeners stay.',
+    },
     {
       name: 'slot="actions"',
       type: 'slot',
-      description: 'Host controls before the status — a “New task” ink button, filter chips.',
+      description: 'Host controls before the status — a “New task” ink button. They always stay in the bar row.',
+    },
+    {
+      name: '::part(toolbar-row)',
+      type: 'CSS part',
+      description: 'The row under the bar that holds the toolbar while toolbar-row is set (padding, gap).',
     },
     { name: '--ui-app-bar-z', type: 'CSS custom property', default: '30', description: 'z-index of the sticky bar.' },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
@@ -240,7 +294,7 @@ export const doc: ComponentDoc = {
     },
   ],
   keyboard: [
-    ['Tab', 'Brand, links, actions, account, theme toggle, Menu (when folded)'],
+    ['Tab', 'Brand, links, toolbar, actions, account, theme toggle, Menu (when folded); the toolbar row last'],
     ['Enter', 'Follow the focused link (sends ui-navigate first)'],
     ['Enter / Space / ↓ on Menu', 'Open the folded menu on the current page'],
     ['↑ on Menu', 'Open it on the last row'],
@@ -249,9 +303,11 @@ export const doc: ComponentDoc = {
     ['Esc / Tab in the menu', 'Close it; focus returns to Menu'],
   ],
   a11y: [
-    'Links are real <a href> in a <nav> named by navLabel ("Main"); the current page carries aria-current="page". Put the bar in your page’s <header> for the banner landmark.',
+    'Links are real <a href> in a <nav> named by navLabel ("Main"); the current page carries aria-current="page"; a link’s title is its hover hint and its folded row’s description. Put the bar in your page’s <header> for the banner landmark.',
+    'brand.heading puts the brand in the page’s <h1> (one per page) — no visually hidden copy needed.',
+    'The toolbar keeps its tab order while it moves under the bar: its nodes stay where the host put them, only the slot that shows them changes.',
     'Folded, the same named <nav> holds one Menu button (aria-haspopup="menu", aria-expanded) — the shared <ui-menu>: links as menuitemradio (checked = current page) and the account after a separator. Only one of the two navs is in the accessibility tree at a time.',
-    'The status is role="status" aria-live="polite" and is patched in place, so each change is announced once; narrow, the word is visually hidden but still read.',
+    'The status is role="status" aria-live="polite" and is patched in place, so each change is announced once; its description is read before the word (“Live updates: Connected”); narrow, the word is visually hidden but still read.',
     'Folded on a narrow bar, a brand name that would be cut shows as the mark alone (mark-only); the name stays the brand link’s accessible name.',
     'The account pill is named “Account: Mina Park, Admin” (the visible name included); the initials avatar is hidden from screen readers.',
     'The theme toggle names the action (“Switch to dark theme”), not the state.',
@@ -301,6 +357,46 @@ export const doc: ComponentDoc = {
         const bar = make(WORKBENCH);
         bar.append(newTask('New task'));
         return page(bar, { height: 240 });
+      },
+    },
+    {
+      id: 'toolbar',
+      title: 'Toolbar row',
+      description:
+        'A wide scope group (model, effort, whose board, admin write mode) in the toolbar slot and New task in actions. Pick a width: while the group fits it rides in the bar; when it would overflow it takes the row under the bar and wraps there — before any link folds. The page under both rows still shows through.',
+      height: 380,
+      frame: false,
+      create: () => {
+        const bar = make({
+          ...WORKBENCH,
+          brand: { label: 'Workbench', href: '/', mark: true, heading: true },
+          status: { tone: 'done', label: 'Connected', description: 'Live updates', live: true },
+        });
+        bar.append(scopeGroup(), newTask('New task'));
+        const box = page(bar, { height: 260 });
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
+        const widths: Array<[string, string]> = [
+          ['Full', '100%'],
+          ['900 px', '900px'],
+          ['640 px', '640px'],
+          ['390 px', '390px'],
+        ];
+        const buttons = widths.map(([label, w], i) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'ui-chip';
+          b.textContent = label;
+          b.setAttribute('aria-pressed', String(i === 0));
+          b.addEventListener('click', () => {
+            box.style.maxWidth = w;
+            for (const x of buttons) x.setAttribute('aria-pressed', String(x === b));
+          });
+          return b;
+        });
+        row.append(...buttons);
+        box.prepend(row);
+        return box;
       },
     },
     {
@@ -363,19 +459,27 @@ export const doc: ComponentDoc = {
     {
       id: 'ko',
       title: '한국어',
-      description: 'lang="ko" — 메뉴, 계정, 테마 전환 문구가 한국어로 바뀝니다.',
+      description:
+        'lang="ko" — 메뉴, 계정, 테마 전환 문구가 한국어로 바뀝니다. 링크마다 title(접히면 메뉴 행의 설명), 브랜드는 페이지의 h1, 상태는 “실시간 업데이트: 연결됨”으로 읽힙니다.',
       height: 300,
       frame: false,
       create: () => {
         const bar = make(
           {
-            brand: { label: 'Acme Ops', href: '/' },
+            brand: { label: 'Acme Ops', href: '/', heading: true },
             nav: [
-              { id: 'conversations', label: '대화', href: '/conversations', icon: 'chat', current: true },
-              { id: 'settings', label: '설정', href: '/settings', icon: 'gear' },
-              { id: 'memory', label: '기억', href: '/memory', icon: 'brain' },
+              {
+                id: 'conversations',
+                label: '대화',
+                href: '/conversations',
+                icon: 'chat',
+                current: true,
+                title: '지난 대화를 모두 봅니다',
+              },
+              { id: 'settings', label: '설정', href: '/settings', icon: 'gear', title: 'Slack 명령으로 바꾸던 설정' },
+              { id: 'memory', label: '기억', href: '/memory', icon: 'brain', title: '에이전트가 기억하는 사실' },
             ],
-            status: { tone: 'done', label: '실시간 연결됨', live: true },
+            status: { tone: 'done', label: '연결됨', description: '실시간 업데이트', live: true },
             account: { name: '김민아', role: '관리자', href: '/account' },
             theme: 'light',
           },

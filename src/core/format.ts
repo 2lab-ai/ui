@@ -27,6 +27,16 @@ export function fmtDuration(ms: number): string {
   return `${h}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
+/** Duration in Korean: 42초, 7분 12초 (7분 on the minute), 2시간 3분 (2시간 on the hour). */
+export function fmtDurationKo(ms: number): string {
+  const s = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+  if (s < 60) return `${s}초`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return s % 60 ? `${m}분 ${s % 60}초` : `${m}분`;
+  const h = Math.floor(m / 60);
+  return m % 60 ? `${h}시간 ${m % 60}분` : `${h}시간`;
+}
+
 /** Countdown / clock style m:ss (3:41). */
 export function fmtClock(ms: number): string {
   const s = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
