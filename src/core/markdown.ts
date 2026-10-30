@@ -52,7 +52,9 @@ function mdInline(s: string, link: LinkRenderer): string {
     });
   t = esc(t);
   // Links become placeholders so emphasis never reaches into an href.
-  t = t.replace(/!?\[([^\]\n]{1,512})\]\(([^)\s]{1,2048})\)/g, (_m, label: string, href: string) => {
+  // Linear: a label never crosses another '[', a target never crosses an unbalanced '(' (one level of balanced
+  // parentheses is allowed, as in wiki URLs), so a scan from one '[' stops where the next link could start.
+  t = t.replace(/!?\[([^[\]\n]{1,512})\]\(((?:[^()\s]|\([^()\s]*\)){1,2048})\)/g, (_m, label: string, href: string) => {
     const url = restoreRaw(unescHtml(href));
     if (!HTTP.test(url)) return label;
     links.push(link(url, restoreCodes(marks(label))));

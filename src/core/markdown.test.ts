@@ -11,13 +11,18 @@ describe('markdownHtml on hostile input', () => {
   it('stays linear on unclosed link brackets (no backtracking blow-up)', () => {
     const open = '[a]('.repeat(12_500); // 50K characters of links that never close
     const brackets = '['.repeat(50_000);
-    expect(ms(() => markdownHtml(open))).toBeLessThan(1000);
-    expect(ms(() => markdownHtml(brackets))).toBeLessThan(1000);
+    const pad = `[a](${'x'.repeat(2040)}`.repeat(25); // long targets that never close
+    expect(ms(() => markdownHtml(open))).toBeLessThan(500);
+    expect(ms(() => markdownHtml(brackets))).toBeLessThan(500);
+    expect(ms(() => markdownHtml(pad))).toBeLessThan(500);
   });
 
   it('still links a normal http(s) link and drops a javascript: one', () => {
     expect(markdownHtml('[docs](https://ui.2lab.ai/docs)')).toContain('href="https://ui.2lab.ai/docs"');
     expect(markdownHtml('[x](javascript:alert(1))')).not.toContain('href=');
+    expect(markdownHtml('[w](https://en.wikipedia.org/wiki/Foo_(bar))')).toContain(
+      'href="https://en.wikipedia.org/wiki/Foo_(bar)"',
+    );
   });
 
   it('stops nesting quotes at MAX_QUOTE_DEPTH instead of overflowing the stack', () => {
