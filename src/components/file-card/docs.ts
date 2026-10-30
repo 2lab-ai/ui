@@ -98,6 +98,27 @@ function containerHook(): HTMLElement {
   return box;
 }
 
+/**
+ * The final answer says “Answer” instead of Markdown (kindLabel); a file only Slack keeps is dimmed by one page
+ * rule on its thumbnail part, and says so on its meta line.
+ */
+function ownWords(): HTMLElement {
+  const now = Date.now();
+  const box = gallery(
+    [
+      { id: 'answer', name: 'final-answer.md', kindLabel: 'Answer', size: 4_120, time: now - 60_000, text: '# Done' },
+      { id: 'slack', name: 'customer-call.m4a', size: 2_480_000, time: now - 41 * 60_000, meta: 'Only in Slack' },
+      { id: 'plan', name: 'plan.md', size: 1_900, time: now - 9 * 60_000, text: '# Plan' },
+    ],
+    'tile',
+  );
+  const style = document.createElement('style');
+  style.textContent = 'ui-file-card.is-remote::part(thumb) { opacity: 0.5; filter: grayscale(1); }';
+  box.prepend(style);
+  box.querySelectorAll('ui-file-card')[1]?.classList.add('is-remote');
+  return box;
+}
+
 /** A PNG header with no image data: the browser fails to decode it, so the card falls back to its glyph. */
 const BROKEN_PNG = 'data:image/png;base64,iVBORw0KGgo=';
 
@@ -118,7 +139,7 @@ export const doc: ComponentDoc = {
       type: 'FileItem',
       required: true,
       description:
-        'The file: { id, name, kind?, mime?, size?, time?, url?, thumb?, text?, meta?, downloadName? }. Only id and name are needed. Nothing renders without data.',
+        'The file: { id, name, kind?, kindLabel?, mime?, size?, time?, url?, thumb?, text?, meta?, downloadName?, actions? }. Only id and name are needed. Nothing renders without data.',
     },
     { name: 'data.id', type: 'string', required: true, description: 'Echoed as detail.id in ui-open.' },
     {
@@ -131,6 +152,12 @@ export const doc: ComponentDoc = {
       name: 'data.kind',
       type: "'image' | 'audio' | 'video' | 'markdown' | 'html' | 'pdf' | 'code' | 'text' | 'file'",
       description: 'Wins over mime and the extension. Without it the kind comes from mime, else the extension.',
+    },
+    {
+      name: 'data.kindLabel',
+      type: 'string',
+      description:
+        'The kind word to say instead of the kind’s own — “Answer” for the final markdown answer. Used in the card’s name, for a nameless file, and by Artifact Viewer’s badge and peek. The glyph and tint stay the kind’s.',
     },
     { name: 'data.mime', type: 'string', description: 'MIME type, used for the kind when kind is missing.' },
     { name: 'data.size', type: 'number', description: 'Bytes, drawn as 12.4 KB / 3.1 MB (tabular).' },
@@ -175,6 +202,12 @@ export const doc: ComponentDoc = {
       type: 'boolean attribute',
       description:
         'An audio file (any variant) or a video tile with a playable url gets a play / pause toggle beside the card — over a tile’s thumbnail (bottom right, a progress line along its foot, the video itself in place), at a row’s end, after a chip — and plays in place. One card plays at a time on the page; nothing loads before the first press.',
+    },
+    {
+      name: 'focus()',
+      type: 'method',
+      description:
+        'Focuses the card’s button — so viewer.open(items, i, card) returns focus to the card and a page can focus it without reaching into the shadow root.',
     },
     {
       name: 'play() · pause() · playing',
@@ -273,6 +306,14 @@ export const doc: ComponentDoc = {
           'tile',
         );
       },
+    },
+    {
+      id: 'own-words',
+      title: 'Kind word and dimming',
+      description:
+        'kindLabel: the final answer says Answer, not Markdown (its name reads “final-answer.md, Answer, …”). A file only Slack keeps is dimmed by one page rule — ui-file-card.is-remote::part(thumb) { opacity: .5 } — and says so on its meta line.',
+      height: 300,
+      create: () => ownWords(),
     },
     {
       id: 'container',

@@ -27,6 +27,8 @@ export interface FileItem {
   name: string;
   /** Wins over `mime` / the extension. */
   kind?: FileKind;
+  /** The kind word to show instead of the kind's own (“Answer” for the final markdown answer). */
+  kindLabel?: string;
   mime?: string;
   /** Bytes (drawn as 12.4 KB). */
   size?: number;
@@ -119,6 +121,12 @@ export function fileKindLabel(kind: FileKind, lang?: string | null): string {
   return (isKo(lang) ? FILE_STRINGS.ko : FILE_STRINGS.en).kinds[kind] ?? FILE_STRINGS.en.kinds.file;
 }
 
+/** The item's kind word: its own `kindLabel`, else the kind's word in the card's language. */
+export function fileItemKindLabel(item: Partial<FileItem> | null | undefined, lang?: string | null): string {
+  const own = String(item?.kindLabel ?? '').trim();
+  return own || fileKindLabel(fileItemKind(item), lang);
+}
+
 /** Relative time in the card's language: "5m ago" / "5분 전" ('' for a missing time). */
 export function fileAgo(at: unknown, now: number = Date.now(), lang?: string | null): string {
   const t = Number(at);
@@ -142,7 +150,7 @@ export function fileMeta(item: Partial<FileItem> | null | undefined, now: number
 /** The name to draw: the item's name, or the kind word when it has none. */
 export function fileDisplayName(item: Partial<FileItem> | null | undefined, lang?: string): string {
   const n = String(item?.name ?? '').trim();
-  return n || fileKindLabel(fileItemKind(item), lang);
+  return n || fileItemKindLabel(item, lang);
 }
 
 /** The raw thumbnail source of an image item (thumb, else url) that passes `safeSrc`; '' for other kinds or none. */
@@ -171,7 +179,7 @@ export function filePlaySrc(item: Partial<FileItem> | null | undefined, variant:
 export function fileCardLabel(item: Partial<FileItem>, lang?: string, now: number = Date.now()): string {
   const meta = fileMeta(item, now, lang);
   const extra = String(item.meta ?? '').trim();
-  return [fileDisplayName(item, lang), fileKindLabel(fileItemKind(item), lang), meta, extra].filter(Boolean).join(', ');
+  return [fileDisplayName(item, lang), fileItemKindLabel(item, lang), meta, extra].filter(Boolean).join(', ');
 }
 
 export interface FileCardOptions {

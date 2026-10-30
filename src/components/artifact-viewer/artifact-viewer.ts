@@ -12,7 +12,7 @@ import {
   fileCardHtml,
   fileDisplayName,
   fileItemKind,
-  fileKindLabel,
+  fileItemKindLabel,
   fileMeta,
 } from '../file-card/render';
 import {
@@ -384,7 +384,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       {
         size: 14,
       },
-    )}<span>${esc(fileKindLabel(kind, lang))}</span></span><span class="av-vt"><span class="av-vname">${esc(name)}</span>${
+    )}<span>${esc(fileItemKindLabel(item, lang))}</span></span><span class="av-vt"><span class="av-vname">${esc(name)}</span>${
       meta ? `<span class="av-vmeta">${esc(meta)}</span>` : ''
     }</span></span>`;
     const live = `<span class="av-live" role="status" aria-live="polite">${esc(this.#live)}</span>`;

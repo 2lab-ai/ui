@@ -9,6 +9,7 @@ import {
   fileCardVariant,
   fileDisplayName,
   fileItemKind,
+  fileItemKindLabel,
   fileKindLabel,
   fileMeta,
   filePlaySrc,
@@ -433,5 +434,29 @@ describe('part names for container hooks (D2 G4-4)', () => {
     expect(fileCardHtml({ id: '1', name: 'a.png' }, 'tile', 'en', { attrs: { part: 'tile' } })).toContain(
       'part="tile"',
     );
+  });
+});
+
+describe('focus and the kind word (D2 G4-5)', () => {
+  it('focus() focuses the card button; before the first render it renders first', () => {
+    const el = document.createElement('ui-file-card');
+    el.data = { id: 'a', name: 'a.txt' };
+    document.body.append(el);
+    el.focus();
+    expect(el.shadowRoot!.activeElement).toBe(q(el, 'button.fc'));
+    expect(document.activeElement).toBe(el);
+    const empty = document.createElement('ui-file-card');
+    document.body.append(empty);
+    expect(() => empty.focus()).not.toThrow();
+  });
+
+  it('kindLabel replaces the kind word in the name, and stands in for a missing name (escaped)', () => {
+    expect(fileItemKindLabel({ name: 'answer.md', kindLabel: ' Answer ' })).toBe('Answer');
+    expect(fileItemKindLabel({ name: 'answer.md', kindLabel: '  ' }, 'ko')).toBe('마크다운');
+    const el = mount({ id: 'a', name: 'final.md', kindLabel: '답변', size: 2_048 }, { lang: 'ko' });
+    expect(q(el, 'button')!.getAttribute('aria-label')).toBe('final.md, 답변, 2 KB');
+    const nameless = mount({ id: 'b', name: '', kind: 'markdown', kindLabel: XSS });
+    expect(q(nameless, '.fc-name')!.textContent).toBe(XSS);
+    expect(qa(nameless, 'img')).toHaveLength(0);
   });
 });

@@ -159,6 +159,17 @@ export class UiFileCard extends UiElement<FileItem> {
     if (this.#playing) this.#stopped();
   }
 
+  /**
+   * Focus the card itself (its button): `viewer.open(items, i, card)` returns focus here, and a page can
+   * `card.focus()` without reaching into the shadow root. `:focus-visible` follows the input that moved it.
+   */
+  override focus(options?: FocusOptions): void {
+    if (!this.$('.fc') && this.isConnected) this.renderNow();
+    const card = this.$<HTMLButtonElement>('.fc');
+    if (card) card.focus(options);
+    else super.focus(options);
+  }
+
   #playSrc(): string {
     return this.playable ? filePlaySrc(this.data, this.variant) : '';
   }

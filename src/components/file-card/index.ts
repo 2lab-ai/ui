@@ -10,6 +10,7 @@ export {
   fileCardVariant,
   fileDisplayName,
   fileItemKind,
+  fileItemKindLabel,
   fileKindLabel,
   fileMeta,
   filePlaySrc,
