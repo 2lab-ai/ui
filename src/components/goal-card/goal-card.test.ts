@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { doc } from './docs';
 import {
-  ARM_GUARD_MS,
-  ARM_MS,
+  GOAL_ARM_GUARD_MS,
+  GOAL_ARM_MS,
   type GoalCardData,
   goalActions,
   goalAgo,
@@ -332,7 +332,7 @@ describe('<ui-goal-card> escaping', () => {
     press(el, '.gc-btn[data-act="pause"]');
     expect(detail(pause)).toEqual({ id: Q });
     press(el, '.gc-rm');
-    vi.advanceTimersByTime(ARM_GUARD_MS + 10);
+    vi.advanceTimersByTime(GOAL_ARM_GUARD_MS + 10);
     press(el, '.gc-rm');
     expect(detail(del)).toEqual({ id: 'a"b<c>', queued: true });
   });
@@ -451,7 +451,7 @@ describe('<ui-goal-card> two-press', () => {
   });
   const confirm = (el: UiGoalCard, s: string) => {
     press(el, s);
-    vi.advanceTimersByTime(ARM_GUARD_MS + 50);
+    vi.advanceTimersByTime(GOAL_ARM_GUARD_MS + 50);
     press(el, s);
   };
 
@@ -482,11 +482,11 @@ describe('<ui-goal-card> two-press', () => {
     expect(q(el, '.gc-btn[data-act="delete"]')?.hasAttribute('data-armed')).toBe(true);
   });
 
-  it('disarms after 3 s; a later press only arms again', () => {
+  it('disarms after 4 s; a later press only arms again', () => {
     const el = mount(BASE);
     const fired = listen(el, 'ui-delete');
     press(el, '.gc-btn[data-act="delete"]');
-    vi.advanceTimersByTime(ARM_MS);
+    vi.advanceTimersByTime(GOAL_ARM_MS);
     el.renderNow();
     const b = q(el, '.gc-btn[data-act="delete"]')!;
     expect(b.hasAttribute('data-armed')).toBe(false);
@@ -538,7 +538,7 @@ describe('<ui-goal-card> two-press', () => {
     expect(q(el, '.gc-btn[data-act="complete"]')?.textContent).toBe('Complete?');
     expect(q(el, '.gc-live')?.textContent).toBe('Press again to mark the goal complete');
     expect(fired).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(ARM_GUARD_MS + 50);
+    vi.advanceTimersByTime(GOAL_ARM_GUARD_MS + 50);
     press(el, '.gc-btn[data-act="complete"]');
     expect(detail(fired)).toEqual({ id: 'g1' });
   });
@@ -553,7 +553,7 @@ describe('<ui-goal-card> two-press', () => {
     expect(rm.querySelector('.gc-btn-t')?.textContent).toBe('Remove?');
     expect(q(el, '.gc-live')?.textContent).toBe('Press again to remove queued goal 2');
     expect(q(el, '.gc-q-row:nth-child(1) .gc-rm')?.hasAttribute('data-armed')).toBe(false);
-    vi.advanceTimersByTime(ARM_GUARD_MS + 50);
+    vi.advanceTimersByTime(GOAL_ARM_GUARD_MS + 50);
     press(el, '.gc-q-row:nth-child(2) .gc-rm');
     expect(detail(fired)).toEqual({ id: 'q2', queued: true });
   });

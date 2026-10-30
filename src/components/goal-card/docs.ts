@@ -156,7 +156,7 @@ export const doc: ComponentDoc = {
   summary:
     'What the agent is working toward, how far it got, and what comes next — with the calls to finish, pause or drop it.',
   description:
-    'The current goal with its status (icon + word), progress and when it started; the objective folds to three lines with More / Less shown only when the text actually runs past them. Complete, Pause / Resume and Delete hand the decision to the host; Complete and Delete (and removing a queued goal) ask for a second press within 3 s. Below: the goals queued after it, an add box (Enter adds, Shift+Enter is a new line), and the goals that ended, collapsed. The card never writes anything itself — it sends cancelable events and draws the data it is given.',
+    'The current goal with its status (icon + word), progress and when it started; the objective folds to three lines with More / Less shown only when the text actually runs past them. Complete, Pause / Resume and Delete hand the decision to the host; Complete and Delete (and removing a queued goal) ask for a second press within 4 s. Below: the goals queued after it, an add box (Enter adds, Shift+Enter is a new line), and the goals that ended, collapsed. The card never writes anything itself — it sends cancelable events and draws the data it is given.',
   usedIn: 'soma-work dashboard › session panel › goal (`.panel-goal`, the goal editor)',
   reference: { name: 'WAI-ARIA APG Disclosure', url: 'https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/' },
   props: [
@@ -251,7 +251,7 @@ export const doc: ComponentDoc = {
     {
       name: 'ui-complete',
       detail: '{ id: string }',
-      description: 'Second press of Complete within 3 s. Set `busy: "complete"`, then move the goal to history.',
+      description: 'Second press of Complete within 4 s. Set `busy: "complete"`, then move the goal to history.',
     },
     {
       name: 'ui-pause',
@@ -263,7 +263,7 @@ export const doc: ComponentDoc = {
       name: 'ui-delete',
       detail: '{ id: string; queued: boolean }',
       description:
-        'Second press of Delete (current goal, `queued: false`) or of a queued goal’s remove (`queued: true`) within 3 s.',
+        'Second press of Delete (current goal, `queued: false`) or of a queued goal’s remove (`queued: true`) within 4 s.',
     },
     {
       name: 'ui-add',
@@ -274,7 +274,7 @@ export const doc: ComponentDoc = {
   ],
   keyboard: [
     ['Tab', 'More / Less, the actions, each queued goal’s remove, the add box, Add, Past goals'],
-    ['Enter / Space on Complete, Delete, remove', 'First press arms (“Delete?”), a second within 3 s confirms'],
+    ['Enter / Space on Complete, Delete, remove', 'First press arms (“Delete?”), a second within 4 s confirms'],
     ['Esc', 'Disarm an armed action'],
     ['Tab away (focus leaves the armed button)', 'Disarm'],
     ['Enter in the add box', 'Add the goal (never while an IME is composing)'],

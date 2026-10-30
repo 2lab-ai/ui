@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import tokens from '../../core/tokens.json';
 import {
-  ARM_MS,
+  STATUS_ARM_MS,
   type StatusBarActionDetail,
   type StatusBarData,
   statusBarIsLive,
@@ -306,7 +306,7 @@ describe('<ui-status-bar> events', () => {
     const got = actions(el);
     btn(el, 'stop').click();
     await Promise.resolve();
-    vi.advanceTimersByTime(ARM_MS + 1);
+    vi.advanceTimersByTime(STATUS_ARM_MS + 1);
     await Promise.resolve();
     expect(btn(el, 'stop').hasAttribute('data-armed')).toBe(false);
     btn(el, 'stop').click();
