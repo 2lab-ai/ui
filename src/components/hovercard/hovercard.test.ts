@@ -188,6 +188,24 @@ describe('<ui-hovercard>', () => {
     expect(el.open).toBe(false);
   });
 
+  it('focus that moved into the card and then leaves it hides the card after the grace', () => {
+    const { el, tiles } = mount();
+    tiles[1].focus();
+    expect(el.open).toBe(true);
+    const link = document.createElement('a');
+    link.href = '#full';
+    link.textContent = 'Open';
+    el.append(link);
+    link.focus();
+    vi.advanceTimersByTime(HOVERCARD_GRACE_MS * 2);
+    expect(el.open).toBe(true); // within the card: it stays
+    const away = document.createElement('button');
+    document.body.append(away);
+    away.focus();
+    vi.advanceTimersByTime(HOVERCARD_GRACE_MS);
+    expect(el.open).toBe(false);
+  });
+
   it('Esc closes it first (the key is marked used, so a dialog under it stays); closed, Esc is left alone', () => {
     const { el, tiles } = mount();
     tiles[0].focus();

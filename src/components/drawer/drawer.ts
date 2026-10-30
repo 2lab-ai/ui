@@ -358,7 +358,7 @@ export class UiDrawer extends UiElement {
     if (this.#state !== 'closed') this.requestRender();
   };
 
-  /** Follow a change of the effective mode; an open drawer switches over without motion. */
+  /** Follow a change of the effective mode; an open drawer switches over in place (the 320ms morph, none under reduced motion). */
   #syncMode(): void {
     if (!this.isConnected) return;
     const next = this.#computeMode();
