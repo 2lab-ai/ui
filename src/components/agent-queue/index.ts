@@ -12,12 +12,14 @@ export type {
   AqRefill,
   AqRun,
   AqRunStatus,
+  AqStack,
   DayRuns,
   RunBin,
   TimelineMark,
   TimeUnit,
 } from './logic';
 export {
+  accountStacks,
   accountState,
   advanceProvider,
   axisPos,
@@ -36,6 +38,7 @@ export {
   runBins,
   runKind,
   scheduleLabel,
+  stripFolds,
   timelineMarks,
   toMs,
   upNext,
