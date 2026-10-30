@@ -145,6 +145,7 @@ describe('<ui-disclosure>', () => {
       'grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out)',
     );
     expect(styles).toContain('.dc[data-open] .dc-region { grid-template-rows: 1fr; }');
+    expect(styles).toContain('.dc-region { display: grid; grid-template-columns: minmax(0, 1fr);');
     expect(styles).toContain('transition: transform var(--dur-press) var(--ease-out)');
     expect(styles).toContain('.dc[data-open] .dc-chev { transform: rotate(90deg); }');
     expect(styles).toMatch(/\.dc-inner \{[^}]*visibility: hidden/);

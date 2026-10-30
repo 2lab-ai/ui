@@ -816,6 +816,8 @@ describe('styles', () => {
       expect(n >= 500 && n <= 650).toBe(true);
     }
     expect(styles).toContain('grid-template-rows: 0fr');
+    // A settled group shows overflow; its column must still not grow past the log (nowrap tool lines ellipsize).
+    expect(styles).toContain('.wl-g-region { display: grid; grid-template-columns: minmax(0, 1fr);');
     expect(styles).toContain('var(--dur-expand) var(--ease-out)');
     expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
     expect(styles).not.toMatch(/:hover[^{]*\{[^}]*transform/);
