@@ -7,7 +7,7 @@ export type {
   StatusBarTime,
 } from './status-bar';
 export {
-  ARM_MS,
+  STATUS_ARM_MS,
   statusBarIsLive,
   statusBarStatus,
   statusBarTime,

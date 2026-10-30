@@ -83,11 +83,11 @@ type Lang = 'en' | 'ko';
 type WhenKind = 'started' | 'updated' | 'added' | 'ended';
 
 /** The window for the confirming second press of Complete / Delete / Remove. */
-export const ARM_MS = 3000;
+export const GOAL_ARM_MS = 4000;
 /** A second press sooner than this after arming is the same press (a double click), not a confirmation. */
-export const ARM_GUARD_MS = 250;
+export const GOAL_ARM_GUARD_MS = 250;
 /** Lines of the objective shown while folded. */
-export const FOLD_LINES = 3;
+export const GOAL_FOLD_LINES = 3;
 const TICK_MS = 30_000;
 const GROW_MAX = 140;
 
@@ -305,7 +305,7 @@ export interface FoldMeasure {
  * taller than `lines` lines. Without one: folded text taller than its box. An open text that cannot be measured
  * keeps its toggle (so it can always be folded again); text that is not laid out yet does not get one.
  */
-export function objectiveOverflows(m: FoldMeasure, lines: number = FOLD_LINES): boolean {
+export function objectiveOverflows(m: FoldMeasure, lines: number = GOAL_FOLD_LINES): boolean {
   const sh = Number(m.scrollHeight) || 0;
   if (!(sh > 0)) return !!m.open;
   const lh = Number(m.lineHeight);
@@ -830,14 +830,14 @@ export class UiGoalCard extends UiElement<GoalCardData> {
 
   // ── Two-press ──
 
-  /** First press arms (the button asks “Delete?”), a second within 3 s confirms; Esc, blur or the timeout disarm. */
+  /** First press arms (the button asks “Delete?”), a second within 4 s confirms; Esc, blur or the timeout disarm. */
   #press(act: Armed['act'], id: string): void {
     const a = this.#armed;
     const now = Date.now();
     if (a && a.act === act && a.id === id) {
       const since = now - this.#armedAt;
-      if (since < ARM_GUARD_MS) return;
-      if (since < ARM_MS) {
+      if (since < GOAL_ARM_GUARD_MS) return;
+      if (since < GOAL_ARM_MS) {
         this.#disarm(false);
         if (act === 'complete') {
           const detail: GoalIdDetail = { id };
@@ -853,7 +853,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     this.#armed = { act, id };
     this.#armedAt = now;
     clearTimeout(this.#armTimer);
-    this.#armTimer = window.setTimeout(() => this.#disarm(), ARM_MS);
+    this.#armTimer = window.setTimeout(() => this.#disarm(), GOAL_ARM_MS);
     this.requestRender();
   }
 

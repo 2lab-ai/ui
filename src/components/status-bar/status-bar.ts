@@ -60,7 +60,7 @@ export type StatusBarTime =
   | { kind: 'none' };
 
 /** The first press of a danger action arms it for this long. */
-export const ARM_MS = 4000;
+export const STATUS_ARM_MS = 4000;
 
 const STRINGS = {
   en: {
@@ -250,7 +250,7 @@ export class UiStatusBar extends UiElement<StatusBarData> {
     if (this.#armed !== id) {
       this.#armed = id;
       clearTimeout(this.#armTimer);
-      this.#armTimer = setTimeout(() => this.#disarm(), ARM_MS);
+      this.#armTimer = setTimeout(() => this.#disarm(), STATUS_ARM_MS);
       this.#say(this.#t.armedLabel(a.label));
       this.requestRender();
       return;

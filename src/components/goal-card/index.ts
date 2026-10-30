@@ -17,9 +17,9 @@ export type {
   GoalTone,
 } from './goal-card';
 export {
-  ARM_GUARD_MS,
-  ARM_MS,
-  FOLD_LINES,
+  GOAL_ARM_GUARD_MS,
+  GOAL_ARM_MS,
+  GOAL_FOLD_LINES,
   goalActions,
   goalAgo,
   goalProgress,
