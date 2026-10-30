@@ -69,6 +69,35 @@ function playInPlace(lang = 'en'): HTMLElement {
   return box;
 }
 
+/**
+ * The same tiles in a tall and a short panel, one host rule: `@container` on the panel's height hides the thumbnail
+ * and the meta line through `::part`, so a short panel shows name cards (drag a panel's corner to change it).
+ */
+function containerHook(): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'fc-cq-demo';
+  box.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;width:100%';
+  const style = document.createElement('style');
+  style.textContent = `.fc-cq-demo .fc-cq { container: fcq / size; resize: vertical; overflow: auto; min-height: 120px;
+  padding: 12px; border-radius: 12px; background: var(--ui-surface); box-shadow: 0 0 0 1px var(--ui-ib-card-border); }
+.fc-cq-demo .fc-cq-list { display: flex; flex-wrap: wrap; gap: 8px; }
+@container fcq (max-height: 220px) {
+  .fc-cq-demo ui-file-card::part(thumb), .fc-cq-demo ui-file-card::part(meta) { display: none; }
+}`;
+  box.append(style);
+  for (const h of [300, 170]) {
+    const panel = document.createElement('div');
+    panel.className = 'fc-cq';
+    panel.style.height = `${h}px`;
+    const list = document.createElement('div');
+    list.className = 'fc-cq-list';
+    for (const it of demoFiles().slice(0, 3)) list.append(card(it, 'tile'));
+    panel.append(list);
+    box.append(panel);
+  }
+  return box;
+}
+
 /** A PNG header with no image data: the browser fails to decode it, so the card falls back to its glyph. */
 const BROKEN_PNG = 'data:image/png;base64,iVBORw0KGgo=';
 
@@ -128,6 +157,12 @@ export const doc: ComponentDoc = {
       type: "'tile' | 'row' | 'chip'",
       default: "'tile'",
       description: 'Attribute (and property). tile — thumbnail card · row — one line in a list · chip — a pill.',
+    },
+    {
+      name: '::part(card | thumb | glyph | text | name | meta | sub | ext)',
+      type: 'CSS parts',
+      description:
+        'The card’s pieces, for your own rules: card (the button), thumb (a tile’s thumbnail, a row’s box), glyph (a chip’s), text, name, meta, sub (the extra line), ext (the extension tag). Hide thumbnails in a short panel with a container query, dim a file you only link to. A playable card adds play, progress and video.',
     },
     {
       name: '--fc-tile-w',
@@ -238,6 +273,14 @@ export const doc: ComponentDoc = {
           'tile',
         );
       },
+    },
+    {
+      id: 'container',
+      title: 'Container hook',
+      description:
+        'The same three tiles in a tall and a short panel. One page rule — @container (max-height: 220px) { ui-file-card::part(thumb), ::part(meta) { display: none } } — turns the short panel’s tiles into name cards. Drag a panel’s corner.',
+      height: 340,
+      create: () => containerHook(),
     },
     {
       id: 'play',
