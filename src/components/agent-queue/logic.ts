@@ -394,6 +394,131 @@ export function exclusions(p: AqProvider): { held: number; unknownTier: number; 
   return out;
 }
 
+// ── The workers strip: stacks and the two-line fit ──────────────────────────────────────────
+
+/**
+ * One run of the workers strip. The usable accounts stay one badge each (`key` `available`); every other state
+ * is one stack per reason (`key` `{state}|{reason}`) — its badges overlap, one icon and one colour say why.
+ */
+export interface AqStack {
+  key: string;
+  state: AqAccountState;
+  /** The reason key (or free text) the stack shares; '' for the usable run. */
+  reason: string;
+  /** In the host's order. */
+  accounts: AqAccount[];
+}
+
+/** The fold key of the usable run. */
+export const OK_STACK = 'available';
+const STACK_STATES: readonly AqAccountState[] = ['available', 'spent', 'unmeasured', 'limited', 'paused', 'excluded'];
+const STACK_REASONS: readonly string[] = [
+  '5h',
+  'weekly',
+  'model',
+  'cooldown',
+  'auth',
+  'paused',
+  'held',
+  'noMeasure',
+  'unknownTier',
+];
+
+/** The strip's runs: usable first, then by state (spent → excluded) and reason; a run keeps the host's order. */
+export function accountStacks(accounts: AqAccount[] | undefined): AqStack[] {
+  const by = new Map<string, AqStack & { first: number }>();
+  (accounts ?? []).forEach((a, i) => {
+    const ok = a.state === 'available';
+    const reason = ok ? '' : String(a.reason ?? '');
+    const key = ok ? OK_STACK : `${a.state}|${reason}`;
+    let s = by.get(key);
+    if (!s) {
+      s = { key, state: a.state, reason, accounts: [], first: i };
+      by.set(key, s);
+    }
+    s.accounts.push(a);
+  });
+  const rank = (s: { state: AqAccountState; reason: string; first: number }) => {
+    const r = STACK_REASONS.indexOf(s.reason);
+    return [STACK_STATES.indexOf(s.state), r < 0 ? STACK_REASONS.length : r, s.first];
+  };
+  return [...by.values()]
+    .sort((x, y) => {
+      const a = rank(x);
+      const b = rank(y);
+      return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+    })
+    .map(({ first: _first, ...s }) => s);
+}
+
+/** A 12px label's rough width in px: ~7 for Latin and digits, ~12 for wide (CJK) characters. */
+export function textPx(s: string): number {
+  let w = 0;
+  for (const ch of s) w += (ch.codePointAt(0) ?? 0) >= 0x2e80 ? 12 : 7;
+  return w;
+}
+
+/** Badge geometry the fit assumes (kept in step with styles.ts `.aq-mark` / `.aq-stack`). */
+export const STRIP = { gap: 6, pad: 22, dot: 12, icon: 17, overlap: 8 } as const;
+
+/** Width of a run drawn in full: usable badges side by side, a stack overlapped behind its icon. */
+function runPx(s: AqStack): number {
+  const names = s.accounts.map((a) => textPx(a.name) + STRIP.pad);
+  if (s.key === OK_STACK) return names.reduce((t, w) => t + w + STRIP.dot, 0) + STRIP.gap * (names.length - 1);
+  return names.reduce((t, w) => t + w, 0) + STRIP.icon - STRIP.overlap * (names.length - 1);
+}
+
+/** Width of a run folded to one `icon count` badge. */
+function foldPx(s: AqStack): number {
+  return STRIP.icon + textPx(String(s.accounts.length)) + STRIP.pad;
+}
+
+/** Lines a flex-wrap row of the given widths takes in `width` px. */
+function lines(widths: number[], width: number): number {
+  let n = 1;
+  let x = 0;
+  for (const w of widths) {
+    if (x > 0 && x + STRIP.gap + w > width) {
+      n++;
+      x = w;
+    } else x += (x > 0 ? STRIP.gap : 0) + w;
+  }
+  return n;
+}
+
+/**
+ * Which runs fold to one `icon count` badge so the strip (head first) fits `rows` lines of `width` px: the widest
+ * blocked stack first, the usable run last — who can work now is the last thing hidden. Usable badges that sit
+ * side by side wrap like any badge, so the usable run is measured badge by badge. A blocked stack wider than the
+ * row folds even when the count fits (one stack never wraps; it would be clipped).
+ */
+export function stripFolds(stacks: AqStack[], head: string, width: number, rows = 2): Set<string> {
+  const folds = new Set<string>();
+  const widths = () => {
+    const out = [textPx(head) + STRIP.gap];
+    for (const s of stacks) {
+      if (folds.has(s.key)) out.push(foldPx(s));
+      else if (s.key === OK_STACK) for (const a of s.accounts) out.push(textPx(a.name) + STRIP.pad + STRIP.dot);
+      else out.push(runPx(s));
+    }
+    return out;
+  };
+  const foldable = (s: AqStack) => !folds.has(s.key) && s.accounts.length > 1 && foldPx(s) < runPx(s);
+  // A stack wider than the row cannot wrap — it would be clipped on one line — so it folds whatever the count.
+  const tooWide = () => stacks.some((s) => s.key !== OK_STACK && foldable(s) && runPx(s) > width);
+  while (lines(widths(), width) > rows || tooWide()) {
+    const open = stacks.filter(foldable);
+    const blocked = open.filter((s) => s.key !== OK_STACK);
+    const pick = (blocked.length ? blocked : open).reduce<AqStack | null>(
+      (m, s) => (!m || runPx(s) > runPx(m) ? s : m),
+      null,
+    );
+    if (!pick) break;
+    folds.add(pick.key);
+  }
+  return folds;
+}
+
 /** now → 24h takes 55% of the axis (0·1·3·6·12·24h), then days to 7d. Offset in ms → 0..1. */
 export function axisPos(offsetMs: number): number {
   const s = (Number(offsetMs) || 0) / 1000;
