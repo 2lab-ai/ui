@@ -56,9 +56,11 @@ export function fileCardVariant(value: string | null | undefined): FileCardVaria
   return VARIANTS.includes(value as FileCardVariant) ? (value as FileCardVariant) : 'tile';
 }
 
-/** Kind words for badges and labels. */
+/** Kind words for badges and labels, and the play toggle's names. */
 export const FILE_STRINGS = {
   en: {
+    play: (name: string) => `Play ${name}`,
+    pause: (name: string) => `Pause ${name}`,
     kinds: {
       image: 'Image',
       audio: 'Audio',
@@ -72,6 +74,8 @@ export const FILE_STRINGS = {
     } as Record<FileKind, string>,
   },
   ko: {
+    play: (name: string) => `${name} 재생`,
+    pause: (name: string) => `${name} 일시정지`,
     kinds: {
       image: '이미지',
       audio: '오디오',
@@ -149,6 +153,18 @@ export function fileThumbSrc(item: Partial<FileItem> | null | undefined): string
     if (v && safeSrc(v)) return v;
   }
   return '';
+}
+
+/**
+ * The source a card plays in place (`playable`): the url of an audio file (any variant) or a video (tiles only)
+ * when it passes `safeSrc`; '' when the card has nothing to play.
+ */
+export function filePlaySrc(item: Partial<FileItem> | null | undefined, variant: FileCardVariant = 'tile'): string {
+  if (!item) return '';
+  const kind = fileItemKind(item);
+  if (kind !== 'audio' && !(kind === 'video' && variant === 'tile')) return '';
+  const v = String(item.url ?? '').trim();
+  return v && safeSrc(v) ? v : '';
 }
 
 /** The card's accessible name: "report.png, Image, 12.4 KB · 5m ago, from Build agent". */

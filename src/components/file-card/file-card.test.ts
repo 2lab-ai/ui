@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import type { UiFileCard } from './file-card';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FilePlayDetail, UiFileCard } from './file-card';
 import {
   FILE_TINTS,
   type FileItem,
@@ -11,6 +11,7 @@ import {
   fileItemKind,
   fileKindLabel,
   fileMeta,
+  filePlaySrc,
   fileThumbSrc,
 } from './render';
 import { fileCardStyles, styles } from './styles';
@@ -228,5 +229,177 @@ describe('<ui-file-card>', () => {
     document.body.append(el);
     el.renderNow();
     expect(qa(el, 'button')).toHaveLength(0);
+  });
+});
+
+describe('play in place (D2 G4-3)', () => {
+  const WAV = 'blob:https://app.example/memo';
+  const memo = (over: Partial<FileItem> = {}): FileItem => ({ id: 'memo', name: 'standup.wav', url: WAV, ...over });
+
+  /** happy-dom does not play: play() / pause() flip `paused` and send their events, like a browser. */
+  function stubMedia(): HTMLMediaElement[] {
+    const played: HTMLMediaElement[] = [];
+    const set = (m: HTMLMediaElement, paused: boolean) =>
+      Object.defineProperty(m, 'paused', { configurable: true, get: () => paused });
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
+      played.push(this);
+      set(this, false);
+      this.dispatchEvent(new Event('play'));
+      return Promise.resolve();
+    });
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(function (this: HTMLMediaElement) {
+      if (this.paused) return;
+      set(this, true);
+      this.dispatchEvent(new Event('pause'));
+    });
+    return played;
+  }
+  const toggle = (el: UiFileCard) => q<HTMLButtonElement>(el, '.fc-play')!;
+  const press = (el: UiFileCard) => {
+    toggle(el).click();
+    el.renderNow();
+  };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('filePlaySrc: audio in every variant, video on tiles, safe sources only', () => {
+    expect(filePlaySrc(memo())).toBe(WAV);
+    expect(filePlaySrc(memo(), 'chip')).toBe(WAV);
+    expect(filePlaySrc({ id: 'v', name: 'clip.mp4', url: '/f/clip.mp4' })).toBe('/f/clip.mp4');
+    expect(filePlaySrc({ id: 'v', name: 'clip.mp4', url: '/f/clip.mp4' }, 'row')).toBe('');
+    expect(filePlaySrc(memo({ url: 'javascript:alert(1)' }))).toBe('');
+    expect(filePlaySrc(memo({ url: '' }))).toBe('');
+    expect(filePlaySrc({ id: 'p', name: 'a.pdf', url: '/a.pdf' })).toBe('');
+    expect(filePlaySrc(null)).toBe('');
+  });
+
+  it('only a playable audio / video card gets the toggle, beside the card button (never inside it)', () => {
+    expect(q(mount(memo()), '.fc-play')).toBeNull();
+    expect(q(mount({ id: 'p', name: 'a.pdf', url: '/a.pdf' }, { playable: '' }), '.fc-play')).toBeNull();
+    expect(
+      q(mount({ id: 'v', name: 'clip.mp4', url: '/c.mp4' }, { playable: '', variant: 'row' }), '.fc-play'),
+    ).toBeNull();
+    for (const variant of ['tile', 'row', 'chip']) {
+      const el = mount(memo(), { playable: '', variant });
+      const btn = toggle(el);
+      expect(btn.closest('.fc')).toBeNull();
+      expect(btn.getAttribute('type')).toBe('button');
+      expect(btn.getAttribute('aria-label')).toBe('Play standup.wav');
+      expect(q(el, '.fc')!.classList.contains('has-play')).toBe(true);
+      // Nothing loads before someone asks.
+      expect(q(el, 'audio.fc-media')!.hasAttribute('src')).toBe(false);
+    }
+    expect(q(mount(memo(), { playable: '' }), '.fc-over .fc-play')).not.toBeNull();
+  });
+
+  it('a press sends a cancelable ui-play; unless prevented the card plays, then pauses on the next press', () => {
+    const played = stubMedia();
+    const el = mount(memo(), { playable: '' });
+    const seen: Array<FilePlayDetail & { cancelable: boolean }> = [];
+    const opens: unknown[] = [];
+    el.addEventListener('ui-open', (e) => opens.push(e));
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-play', (e) =>
+      seen.push({ ...(e as CustomEvent<FilePlayDetail>).detail, cancelable: e.cancelable }),
+    );
+    el.addEventListener('ui-play', stop);
+    press(el);
+    expect(played).toHaveLength(0);
+    expect(el.playing).toBe(false);
+    el.removeEventListener('ui-play', stop);
+    press(el);
+    expect(played).toHaveLength(1);
+    expect(el.playing).toBe(true);
+    expect(q(el, 'audio.fc-media')!.getAttribute('src')).toBe(WAV);
+    expect(toggle(el).getAttribute('aria-label')).toBe('Pause standup.wav');
+    expect(toggle(el).hasAttribute('data-on')).toBe(true);
+    expect(q(el, '.fc-over')!.classList.contains('is-live')).toBe(true);
+    press(el);
+    expect(el.playing).toBe(false);
+    expect(toggle(el).getAttribute('aria-label')).toBe('Play standup.wav');
+    expect(seen).toEqual([
+      { id: 'memo', playing: true, url: WAV, cancelable: true },
+      { id: 'memo', playing: true, url: WAV, cancelable: true },
+      { id: 'memo', playing: false, url: WAV, cancelable: true },
+    ]);
+    expect(opens).toEqual([]);
+  });
+
+  it('one card plays at a time', () => {
+    stubMedia();
+    const a = mount(memo({ id: 'a' }), { playable: '' });
+    const b = mount(memo({ id: 'b', name: 'b.wav' }), { playable: '', variant: 'chip' });
+    a.play();
+    expect(a.playing).toBe(true);
+    b.play();
+    expect(b.playing).toBe(true);
+    expect(a.playing).toBe(false);
+    expect(q<HTMLAudioElement>(a, 'audio')!.paused).toBe(true);
+  });
+
+  it('the progress line follows the time; the end puts it back and stops', () => {
+    stubMedia();
+    const el = mount(memo(), { playable: '' });
+    el.play();
+    const m = q<HTMLAudioElement>(el, 'audio')!;
+    Object.defineProperty(m, 'duration', { configurable: true, get: () => 8 });
+    Object.defineProperty(m, 'currentTime', { configurable: true, get: () => 2 });
+    m.dispatchEvent(new Event('timeupdate'));
+    expect(q(el, '.fc-bar')!.getAttribute('style')).toBe('transform:scaleX(0.250)');
+    el.renderNow();
+    expect(q(el, '.fc-bar')!.getAttribute('style')).toBe('transform:scaleX(0.250)');
+    Object.defineProperty(m, 'paused', { configurable: true, get: () => true });
+    m.dispatchEvent(new Event('ended'));
+    el.renderNow();
+    expect(el.playing).toBe(false);
+    expect(q(el, '.fc-bar')!.getAttribute('style')).toBe('transform:scaleX(0.000)');
+  });
+
+  it('another file, playable off, or leaving the page stops it', () => {
+    stubMedia();
+    const el = mount(memo(), { playable: '' });
+    el.play();
+    el.data = memo({ url: 'blob:https://app.example/other' });
+    el.renderNow();
+    expect(el.playing).toBe(false);
+    expect(q(el, 'audio')!.hasAttribute('src')).toBe(false);
+    el.play();
+    el.removeAttribute('playable');
+    el.renderNow();
+    expect(el.playing).toBe(false);
+    expect(q(el, '.fc-play')).toBeNull();
+    el.setAttribute('playable', '');
+    el.renderNow();
+    el.play();
+    const m = q<HTMLAudioElement>(el, 'audio')!;
+    el.remove();
+    expect(m.paused).toBe(true);
+    expect(el.playing).toBe(false);
+  });
+
+  it('a video tile plays over its thumbnail', () => {
+    stubMedia();
+    const el = mount({ id: 'v', name: 'clip.mp4', url: '/f/clip.mp4' }, { playable: '' });
+    const v = q<HTMLVideoElement>(el, '.fc-over video.fc-media')!;
+    expect(v.hasAttribute('playsinline')).toBe(true);
+    expect(q(el, '.fc-over')!.classList.contains('has-video')).toBe(false);
+    el.play();
+    el.renderNow();
+    expect(q(el, '.fc-over video')).toBe(v);
+    expect(v.getAttribute('src')).toBe('/f/clip.mp4');
+    expect(q(el, '.fc-over')!.classList.contains('has-video')).toBe(true);
+  });
+
+  it('names are escaped and Korean with lang="ko"', () => {
+    const el = mount(memo({ name: XSS, kind: 'audio' }), { playable: '', lang: 'ko' });
+    expect(toggle(el).getAttribute('aria-label')).toBe(`${XSS} 재생`);
+    expect(qa(el, 'img')).toHaveLength(0);
+  });
+
+  it('styles: the toggle is 32px drawn with a 44px target, ink while playing; rows keep the name clear', () => {
+    expect(styles).toMatch(/\.fc-play::before \{ content: ""; position: absolute; inset: -6px;/);
+    expect(styles).toMatch(/\.fc-play\[data-on\] \{ border-color: transparent; background: var\(--ib-text\)/);
+    expect(styles).toMatch(/\.fc-row\.has-play \{ padding-right: 52px; \}/);
+    expect(styles).not.toMatch(/#[0-9a-f]{3,6}\b|rgba?\(/i);
   });
 });
