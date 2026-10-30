@@ -12,7 +12,10 @@ function card(item: FileItem, variant: FileCardVariant, lang = 'en'): UiFileCard
   return el;
 }
 
-/** Cards in a wrapping row (or a column for rows), plus a quiet line echoing ui-open — nothing opens anywhere. */
+/**
+ * Tiles in a grid that sizes them (`--fc-tile-w: 100%`, two columns on a phone), chips in a wrapping row, rows in a
+ * column — plus a quiet line echoing ui-open; nothing opens anywhere.
+ */
 function gallery(items: FileItem[], variant: FileCardVariant, lang = 'en'): HTMLElement {
   const box = document.createElement('div');
   box.style.cssText = 'display:grid;gap:12px;width:100%';
@@ -20,7 +23,9 @@ function gallery(items: FileItem[], variant: FileCardVariant, lang = 'en'): HTML
   list.style.cssText =
     variant === 'row'
       ? 'display:grid;gap:6px;width:100%;max-width:440px;margin:0 auto'
-      : `display:flex;flex-wrap:wrap;gap:${variant === 'chip' ? 6 : 10}px;justify-content:center`;
+      : variant === 'tile'
+        ? '--fc-tile-w:100%;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;width:100%'
+        : 'display:flex;flex-wrap:wrap;gap:6px;justify-content:center';
   for (const it of items) list.append(card(it, variant, lang));
   const line = document.createElement('p');
   line.className = 'ui-status-line';
