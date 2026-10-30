@@ -7,6 +7,7 @@ import {
   type PlanLang,
   type PlanStep,
   type PlanStepStatus,
+  planCss,
   planEarlierHtml,
   planFootHtml,
   planLeadFold,
@@ -150,7 +151,7 @@ function flatten(steps: readonly PlanStep[], out: PlanStep[] = [], depth = 0): P
  * (`Running · 3/7 · 4m 12s`). Read-only: the only intent is opening a fold, reported with `ui-toggle`.
  */
 export class UiTaskPlan extends UiElement<TaskPlanData> {
-  static override styles = [styles];
+  static override styles = [planCss, styles];
   static get observedAttributes() {
     return ['lang'];
   }
