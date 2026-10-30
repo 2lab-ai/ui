@@ -736,7 +736,13 @@ export const doc: ComponentDoc = {
       description:
         'Attribute. Default: board from 640px of width (columns scroll sideways below 840px), list below. Switching it glides the cards and heads to their new places (FLIP).',
     },
-    { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
+    {
+      name: 'lang',
+      type: "'en' | 'ko'",
+      default: "'en'",
+      description:
+        'UI language (attribute). ko: status words, 비어 있음, 서브에이전트, 5분 전, and durations as 7분 12초 · 2시간 3분 (running timers, Done in, task times).',
+    },
     {
       name: 'theme',
       type: "'light' | 'dark'",

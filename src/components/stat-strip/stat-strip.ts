@@ -1,5 +1,5 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
-import { clamp, fmtDuration, fmtInt, fmtTokens } from '../../core/format';
+import { clamp, fmtDuration, fmtDurationKo, fmtInt, fmtTokens } from '../../core/format';
 import { attrs, esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
@@ -152,15 +152,6 @@ function fmtMoney(v: number): string {
 
 function fmtPercent(v: number): string {
   return `${Math.abs(v) < 10 ? trim1(v) : String(Math.round(v))}%`;
-}
-
-function fmtDurationKo(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  if (s < 60) return `${s}초`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return s % 60 ? `${m}분 ${s % 60}초` : `${m}분`;
-  const h = Math.floor(m / 60);
-  return m % 60 ? `${h}시간 ${m % 60}분` : `${h}시간`;
 }
 
 /**
