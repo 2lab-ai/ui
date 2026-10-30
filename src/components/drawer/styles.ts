@@ -2,7 +2,8 @@
  * A native `<dialog>` stretched over the viewport as a transparent box holding our scrim and the panel. Sheet
  * mode is modal (`showModal()`, scrim); dock mode is `show()` with no scrim, and the box lets the pointer through
  * to the page — only the panel takes it. `data-state` drives the slide (the same path and curve both ways),
- * `data-resizing` turns transitions off while the edge is dragged, `data-instant` while the mode switches over.
+ * `data-resizing` turns transitions off while the edge is dragged, `data-instant` while the mode switches over (the
+ * element then morphs the panel's box and fades the scrim with WAAPI, so the dock's scrim is hidden, not gone).
  * The box is the visual viewport (`--ui-vv-h` / `--ui-vv-top`, written by the element while open; the layout
  * viewport when they are not set), so the panel's foot stays above the soft keyboard in both modes.
  */
@@ -21,7 +22,7 @@ export const styles = `
   -webkit-tap-highlight-color: transparent;
 }
 .dr[data-state="open"] .dr-scrim { opacity: 1; }
-.dr[data-mode="dock"] .dr-scrim { display: none; }
+.dr[data-mode="dock"] .dr-scrim { opacity: 0; visibility: hidden; }
 .dr-panel {
   --dr-w: 480px;
   position: absolute; top: 0; bottom: 0; right: 0; display: flex; flex-direction: column; min-height: 0;
