@@ -354,8 +354,73 @@ describe('<ui-dialog>', () => {
     expect(phone).toContain('.dg[data-size="full"][data-sheet] .dg-grab { display: none; }');
     // Desktop full is unchanged: the viewport less 16px each side.
     expect(styles).toContain(
-      '.dg[data-size="full"] .dg-panel { width: calc(100% - 32px); height: calc(100dvh - 32px); max-height: none; }',
+      '.dg[data-size="full"] .dg-panel { width: calc(100% - 32px); height: calc(var(--ui-vv-h, 100dvh) - 32px); max-height: none; }',
     );
+  });
+
+  it('follows the visual viewport while open: --ui-vv-h / --ui-vv-top on the box (G7-1)', () => {
+    const vv = Object.assign(new EventTarget(), { height: 800, offsetTop: 0 });
+    const add = vi.spyOn(vv, 'addEventListener');
+    const remove = vi.spyOn(vv, 'removeEventListener');
+    vi.stubGlobal('visualViewport', vv);
+    const el = mount({ heading: 'New task' });
+    // Closed: nothing listened to, nothing written.
+    expect(add).not.toHaveBeenCalled();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.show();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('800px');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('0px');
+    // The soft keyboard opens and iOS scrolls the page under it.
+    vv.height = 412;
+    vv.offsetTop = 196;
+    vv.dispatchEvent(new Event('resize'));
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('412px');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('196px');
+    // A re-render keeps them (they are in the markup too).
+    el.setAttribute('heading', 'New task · draft');
+    el.renderNow();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('412px');
+    // Still followed on the way out; gone once closed.
+    el.hide();
+    vv.height = 800;
+    vv.offsetTop = 0;
+    vv.dispatchEvent(new Event('scroll'));
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('800px');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS);
+    expect(dlg(el).open).toBe(false);
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(remove).toHaveBeenCalledWith('scroll', expect.any(Function));
+  });
+
+  it('viewport="layout" opts out; switching it while open starts or stops the tracking', () => {
+    const vv = Object.assign(new EventTarget(), { height: 500, offsetTop: 40 });
+    vi.stubGlobal('visualViewport', vv);
+    const el = mount({ heading: 'x', viewport: 'layout' });
+    el.show();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.removeAttribute('viewport');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('500px');
+    el.setAttribute('viewport', 'layout');
+    el.renderNow();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    expect(dlg(el).hasAttribute('style')).toBe(false);
+    // Removed from the page: the listener goes with it.
+    el.removeAttribute('viewport');
+    const remove = vi.spyOn(vv, 'removeEventListener');
+    el.remove();
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function));
+  });
+
+  it('without the API (or with layout) the styles fall back to the layout viewport', () => {
+    const el = mount({ heading: 'x' });
+    el.show();
+    expect(dlg(el).hasAttribute('style')).toBe(false);
+    expect(styles).toContain('inset: var(--ui-vv-top, 0px) 0 auto;');
+    expect(styles).toContain('height: var(--ui-vv-h, 100%);');
+    expect(styles).toContain('max-height: calc(var(--ui-vv-h, 100dvh) - 48px)');
+    expect(styles).toContain('max-height: calc(var(--ui-vv-h, 100dvh) - 24px)');
+    expect(styles).not.toMatch(/[^,(] 100dvh/);
   });
 
   it('size and sheet land on the dialog as CSS hooks', () => {

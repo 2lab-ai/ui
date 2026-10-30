@@ -459,4 +459,39 @@ describe('ui-drawer — notifications', () => {
     if (h) key(h, 'ArrowLeft');
     expect(seen.every((c) => c === false)).toBe(true);
   });
+  it('follows the visual viewport while open, in sheet and dock (G8-1)', () => {
+    const media = fakeMedia(false);
+    const vv = Object.assign(new EventTarget(), { height: 760, offsetTop: 0 });
+    vi.stubGlobal('visualViewport', vv);
+    const el = mount({ heading: 'Session' });
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.show();
+    expect(dlg(el).dataset.mode).toBe('sheet');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('760px');
+    vv.height = 388;
+    vv.offsetTop = 210;
+    vv.dispatchEvent(new Event('resize'));
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('388px');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('210px');
+    // Crossing into dock keeps following (the dock's top is --ui-drawer-top below the visible top).
+    media.set(true);
+    expect(dlg(el).dataset.mode).toBe('dock');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('210px');
+    el.hide();
+    vi.advanceTimersByTime(DRAWER_EXIT_MS);
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    expect(dlg(el).hasAttribute('style')).toBe(false);
+  });
+
+  it('viewport="layout" opts out of the visual viewport', () => {
+    fakeMedia(false);
+    vi.stubGlobal('visualViewport', Object.assign(new EventTarget(), { height: 400, offsetTop: 90 }));
+    const el = mount({ heading: 'Session', viewport: 'layout' });
+    el.show();
+    expect(dlg(el).style.getPropertyValue('--ui-vv-h')).toBe('');
+    el.removeAttribute('viewport');
+    expect(dlg(el).style.getPropertyValue('--ui-vv-top')).toBe('90px');
+    expect(styles).toContain('inset: var(--ui-vv-top, 0px) 0 auto;');
+    expect(styles).toContain('height: var(--ui-vv-h, 100%);');
+  });
 });

@@ -2,12 +2,15 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { attrs, esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { deepActive } from '../../core/popover';
+import { applyViewportVars, type ViewportBox, viewportVars, watchVisualViewport } from '../../core/viewport';
 import { icon } from '../../icons/icons';
 import { styles } from './styles';
 
 /** `sheet` = modal over a scrim (focus trapped); `dock` = beside the page, which stays interactive. */
 export type DrawerMode = 'sheet' | 'dock';
 export type DrawerSide = 'right' | 'left';
+/** `visual` (default): the drawer box follows `window.visualViewport` (above a soft keyboard); `layout`: it does not. */
+export type DrawerViewport = 'visual' | 'layout';
 /** What the person did to ask for the close. */
 export type DrawerCloseReason = 'escape' | 'scrim' | 'close-button';
 
@@ -94,6 +97,7 @@ export class UiDrawer extends UiElement {
       'min-width',
       'max-width',
       'hide-close',
+      'viewport',
       'lang',
     ];
   }
@@ -112,6 +116,9 @@ export class UiDrawer extends UiElement {
   #foot = false;
   #mql: MediaQueryList | null = null;
   #drag: { id: number; x: number; w: number; cur: number } | null = null;
+  /** The visual viewport box while it is followed, and the stop for that. */
+  #vv: ViewportBox | null = null;
+  #vvStop: (() => void) | null = null;
 
   constructor() {
     super();
@@ -171,6 +178,7 @@ export class UiDrawer extends UiElement {
       if (!this.#reflecting) this.#setOpen(value !== null);
       return;
     }
+    if (name === 'viewport') this.#syncViewport();
     if (name === 'dock-at' && this.isConnected) this.#listen();
     if (name === 'mode' || name === 'dock-at') this.#syncMode();
     this.requestRender();
@@ -193,6 +201,7 @@ export class UiDrawer extends UiElement {
     this.#returnTo = null;
     this.#drag = null;
     this.#state = 'closed';
+    this.#syncViewport();
     const dlg = this.#dlg();
     if (!dlg) return;
     dlg.setAttribute('data-state', 'closed');
@@ -266,6 +275,7 @@ export class UiDrawer extends UiElement {
       // A heading attribute or a slotted header names it; the label only when neither is there.
       'aria-labelledby': titled ? 'dr-title' : undefined,
       'aria-label': !titled && label ? label : undefined,
+      style: viewportVars(this.#vv) || undefined,
     })}><div class="dr-scrim" part="scrim" aria-hidden="true"></div><div${attrs({
       class: 'dr-panel',
       part: 'panel',
@@ -367,6 +377,27 @@ export class UiDrawer extends UiElement {
     else dlg.show();
   }
 
+  /**
+   * Open or on its way out (and not `viewport="layout"`): the box follows the visual viewport in both modes, so the
+   * panel's foot (a composer) stays above the soft keyboard. Closed: nothing is listened to and the properties go.
+   */
+  #syncViewport(): void {
+    const follow =
+      this.isConnected && (this.#want || this.#state !== 'closed') && this.getAttribute('viewport') !== 'layout';
+    if (follow === !!this.#vvStop) return;
+    if (follow) {
+      this.#vvStop = watchVisualViewport((box) => {
+        this.#vv = box;
+        applyViewportVars(this.#dlg(), box);
+      });
+      return;
+    }
+    this.#vvStop?.();
+    this.#vvStop = null;
+    this.#vv = null;
+    applyViewportVars(this.#dlg(), null);
+  }
+
   // ── open / close ──────────────────────────────────────────────────────────
 
   #setOpen(v: boolean): void {
@@ -408,6 +439,7 @@ export class UiDrawer extends UiElement {
     this.#returnTo = deepActive();
     this.#setState(dlg, 'closed');
     dlg.setAttribute('data-mode', this.#mode);
+    this.#syncViewport(); // sized to the visible area before the first frame
     this.#openNative(dlg);
     void dlg.offsetWidth;
     this.#setState(dlg, 'open');
@@ -438,6 +470,7 @@ export class UiDrawer extends UiElement {
     const restore = this.#focusWithin() || focusOnBody();
     this.#state = 'closed';
     this.#drag = null;
+    this.#syncViewport();
     if (dlg) {
       dlg.setAttribute('data-state', 'closed');
       dlg.removeAttribute('data-resizing');
@@ -576,6 +609,7 @@ export class UiDrawer extends UiElement {
     this.#setState(dlg, 'closed');
     this.#want = false;
     this.#reflect(false);
+    this.#syncViewport();
     if (this.#focusWithin() || focusOnBody()) this.#focusBack(back);
   }
 

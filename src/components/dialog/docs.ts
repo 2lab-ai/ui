@@ -164,6 +164,13 @@ export const doc: ComponentDoc = {
       description: 'Attribute. No close button (Escape and the scrim still ask).',
     },
     {
+      name: 'viewport',
+      type: "'visual' | 'layout'",
+      default: "'visual'",
+      description:
+        'Attribute. visual: while open the dialog follows window.visualViewport (height and offsetTop), so a sheet’s bottom stays above the iOS soft keyboard. layout: it does not.',
+    },
+    {
       name: 'lang',
       type: "'en' | 'ko'",
       default: "'en'",
@@ -183,6 +190,13 @@ export const doc: ComponentDoc = {
       name: 'hide()',
       type: '() => void',
       description: 'Close with the exit motion (no event). Focus returns to where it was.',
+    },
+    {
+      name: '--ui-vv-h / --ui-vv-top',
+      type: 'CSS length',
+      default: '100dvh / 0px',
+      description:
+        'Height and top of the visible area. The element writes them while open (from window.visualViewport); with viewport="layout" a host may set them itself.',
     },
     { name: 'slot (default)', type: 'content', description: 'The body. Scrolls when it is taller than the panel.' },
     { name: 'slot="header"', type: 'content', description: 'Replaces the heading text. Give the host a label then.' },
@@ -269,7 +283,7 @@ export const doc: ComponentDoc = {
       id: 'new-task',
       title: 'New task',
       description:
-        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. A bottom sheet under 640px.',
+        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. A bottom sheet under 640px that follows the visual viewport, so Start stays above the soft keyboard.',
       height: 200,
       create: () => {
         const { box, line } = stage();
