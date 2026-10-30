@@ -51,6 +51,38 @@ describe('ui-kit.css', () => {
     expect(kitCss).toMatch(/\.ui-expand > \* \{[^}]*visibility: hidden/);
   });
 
+  it('has the section head: a 13px / 650 sentence-case row with trailing actions', () => {
+    expect(KIT_CLASSES).toContain('ui-section-head');
+    const head = /\.ui-section-head \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(head).toContain('font-size: 13px');
+    expect(head).toContain('font-weight: 650');
+    expect(head).toContain('text-transform: none');
+    expect(head).not.toMatch(/uppercase/);
+    expect(kitCss).toMatch(/\.ui-section-head > \.is-end \{[^}]*margin-left: auto/);
+    expect(kitCss).toMatch(/\.ui-section-head:focus-visible \{ outline: 2px solid var\(--ui-border-focus\)/);
+  });
+
+  it('has the count badge: a tabular pill, tone tints, and a pop that is opacity-only under reduced motion', () => {
+    expect(KIT_CLASSES).toContain('ui-count');
+    const count = /\.ui-count \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(count).toContain('border-radius: 999px');
+    expect(count).toContain('font-variant-numeric: tabular-nums');
+    expect(count).toContain('font-size: 11px');
+    for (const t of ['run', 'wait', 'done', 'fail'])
+      expect(kitCss).toContain(
+        `.ui-count[data-tone="${t}"] { background: color-mix(in srgb, var(--ui-st-${t}) 16%, var(--ui-ib-card));`,
+      );
+    expect(kitCss).toContain(
+      '.ui-count[data-pop] { animation: ui-count-pop var(--ui-dur-move) var(--ui-ease-out) both; }',
+    );
+    expect(kitCss).toContain('@keyframes ui-count-pop { from { opacity: 0; transform: scale(0.9); } }');
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(rm.slice(0, rm.indexOf('\n}\n'))).toContain(
+      '.ui-count[data-pop] { animation: ui-fade-in 120ms ease both; }',
+    );
+    expect(kitCss).toContain('@keyframes ui-fade-in { from { opacity: 0; } }');
+  });
+
   it('stops loops and movement under reduced motion', () => {
     const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
     expect(rm).toContain('.ui-skeleton, .ui-status[data-live]::before { animation: none; }');
