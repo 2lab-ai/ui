@@ -69,7 +69,7 @@ Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set �
 `.ui-status`, `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`,
 `.ui-section-head` with a `.ui-count` badge, and for page parts `.ui-input`, `.ui-switch`, `.ui-card`, `.ui-notice`, `.ui-row`).
 
-Sound — opt-in interface cues (0.10.0): every element plays a short cue for what the person just did (a detent when a tab
+Sound — opt-in interface cues (0.11.0): every element plays a short cue for what the person just did (a detent when a tab
 changes, air when a dialog opens, a soft chord when a run is done). Off until the person turns it on. `@2lab.ai/ui/sound` is
 the policy (`setSound`, `bindSound`, quiet regions, opt-in typing) and loads no audio; `@2lab.ai/ui/sound-cuelume` is the
 player — [Cuelume](https://github.com/danielwh2/cuelume)'s fourteen cues synthesized live with Web Audio, no audio files,
