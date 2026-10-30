@@ -122,19 +122,30 @@ export const styles = `
 
 /* ── Accounts as workers: state marks + the pinned account card ── */
 .aq-workers { position: relative; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--ib-card-border); }
-.aq-marks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.aq-mark { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; max-width: 100%; padding: 0 9px; border-radius: 8px; border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: background-color var(--dur-fade) var(--ease-out), color var(--dur-fade) var(--ease-out), border-color var(--dur-fade) var(--ease-out); }
-.aq-mark b { font-weight: 600; }
-.aq-mark .aq-g { font-size: 10px; }
-.aq-mark.is-limited { color: var(--aq-warn-text); background: color-mix(in srgb, var(--aq-warn) 12%, var(--ib-card)); border-color: color-mix(in srgb, var(--aq-warn) 50%, transparent); }
-.aq-mark.is-spent, .aq-mark.is-unmeasured, .aq-mark.is-paused { color: var(--ib-text-2); background: var(--ib-pill); }
-.aq-mark.is-excluded { color: var(--ib-muted); background: transparent; border-style: dashed; }
-.aq-mark[aria-expanded="true"] { border-color: var(--ib-text-2); }
+/* One wrapping row: the head, usable badges one by one, every other state one overlapped stack. Badge geometry
+   (padding, dot, icon, overlap) is what logic.ts STRIP assumes when it folds runs to keep the row to two lines. */
+.aq-marks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.aq-marks > .aq-col-head { white-space: nowrap; }
+.aq-mark { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; max-width: 100%; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: background-color var(--dur-fade) var(--ease-out), color var(--dur-fade) var(--ease-out), border-color var(--dur-fade) var(--ease-out); }
+.aq-mark b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.aq-si { flex: none; width: 12px; height: 12px; }
+/* No position here: the account card measures marks against .aq-workers (see updated()). */
+.aq-stack { --aq-sc: var(--ib-muted); --aq-st: var(--ib-text-2); display: inline-flex; align-items: center; max-width: 100%; }
+.aq-stack.is-warn { --aq-sc: var(--aq-warn); --aq-st: var(--aq-warn-text); }
+.aq-stack.is-fail { --aq-sc: var(--st-fail); --aq-st: var(--st-fail-text); }
+.aq-stack.is-out { --aq-st: var(--ib-muted); }
+/* Opaque fills and a card-coloured ring: each badge reads cut over the one before it. */
+.aq-stack .aq-mark { color: var(--aq-st); background: color-mix(in srgb, var(--aq-sc) 16%, var(--ib-card)); border-color: color-mix(in srgb, var(--aq-sc) 55%, var(--ib-card)); box-shadow: 0 0 0 2px var(--ib-card); }
+.aq-stack .aq-mark + .aq-mark { margin-left: -8px; }
+.aq-stack.is-out .aq-mark { background: var(--ib-card); border-style: dashed; }
+.aq-mark[aria-expanded="true"], .aq-stack .aq-mark[aria-expanded="true"] { border-color: var(--ib-text-2); }
 .aq-mark:focus-visible, .aq-q:focus-visible, .aq-pop-close:focus-visible, .cron-history-btn:focus-visible, .cron-strip:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
-@media (hover: hover) and (pointer: fine) { .aq-mark:hover, .aq-q:hover { border-color: var(--ib-muted); } }
+.aq-mark:focus-visible { position: relative; z-index: 1; }
+@media (hover: hover) and (pointer: fine) { .aq-mark:hover, .aq-stack .aq-mark:hover, .aq-q:hover { border-color: var(--ib-muted); } }
 .aq-wdot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 .aq-wdot.is-h5 { background: var(--aq-now); }
 .aq-wdot.is-wk { background: var(--aq-wk); }
+.aq-wdot.is-ok { background: var(--st-done); }
 .aq-pop { position: absolute; z-index: 6; top: 100%; left: 8px; width: min(280px, calc(100% - 16px)); display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--ib-card); color: var(--ib-text); box-shadow: 0 0 0 1px var(--ib-card-border), var(--ib-shadow-raised); animation: aq-open var(--dur-fade) var(--ease-out); }
 .cap-prov.is-narrow .aq-pop { width: calc(100% - 24px); }
 @keyframes aq-open { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }

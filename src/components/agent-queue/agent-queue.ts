@@ -3,6 +3,7 @@ import { esc, escAttr } from '../../core/html';
 import {
   type AgentQueueData,
   type AqAccount,
+  type AqAccountState,
   type AqJob,
   type AqLane,
   type AqPoolState,
@@ -10,6 +11,8 @@ import {
   type AqRun,
   type AqRunStatus,
   type AqSection,
+  type AqStack,
+  accountStacks,
   advanceProvider,
   axisPos,
   clockLabel,
@@ -35,6 +38,7 @@ import {
   nextRefill,
   niceMax,
   normalize,
+  OK_STACK,
   orderJobs,
   plain,
   poolState,
@@ -42,6 +46,7 @@ import {
   runBins,
   runKind,
   scheduleLabel,
+  stripFolds,
   timelineMarks,
   upNext,
 } from './logic';
@@ -95,7 +100,47 @@ function hashId(s: string): string {
 }
 const keyOf = (kind: string, ...ids: string[]) =>
   `${kind}-${ids.map((x) => `${hashId(x)}${x.length.toString(36)}`).join('-')}`;
-const accKey = (pid: string, aid: string | null) => (aid === null ? keyOf('ok', pid) : keyOf('acc', pid, aid));
+/** The open account card: one account (`aid`), or a folded run's list (`grp`, the usable run is `available`). */
+interface OpenCard {
+  pid: string;
+  aid: string | null;
+  grp: string | null;
+}
+const accKey = (pid: string, aid: string) => keyOf('acc', pid, aid);
+const foldKey = (pid: string, grp: string) => (grp === OK_STACK ? keyOf('ok', pid) : keyOf('grp', pid, grp));
+const openKey = (o: OpenCard) => (o.aid !== null ? accKey(o.pid, o.aid) : foldKey(o.pid, o.grp ?? OK_STACK));
+
+/** One icon per stack (D10): the reason when it has one, else the state. Stroke only, so the badge colour paints it. */
+const ICON_PAUSE = '<path d="M6 4v8M10 4v8"/>';
+const ICON_OUT = '<circle cx="8" cy="8" r="5.5" stroke-dasharray="2.2 2.2"/>';
+const REASON_ICON: Record<string, string> = {
+  '5h': '<circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/>',
+  weekly: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/>',
+  model:
+    '<rect x="4.5" y="4.5" width="7" height="7" rx="1.2"/><path d="M6.5 2v2.5M9.5 2v2.5M6.5 11.5V14M9.5 11.5V14M2 6.5h2.5M2 9.5h2.5M11.5 6.5H14M11.5 9.5H14"/>',
+  cooldown: '<path d="M8 1.8v12.4M2.6 4.9l10.8 6.2M2.6 11.1l10.8-6.2M6.3 2.9 8 4.4l1.7-1.5M6.3 13.1 8 11.6l1.7 1.5"/>',
+  auth: '<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+  paused: ICON_PAUSE,
+  held: ICON_PAUSE,
+  noMeasure: ICON_OUT,
+  unknownTier: ICON_OUT,
+};
+const STATE_ICON: Record<AqAccountState, string> = {
+  available: '',
+  limited: '<circle cx="8" cy="8" r="5.8"/><path d="M3.9 12.1l8.2-8.2"/>',
+  paused: ICON_PAUSE,
+  spent: '<circle cx="8" cy="8" r="5.5"/>',
+  unmeasured: '<path d="M6 6.2a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3v.4M8 12.2v.1"/>',
+  excluded: ICON_OUT,
+};
+const stackIcon = (s: AqStack) =>
+  `<svg class="aq-si" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
+    (Object.hasOwn(REASON_ICON, s.reason) ? REASON_ICON[s.reason] : '') ||
+    (Object.hasOwn(STATE_ICON, s.state) ? STATE_ICON[s.state] : '')
+  }</svg>`;
+/** The badge colour: limited amber, a failed login red (someone must act), left out dashed, the rest grey. */
+const stackTone = (s: AqStack) =>
+  s.state === 'limited' ? 'warn' : s.reason === 'auth' ? 'fail' : s.state === 'excluded' ? 'out' : 'mute';
 
 /** One polite sentence per data update for capacity (all limited > available again > under 20%), or ''. */
 export function capacityNews(
@@ -163,7 +208,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   #dirty = true;
   #m: AgentQueueData | undefined;
   #skew = 0;
-  #open: { pid: string; aid: string | null } | null = null;
+  #open: OpenCard | null = null;
   #stops = new Map<string, string>();
   #width = 0;
   #ro: ResizeObserver | null = null;
@@ -331,7 +376,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       return `${open}<div class="cap-off">${esc(t.capError(m.capacityError || '—'))}</div></section>`;
     const ps = m.providers ?? [];
     if (!ps.length) return `${open}<div class="cap-off">${esc(t.capNone)}</div></section>`;
-    // The section's inner width sizes the timeline (SVG in px, labels unscaled) and folds the marks when narrow.
+    // The section's inner width sizes the timeline (SVG in px, labels unscaled) and fits the workers strip.
     const width = this.#width > 0 ? this.#width : this.clientWidth > 0 ? this.clientWidth : 900;
     const W = Math.max(260, Math.round(width) - 28 - 36);
     const narrow = W < 600;
@@ -435,7 +480,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     h += `<div class="aq-head"><h3 class="cap-pname">${esc(p.name)}</h3>${who}${this.#provPill(p, state, now, t)}</div>`;
     const disc = this.#disclosure(p, now, t);
     if (disc) h += `<div class="cap-disc">${disc}</div>`;
-    const workers = this.#workers(p, now, t, narrow);
+    const workers = this.#workers(p, now, t, W);
     if (!(Number(p.total) > 0)) return `${h}<div class="cap-bar-next">${esc(t.bar.unknown)}</div>${workers}</section>`;
     if (has5h(p)) h += this.#bar(p, 'fiveHour', now, t);
     if (p.weekly !== undefined && p.weekly !== null) h += this.#bar(p, 'weekly', now, t);
@@ -534,7 +579,8 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   }
 
   #reason(a: AqAccount, t: Strings): string {
-    if (a.reason) return t.reason[a.reason] ?? String(a.reason);
+    // Own keys only: a host reason such as `toString` or `__proto__` is free text, not a lookup.
+    if (a.reason) return Object.hasOwn(t.reason, a.reason) ? t.reason[a.reason] : String(a.reason);
     return t.stateWord[a.state] ?? '';
   }
 
@@ -543,78 +589,114 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     return a.tierAssumed ? t.tierAssumed(a.tier) : a.tier;
   }
 
-  /** The workers strip (D10): one mark per account in the given order, one tab stop; narrow folds the usable ones. */
-  #workers(p: AqProvider, now: number, t: Strings, narrow: boolean): string {
+  /**
+   * The workers strip (D10): the head and every badge on one wrapping row, one tab stop. Usable accounts are one
+   * badge each; the rest stack per state and reason — overlapped, one icon, one colour, the name only (the reason,
+   * the return and the tier are in the title, the label and the card). Runs that would push the row past two lines
+   * fold to one `icon count` badge whose card lists them.
+   */
+  #workers(p: AqProvider, now: number, t: Strings, W: number): string {
     const acc = p.accounts ?? [];
     if (!acc.length) return '';
     const okN = acc.filter((a) => a.state === 'available').length;
     const rove = keyOf('cap', p.id);
-    const items: Array<{ key: string; a: AqAccount | null }> = [];
-    let folded = false;
-    for (const a of acc) {
-      if (narrow && a.state === 'available') {
-        if (!folded) items.push({ key: accKey(p.id, null), a: null });
-        folded = true;
-        continue;
-      }
-      items.push({ key: accKey(p.id, a.id), a });
-    }
-    const keys = items.map((i) => i.key);
+    const stacks = accountStacks(acc);
+    const head = `${t.workers} ${okN}/${acc.length}`;
+    const folds = stripFolds(stacks, head, W);
+    const runs = stacks.map((s) => {
+      const fold = folds.has(s.key);
+      return { s, fold, keys: fold ? [foldKey(p.id, s.key)] : s.accounts.map((a) => accKey(p.id, a.id)) };
+    });
+    const keys = runs.flatMap((r) => r.keys);
     const want = this.#stops.get(rove);
     const stop = want && keys.includes(want) ? want : keys[0];
     const o = this.#open;
-    const open = o && o.pid === p.id ? accKey(p.id, o.aid) : null;
-    const marks = items
-      .map((it) => {
-        if (it.a) return this.#mark(p, it.a, it.key, now, t, open === it.key, stop === it.key);
-        return `<button type="button" class="aq-mark is-available" data-key="${escAttr(it.key)}" data-pid="${escAttr(
-          p.id,
-        )}" data-rove-item tabindex="${it.key === stop ? 0 : -1}" aria-haspopup="dialog" aria-expanded="${
-          open === it.key
-        }" aria-label="${escAttr(t.okFoldAria(okN))}">${esc(t.okFold(okN))}</button>`;
+    const open = o && o.pid === p.id ? openKey(o) : null;
+    const marks = runs
+      .map(({ s, fold, keys: ks }) => {
+        const ok = s.key === OK_STACK;
+        const html = fold
+          ? this.#foldMark(p, s, ks[0], t, open === ks[0], stop === ks[0])
+          : s.accounts
+              .map((a, i) =>
+                this.#mark(p, a, ks[i], now, t, open === ks[i], stop === ks[i], !ok && i === 0 ? stackIcon(s) : ''),
+              )
+              .join('');
+        return ok ? html : `<span class="aq-stack is-${stackTone(s)}${fold ? ' is-folded' : ''}">${html}</span>`;
       })
       .join('');
-    const card = open && o && keys.includes(open) ? this.#card(p, o.aid, open, now, t) : '';
+    const grp = o && o.aid === null ? (stacks.find((s) => s.key === o.grp) ?? null) : null;
+    const card = open && o && keys.includes(open) ? this.#card(p, o.aid, grp, open, now, t) : '';
     return `<div class="aq-workers" role="group" aria-label="${escAttr(t.workersAria(p.name, okN, acc.length))}" data-rove="${escAttr(
       rove,
-    )}"><div class="aq-col-head"><span>${esc(t.workers)}</span> <b>${okN}/${acc.length}</b></div><div class="aq-marks">${marks}</div>${card}</div>`;
+    )}"><div class="aq-marks"><span class="aq-col-head"><span>${esc(t.workers)}</span> <b>${okN}/${acc.length}</b></span>${marks}</div>${card}</div>`;
   }
 
-  #mark(p: AqProvider, a: AqAccount, key: string, now: number, t: Strings, open: boolean, stop: boolean): string {
+  /** One account: a usable one is its binding dot and name; the first of a stack carries the stack's icon. */
+  #mark(
+    p: AqProvider,
+    a: AqAccount,
+    key: string,
+    now: number,
+    t: Strings,
+    open: boolean,
+    stop: boolean,
+    icon: string,
+  ): string {
     const why = this.#reason(a, t);
     const said = [a.name, a.tier ? this.#tierLabel(a, t) : '', why];
-    let body = `<b>${esc(a.name)}</b>`;
-    if (a.state === 'available') {
-      body = `<i class="aq-wdot is-${a.binding === '5h' ? 'h5' : 'wk'}" aria-hidden="true"></i>${body}`;
-    } else if (a.state === 'limited') {
-      body = `<span class="aq-g" aria-hidden="true">⏸</span>${body} · ${esc(why)} · ${
-        a.returnAt ? this.#time('left', a.returnAt, now, t) : esc(t.noReturn)
-      }`;
-      said.push(a.returnAt ? timeText('back', a.returnAt, now, t) : t.noReturn);
-    } else {
-      body += ` · ${esc(why)}`;
-    }
+    if (a.state === 'limited') said.push(a.returnAt ? timeText('back', a.returnAt, now, t) : t.noReturn);
+    const dot =
+      a.state === 'available'
+        ? `<i class="aq-wdot is-${a.binding === '5h' ? 'h5' : 'wk'}" aria-hidden="true"></i>`
+        : '';
+    const label = said.filter(Boolean);
     return `<button type="button" class="aq-mark is-${a.state}" data-key="${escAttr(key)}" data-pid="${escAttr(
       p.id,
     )}" data-aid="${escAttr(a.id)}" data-rove-item tabindex="${stop ? 0 : -1}" aria-haspopup="dialog" aria-expanded="${open}" aria-label="${escAttr(
-      said.filter(Boolean).join(', '),
-    )}">${body}</button>`;
+      label.join(', '),
+    )}" title="${escAttr(label.join(' · '))}">${dot}${icon}<b>${esc(a.name)}</b></button>`;
   }
 
-  /** The account card (D11): every row from the account's own fields; the folded mark's card lists the usable ones. */
-  #card(p: AqProvider, aid: string | null, key: string, now: number, t: Strings): string {
+  /** A folded run: its icon (the usable run: a dot) and how many; the card lists who. */
+  #foldMark(p: AqProvider, s: AqStack, key: string, t: Strings, open: boolean, stop: boolean): string {
+    const n = s.accounts.length;
+    const ok = s.key === OK_STACK;
+    const label = ok ? t.okFoldAria(n) : t.foldAria(this.#reason(s.accounts[0], t), n);
+    const icon = ok ? '<i class="aq-wdot is-ok" aria-hidden="true"></i>' : stackIcon(s);
+    return `<button type="button" class="aq-mark is-${s.state} is-fold" data-key="${escAttr(key)}" data-pid="${escAttr(
+      p.id,
+    )}" data-grp="${escAttr(s.key)}" data-rove-item tabindex="${stop ? 0 : -1}" aria-haspopup="dialog" aria-expanded="${open}" aria-label="${escAttr(
+      label,
+    )}" title="${escAttr(label)}">${icon}<b>${n}</b></button>`;
+  }
+
+  /** The account card (D11): every row from the account's own fields; a folded run's card lists its accounts. */
+  #card(p: AqProvider, aid: string | null, grp: AqStack | null, key: string, now: number, t: Strings): string {
     const close = `<button type="button" class="aq-pop-close" data-key="aq-pop-close" aria-label="${escAttr(t.card.close)}">×</button>`;
     const row = (dt: string, dd: string, wide = false) =>
       `<div${wide ? ' class="is-wide"' : ''}><dt>${esc(dt)}</dt><dd>${dd}</dd></div>`;
     const pct = (x: number | undefined) =>
       x === undefined || x === null ? '—' : `${Math.round((Number(x) || 0) * 100)}%`;
     if (aid === null) {
-      const ok = (p.accounts ?? []).filter((a) => a.state === 'available');
-      return `<div class="aq-pop" role="dialog" aria-label="${escAttr(t.card.okAria)}" data-for="${escAttr(key)}"><div class="aq-pop-head"><span class="aq-pop-name">${esc(
-        t.card.okTitle,
-      )}</span><span class="aq-pop-kind">${esc(t.card.okKind(p.name, ok.length))}</span>${close}</div><dl class="aq-pop-stats">${ok
-        .map((a) => row(a.name, esc(t.card.okRow(pct(a.fiveHour), pct(a.weekly)))))
-        .join('')}</dl></div>`;
+      if (!grp) return '';
+      const ok = grp.key === OK_STACK;
+      const title = ok ? t.card.okTitle : this.#reason(grp.accounts[0], t);
+      const rows = grp.accounts.map((a) =>
+        row(
+          a.name,
+          ok
+            ? esc(t.card.okRow(pct(a.fiveHour), pct(a.weekly)))
+            : a.returnAt
+              ? this.#time('left', a.returnAt, now, t)
+              : '—',
+        ),
+      );
+      return `<div class="aq-pop" role="dialog" aria-label="${escAttr(ok ? t.card.okAria : t.card.stackAria(title))}" data-for="${escAttr(
+        key,
+      )}"><div class="aq-pop-head"><span class="aq-pop-name">${esc(title)}</span><span class="aq-pop-kind">${esc(
+        t.card.okKind(p.name, grp.accounts.length),
+      )}</span>${close}</div><dl class="aq-pop-stats">${rows.join('')}</dl></div>`;
     }
     const a = p.accounts?.find((x) => x.id === aid);
     if (!a) return '';
@@ -923,7 +1005,8 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   protected override updated(): void {
     // An open key with no card any more is forgotten, so it never reopens on its own.
     if (this.#open && !this.$('.aq-pop')) this.#open = null;
-    // The card sits under its mark, its left edge clamped into the strip.
+    // The card sits under its mark, its left edge clamped into the strip. offsetLeft/Top resolve against
+    // .aq-workers (position: relative) — a mark inside an .aq-stack still does, so .aq-stack must stay unpositioned.
     for (const pop of this.$$<HTMLElement>('.aq-pop[data-for]')) {
       const box = pop.parentElement;
       const mark = box
@@ -961,17 +1044,18 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       ?.focus({ preventScroll: true });
   }
 
-  #toggle(pid: string, aid: string | null): void {
-    const key = accKey(pid, aid);
+  #toggle(pid: string, aid: string | null, grp: string | null): void {
+    const next: OpenCard = { pid, aid, grp: aid === null ? (grp ?? OK_STACK) : null };
+    const key = openKey(next);
     const o = this.#open;
-    if (o && o.pid === pid && o.aid === aid) {
+    if (o && o.pid === pid && o.aid === next.aid && o.grp === next.grp) {
       this.#open = null;
       this.renderNow();
       this.#focusKey(key);
       return;
     }
     if (aid !== null && !this.emit<AqAccountOpenDetail>('ui-account-open', { providerId: pid, accountId: aid })) return;
-    this.#open = { pid, aid };
+    this.#open = next;
     this.#stops.set(keyOf('cap', pid), key);
     this.renderNow();
     this.#focusKey(key);
@@ -982,7 +1066,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     if (!o) return;
     this.#open = null;
     this.renderNow();
-    if (refocus) this.#focusKey(accKey(o.pid, o.aid));
+    if (refocus) this.#focusKey(openKey(o));
   }
 
   /** A press outside the element's own markup closes the card — also one on the host's slotted content. */
@@ -1018,7 +1102,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     }
     const mark = el.closest<HTMLElement>('.aq-mark[data-pid]');
     if (mark) {
-      this.#toggle(mark.dataset.pid ?? '', mark.dataset.aid ?? null);
+      this.#toggle(mark.dataset.pid ?? '', mark.dataset.aid ?? null, mark.dataset.grp ?? null);
       return;
     }
     const job = el.closest<HTMLElement>('[data-job]');

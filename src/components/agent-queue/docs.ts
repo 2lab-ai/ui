@@ -103,6 +103,50 @@ function claude(now: number): AqProvider {
   };
 }
 
+/** 20 Claude accounts the way the dashboard showed them on 30 October 2026 (llmux order). */
+function twenty(now: number): AqProvider {
+  const cool = (id: string, back?: number) => limited(id, 'cooldown', back === undefined ? undefined : now + back);
+  const held = (id: string, reason: string): AqAccount => ({ id, name: id, state: 'paused', reason, tier: 'Max x20' });
+  return {
+    id: 'claude',
+    name: 'Claude',
+    source: 'llmux',
+    total: 17,
+    fiveHour: 1.4,
+    weekly: 2.1,
+    measuredAt: now - 5 * H,
+    accounts: [
+      ok('ai5', '7d', 0.4, 0.5),
+      ok('ai6', '5h', 0.3, 0.6),
+      ok('ai4', '7d', 0.35, 0.5),
+      ok('ai2', '5h', 0.35, 0.5),
+      held('ai8', 'auth'),
+      cool('ai3'),
+      cool('ai7'),
+      cool('ai15'),
+      cool('ai40', 13 * H + 38 * M),
+      cool('ai30'),
+      limited('ai43', 'weekly', now + 4 * D + 2 * H),
+      cool('ai41'),
+      cool('info'),
+      cool('dev1'),
+      held('icedac', 'paused'),
+      cool('ai'),
+      cool('ai44'),
+      held('z', 'paused'),
+      cool('ai16', 14 * H + 38 * M),
+      limited('ai17', 'weekly', now + 38 * M),
+    ],
+    refills: [
+      { at: now + 38 * M, cause: 'release', fiveHour: 1, weekly: 1, account: 'ai17' },
+      { at: now + 2 * H, cause: '5h', fiveHour: 0.6, weekly: 0, account: 'ai6' },
+      { at: now + 13 * H + 38 * M, cause: 'release', fiveHour: 1, weekly: 1, account: 'ai40' },
+      { at: now + 14 * H + 38 * M, cause: 'release', fiveHour: 1, weekly: 1, account: 'ai16' },
+      { at: now + 4 * D + 2 * H, cause: '7d', fiveHour: 1, weekly: 1, account: 'ai43' },
+    ],
+  };
+}
+
 /** Codex: weekly window only, a reading six days old. */
 function codex(now: number): AqProvider {
   return {
@@ -227,7 +271,7 @@ export const doc: ComponentDoc = {
   group: 'Components',
   summary: 'Which LLM accounts can work right now, which are limited and when they return — and what runs next.',
   description:
-    'Two sections in one grammar, each optional. Provider capacity treats every account as a worker: per provider a card with a state pill (available / limited n · back in 7h 22m, ticking in place), the 5-hour and weekly measures as bars with a dashed 20% line and what comes back next, one mark per account (limited accounts in amber with the reason and the time left), and a 7-day reset timeline. The job lane treats scheduled jobs as a queue: four numbers (next run · running · runs in 24 h · failures), the up-next list, job cards with their last runs, and 24 hours of run records. Data honesty: runs with an unknown result are counted apart and never drawn as success, truncated histories turn counts into lower bounds, and epoch seconds are converted once at the boundary.',
+    'Two sections in one grammar, each optional. Provider capacity treats every account as a worker: per provider a card with a state pill (available / limited n · back in 7h 22m, ticking in place), the 5-hour and weekly measures as bars with a dashed 20% line and what comes back next, an account strip on one row (the count, then usable accounts one badge each, every other state one overlapped stack per reason: one icon, one colour, names only — the reason, return and tier are in the title, the label and the card; runs that would push the row past two lines fold to icon + count), and a 7-day reset timeline. The job lane treats scheduled jobs as a queue: four numbers (next run · running · runs in 24 h · failures), the up-next list, job cards with their last runs, and 24 hours of run records. Data honesty: runs with an unknown result are counted apart and never drawn as success, truncated histories turn counts into lower bounds, and epoch seconds are converted once at the boundary.',
   usedIn: 'soma-work dashboard › LLM 가용량 (capacity cards) and the CRON lane above the inbox',
   reference: { name: 'affectUI Agent Queue', url: 'https://www.affectui.com/components/agent-queue' },
   props: [
@@ -364,7 +408,7 @@ export const doc: ComponentDoc = {
     ['Esc', 'Close the account card and return focus to its mark'],
   ],
   a11y: [
-    'Every state leads with a glyph or a word (● ⏸ ✗ ▲ ◌) — colour is never the only signal.',
+    'Every state leads with a glyph, an icon or a word (● ⏸ ✗ ▲ ◌; one icon per account stack) — colour is never the only signal. Each account badge names its reason and return in its accessible name and title.',
     'One polite live region outside the re-rendered markup: a pool turning all-limited, available again or under 20%; a newer failed run; a job starting to wait. The first data is the baseline; countdown ticks are never announced.',
     'Countdowns are <time role="timer"> elements whose text is rewritten in place once a second (no re-render, no announcement).',
     'Account marks and up-next chips are real buttons with roving tabindex; the account card is role="dialog" with a close button, Esc and outside click.',
@@ -401,6 +445,15 @@ export const doc: ComponentDoc = {
   el.append(card);
 </script>`,
   demos: [
+    {
+      id: 'stacks',
+      title: '20 accounts, mostly cooling down',
+      description:
+        'The dashboard on 30 October 2026: 4 usable, 11 in cooldown, 2 at their weekly limit, a failed login and 2 paused. The strip is one row — usable badges, then one overlapped stack per reason (snowflake amber, calendar amber, lock red, pause grey). Narrow the frame: the widest stacks fold to icon + count first, the usable accounts last.',
+      height: 560,
+      frame: false,
+      create: () => make({ providers: [twenty(Date.now())] }, { lang: 'ko' }),
+    },
     {
       id: 'default',
       title: 'Capacity + lane',
