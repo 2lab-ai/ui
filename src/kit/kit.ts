@@ -102,7 +102,7 @@ button.ui-chip, a.ui-chip { cursor: pointer; -webkit-tap-highlight-color: transp
 .ui-chip.is-quiet { background: transparent; }
 .ui-chip:disabled, .ui-chip[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 
-/* ── Status: tone dot + word (st-* tones); .is-pill adds the tint; [data-live] pulses the dot ── */
+/* ── Status: tone dot + word (st-* tones, idle = hollow); a leading <svg> replaces the dot; .is-pill adds the tint; [data-live] pulses ── */
 .ui-status {
   --ui-tone: ${T('ib-muted')};
   display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; font-weight: 500; line-height: 1.3;
@@ -118,6 +118,12 @@ ${TONES.map(([k, dot, text]) => `.ui-status[data-tone="${k}"] { --ui-tone: ${dot
 .ui-status.is-pill { height: 24px; padding: 0 10px 0 8px; border-radius: 999px; background: ${T('ib-pill')}; }
 ${TONES.map(([k, dot]) => `.ui-status.is-pill[data-tone="${k}"] { background: ${toneTint(dot)}; }`).join('\n')}
 .ui-status[data-live]::before { animation: ui-pulse 1.6s ease-in-out infinite; }
+/* idle: stopped / sleeping / unknown — the muted hollow dot, the word in text-2 */
+.ui-status[data-tone="idle"]::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ui-tone); }
+/* A leading <svg> in place of the dot (icon('moon') before "Sleeping"), drawn in the tone colour */
+.ui-status > svg { flex: none; width: 12px; height: 12px; color: var(--ui-tone); transition: color 300ms ease; }
+.ui-status:has(> svg)::before { content: none; }
+.ui-status[data-live] > svg { animation: ui-pulse 1.6s ease-in-out infinite; }
 
 /* ── Keyboard key ── */
 .ui-kbd {
@@ -234,6 +240,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-btn, .ui-icon-btn, .ui-chip, .ui-fab { transition-duration: 0.01ms; }
   .ui-fab { animation: ui-fade-in 120ms ease both; }
   .ui-skeleton, .ui-status[data-live]::before { animation: none; }
+  .ui-status[data-live] > svg { animation: none; }
   .ui-expand { transition: none; }
   .ui-expand > *, .ui-expand.is-open > *, .ui-expand[data-open] > * { transition-duration: 120ms, 0s; }
   .ui-chev { transition: none; }

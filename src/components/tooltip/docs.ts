@@ -73,7 +73,7 @@ export const doc: ComponentDoc = {
   group: 'Primitives',
   summary: 'A short description of a control, on hover or keyboard focus — dismissible, hoverable, persistent.',
   description:
-    'Wrap a control and give it text (or rich content in the content slot). The bubble shows after a short hover delay and at once on keyboard focus, never on touch; moving along a toolbar shows the next one immediately. It stays while the pointer is on it, hides on Esc or when the pointer leaves or focus goes, and pops from the side it sits on (WCAG 1.4.13). The text lives in the light DOM and the control points at it with aria-describedby, so screen readers read it as the control’s description.',
+    'Wrap a control and give it text (or rich content in the content slot). The bubble shows after a short hover delay and at once on keyboard focus, never on touch unless touch="tap" (a tap on the control toggles it, a tap elsewhere closes it); moving along a toolbar shows the next one immediately. It stays while the pointer is on it, hides on Esc or when the pointer leaves or focus goes, and pops from the side it sits on (WCAG 1.4.13). The text lives in the light DOM and the control points at it with aria-describedby, so screen readers read it as the control’s description.',
   usedIn:
     'soma-work dashboard › the token-breakdown tooltip on usage numbers (per-environment totals), chart bar tooltips, and icon buttons in card and app-bar toolbars.',
   reference: { name: 'WAI-ARIA APG Tooltip', url: 'https://www.w3.org/WAI/ARIA/apg/patterns/tooltip/' },
@@ -109,6 +109,12 @@ export const doc: ComponentDoc = {
       default: "'ink'",
       description: 'Attribute. ink: a small inverted label. card: the raised card, for rich content.',
     },
+    {
+      name: 'touch',
+      type: "'tap'",
+      description:
+        'Attribute. touch="tap": a touch tap on the trigger toggles the tooltip and a touch press anywhere else closes it — for descriptions that exist nowhere else on the page (a chart value, a usage breakdown). A pan that starts on the trigger never toggles it. Mouse, pen and keyboard keep the usual rules. Without it, touch never shows a tooltip.',
+    },
     { name: 'disabled', type: 'boolean', description: 'Attribute. Never shows (hides at once if showing).' },
     { name: 'open', type: 'boolean', description: 'Read-only property: whether the bubble is showing.' },
     {
@@ -132,7 +138,7 @@ export const doc: ComponentDoc = {
     'The trigger (the first element in the default slot) gets aria-describedby → the light-DOM text span or slotted content — an id inside a shadow root could not be referenced from it. Ids already there are kept; only ours is removed when the trigger changes or the tooltip leaves the page.',
     'The bubble is role="tooltip"; it never takes focus and should hold no interactive content (use a menu or a dialog for that).',
     'WCAG 1.4.13: dismissible (Esc, without moving focus), hoverable (100ms to cross onto the bubble, which then stays), persistent (stays until the pointer leaves, focus goes or Esc).',
-    'Touch never shows it — put anything essential in the control’s label. A press on the trigger hides it.',
+    'Touch never shows it — put anything essential in the control’s label. A press on the trigger hides it. With touch="tap" a tap toggles it instead (Esc, focus leaving and scrolling away still close it).',
     'Reduced motion: no slide or scale, a 120ms fade.',
   ],
   usage: `<ui-tooltip text="Copy link to this run">
@@ -191,6 +197,32 @@ export const doc: ComponentDoc = {
             ['Total', '4.6M'],
           ]),
         ),
+    },
+    {
+      id: 'touch',
+      title: 'Tap on touch',
+      description:
+        'touch="tap" on each bar: on a phone a tap shows the value and a tap elsewhere hides it; with a mouse it is the usual hover tooltip. Try it in a touch emulator.',
+      height: 220,
+      create: () => {
+        const box = document.createElement('div');
+        box.style.cssText = 'display:flex;align-items:flex-end;gap:10px;height:120px;padding:8px 4px 0';
+        const days: Array<[string, number, string]> = [
+          ['Mon', 42, '$1.20 · 312K tokens'],
+          ['Tue', 78, '$2.31 · 604K tokens'],
+          ['Wed', 55, '$1.64 · 428K tokens'],
+          ['Thu', 96, '$2.88 · 751K tokens'],
+          ['Fri', 30, '$0.86 · 220K tokens'],
+        ];
+        for (const [day, h, value] of days) {
+          const bar = document.createElement('button');
+          bar.type = 'button';
+          bar.setAttribute('aria-label', day);
+          bar.style.cssText = `display:block;width:36px;height:${h}px;border:0;border-radius:6px 6px 2px 2px;background:color-mix(in srgb, var(--ui-accent) 70%, var(--ui-ib-card));cursor:pointer;padding:0`;
+          box.append(tip(bar, { text: `${day} — ${value}`, touch: 'tap', placement: 'top' }));
+        }
+        return box;
+      },
     },
     {
       id: 'ko',

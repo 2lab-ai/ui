@@ -2,12 +2,15 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { attrs, esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { deepActive } from '../../core/popover';
+import { applyViewportVars, type ViewportBox, viewportVars, watchVisualViewport } from '../../core/viewport';
 import { icon } from '../../icons/icons';
 import { styles } from './styles';
 
 /** `sheet` = modal over a scrim (focus trapped); `dock` = beside the page, which stays interactive. */
 export type DrawerMode = 'sheet' | 'dock';
 export type DrawerSide = 'right' | 'left';
+/** `visual` (default): the drawer box follows `window.visualViewport` (above a soft keyboard); `layout`: it does not. */
+export type DrawerViewport = 'visual' | 'layout';
 /** What the person did to ask for the close. */
 export type DrawerCloseReason = 'escape' | 'scrim' | 'close-button';
 
@@ -34,6 +37,11 @@ const EDGE = 48;
 export const DRAWER_EXIT_MS = 320;
 /** Under reduced motion only a 120ms opacity fade is left. */
 const REDUCED_EXIT_MS = 120;
+/** sheet ↔ dock while open: the panel's box morphs from where it was drawn (`--dur-move`, ease-out). */
+export const DRAWER_MORPH_MS = 320;
+/** …and the scrim fades in or out (`--dur-fade`). */
+const SCRIM_FADE_MS = 180;
+const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
 const STEP = 16;
 const BIG_STEP = 64;
 
@@ -68,6 +76,21 @@ type Strings = (typeof STRINGS)['en'];
 
 type State = 'closed' | 'open' | 'closing';
 
+/** A scroll place: the element and its offsets. */
+type ScrollPlace = [Element, number, number];
+
+/** Every scrolled element under these roots, through open shadow roots (the panel's own body, a slotted list). */
+function scrollPlaces(roots: Iterable<Element>): ScrollPlace[] {
+  const out: ScrollPlace[] = [];
+  const visit = (el: Element) => {
+    if (el.scrollTop || el.scrollLeft) out.push([el, el.scrollTop, el.scrollLeft]);
+    for (const c of Array.from(el.children)) visit(c);
+    if (el.shadowRoot) for (const c of Array.from(el.shadowRoot.children)) visit(c);
+  };
+  for (const r of roots) visit(r);
+  return out;
+}
+
 function focusOnBody(): boolean {
   const a = document.activeElement;
   return !a || a === document.body || a === document.documentElement;
@@ -94,6 +117,7 @@ export class UiDrawer extends UiElement {
       'min-width',
       'max-width',
       'hide-close',
+      'viewport',
       'lang',
     ];
   }
@@ -112,6 +136,11 @@ export class UiDrawer extends UiElement {
   #foot = false;
   #mql: MediaQueryList | null = null;
   #drag: { id: number; x: number; w: number; cur: number } | null = null;
+  /** The visual viewport box while it is followed, and the stop for that. */
+  #vv: ViewportBox | null = null;
+  #vvStop: (() => void) | null = null;
+  /** The running sheet ↔ dock morph (panel box, scrim). */
+  #morph: Animation[] = [];
 
   constructor() {
     super();
@@ -171,6 +200,7 @@ export class UiDrawer extends UiElement {
       if (!this.#reflecting) this.#setOpen(value !== null);
       return;
     }
+    if (name === 'viewport') this.#syncViewport();
     if (name === 'dock-at' && this.isConnected) this.#listen();
     if (name === 'mode' || name === 'dock-at') this.#syncMode();
     this.requestRender();
@@ -193,6 +223,8 @@ export class UiDrawer extends UiElement {
     this.#returnTo = null;
     this.#drag = null;
     this.#state = 'closed';
+    this.#syncViewport();
+    this.#stopMorph();
     const dlg = this.#dlg();
     if (!dlg) return;
     dlg.setAttribute('data-state', 'closed');
@@ -266,6 +298,7 @@ export class UiDrawer extends UiElement {
       // A heading attribute or a slotted header names it; the label only when neither is there.
       'aria-labelledby': titled ? 'dr-title' : undefined,
       'aria-label': !titled && label ? label : undefined,
+      style: viewportVars(this.#vv) || undefined,
     })}><div class="dr-scrim" part="scrim" aria-hidden="true"></div><div${attrs({
       class: 'dr-panel',
       part: 'panel',
@@ -325,7 +358,7 @@ export class UiDrawer extends UiElement {
     if (this.#state !== 'closed') this.requestRender();
   };
 
-  /** Follow a change of the effective mode; an open drawer switches over without motion. */
+  /** Follow a change of the effective mode; an open drawer switches over in place (the 320ms morph, none under reduced motion). */
   #syncMode(): void {
     if (!this.isConnected) return;
     const next = this.#computeMode();
@@ -336,35 +369,121 @@ export class UiDrawer extends UiElement {
     this.notify<DrawerModeChange>('ui-mode-change', { mode: next });
   }
 
+  /**
+   * The mode changed while open. A native dialog changes modality only through close() + showModal() / show(), so
+   * both run in one task (no frame shows it closed) on the same node: the DOM, form state and the caret stay, every
+   * scroll place in the panel and focus are put back, and the panel's box then morphs from where it was drawn
+   * (320ms, retargeting a morph still running) while the scrim fades. Reduced motion: it switches at once.
+   */
   #switchOpen(): void {
     const dlg = this.#dlg();
     if (!dlg) return;
-    dlg.setAttribute('data-mode', this.#mode);
-    if (this.#state === 'closing') {
-      this.#finish();
+    if (this.#state !== 'open') {
+      dlg.setAttribute('data-mode', this.#mode);
+      if (this.#state === 'closing') this.#finish();
       return;
     }
-    if (this.#state !== 'open') return;
+    const panel = this.$<HTMLElement>('.dr-panel');
+    const scrim = this.$<HTMLElement>('.dr-scrim');
+    // Where it is drawn now, mid-morph included.
+    const from = panel?.getBoundingClientRect();
+    const scrimFrom = scrim ? Number.parseFloat(getComputedStyle(scrim).opacity) : Number.NaN;
+    this.#stopMorph();
+    const places = scrollPlaces([...(panel ? [panel] : []), ...Array.from(this.children)]);
     const active = deepActive();
     const inside = this.#focusWithin();
     dlg.setAttribute('data-instant', '');
+    dlg.setAttribute('data-mode', this.#mode);
     this.#switching = true;
     try {
-      dlg.close();
       this.#openNative(dlg);
     } finally {
       this.#switching = false;
     }
     void dlg.offsetWidth;
+    for (const [el, top, left] of places) {
+      el.scrollTop = top;
+      el.scrollLeft = left;
+    }
     dlg.removeAttribute('data-instant');
     if (inside && active?.isConnected) (active as HTMLElement).focus?.({ preventScroll: true });
     else if (this.#mode === 'sheet') this.#focusFirst();
+    if (!this.#drag && !prefersReducedMotion()) this.#morphFrom(dlg, from, scrimFrom);
+  }
+
+  /** Glide the panel's box (width, top) from `from` to where the new mode puts it; fade the scrim to its new end. */
+  #morphFrom(dlg: HTMLDialogElement, from: DOMRect | undefined, scrimFrom: number): void {
+    const panel = this.$<HTMLElement>('.dr-panel');
+    const scrim = this.$<HTMLElement>('.dr-scrim');
+    if (!panel || !from || typeof panel.animate !== 'function') return;
+    const box = dlg.getBoundingClientRect();
+    const to = panel.getBoundingClientRect();
+    if (Math.abs(to.width - from.width) > 1 || Math.abs(to.top - from.top) > 1) {
+      this.#morph.push(
+        panel.animate(
+          [
+            { width: `${from.width}px`, top: `${from.top - box.top}px` },
+            { width: `${to.width}px`, top: `${to.top - box.top}px` },
+          ],
+          { duration: DRAWER_MORPH_MS, easing: EASE_OUT },
+        ),
+      );
+    }
+    const scrimTo = this.#mode === 'sheet' ? 1 : 0;
+    if (scrim && Number.isFinite(scrimFrom) && Math.abs(scrimFrom - scrimTo) > 0.01) {
+      this.#morph.push(
+        scrim.animate(
+          [
+            { opacity: scrimFrom, visibility: 'visible' },
+            { opacity: scrimTo, visibility: 'visible' },
+          ],
+          { duration: SCRIM_FADE_MS, easing: EASE_OUT },
+        ),
+      );
+    }
+    // Settled or cancelled (a retarget, a close), it is no longer ours to cancel.
+    for (const a of this.#morph) {
+      a.finished?.then(
+        () => this.#forget(a),
+        () => this.#forget(a),
+      );
+    }
+  }
+
+  #forget(a: Animation): void {
+    this.#morph = this.#morph.filter((m) => m !== a);
+  }
+
+  #stopMorph(): void {
+    for (const a of this.#morph) a.cancel();
+    this.#morph = [];
   }
 
   #openNative(dlg: HTMLDialogElement): void {
     if (dlg.open) dlg.close();
     if (this.#mode === 'sheet') dlg.showModal();
     else dlg.show();
+  }
+
+  /**
+   * Open or on its way out (and not `viewport="layout"`): the box follows the visual viewport in both modes, so the
+   * panel's foot (a composer) stays above the soft keyboard. Closed: nothing is listened to and the properties go.
+   */
+  #syncViewport(): void {
+    const follow =
+      this.isConnected && (this.#want || this.#state !== 'closed') && this.getAttribute('viewport') !== 'layout';
+    if (follow === !!this.#vvStop) return;
+    if (follow) {
+      this.#vvStop = watchVisualViewport((box) => {
+        this.#vv = box;
+        applyViewportVars(this.#dlg(), box);
+      });
+      return;
+    }
+    this.#vvStop?.();
+    this.#vvStop = null;
+    this.#vv = null;
+    applyViewportVars(this.#dlg(), null);
   }
 
   // ── open / close ──────────────────────────────────────────────────────────
@@ -408,6 +527,7 @@ export class UiDrawer extends UiElement {
     this.#returnTo = deepActive();
     this.#setState(dlg, 'closed');
     dlg.setAttribute('data-mode', this.#mode);
+    this.#syncViewport(); // sized to the visible area before the first frame
     this.#openNative(dlg);
     void dlg.offsetWidth;
     this.#setState(dlg, 'open');
@@ -438,6 +558,8 @@ export class UiDrawer extends UiElement {
     const restore = this.#focusWithin() || focusOnBody();
     this.#state = 'closed';
     this.#drag = null;
+    this.#syncViewport();
+    this.#stopMorph();
     if (dlg) {
       dlg.setAttribute('data-state', 'closed');
       dlg.removeAttribute('data-resizing');
@@ -576,6 +698,7 @@ export class UiDrawer extends UiElement {
     this.#setState(dlg, 'closed');
     this.#want = false;
     this.#reflect(false);
+    this.#syncViewport();
     if (this.#focusWithin() || focusOnBody()) this.#focusBack(back);
   }
 
