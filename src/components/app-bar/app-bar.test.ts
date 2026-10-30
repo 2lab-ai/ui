@@ -477,6 +477,51 @@ describe('collapse', () => {
     expect(el.hasAttribute('collapsed')).toBe(false);
   });
 
+  it('folded and narrow with the name still cut: the brand shows its mark alone until there is room', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const el = mount(DATA, { collapse: 'always' });
+    const label = q(el, '.ab-brand-label')!;
+    const size = (scroll: number, client: number) => {
+      Object.defineProperty(label, 'scrollWidth', { value: scroll, configurable: true });
+      Object.defineProperty(label, 'clientWidth', { value: client, configurable: true });
+    };
+    size(80, 50);
+    FakeRO.fire(el, 330);
+    expect(el.hasAttribute('mark-only')).toBe(true);
+    // The name stays in the link: its accessible name.
+    expect(q(el, 'a.ab-brand .ab-brand-label')!.textContent).toBe('Workbench');
+    FakeRO.fire(el, 360); // short of the 368px it needed
+    expect(el.hasAttribute('mark-only')).toBe(true);
+    size(80, 80);
+    FakeRO.fire(el, 370);
+    expect(el.hasAttribute('mark-only')).toBe(false);
+    // A new brand forgets the measure and measures again; unfolded or wide, the name never gives way.
+    size(80, 50);
+    FakeRO.fire(el, 330);
+    expect(el.hasAttribute('mark-only')).toBe(true);
+    size(36, 36);
+    el.data = { ...DATA, brand: { label: 'Acme', href: '/' } };
+    el.renderNow();
+    expect(el.hasAttribute('mark-only')).toBe(false);
+    size(80, 50);
+    FakeRO.fire(el, 600);
+    expect(el.hasAttribute('narrow')).toBe(false);
+    expect(el.hasAttribute('mark-only')).toBe(false);
+    el.setAttribute('collapse', 'never');
+    FakeRO.fire(el, 330);
+    expect(el.hasAttribute('mark-only')).toBe(false);
+  });
+
+  it('a brand without a mark keeps its name (ellipsis), even folded and narrow', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const el = mount({ ...DATA, brand: { label: 'Workbench', mark: false } }, { collapse: 'always' });
+    const label = q(el, '.ab-brand-label')!;
+    Object.defineProperty(label, 'scrollWidth', { value: 80, configurable: true });
+    Object.defineProperty(label, 'clientWidth', { value: 50, configurable: true });
+    FakeRO.fire(el, 330);
+    expect(el.hasAttribute('mark-only')).toBe(false);
+  });
+
   it('no links → no Menu, even folded', () => {
     const el = mount({ brand: { label: 'Acme' }, account: { name: 'Mina' } }, { collapse: 'always' });
     expect(q(el, 'nav.ab-fold')!.hidden).toBe(true);

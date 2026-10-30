@@ -200,6 +200,12 @@ export const doc: ComponentDoc = {
       description:
         'Set by the bar below 560px of its own width (status dot only, avatar only). Read-only — e.g. ui-app-bar[narrow] .label { display: none }.',
     },
+    {
+      name: 'mark-only',
+      type: 'boolean (reflected)',
+      description:
+        'Set by the bar while it is folded and narrow and the brand’s name would still be cut: the mark shows alone and the name stays the link’s accessible name. Cleared once the bar has the room it measured. Read-only.',
+    },
     { name: 'slot="brand"', type: 'slot', description: 'Your own brand (logo, link); replaces data.brand.' },
     {
       name: 'slot="actions"',
@@ -246,6 +252,7 @@ export const doc: ComponentDoc = {
     'Links are real <a href> in a <nav> named by navLabel ("Main"); the current page carries aria-current="page". Put the bar in your page’s <header> for the banner landmark.',
     'Folded, the same named <nav> holds one Menu button (aria-haspopup="menu", aria-expanded) — the shared <ui-menu>: links as menuitemradio (checked = current page) and the account after a separator. Only one of the two navs is in the accessibility tree at a time.',
     'The status is role="status" aria-live="polite" and is patched in place, so each change is announced once; narrow, the word is visually hidden but still read.',
+    'Folded on a narrow bar, a brand name that would be cut shows as the mark alone (mark-only); the name stays the brand link’s accessible name.',
     'The account pill is named “Account: Mina Park, Admin” (the visible name included); the initials avatar is hidden from screen readers.',
     'The theme toggle names the action (“Switch to dark theme”), not the state.',
     'Focus ring 2px; 44px targets on coarse pointers; press scales to .97; hover changes colour only, on fine pointers.',

@@ -245,6 +245,8 @@ export class UiAppBar extends UiElement<AppBarData> {
   #width = 0;
   /** The width the content needed when it last overflowed (0 = fits / not measured). */
   #needed = 0;
+  /** Folded and narrow: the width the brand's name needed when it last ellipsized (0 = fits / not measured). */
+  #brandNeed = 0;
   /** What the content's width depends on; a change measures again. */
   #sig = '';
   /** The theme was toggled here: the next glyph enters. */
@@ -302,6 +304,7 @@ export class UiAppBar extends UiElement<AppBarData> {
         this.#width = typeof w === 'number' && Number.isFinite(w) ? w : this.getBoundingClientRect().width;
         this.#sync();
         this.#fit();
+        this.#fitBrand();
       });
       this.#ro.observe(this);
     }
@@ -346,11 +349,42 @@ export class UiAppBar extends UiElement<AppBarData> {
     }
   }
 
-  /** The content changed: forget the overflow width and measure again. */
+  /**
+   * Folded, narrow, and the brand's name still ellipsizes: show the mark alone (`mark-only`; the name stays the
+   * link's accessible name) until the bar has the room it measured. Never unfolded, never without a mark.
+   */
+  #fitBrand(): void {
+    const label = this.#parts.querySelector<HTMLElement>('.ab-brand-label');
+    const can =
+      this.#width > 0 &&
+      this.hasAttribute('collapsed') &&
+      this.hasAttribute('narrow') &&
+      !!label &&
+      !!this.#parts.querySelector('.ab-mark');
+    if (!can || !label) {
+      this.#brandNeed = 0;
+      this.removeAttribute('mark-only');
+      return;
+    }
+    if (this.hasAttribute('mark-only')) {
+      if (this.#width < this.#brandNeed) return;
+      this.removeAttribute('mark-only');
+    }
+    const over = label.scrollWidth - label.clientWidth;
+    if (over > 1) {
+      this.#brandNeed = Math.ceil(this.#width + over + FIT_SLACK);
+      this.setAttribute('mark-only', '');
+    }
+  }
+
+  /** The content changed: forget the overflow widths and measure again. */
   #refit(): void {
     this.#needed = 0;
+    this.#brandNeed = 0;
+    this.removeAttribute('mark-only');
     this.#sync();
     this.#fit();
+    this.#fitBrand();
   }
 
   /** Everything the unfolded content's width depends on. */
@@ -447,6 +481,8 @@ export class UiAppBar extends UiElement<AppBarData> {
     if (sig !== this.#sig) {
       this.#sig = sig;
       this.#needed = 0;
+      this.#brandNeed = 0;
+      this.removeAttribute('mark-only');
     }
     const key = this.#active()?.dataset?.key;
     morphInto(this.#parts, this.render());
@@ -472,6 +508,7 @@ export class UiAppBar extends UiElement<AppBarData> {
     if (!items.length && this.#menu.open) this.#menu.hide();
     this.#sync();
     this.#fit();
+    this.#fitBrand();
   }
 
   protected render(): string {
