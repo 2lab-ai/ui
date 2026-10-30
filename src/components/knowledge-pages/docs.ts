@@ -223,8 +223,19 @@ const summary = (p: KnowledgePage): KnowledgePageSummary => ({
   updatedAt: p.updatedAt,
 });
 
+/** The page as a store would hold it: front matter, Current, then the dated History — the text source mode edits. */
+function toSource(p: Pick<KnowledgePage, 'title' | 'aliases' | 'current' | 'history'>): string {
+  const aliases = p.aliases?.length ? `\naliases: [${p.aliases.join(', ')}]` : '';
+  const hist = (p.history ?? []).map((h) => `\n## ${h.date}\n${h.text}\n`).join('');
+  return `---\ntitle: ${p.title}${aliases}\n---\n${p.current}\n${hist}`;
+}
+
 interface HostOptions {
   seeds: Seed[];
+  /** Every page carries its source (the “Edit as source” link); these ids can only be edited as source. */
+  source?: boolean | string[];
+  /** `layout="page"`: the element grows with its content inside a scrolling stage (a stand-in for the page). */
+  layout?: 'page';
   groups?: KnowledgePageGroup[];
   selected?: string | null;
   lang?: 'en' | 'ko';
@@ -246,11 +257,15 @@ interface HostOptions {
 function make(o: HostOptions): HTMLElement {
   const el = document.createElement('ui-knowledge-pages') as UiKnowledgePages;
   if (o.lang) el.setAttribute('lang', o.lang);
-  el.style.height = `${o.height ?? 600}px`;
+  if (o.layout) el.setAttribute('layout', o.layout);
+  else el.style.height = `${o.height ?? 600}px`;
   if (o.maxWidth) {
     el.style.maxWidth = `${o.maxWidth}px`;
     el.style.margin = '0 auto';
   }
+  const onlyIds = Array.isArray(o.source) ? o.source : [];
+  const withSource = (p: KnowledgePage): KnowledgePage =>
+    o.source ? { ...p, source: p.source ?? toSource(p), ...(onlyIds.includes(p.id) ? { sourceOnly: true } : {}) } : p;
   const ko = o.lang === 'ko';
   const T = ko
     ? {
@@ -267,7 +282,7 @@ function make(o: HostOptions): HTMLElement {
       };
   const now = Date.now();
   const server = new Map<string, KnowledgePage>();
-  for (const { ago, ...p } of o.seeds) server.set(p.id, { ...structuredClone(p), updatedAt: now - ago });
+  for (const { ago, ...p } of o.seeds) server.set(p.id, withSource({ ...structuredClone(p), updatedAt: now - ago }));
   const shown = (id: string | null | undefined) => (id ? (structuredClone(server.get(id)) ?? null) : null);
   const first = shown(o.selected);
   for (const [id, patch] of Object.entries(o.newer ?? {})) {
@@ -327,6 +342,10 @@ function make(o: HostOptions): HTMLElement {
         revision: Number(old?.revision ?? 0) + 1,
         updatedAt: Date.now(),
       };
+      // A source save keeps the text as written (a real store would parse it); a form save re-derives the source.
+      if (old?.sourceOnly) page.sourceOnly = true;
+      if (typeof d.source === 'string') page.source = `${d.source}\n`;
+      else if (o.source) page.source = toSource(page);
       server.set(id, page);
       push({
         pages: list(),
@@ -354,7 +373,17 @@ function make(o: HostOptions): HTMLElement {
     }, 260);
   });
   el.data = data;
-  return el;
+  if (!o.layout) return el;
+  const stage = document.createElement('div');
+  stage.style.cssText = `height:${o.height ?? 520}px;overflow:auto;overscroll-behavior:contain;padding:0 0 24px;border-radius:12px`;
+  const note = document.createElement('p');
+  note.style.cssText = 'margin:0 0 12px;font-size:12.5px;color:var(--ui-ib-muted)';
+  note.textContent =
+    o.lang === 'ko'
+      ? '이 상자가 페이지를 대신합니다 — 스크롤해 보세요.'
+      : 'This box stands in for the page — scroll it.';
+  stage.append(note, el);
+  return stage;
 }
 
 export const doc: ComponentDoc = {
@@ -365,7 +394,7 @@ export const doc: ComponentDoc = {
   summary:
     'Long-lived notes, one page per topic — find a page, fix what is true now, and keep the dated record of how it changed.',
   description:
-    'A master-detail editor: a searchable page list (title and aliases, grouped under headings, each with its last update) beside the open page — title, aliases, a markdown Current with an Edit / Preview toggle, and dated History entries to add, edit or remove. Save is the one primary (also ⌘S / Ctrl+S); Delete takes two presses. Unsaved changes are kept per page and never lost to a data update; switching away asks first. The host loads the open page after `ui-select` and answers every write by sending new `data` — including a conflict, which keeps the draft and offers Reload.',
+    'A master-detail editor: a searchable page list (title and aliases, grouped under headings, each with its last update) beside the open page — title, aliases, a markdown Current with an Edit / Preview toggle, and dated History entries to add, edit or remove. A page that carries its `source` can be edited as one markdown text instead (“Edit as source”; a `sourceOnly` page opens that way), with the same draft and conflict handling. Save is the one primary (also ⌘S / Ctrl+S); Delete takes two presses. Unsaved changes are kept per page and never lost to a data update; switching away (or switching modes) asks first. The host loads the open page after `ui-select` and answers every write by sending new `data` — including a conflict, which keeps the draft and offers Reload. By default the element fills the box it is given; `layout="page"` lets it grow with its content and the page scroll.',
   usedIn: 'soma-work dashboard › 설정 › 기억 › 지식 페이지 (page list, page editor, raw mode, history, 409 conflict)',
   reference: {
     name: 'Apple HIG — Split views',
@@ -394,7 +423,19 @@ export const doc: ComponentDoc = {
       name: 'data.page',
       type: 'KnowledgePage | null',
       description:
-        'The open page’s content: `{ id, title, aliases?, group?, current, history?: { date, text }[], revision?, updatedAt? }`. Load it after `ui-select`.',
+        'The open page’s content: `{ id, title, aliases?, group?, current, history?: { date, text }[], revision?, updatedAt?, source?, sourceOnly? }`. Load it after `ui-select`.',
+    },
+    {
+      name: 'data.page.source',
+      type: 'string',
+      description:
+        'The page as the store holds it (the whole markdown). With it the meta row offers “Edit as source”: one mono box over this text, the same unsaved-changes dot, guard and conflict handling as the form; `ui-save` then carries `source`. Switching modes with unsaved changes asks first (a switch drops the draft).',
+    },
+    {
+      name: 'data.page.sourceOnly',
+      type: 'boolean',
+      description:
+        'The form cannot hold this page (markdown its fields do not model — saving the form would drop it): the editor opens as source, says why, and offers no form. Needs `source`.',
     },
     {
       name: 'data.loading',
@@ -442,6 +483,12 @@ export const doc: ComponentDoc = {
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
+      name: 'layout',
+      type: "'page'",
+      description:
+        'Attribute. Default: the element fills the box it is given (`height: 100%`) and the list and editor scroll inside — size it (e.g. `height: 640px`). `layout="page"`: as tall as its content, the page scrolls; the list column sticks to the top (`--kp-sticky-top` for a fixed app bar, e.g. `56px`) and scrolls inside once taller than the viewport; the Save row sticks to the bottom.',
+    },
+    {
       name: 'theme',
       type: "'light' | 'dark'",
       description: 'Pins the theme (attribute). Default follows prefers-color-scheme or page tokens.',
@@ -458,9 +505,9 @@ export const doc: ComponentDoc = {
     {
       name: 'ui-save',
       detail:
-        '{ id: string | null; title: string; aliases: string[]; group?: string; current: string; history: { date, text }[]; revision?: string | number; overwrite?: true }',
+        '{ id: string | null; title: string; aliases: string[]; group?: string; current: string; history: { date, text }[]; revision?: string | number; overwrite?: true; source?: string }',
       description:
-        'Save or ⌘S with unsaved changes and a title. `id: null` = a new page (pick the id, then send it as `selected` + `page`). Cleaned: title trimmed, aliases split and de-duplicated, empty history entries dropped. Answer with `saving`, then the saved page — or `error` / `conflict`.',
+        'Save or ⌘S with unsaved changes and a title. `id: null` = a new page (pick the id, then send it as `selected` + `page`). Cleaned: title trimmed, aliases split and de-duplicated, empty history entries dropped. From source mode `source` is the whole text (trailing whitespace trimmed) — write it as it is; the fields are then the page’s loaded values. Answer with `saving`, then the saved page — or `error` / `conflict`.',
     },
     {
       name: 'ui-delete',
@@ -474,6 +521,10 @@ export const doc: ComponentDoc = {
     },
   ],
   keyboard: [
+    [
+      'Edit as source / Back to the form',
+      'Switch the open page between the form and its whole markdown (asks first when there are unsaved changes)',
+    ],
     ['↑ / ↓', 'Move through the page list (one tab stop, roving tabindex); ↓ from search enters the list'],
     ['Home / End', 'First / last page'],
     ['Enter', 'Open the focused page'],
@@ -492,6 +543,7 @@ export const doc: ComponentDoc = {
     'Sound (opt-in, @2lab.ai/ui/sound): choosing a page plays select; New, Save (and ⌘S) play tap, Reload a subtle tap — each once its event goes through; Delete taps subtly when it arms and plays a strong close when it confirms; keystrokes in the fields play type while the page has typing sounds on. Silent until the page turns sound on.',
   ],
   usage: `<ui-knowledge-pages style="height: 640px"></ui-knowledge-pages>
+<!-- or, in a page that scrolls: <ui-knowledge-pages layout="page" style="--kp-sticky-top: 56px"> -->
 <script type="module">
   import '@2lab.ai/ui/knowledge-pages';
   const el = document.querySelector('ui-knowledge-pages');
@@ -546,6 +598,24 @@ export const doc: ComponentDoc = {
           },
           conflict: 'Someone saved a newer version of this page 4 minutes ago.',
         }),
+    },
+    {
+      id: 'source',
+      title: 'Edit as source',
+      description:
+        'Every page carries its markdown source, so the meta row offers “Edit as source” (one box over the whole page, same draft and conflict handling; switching modes with unsaved changes asks first). The release calendar holds a table the form cannot show — it opens as source, with no form.',
+      height: 640,
+      frame: false,
+      create: () => make({ seeds: PAGES, groups: GROUPS, selected: 'release-calendar', source: ['release-calendar'] }),
+    },
+    {
+      id: 'page',
+      title: 'layout="page" — as tall as its content',
+      description:
+        'No host-given height: the element grows with the open page and the page scrolls (the box here stands in for it). The list column sticks to the top, the Save row to the bottom.',
+      height: 560,
+      frame: false,
+      create: () => make({ seeds: PAGES, groups: GROUPS, selected: 'deploy-checklist', layout: 'page', height: 520 }),
     },
     {
       id: 'ko',

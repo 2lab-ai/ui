@@ -18,6 +18,7 @@ import {
   parseAliases,
   type UiKnowledgePages,
 } from './knowledge-pages';
+import { styles } from './styles';
 
 const XSS = '<img src=x onerror=alert(1)>';
 const MIN = 60_000;
@@ -947,6 +948,204 @@ describe('lang="ko"', () => {
   });
 });
 
+// ── source mode (D5 G3-1) ──
+
+const SRC =
+  '---\ntitle: Deploy checklist\naliases: [ship list, go-live]\n---\nUse **release** branches.\n\n## 2026-10-21\nCanary window is 10 minutes.\n';
+
+describe('source mode', () => {
+  it('isDirty compares only the source of a source draft, trailing whitespace ignored', () => {
+    const page = PAGE({ source: SRC });
+    expect(isDirty(page, { title: 'x', aliases: '', current: '', history: [], source: SRC })).toBe(false);
+    expect(isDirty(page, { title: 'x', aliases: '', current: '', history: [], source: `${SRC}\n\n` })).toBe(false);
+    expect(isDirty(page, { title: 'x', aliases: '', current: '', history: [], source: `${SRC}more` })).toBe(true);
+    expect(
+      isDirty(page, { ...PAGE(), aliases: 'ship list, go-live', history: PAGE().history ?? [], source: null }),
+    ).toBe(false);
+    expect(isDirty(PAGE(), { title: 'Deploy checklist', aliases: '', current: '', history: [], source: '' })).toBe(
+      false,
+    );
+  });
+
+  it('offers “Edit as source” only for a page that carries one; the switch shows one box over the whole page', () => {
+    expect(byKey(mount(), 'src')).toBeNull();
+    const el = mount(BASE({ page: PAGE({ source: SRC }) }));
+    const link = byKey(el, 'src')!;
+    expect(link.textContent).toBe('Edit as source');
+    expect(link.getAttribute('aria-pressed')).toBe('false');
+    expect(link.closest('.kp-meta')).not.toBeNull();
+    click(el, 'src');
+    expect(byKey(el, 'src')!.textContent).toBe('Back to the form');
+    expect(byKey(el, 'src')!.getAttribute('aria-pressed')).toBe('true');
+    expect(active(el)).toBe('src');
+    expect(q(el, '.kp-edit')!.hasAttribute('data-source')).toBe(true);
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe(SRC);
+    expect(q(el, '.kp-src')!.getAttribute('data-v')).toBe(SRC);
+    expect(q(el, '[data-f="title"]')).toBeNull();
+    expect(q(el, '[data-f="current"]')).toBeNull();
+    expect(q(el, '.kp-sec-src .kp-label')?.textContent).toBe('Source');
+    expect(q(el, '.kp-src-note')).toBeNull();
+    expect(save(el).getAttribute('aria-disabled')).toBe('true');
+    click(el, 'src');
+    expect(field(el, 'title').value).toBe('Deploy checklist');
+    expect(q(el, '[data-f="source"]')).toBeNull();
+  });
+
+  it('a typed source is a draft: Save sends the whole text with the page’s own fields, id and revision', () => {
+    const el = mount(BASE({ page: PAGE({ source: SRC }) }));
+    const saves = listen<KnowledgeSaveDetail>(el, 'ui-save');
+    click(el, 'src');
+    type(el, 'source', `${SRC}\n## 2026-10-30\nNew note.\n\n`);
+    expect(el.dirty).toBe(true);
+    expect(q(el, '.kp-unsaved')).not.toBeNull();
+    expect(q(el, '.kp-row[aria-current="true"] .kp-dot')).not.toBeNull();
+    expect(save(el).getAttribute('aria-disabled')).toBe('false');
+    click(el, 'save');
+    expect(saves).toEqual([
+      {
+        id: 'deploy',
+        title: 'Deploy checklist',
+        aliases: ['ship list', 'go-live'],
+        group: 'runbooks',
+        current: 'Use **release** branches.',
+        history: [{ date: '2026-10-21', text: 'Canary window is 10 minutes.' }],
+        revision: 7,
+        source: `${SRC}\n## 2026-10-30\nNew note.`,
+      },
+    ]);
+    // The host answers with the saved page: the draft is done and the editor stays in source mode.
+    el.data = BASE({ page: PAGE({ source: `${SRC}\n## 2026-10-30\nNew note.\n`, revision: 8 }), status: 'Saved' });
+    el.renderNow();
+    expect(el.dirty).toBe(false);
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe(`${SRC}\n## 2026-10-30\nNew note.\n`);
+    expect(q(el, '.kp-foot .kp-saved')?.textContent).toBe('Saved');
+  });
+
+  it('a source draft survives a data update and gets the same conflict handling: Overwrite, Reload', () => {
+    const el = mount(BASE({ page: PAGE({ source: SRC }) }));
+    const saves = listen<KnowledgeSaveDetail>(el, 'ui-save');
+    const reloads = listen(el, 'ui-reload');
+    click(el, 'src');
+    const ta = type(el, 'source', 'mine');
+    el.data = BASE({ page: PAGE({ source: SRC }), status: 'x' });
+    el.renderNow();
+    expect(field<HTMLTextAreaElement>(el, 'source')).toBe(ta);
+    expect(ta.value).toBe('mine');
+    click(el, 'save');
+    el.data = BASE({ page: PAGE({ source: SRC }), conflict: 'Someone saved a newer version.' });
+    el.renderNow();
+    expect(q(el, '.kp-alert.is-wait')).not.toBeNull();
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe('mine');
+    click(el, 'overwrite');
+    expect(saves.at(-1)).toMatchObject({ id: 'deploy', source: 'mine', revision: 7, overwrite: true });
+    el.data = BASE({ page: PAGE({ source: SRC }), conflict: 'Someone saved a newer version.' });
+    el.renderNow();
+    click(el, 'reload');
+    expect(reloads).toEqual([{ id: 'deploy' }]);
+    expect(el.dirty).toBe(false);
+    el.data = BASE({ page: PAGE({ source: 'theirs', revision: 8 }) });
+    el.renderNow();
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe('theirs');
+  });
+
+  it('switching modes with unsaved changes asks first; Keep stays, Discard switches and drops the draft', () => {
+    const el = mount(BASE({ page: PAGE({ source: SRC }) }));
+    type(el, 'title', 'Deploy list');
+    click(el, 'src');
+    expect(q(el, '.kp-guard p')?.textContent).toBe('Discard unsaved changes to “Deploy checklist”?');
+    expect(field(el, 'title').value).toBe('Deploy list');
+    click(el, 'guard-keep');
+    expect(q(el, '.kp-guard')).toBeNull();
+    expect(field(el, 'title').value).toBe('Deploy list');
+    click(el, 'src');
+    click(el, 'guard-discard');
+    expect(q(el, '.kp-guard')).toBeNull();
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe(SRC);
+    expect(el.dirty).toBe(false);
+    type(el, 'source', 'changed');
+    click(el, 'src');
+    expect(q(el, '.kp-guard')).not.toBeNull();
+    click(el, 'guard-discard');
+    expect(field(el, 'title').value).toBe('Deploy checklist');
+    expect(el.dirty).toBe(false);
+  });
+
+  it('a sourceOnly page opens as source with no way to the form, and says why', () => {
+    const el = mount(BASE({ page: PAGE({ source: SRC, sourceOnly: true }) }));
+    expect(byKey(el, 'src')).toBeNull();
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe(SRC);
+    expect(q(el, '[data-f="title"]')).toBeNull();
+    expect(q(el, '.kp-src-note')?.textContent).toBe(
+      'This page holds markdown the form cannot show, so it is edited as source.',
+    );
+    // Without a source string the flag means nothing: the form it is.
+    const form = mount(BASE({ page: PAGE({ sourceOnly: true }) }));
+    expect(q(form, '[data-f="source"]')).toBeNull();
+    expect(field(form, 'title').value).toBe('Deploy checklist');
+  });
+
+  it('the source text is set, never rendered as markup; the switch is off while saving and in read-only', () => {
+    const el = mount(BASE({ page: PAGE({ source: `${XSS}\n` }) }));
+    click(el, 'src');
+    expect(sr(el).querySelector('img')).toBeNull();
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe(`${XSS}\n`);
+    expect(q(el, '.kp-src')!.getAttribute('data-v')).toBe(`${XSS}\n`);
+    el.data = BASE({ page: PAGE({ source: `${XSS}\n` }), saving: true });
+    el.renderNow();
+    expect(byKey(el, 'src')!.getAttribute('aria-disabled')).toBe('true');
+    expect(field<HTMLTextAreaElement>(el, 'source').hasAttribute('readonly')).toBe(true);
+    const ro = mount(BASE({ page: PAGE({ source: SRC }), readOnly: true }));
+    expect(byKey(ro, 'src')).toBeNull();
+    expect(q(ro, '.kp-read')).not.toBeNull();
+  });
+
+  it('speaks Korean and plays select forward / back on the switch', () => {
+    const spy = soundSpy();
+    try {
+      const el = mount(BASE({ page: PAGE({ source: SRC }) }), { lang: 'ko' });
+      expect(byKey(el, 'src')!.textContent).toBe('원문(markdown)으로 편집');
+      byKey(el, 'src')!.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }),
+      );
+      el.renderNow();
+      expect(byKey(el, 'src')!.textContent).toBe('폼으로 돌아가기');
+      expect(q(el, '.kp-sec-src .kp-label')?.textContent).toBe('원문');
+      expect(q(el, '.kp-sec-src .kp-sub')?.textContent).toBe('페이지 전체 · markdown');
+      vi.advanceTimersByTime(300);
+      byKey(el, 'src')!.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }),
+      );
+      el.renderNow();
+      vi.advanceTimersByTime(300);
+      expect(spy.calls).toEqual([
+        ['select', { direction: 'forward', input: 'mouse' }],
+        ['select', { direction: 'back', input: 'mouse' }],
+      ]);
+      const only = mount(BASE({ page: PAGE({ source: SRC, sourceOnly: true }) }), { lang: 'ko' });
+      expect(q(only, '.kp-src-note')?.textContent).toBe('폼에 담을 수 없는 markdown이 있어 원문으로 편집합니다.');
+    } finally {
+      spy.restore();
+    }
+  });
+});
+
+// ── layout="page" (D5 G3-2) ──
+
+describe('layout="page"', () => {
+  it('is as tall as its content: no fixed height, the list sticky, the editor not its own scroll box', () => {
+    expect(styles).toContain(
+      ':host([layout="page"]) .ui-root, :host([layout="page"]) .kp, :host([layout="page"]) .kp-grid { height: auto; min-height: 0; }',
+    );
+    expect(styles).toContain(':host([layout="page"]) .kp { overflow: visible; }');
+    expect(styles).toMatch(
+      /:host\(\[layout="page"\]\) \.kp-list \{ position: sticky; top: var\(--kp-sticky-top, 0px\); max-height: calc\(100dvh - var\(--kp-sticky-top, 0px\)\);/,
+    );
+    expect(styles).toContain(':host([layout="page"]) :is(.kp-edit, .kp-read) { overflow: visible; }');
+    const el = mount(BASE(), { layout: 'page' });
+    expect(q(el, '.kp')).not.toBeNull();
+  });
+});
+
 // ── docs ──
 
 describe('docs', () => {
@@ -965,6 +1164,27 @@ describe('docs', () => {
       expect(sr(el).querySelector('.kp')).not.toBeNull();
     }
     expect(doc.demos.some((d) => d.title.includes('ko'))).toBe(true);
+    expect(doc.demos.some((d) => d.id === 'source')).toBe(true);
+    expect(doc.demos.some((d) => d.id === 'page')).toBe(true);
+  });
+
+  it('the source demo opens as source and its host saves the whole text', () => {
+    const node = doc.demos.find((d) => d.id === 'source')!.create();
+    document.body.append(node);
+    const el = (
+      node.matches('ui-knowledge-pages') ? node : node.querySelector('ui-knowledge-pages')
+    ) as UiKnowledgePages;
+    el.renderNow();
+    expect(q(el, '[data-f="source"]')).not.toBeNull();
+    expect(q(el, '.kp-src-note')).not.toBeNull();
+    type(el, 'source', '# Replaced\n');
+    click(el, 'save');
+    vi.advanceTimersByTime(600);
+    el.renderNow();
+    expect(q(el, '.kp-foot .kp-saved')?.textContent).toBe('Saved');
+    expect(field<HTMLTextAreaElement>(el, 'source').value).toBe('# Replaced\n');
+    const page = doc.demos.find((d) => d.id === 'page')!.create();
+    expect(page.querySelector('ui-knowledge-pages')?.getAttribute('layout')).toBe('page');
   });
 
   it('the demo host loads a selected page after a short delay and saves into the list', () => {
