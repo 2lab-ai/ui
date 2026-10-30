@@ -1,3 +1,5 @@
+import { mdDocCss } from '../../core/markdown';
+
 /** Ported from the soma-work dashboard (.prd/affectui/re-ai-answer.md D2 · D6–D10 · D15–D18, `.ans-*` + `.md-doc`). */
 export const styles = `
 .ui-root { container: ans / inline-size; }
@@ -25,27 +27,8 @@ export const styles = `
 .ans-body { font-size: 13.5px; line-height: 1.6; }
 .ans-body > :last-child { margin-bottom: 0; }
 
-/* The document (dashboard .md-doc). */
-.md-doc { color: var(--text); word-break: break-word; }
-.md-doc h1, .md-doc h2, .md-doc h3, .md-doc h4, .md-doc h5, .md-doc h6 { margin: 1.3em 0 0.5em; line-height: 1.3; letter-spacing: -0.01em; }
-.md-doc h1, .md-doc h2 { font-size: 1.15em; }
-.md-doc h3, .md-doc h4, .md-doc h5, .md-doc h6 { font-size: 1em; }
-.md-doc > :first-child { margin-top: 0; }
-.md-doc p, .md-doc ul, .md-doc ol, .md-doc blockquote, .md-doc pre, .md-doc .md-table { margin: 0 0 0.9em; }
-.md-doc ul, .md-doc ol { padding-left: 1.4em; }
-.md-doc li + li { margin-top: 0.2em; }
-.md-doc li > ul, .md-doc li > ol { margin: 0.2em 0 0; }
-.md-doc code { padding: 0.1em 0.35em; border-radius: 4px; background: var(--ib-pill); font: 0.88em var(--mono); }
-.md-doc pre { padding: 12px 14px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--ib-col); }
-.md-doc pre code { padding: 0; background: none; font-size: 12.5px; line-height: 1.55; }
-.md-doc blockquote { padding: 2px 0 2px 12px; border-left: 3px solid var(--border-focus); color: var(--text-secondary); }
-.md-doc blockquote > :last-child { margin-bottom: 0; }
-.md-doc hr { margin: 1.4em 0; border: 0; border-top: 1px solid var(--border); }
-.md-doc a { color: var(--accent); }
-.md-doc .md-table { overflow-x: auto; }
-.md-doc table { border-collapse: collapse; font-size: 0.93em; }
-.md-doc th, .md-doc td { padding: 6px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
-.md-doc th { background: var(--ib-col); font-weight: 600; }
+/* The document (dashboard .md-doc) — shared with the artifact viewer. */
+${mdDocCss}
 
 /* Link chips (D7) — lit = inverted (D8). */
 .ans-body .ans-cite { display: inline-block; max-width: 16ch; height: 18px; margin: 0 1px 0 3px; padding: 0 6px; overflow: hidden; border-radius: 6px; background: var(--surface-raised); font-size: 11px; font-weight: 500; line-height: 18px; color: var(--text-secondary); text-decoration: none; white-space: nowrap; text-overflow: ellipsis; vertical-align: middle; transition: background-color var(--dur-press) ease, color var(--dur-press) ease; }
