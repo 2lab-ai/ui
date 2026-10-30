@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { styles } from './styles';
-import { selectedIndex, type TabsData, tabItems, type UiTabs } from './tabs';
+import { endIndex, pinnedCount, selectedIndex, type TabsData, tabItems, type UiTabs } from './tabs';
 
 function mount(data: TabsData, attrs: Record<string, string> = {}, panels: string[] = []): UiTabs {
   const el = document.createElement('ui-tabs') as UiTabs;
@@ -224,6 +224,144 @@ describe('<ui-tabs>', () => {
     expect(styles).toMatch(/\.tb-tab \{ min-height: 44px; \}/);
     expect(styles).toMatch(/prefers-reduced-motion: reduce\) \{\s*\.tb-ind \{ transition: none; \}/);
     expect(styles).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  });
+
+  describe('agent strip and section strip (G3)', () => {
+    const AGENTS: TabsData = {
+      label: 'Agents',
+      value: 'a1',
+      tabs: [
+        { id: 'main', label: 'Main', meta: 'opus-5-5', pinned: true, tone: 'run' },
+        { id: 'a1', label: 'A1', meta: 'Explore', tone: 'done' },
+        { id: 'a2', label: 'A2', meta: '<b>Review</b>', pinned: true },
+      ],
+    };
+
+    it('pinnedCount takes the leading run only; endIndex is the first end tab', () => {
+      expect(pinnedCount(AGENTS.tabs)).toBe(1);
+      expect(pinnedCount([{ id: 'a', label: 'A' }])).toBe(0);
+      expect(pinnedCount(AGENTS.tabs.map((t) => ({ ...t, pinned: true })))).toBe(3);
+      expect(
+        endIndex([
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B', end: true },
+          { id: 'c', label: 'C' },
+        ]),
+      ).toBe(1);
+      expect(endIndex([{ id: 'a', label: 'A' }])).toBe(-1);
+    });
+
+    it('meta is a muted second label, escaped, inside the tab’s name', () => {
+      const el = mount(AGENTS);
+      const tabs = qa(el, '.tb-tab');
+      expect(tabs[0].querySelector('.tb-meta')?.textContent).toBe('opus-5-5');
+      expect(tabs[2].querySelector('.tb-meta b')).toBeNull();
+      expect(tabs[2].querySelector('.tb-meta')?.textContent).toBe('<b>Review</b>');
+      expect(tabs[0].textContent).toBe('Mainopus-5-5');
+      expect(styles).toContain('.tb-meta { color: var(--ib-muted);');
+    });
+
+    it('pinned: the leading run is sticky with its own part, the last one carries the fade; later ones are not', () => {
+      const el = mount(AGENTS);
+      const tabs = qa(el, '.tb-tab');
+      expect(tabs.map((t) => t.hasAttribute('data-pinned'))).toEqual([true, false, false]);
+      expect(tabs[0].hasAttribute('data-pin-last')).toBe(true);
+      expect(tabs[0].getAttribute('part')).toBe('tab pinned');
+      expect(tabs[1].getAttribute('part')).toBe('tab selected');
+      // Order and keyboard order are the data's.
+      expect(tabs.map((t) => t.dataset.key)).toEqual(['main', 'a1', 'a2']);
+      expect(styles).toMatch(/\.tb-tab\[data-pinned\] \{\s*position: sticky; inset-inline-start: 0; z-index: 2;/);
+      expect(styles).toContain(
+        '.tb-tab[data-pinned][aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--ib-text); }',
+      );
+      expect(styles).toContain('.tb-scroll[data-scrolled] .tb-tab[data-pin-last]::after { opacity: 1; }');
+      expect(styles).toContain('--tb-bg: var(--ui-tabs-bg, var(--ib-card))');
+    });
+
+    it('the fade shows once the list scrolls; a second pinned tab sticks after the first', () => {
+      const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList?.contains('tb-tab') ? 70 : 0;
+        },
+      });
+      try {
+        const el = mount({ ...AGENTS, tabs: [AGENTS.tabs[0], { ...AGENTS.tabs[2] }, AGENTS.tabs[1]] });
+        const tabs = qa(el, '.tb-tab');
+        expect(tabs[0].style.insetInlineStart).toBe('');
+        expect(tabs[1].style.insetInlineStart).toBe('70px');
+        expect(tabs[1].hasAttribute('data-pin-last')).toBe(true);
+        expect(tabs[0].hasAttribute('data-pin-last')).toBe(false);
+        const scroller = q(el, '.tb-scroll')!;
+        expect(scroller.style.scrollPaddingInlineStart).toBe('140px');
+        expect(scroller.hasAttribute('data-scrolled')).toBe(false);
+        scroller.scrollLeft = 40;
+        scroller.dispatchEvent(new Event('scroll'));
+        expect(scroller.hasAttribute('data-scrolled')).toBe(true);
+        el.data = { ...el.data! };
+        el.renderNow();
+        expect(q(el, '.tb-scroll')?.hasAttribute('data-scrolled')).toBe(true);
+        expect(qa(el, '.tb-tab')[1].style.insetInlineStart).toBe('70px');
+        scroller.scrollLeft = 0;
+        scroller.dispatchEvent(new Event('scroll'));
+        expect(scroller.hasAttribute('data-scrolled')).toBe(false);
+      } finally {
+        if (width) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', width);
+      }
+    });
+
+    it('end: the first end tab (and so the ones after it) sits at the far end; keyboard order is unchanged', () => {
+      const el = mount({
+        label: 'Sections',
+        value: 'chat',
+        tabs: [
+          { id: 'chat', label: 'Chat' },
+          { id: 'log', label: 'Work log' },
+          { id: 'tree', label: 'Agent tree', icon: 'tree', end: true },
+          { id: 'x', label: 'X', end: true },
+        ],
+      });
+      const tabs = qa(el, '.tb-tab');
+      expect(tabs.map((t) => t.hasAttribute('data-end'))).toEqual([false, false, true, false]);
+      expect(tabs[2].getAttribute('part')).toBe('tab end');
+      expect(styles).toContain('.tb-tab[data-end] { margin-inline-start: auto; }');
+      const seen: string[] = [];
+      el.addEventListener('ui-change', (e) => seen.push((e as CustomEvent).detail.value));
+      key(tabs[1], 'ArrowRight');
+      expect(seen).toEqual(['tree']);
+    });
+
+    it('shared-panel: one default-slot panel every tab controls, labelled by the selected tab', () => {
+      const el = mount(AGENTS, { 'shared-panel': '' });
+      const own = document.createElement('div');
+      own.textContent = 'agent header · Tasks · sections';
+      el.append(own);
+      const panels = qa(el, '[role="tabpanel"]');
+      expect(panels).toHaveLength(1);
+      expect(panels[0].id).toBe('tb-p');
+      expect(panels[0].hidden).toBe(false);
+      expect(panels[0].querySelector('slot')?.hasAttribute('name')).toBe(false);
+      expect(qa(el, '.tb-tab').map((t) => t.getAttribute('aria-controls'))).toEqual(['tb-p', 'tb-p', 'tb-p']);
+      expect(panels[0].getAttribute('aria-labelledby')).toBe('tb-t-1');
+      qa(el, '.tb-tab')[0].click();
+      el.renderNow();
+      expect(q(el, '[role="tabpanel"]')).toBe(panels[0]);
+      expect(panels[0].getAttribute('aria-labelledby')).toBe('tb-t-0');
+      el.removeAttribute('shared-panel');
+      el.renderNow();
+      expect(qa(el, '[role="tabpanel"]')).toHaveLength(3);
+    });
+
+    it('panel-focus="none": the panel is no tab stop (the slotted scroller is); default panels stay focusable', () => {
+      const el = mount(DATA, { 'panel-focus': 'none' }, ['chat', 'log', 'tree']);
+      expect(qa(el, '[role="tabpanel"]').every((p) => !p.hasAttribute('tabindex'))).toBe(true);
+      const shared = mount(DATA, { 'panel-focus': 'none', 'shared-panel': '' });
+      expect(q(shared, '[role="tabpanel"]')?.hasAttribute('tabindex')).toBe(false);
+      el.removeAttribute('panel-focus');
+      el.renderNow();
+      expect(qa(el, '[role="tabpanel"]').every((p) => p.getAttribute('tabindex') === '0')).toBe(true);
+    });
   });
 
   it('carries the host’s Korean labels with lang="ko"', () => {
