@@ -166,7 +166,7 @@ const KO_CARDS = (now: number): InboxCard[] => [
     details: [
       {
         label: 'Start fixture preview (agent-run approval card) on main code',
-        meta: '6m 17s · 툴 20회',
+        meta: '6분 17초 · 툴 20회',
         state: 'current',
       },
       { label: 'Shoot live dev: 7 surfaces — location shot with box + close-up', state: 'pending' },

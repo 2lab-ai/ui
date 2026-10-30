@@ -121,7 +121,7 @@ function withActions(): FileItem[] {
   const slack = (id: string) => ({
     id: 'slack',
     label: 'Slack',
-    icon: 'external' as const,
+    icon: 'chat' as const,
     href: `https://example.slack.com/files/U0/${id}`,
   });
   const files = demoFiles().map((f) => ({
@@ -135,7 +135,7 @@ function withActions(): FileItem[] {
     time: Date.now() - 41 * MIN,
     meta: 'Only in Slack',
     actions: [
-      { id: 'slack', label: 'Open in Slack', icon: 'external', href: 'https://example.slack.com/files/U0/call' },
+      { id: 'slack', label: 'Open in Slack', icon: 'chat', href: 'https://example.slack.com/files/U0/call' },
     ],
   });
   return files;
