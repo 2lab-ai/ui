@@ -3,6 +3,8 @@
  * blur with a hairline below — opaque when the person asks for less transparency or the blur is unsupported.
  * Links are neutral chips (pill on hover and on the current page), icon buttons are bordered 34px squares,
  * the status is a tone dot plus a word, the account a neutral pill. Colour only where it carries status.
+ * The toolbar slot rides in the row while it fits and takes a wrapping row of its own under the bar (toolbar-row)
+ * when it does not — on the same translucent surface, one hairline between the two.
  */
 export const styles = `
 :host {
@@ -40,6 +42,8 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 .ab-mark > svg { width: 20px; height: 20px; }
 .ab-brand-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 ::slotted([slot="brand"]) { flex: none; min-width: 0; }
+/* brand.heading: the page's h1, drawn exactly as the brand. */
+.ab-heading { display: flex; flex: none; min-width: 0; margin: 0; font: inherit; letter-spacing: inherit; }
 
 /* ── Nav: chip links ── */
 .ab-nav { flex: none; margin-left: 4px; }
@@ -110,16 +114,26 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 .ab-glyph { display: inline-grid; place-items: center; }
 .ab-glyph.is-in { animation: ab-glyph-in var(--dur-expand) var(--ease-out); }
 
+/* ── Toolbar: inline while it fits, else the row under the bar (wrapping) ── */
+::slotted([slot="toolbar"]) { flex: none; min-width: 0; }
+.ab-row { display: none; min-width: 0; padding: 8px 20px; border-top: 1px solid var(--border); }
+:host([toolbar-row]) { height: auto; }
+:host([toolbar-row]) .ab-bar { height: 56px; }
+:host([toolbar-row]) .ab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ab-row ::slotted([slot="toolbar"]) { flex: 0 1 auto; max-width: 100%; }
+
 /* ── Fold: below collapseAt the links leave for the menu ── */
 /* Unfolded, brand and account keep their full width, so a crowded bar overflows and folds instead of clipping
    them; folded, they may give way (ellipsis) on the narrowest bars. */
-:host([collapsed]) :is(.ab-brand, .ab-account), :host([collapsed]) ::slotted([slot="brand"]) { flex: 0 1 auto; }
+:host([collapsed]) :is(.ab-brand, .ab-heading, .ab-account), :host([collapsed]) ::slotted([slot="brand"]) {
+  flex: 0 1 auto;
+}
 .ab-fold { display: none; flex: none; }
 :host([collapsed]) .ab-fold:not([hidden]) { display: flex; }
 :host([collapsed]) .ab-nav { display: none; }
 /* Narrow: the status keeps its dot (the word stays for screen readers), the account its avatar — and, folded
    with the name still too long, the brand its mark (mark-only; the name stays the link's accessible name). */
-:host([narrow]) .ab-status-label, :host([mark-only]) .ab-brand-label {
+.ab-vh, :host([narrow]) .ab-status-label, :host([mark-only]) .ab-brand-label {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
@@ -129,6 +143,8 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 @media (max-width: 639px) {
   :host { height: 52px; }
   .ab-bar { gap: 8px; padding: 0 12px; }
+  :host([toolbar-row]) .ab-bar { height: 52px; }
+  .ab-row { padding: 8px 12px; }
 }
 
 /* ── Focus, press, hover (colour only, fine pointers) ── */
