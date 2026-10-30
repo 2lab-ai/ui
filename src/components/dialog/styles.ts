@@ -39,7 +39,9 @@ export const styles = `
 .dg[data-size="full"] .dg-panel { width: calc(100% - 32px); height: calc(100dvh - 32px); max-height: none; }
 .dg-grab { display: none; flex: none; width: 36px; height: 4px; margin: 8px auto 0; border-radius: 2px; background: var(--ib-pill); }
 .dg-head { display: flex; flex: none; align-items: flex-start; gap: 12px; padding: 16px 14px 8px 20px; }
-.dg-head[hidden], .dg-title[hidden], .dg-foot[hidden] { display: none; }
+.dg-head[hidden], .dg-title[hidden], .dg-foot[hidden], .dg-actions[hidden] { display: none; }
+.dg-actions { display: flex; flex: none; align-items: center; gap: 2px; min-height: 32px; margin-left: auto; }
+.dg-actions:not([hidden]) + .dg-close { margin-left: 0; }
 .dg-title {
   flex: 1 1 auto; min-width: 0; margin: 0; padding: 5px 0 0; font-size: 15px; font-weight: 600; line-height: 1.4;
   color: var(--ib-text); overflow-wrap: anywhere;
@@ -81,6 +83,18 @@ export const styles = `
   .dg[data-sheet="auto"][data-size="full"] .dg-panel { height: calc(100dvh - 24px); }
   .dg[data-sheet="auto"] .dg-grab { display: block; }
   .dg[data-sheet="auto"] .dg-head { padding-top: 10px; }
+  /* full: edge to edge on phones (a viewer, a composer) — no rounding, no grab, the safe areas inside */
+  .dg[data-size="full"] { place-items: stretch; }
+  .dg[data-size="full"][data-sheet] .dg-panel {
+    width: 100%; height: 100%; max-height: none; border-radius: 0; box-shadow: none;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .dg[data-size="full"][data-sheet] .dg-grab { display: none; }
+  .dg[data-size="full"][data-sheet] .dg-head { padding-top: 12px; }
+  /* A toolbar does not squeeze the title on a phone: title and × on the first line, the actions under them */
+  .dg-head:has(> .dg-actions:not([hidden])) { flex-wrap: wrap; row-gap: 4px; }
+  .dg-actions { order: 1; flex-basis: 100%; justify-content: flex-end; }
+  .dg-actions:not([hidden]) + .dg-close { margin-left: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dg-panel, .dg[data-sheet="auto"] .dg-panel { transform: none !important; }
