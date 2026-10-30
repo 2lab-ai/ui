@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiChoiceForm } from './choice-form';
 import './choice-form';
 import {
@@ -810,5 +811,108 @@ describe('lang="ko"', () => {
     el.setAttribute('lang', 'ko');
     await Promise.resolve();
     expect(q(el, '.cf-reset')?.textContent).toBe('초기화');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+  const change = (el: UiChoiceForm, qid: string) => click(card(el, qid).querySelector('.cf-change'));
+
+  it('a pick plays select — forward down the list, back up it; the same answer again and Change are silent', async () => {
+    const el = mount(form());
+    click(choice(el, 'store', 'sqlite'));
+    await spy.settle();
+    change(el, 'store');
+    click(choice(el, 'store', 'pg'));
+    await spy.settle();
+    change(el, 'store');
+    click(choice(el, 'store', 'pg'));
+    await spy.settle();
+    key(choice(el, 'backfill', 'bg'), '2');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['select', { direction: 'forward', input: 'mouse' }],
+      ['select', { direction: 'back', input: 'mouse' }],
+      ['select', { direction: 'forward', input: 'keyboard' }],
+    ]);
+  });
+
+  it('an own answer confirmed plays select; keystrokes in its box play type only while typing is on', async () => {
+    const el = mount(form({ answers: { backfill: { choiceId: 'deploy' } } }));
+    const box = input(el, 'table');
+    key(box, 'a');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    spy.restore();
+    spy = soundSpy({ typing: true });
+    key(box, 'a');
+    await spy.settle();
+    box.value = 'ab';
+    box.setSelectionRange(2, 2);
+    key(box, 'Backspace');
+    await spy.settle();
+    key(box, 'ArrowLeft');
+    type(box, 'my_table');
+    key(box, 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'delete', input: 'keyboard' }],
+      ['select', { direction: 'forward', input: 'keyboard' }],
+    ]);
+  });
+
+  it('Submit taps once ui-submit goes through; a prevented one is silent', async () => {
+    const answers = { store: { choiceId: 'pg' }, backfill: { choiceId: 'bg' }, table: { choiceId: 'uploads' } };
+    const el = mount(form({ answers }));
+    el.addEventListener('ui-submit', (e) => e.preventDefault(), { once: true });
+    click(q(el, '.cf-submit'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    click(q(el, '.cf-submit'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['tap', { input: 'mouse' }]]);
+  });
+
+  it('one question: the pick that submits plays select; a cancelled one is silent', async () => {
+    const el = mount(single());
+    el.addEventListener('ui-submit', (e) => e.preventDefault(), { once: true });
+    click(choice(el, 'tests', 'skip'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    click(choice(el, 'tests', 'skip'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['select', { direction: 'forward', input: 'mouse' }]]);
+  });
+
+  it('Reset plays a subtle navigate back', async () => {
+    const el = mount(form({ answers: { store: { choiceId: 'pg' } } }));
+    click(q(el, '.cf-reset'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['navigate', { emphasis: 'subtle', direction: 'back', input: 'mouse' }]]);
+  });
+
+  it('el.data from code is silent, and so is a form inside data-ui-sound="off"', async () => {
+    const el = mount(form());
+    el.data = form({ answers: { store: { choiceId: 'sqlite' } } });
+    el.renderNow();
+    el.data = form({ id: 'f2' });
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    el.renderNow();
+    click(choice(el, 'store', 'sqlite'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

@@ -187,6 +187,7 @@ export const doc: ComponentDoc = {
     'A polite live region announces the status changes (sending, failed, approved/denied/answered/expired).',
     'Locked answers stay focusable with aria-disabled and say why (canAnswer string).',
     'The countdown pauses while the card is hovered or focused; reduced motion removes the morph to a row.',
+    'Sound (opt-in, @2lab.ai/ui/sound): Approve, Explain and an answered question tap, Deny plays close — once the answer is not prevented; keystrokes in the free-text box play type while typing sounds are on; expiry is silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-approval-card lang="ko"></ui-approval-card>
 <script type="module">

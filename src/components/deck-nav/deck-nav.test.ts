@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import tokens from '../../core/tokens.json';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { type DeckNavData, type DeckNavPage, deckBehind, deckClamp, deckStep, type UiDeckNav } from './deck-nav';
 import { styles } from './styles';
 
@@ -295,5 +296,66 @@ describe('styles', () => {
     expect(styles).toContain('font-variant-numeric: tabular-nums');
     const rm = styles.slice(styles.indexOf('@media (prefers-reduced-motion: reduce)'));
     expect(rm).toContain('transform: none');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => {
+    spy.restore();
+    Reflect.deleteProperty(navigator, 'userActivation');
+  });
+  const tap = (t: EventTarget, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const activation = (isActive: boolean) =>
+    Object.defineProperty(navigator, 'userActivation', { configurable: true, get: () => ({ isActive }) });
+
+  it('a page change plays a subtle navigate: forward on ›, back on ‹ (a wrap keeps the way it went)', async () => {
+    const el = mount({ index: 1, count: 3 }, { wrap: '' });
+    tap(next(el));
+    await spy.settle();
+    key(next(el), 'ArrowRight');
+    await spy.settle();
+    key(next(el), 'ArrowLeft');
+    await spy.settle();
+    expect(el.index).toBe(2);
+    expect(spy.calls).toEqual([
+      ['navigate', { emphasis: 'subtle', direction: 'forward', input: 'mouse' }],
+      ['navigate', { emphasis: 'subtle', direction: 'forward', input: 'keyboard' }],
+      ['navigate', { emphasis: 'subtle', direction: 'back', input: 'keyboard' }],
+    ]);
+  });
+
+  it('the host’s prev() / next() sound only inside a user gesture', async () => {
+    const el = mount({ index: 1, count: 3 });
+    activation(false);
+    el.next();
+    await spy.settle();
+    activation(true);
+    el.prev();
+    await spy.settle();
+    expect(spy.calls).toEqual([['navigate', { emphasis: 'subtle', direction: 'back' }]]);
+  });
+
+  it('silent at an end, for a cancelled page, data the app sets, and a quiet region', async () => {
+    const el = mount({ index: 0, count: 3 });
+    tap(prev(el));
+    el.addEventListener('ui-page', (e) => e.preventDefault(), { once: true });
+    tap(next(el));
+    el.data = { index: 2, count: 3 };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    tap(prev(el));
+    await spy.settle();
+    expect(el.index).toBe(1);
+    expect(spy.calls).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type AgentInboxData,
   agentDots,
@@ -1041,5 +1042,85 @@ describe('host gaps', () => {
       anim.mockRestore();
       rect.mockRestore();
     });
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers(); // settle() waits real time
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (n: Element | null | undefined, detail = 1) =>
+    (n as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail }));
+  const face = (el: UiAgentInbox, id: string) => card(el, id).querySelector<HTMLElement>('.ib-face')!;
+  const OLD: InboxCard = { ...DONE, id: 'old', title: 'Old digest' };
+  const grouped = (): AgentInboxData => ({
+    columns: [
+      { id: 'needs', label: 'Needs you', cards: [WAIT, { ...RUN, artifacts: [{ id: 'a1', name: 'shot.png' }] }] },
+      { id: 'done', label: 'Done', cards: [], groups: [{ id: 'g', label: 'Older', open: false, cards: [OLD] }] },
+    ],
+  });
+
+  it('a card opens / closes (click, Enter, Esc); a group head opens / closes', async () => {
+    const el = mount(grouped());
+    tap(face(el, 'migrate'));
+    await spy.settle();
+    key(face(el, 'migrate'), 'Enter');
+    await spy.settle();
+    key(face(el, 'migrate'), ' ');
+    await spy.settle();
+    key(card(el, 'migrate').querySelector('[data-act="approve"]')!, 'Escape');
+    await spy.settle();
+    const head = q(el, '.ib-group-head')!;
+    tap(head);
+    await spy.settle();
+    tap(head, 0);
+    await spy.settle();
+    const open = ['open', { emphasis: 'subtle', input: 'mouse' }];
+    const close = ['close', { emphasis: 'subtle', input: 'keyboard' }];
+    expect(spy.calls).toEqual([open, close, ['open', { emphasis: 'subtle', input: 'keyboard' }], close, open, close]);
+  });
+
+  it('an action → tap, Open → navigate, a file chip → a subtle navigate', async () => {
+    const el = mount({ ...grouped(), expanded: ['migrate'] });
+    tap(card(el, 'migrate').querySelector('[data-act="reject"]'));
+    await spy.settle();
+    tap(card(el, 'migrate').querySelector('[data-open]'), 0);
+    await spy.settle();
+    tap(card(el, 'notes').querySelector('button.ib-chip'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['navigate', { input: 'keyboard' }],
+      ['navigate', { emphasis: 'subtle', input: 'mouse' }],
+    ]);
+  });
+
+  it('nothing for reveal(), a prevented event, data the app sets, or a data-ui-sound="off" region', async () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {});
+    const el = mount(grouped());
+    expect(el.reveal('old')).toBe(true);
+    el.data = { ...grouped(), expanded: ['migrate'] };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    for (const n of ['ui-toggle', 'ui-group-toggle', 'ui-action', 'ui-open', 'ui-artifact'])
+      el.addEventListener(n, (e) => e.preventDefault());
+    tap(face(el, 'migrate'));
+    tap(q(el, '.ib-group-head'));
+    tap(card(el, 'notes').querySelector('button.ib-chip'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount(grouped());
+    quiet.append(off);
+    tap(face(off, 'migrate'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    vi.restoreAllMocks();
   });
 });

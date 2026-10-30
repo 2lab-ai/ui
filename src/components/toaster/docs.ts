@@ -126,6 +126,7 @@ export const doc: ComponentDoc = {
     'Neutral and success toasts are announced politely, errors and warnings assertively, with the word “Error” / “Warning” spoken first — never colour alone.',
     'Timers pause while focus is inside, so a keyboard user can read and act.',
     'Reduced motion swaps the slide and fan for a fade.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a toast plays its outcome, subtle, as it appears or changes tone — success, error, warning, loading, or ready for a plain one — once per state; its action button taps; closing and expiring are silent. Silent until the page turns sound on.',
   ],
   usage: `import { toast } from '@2lab.ai/ui/toaster';
 

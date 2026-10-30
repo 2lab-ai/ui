@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiFileCard } from './file-card';
 import {
   FILE_TINTS,
@@ -228,5 +229,45 @@ describe('<ui-file-card>', () => {
     document.body.append(el);
     el.renderNow();
     expect(qa(el, 'button')).toHaveLength(0);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (el: UiFileCard, detail = 1) =>
+    q(el, '.fc')!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail }));
+
+  it('opening the file → tap, by the input that did it', async () => {
+    const el = mount({ id: 'f1', name: 'report.pdf' });
+    tap(el);
+    await spy.settle();
+    tap(el, 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['tap', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('nothing for a prevented ui-open, data the app sets, or a data-ui-sound="off" region', async () => {
+    const el = mount({ id: 'f1', name: 'report.pdf' });
+    el.addEventListener('ui-open', (e) => e.preventDefault());
+    tap(el);
+    el.data = { id: 'f1', name: 'report-v2.pdf' };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount({ id: 'f2', name: 'a.png' });
+    quiet.append(off);
+    tap(off);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

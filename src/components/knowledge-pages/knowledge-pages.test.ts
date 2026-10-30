@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { doc } from './docs';
 import {
   cleanHistory,
@@ -744,6 +745,122 @@ describe('two-press delete', () => {
     el.data = { ...BASE(), pages: PAGES.slice(1) };
     el.renderNow();
     expect(el.dirty).toBe(true);
+  });
+});
+
+// ── sound ──
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy({ typing: true });
+  });
+  afterEach(() => spy.restore());
+  // Fake timers (performance.now too): advancing them plays the queue and starts a fresh gesture.
+  const settle = () => vi.advanceTimersByTime(300);
+  const press = (el: UiKnowledgePages, k: string, detail = 1) => {
+    byKey(el, k)!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+    el.renderNow();
+  };
+
+  it('choosing a page plays select, New a tap; a guarded switch plays when Discard lets it through', () => {
+    const el = mount();
+    press(el, 'row|rollback');
+    settle();
+    press(el, 'new');
+    settle();
+    type(el, 'title', 'Draft page');
+    press(el, 'row|review');
+    settle();
+    press(el, 'guard-discard', 0);
+    settle();
+    expect(spy.calls).toEqual([
+      ['select', { input: 'mouse' }],
+      ['tap', { input: 'mouse' }],
+      ['select', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('Save (the button or ⌘S) plays a tap, Reload a subtle one', () => {
+    const el = mount({ ...BASE(), conflict: 'Someone saved a newer version.' });
+    type(el, 'title', 'Deploy list');
+    press(el, 'save');
+    settle();
+    key(field(el, 'title'), 's', { metaKey: true });
+    settle();
+    press(el, 'reload');
+    settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['tap', { input: 'keyboard' }],
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+    ]);
+  });
+
+  it('Delete: the arming press is a subtle tap, the confirming press a strong close', () => {
+    const el = mount();
+    press(el, 'delete');
+    settle();
+    press(el, 'delete');
+    settle();
+    expect(spy.calls).toEqual([
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'strong', input: 'mouse' }],
+    ]);
+  });
+
+  it('keystrokes that edit the title, aliases or markdown play type', () => {
+    const el = mount();
+    key(field(el, 'title'), 'a');
+    settle();
+    key(field(el, 'aliases'), ' ');
+    settle();
+    key(field<HTMLTextAreaElement>(el, 'current'), 'Enter');
+    settle();
+    key(field(el, 'title'), 'Enter');
+    key(field(el, 'title'), 'ArrowLeft');
+    key(field(el, 'title'), 'Escape');
+    settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'space', input: 'keyboard' }],
+      ['type', { key: 'enter', input: 'keyboard' }],
+    ]);
+  });
+
+  it('cancelled events, a prevented keystroke or data from code play nothing (the arming press still taps)', () => {
+    const el = mount({ ...BASE(), conflict: 'Someone saved a newer version.' });
+    for (const n of ['ui-select', 'ui-new', 'ui-save', 'ui-reload', 'ui-delete']) listen(el, n, true);
+    el.data = { ...BASE(), conflict: 'Someone saved a newer version.', now: NOW + MIN };
+    el.renderNow();
+    press(el, 'row|rollback');
+    press(el, 'new');
+    press(el, 'reload');
+    type(el, 'title', 'Deploy list');
+    press(el, 'save');
+    field(el, 'title').addEventListener('keydown', (e) => e.preventDefault());
+    key(field(el, 'title'), 'a');
+    settle();
+    expect(spy.calls).toEqual([]);
+    press(el, 'delete');
+    settle();
+    press(el, 'delete');
+    settle();
+    expect(spy.calls).toEqual([['tap', { emphasis: 'subtle', input: 'mouse' }]]);
+  });
+
+  it('is silent inside data-ui-sound="off"', () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount();
+    wrap.append(el);
+    el.renderNow();
+    press(el, 'row|rollback');
+    press(el, 'new');
+    key(field(el, 'title'), 'a');
+    settle();
+    expect(spy.calls).toEqual([]);
   });
 });
 

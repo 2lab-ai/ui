@@ -347,7 +347,7 @@ export class UiTabs extends UiElement<TabsData> {
     return this.$$<HTMLElement>('.tb-tab');
   }
 
-  #select(i: number): void {
+  #select(i: number, e: Event): void {
     const d = this.data;
     const tabs = tabItems(d);
     const t = tabs[i];
@@ -355,13 +355,15 @@ export class UiTabs extends UiElement<TabsData> {
     const previous = this.value;
     if (t.id === previous) return;
     const detail: TabsChange = { value: t.id, previous };
-    if (this.emit('ui-change', detail) && this.data && this.data.value === d.value)
-      this.data = { ...this.data, value: t.id };
+    if (!this.emit('ui-change', detail)) return;
+    const from = selectedIndex(tabs, d.value);
+    this.sound('select', { emphasis: 'subtle', direction: i > from ? 'forward' : 'back' }, e);
+    if (this.data && this.data.value === d.value) this.data = { ...this.data, value: t.id };
   }
 
   #onClick(e: Event): void {
     const b = (e.target as Element | null)?.closest?.<HTMLElement>('.tb-tab');
-    if (b) this.#select(Number(b.dataset.i));
+    if (b) this.#select(Number(b.dataset.i), e);
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -382,7 +384,7 @@ export class UiTabs extends UiElement<TabsData> {
     const target = this.#tabs()[next];
     for (const x of this.#tabs()) x.setAttribute('tabindex', x === target ? '0' : '-1');
     target?.focus();
-    if (!this.#manual) this.#select(next);
+    if (!this.#manual) this.#select(next, e);
   }
 }
 

@@ -98,6 +98,10 @@ function page(
     win.dataset.theme = d.theme;
     line.textContent = say('ui-theme-change', d);
   });
+  // The demo's speaker only reports: the site's own speaker (top right) turns sound on for the whole page.
+  bar.addEventListener('ui-sound-change', (e) => {
+    line.textContent = `ui-sound-change → ${(e as CustomEvent<{ sound: boolean }>).detail.sound ? 'on' : 'off'}`;
+  });
   // Start from the theme the page around the demo shows.
   requestAnimationFrame(() => {
     if (!bar.data?.theme) return;
@@ -119,6 +123,7 @@ const WORKBENCH: AppBarData = {
   status: { tone: 'done', label: 'Live', live: true },
   account: { name: 'Mina Park', role: 'Admin', href: '/account' },
   theme: 'light',
+  sound: false,
 };
 
 const STATES: Array<[string, AppBarStatus]> = [
@@ -175,6 +180,12 @@ export const doc: ComponentDoc = {
       type: "'light' | 'dark'",
       description:
         'The page’s current theme. When set, the toggle shows: a sun while dark, a moon while light. Clicking sends ui-theme-change and, unless cancelled, the toggle shows the new theme at once.',
+    },
+    {
+      name: 'data.sound',
+      type: 'boolean',
+      description:
+        'The page’s interface-sound choice (@2lab.ai/ui/sound). When set, a speaker shows right before the theme toggle — pressed while on. Clicking sends ui-sound-change and, unless cancelled, the speaker shows the new choice at once.',
     },
     {
       name: 'data.collapseAt',
@@ -238,6 +249,12 @@ export const doc: ComponentDoc = {
       description:
         'The toggle asks for the other theme. Apply it to the page; preventDefault() keeps the toggle as it was.',
     },
+    {
+      name: 'ui-sound-change',
+      detail: '{ sound: boolean }',
+      description:
+        'The speaker asks to turn interface sound on or off. Keep the choice and call setSound (load @2lab.ai/ui/sound-cuelume and call unlockSound() when it turns on); preventDefault() keeps the speaker as it was.',
+    },
   ],
   keyboard: [
     ['Tab', 'Brand, links, actions, account, theme toggle, Menu (when folded)'],
@@ -257,6 +274,7 @@ export const doc: ComponentDoc = {
     'The theme toggle names the action (“Switch to dark theme”), not the state.',
     'Focus ring 2px; 44px targets on coarse pointers; press scales to .97; hover changes colour only, on fine pointers.',
     'Reduced motion stills the live pulse; reduced transparency (or no backdrop-filter support) makes the bar opaque.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a link, the brand, the account or a folded-menu row plays navigate — also when the host cancels ui-navigate to route on the client; the theme toggle plays toggle (forward to dark, back to light); the speaker (data.sound) is where the person turns sound on and off, beside the theme switch. Silent until the page turns sound on.',
   ],
   usage: `<header>
   <ui-app-bar lang="en">
@@ -265,6 +283,7 @@ export const doc: ComponentDoc = {
 </header>
 <script type="module">
   import '@2lab.ai/ui/app-bar';
+  import { setSound } from '@2lab.ai/ui/sound';
   const bar = document.querySelector('ui-app-bar');
   bar.data = {
     brand: { label: 'Workbench', href: '/', mark: true },
@@ -275,6 +294,7 @@ export const doc: ComponentDoc = {
     status: { tone: 'run', label: 'Connecting…', live: true },
     account: { name: 'Mina Park', role: 'Admin', href: '/account' },
     theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+    sound: localStorage.getItem('sound') === 'on',
   };
   // Client-side routing: take the link over.
   bar.addEventListener('ui-navigate', (e) => {
@@ -284,6 +304,14 @@ export const doc: ComponentDoc = {
   // The host owns the page theme.
   bar.addEventListener('ui-theme-change', (e) => {
     document.documentElement.dataset.theme = e.detail.theme;
+  });
+  // …and the interface-sound choice (off until the person turns it on).
+  bar.addEventListener('ui-sound-change', async (e) => {
+    localStorage.setItem('sound', e.detail.sound ? 'on' : 'off');
+    if (!e.detail.sound) return setSound({ enabled: false });
+    const { cuelumeSound, unlockSound } = await import('@2lab.ai/ui/sound-cuelume');
+    setSound({ player: cuelumeSound, enabled: true });
+    unlockSound();
   });
   socket.addEventListener('open', () => {
     bar.data = { ...bar.data, status: { tone: 'done', label: 'Live', live: true } };

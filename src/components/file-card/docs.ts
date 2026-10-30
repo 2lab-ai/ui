@@ -131,6 +131,7 @@ export const doc: ComponentDoc = {
     'Kind is never colour alone: the glyph and the extension tag carry it, the wash only tints.',
     'Every string is escaped; image sources pass safeSrc (no javascript:, no data:text/html).',
     'Focus ring 2px; chips grow to 44px on coarse pointers; press scales to .97; hover changes the border only, on fine pointers.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a tap when the person opens the file (unless ui-open is cancelled). Silent until the page turns sound on.',
   ],
   usage: `<ui-file-card id="f"></ui-file-card>
 <ui-file-card variant="row" id="g"></ui-file-card>

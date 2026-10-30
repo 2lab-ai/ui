@@ -2,6 +2,7 @@ import { define, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
+import { typedKey } from '../../sound/sound';
 import { styles } from './styles';
 
 export type EpisodeLang = 'en' | 'ko';
@@ -493,11 +494,15 @@ export class UiEpisodeLog extends UiElement<EpisodeLogData> {
     const sel = e.target as HTMLSelectElement;
     if (sel.dataset?.act !== 'filter') return;
     const date = sel.value || null;
+    const was = this.#filter !== undefined ? this.#filter : (this.data?.date ?? null);
     if (!this.emit<EpisodeDateDetail>('ui-date', { date })) {
       // The host keeps the filter: put the picker back.
       this.requestRender();
       return;
     }
+    // A later day is forward, an earlier one (or All days) back. No event: a select's change tells nothing of
+    // what picked it.
+    this.sound('navigate', { emphasis: 'subtle', direction: (date ?? '') > (was ?? '') ? 'forward' : 'back' });
     this.#filter = date;
     this.requestRender();
   }
@@ -512,15 +517,18 @@ export class UiEpisodeLog extends UiElement<EpisodeLogData> {
         this.#cancelEdit();
       } else if (e.key === 'Enter' && mod) {
         e.preventDefault();
-        this.#save();
+        this.#save(e);
       }
     } else if (el.dataset?.key === 'note' && e.key === 'Enter' && mod) {
       e.preventDefault();
-      this.#add();
+      this.#add(e);
     } else if (e.key === 'Escape' && this.#armed) {
       e.preventDefault();
       this.#disarm();
     }
+    const box = el.dataset?.key === 'note' || el.dataset?.key === 'edit';
+    const typed = box && !e.defaultPrevented ? typedKey(e, el) : undefined;
+    if (typed) this.sound('type', { key: typed }, e);
   }
 
   #onClick(e: Event): void {
@@ -528,8 +536,8 @@ export class UiEpisodeLog extends UiElement<EpisodeLogData> {
     if (!btn || btn.hasAttribute('disabled') || btn.localName === 'select') return;
     const act = btn.dataset.act;
     if (act === 'add' || act === 'save' || act === 'cancel') {
-      if (act === 'add') this.#add();
-      else if (act === 'save') this.#save();
+      if (act === 'add') this.#add(e);
+      else if (act === 'save') this.#save(e);
       else this.#cancelEdit();
       return;
     }
@@ -563,18 +571,20 @@ export class UiEpisodeLog extends UiElement<EpisodeLogData> {
         clearTimeout(this.#armTimer);
         this.#armed = key;
         this.#armTimer = setTimeout(() => this.#disarm(), EPISODE_ARM_MS);
+        this.sound('tap', { emphasis: 'subtle' }, e);
         this.renderNow();
         return;
       }
       clearTimeout(this.#armTimer);
       this.#armed = null;
-      this.emit<EpisodeDeleteDetail>('ui-delete', {
+      const ok = this.emit<EpisodeDeleteDetail>('ui-delete', {
         date,
         index: i,
         id: hit.entry.id,
         text: hit.entry.text,
         revision: hit.day.revision,
       });
+      if (ok) this.sound('close', { emphasis: 'strong' }, e);
       this.renderNow();
     }
   }
@@ -589,7 +599,7 @@ export class UiEpisodeLog extends UiElement<EpisodeLogData> {
       ?.focus();
   }
 
-  #save(): void {
+  #save(e: Event): void {
     const ed = this.#editor;
     if (!ed || ed.saving || this.data?.busy) return;
     if (!ed.draft.trim() || ed.draft === ed.original) return;
@@ -603,15 +613,17 @@ export class UiEpisodeLog extends UiElement<EpisodeLogData> {
       revision: hit?.day.revision,
     });
     if (!ok) return;
+    this.sound('tap', undefined, e);
     ed.saving = true;
     this.#notice = '';
     this.renderNow();
   }
 
-  #add(): void {
+  #add(e: Event): void {
     const text = this.#note;
     if (!text.trim() || this.data?.busy || this.#notePending) return;
     if (!this.emit<EpisodeAddDetail>('ui-add', { text })) return;
+    this.sound('tap', undefined, e);
     this.#notePending = text;
     this.#notice = '';
     this.renderNow();

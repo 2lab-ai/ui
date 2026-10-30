@@ -110,7 +110,21 @@ if (!icon('gear').startsWith('<svg') || !kitCss.includes('.ui-btn')) {
   console.error('register: @2lab.ai/ui/icons or @2lab.ai/ui/kit did not load');
   process.exit(1);
 }
+// Sound: silent and harmless without Web Audio (happy-dom has none) — setSound + a cue + bindSound never throw, and
+// the root and the subpath share one page-wide setting.
+const sound = await import('@2lab.ai/ui/sound');
+const { cuelumeSound, unlockSound } = await import('@2lab.ai/ui/sound-cuelume');
+const root = await import('@2lab.ai/ui');
+sound.setSound({ player: cuelumeSound, enabled: true });
+root.playSound('tap');
+const unbind = sound.bindSound(document);
+unbind();
+const unlocked = await unlockSound();
+if (!root.soundSettings().enabled || root.soundSettings().player !== cuelumeSound || unlocked !== false) {
+  console.error('register: @2lab.ai/ui/sound did not share its setting with the root, or unlock claimed audio');
+  process.exit(1);
+}
 const tags = new Set([...slugs.map((s) => `ui-${s}`), ...Object.values(extra).flat()]).size;
 console.log(
-  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window>, <ui-compact-breakdown>, <ui-agent-tree> and <ui-file-card> rendered; icons and kit load`,
+  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window>, <ui-compact-breakdown>, <ui-agent-tree> and <ui-file-card> rendered; icons, kit and sound load`,
 );

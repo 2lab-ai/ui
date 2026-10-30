@@ -198,6 +198,7 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
     this.#open[id] = open;
     this.renderNow();
     this.notify<TaskPlanToggle>('ui-toggle', { id, open });
+    this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
   }
 
   // ── Render cycle ──────────────────────────────────────────────────────────

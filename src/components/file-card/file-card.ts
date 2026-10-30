@@ -27,7 +27,7 @@ export class UiFileCard extends UiElement<FileItem> {
     this.root.addEventListener('click', (e) => {
       if (!(e.target as Element | null)?.closest?.('.fc')) return;
       const d = this.data;
-      if (d) this.emit<FileOpenDetail>('ui-open', { id: String(d.id ?? '') });
+      if (d && this.emit<FileOpenDetail>('ui-open', { id: String(d.id ?? '') })) this.sound('tap', undefined, e);
     });
     // `error` does not bubble: catch it on the way down.
     this.root.addEventListener(

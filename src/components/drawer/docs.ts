@@ -207,6 +207,7 @@ export const doc: ComponentDoc = {
     'The resize handle is role="separator" (aria-orientation vertical) with aria-valuenow / min / max, focusable, named “Resize panel” / “패널 크기 조절”.',
     'A mode switch while open keeps focus (and the caret) where it was and puts every scroll place in the panel back.',
     'Reduced motion: nothing slides — the panel and scrim fade in 120ms.',
+    'Sound (opt-in, @2lab.ai/ui/sound): Escape, the scrim or the close button plays close unless ui-close is cancelled; show() / hide() / toggle() / open play open / close only inside a click or key press (never from a timer, never when it starts open). A mode switch and resizing are silent. Silent until the page turns sound on.',
   ],
   usage: `<button id="open-detail">Open detail</button>
 <ui-drawer id="detail" heading="T-1842 · Fix the flaky upload test" resizable

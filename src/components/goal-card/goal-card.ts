@@ -3,6 +3,7 @@ import { clamp, fmtAgo } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
+import { typedKey } from '../../sound/sound';
 import { styles } from './styles';
 
 /** Known words: active · paused · complete · failed · cancelled (aliases: running, completed, done, error, canceled). */
@@ -729,7 +730,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     if (h > 0) ta.style.height = `${Math.min(h + (ta.offsetHeight - ta.clientHeight), GROW_MAX)}px`;
   }
 
-  #add(): void {
+  #add(e: Event): void {
     const d = this.data;
     if (!d || !this.#edit() || d.busy) return;
     const ta = this.#input();
@@ -743,6 +744,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     if (wasArmed) this.requestRender();
     const detail: GoalAddDetail = { objective };
     if (!this.emit('ui-add', detail)) return;
+    this.sound('tap', undefined, e);
     this.#draft = '';
     if (ta) ta.value = '';
     this.#paintDraft();
@@ -779,12 +781,12 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     const id = b.dataset.id ?? '';
     switch (act) {
       case 'add':
-        this.#add();
+        this.#add(e);
         break;
       case 'complete':
       case 'delete':
       case 'remove':
-        this.#press(act, id);
+        this.#press(act, id, e);
         break;
       case 'pause':
       case 'resume': {
@@ -792,7 +794,8 @@ export class UiGoalCard extends UiElement<GoalCardData> {
         this.#disarm(false);
         if (was) this.requestRender();
         const detail: GoalIdDetail = { id };
-        this.emit(`ui-${act}`, detail);
+        if (this.emit(`ui-${act}`, detail))
+          this.sound('toggle', { direction: act === 'resume' ? 'forward' : 'back' }, e);
         break;
       }
     }
@@ -803,9 +806,13 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     if (!el) return;
     if (el.classList?.contains('gc-input')) {
       // Never while an IME is composing: Korean input commits its syllable with Enter.
-      if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+      if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) {
+        const key = typedKey(e, el);
+        if (key) this.sound('type', { key }, e);
+        return;
+      }
       e.preventDefault();
-      this.#add();
+      this.#add(e);
       return;
     }
     // A held Enter repeats the click: on an armed button that would confirm on its own.
@@ -830,8 +837,11 @@ export class UiGoalCard extends UiElement<GoalCardData> {
 
   // ── Two-press ──
 
-  /** First press arms (the button asks “Delete?”), a second within 4 s confirms; Esc, blur or the timeout disarm. */
-  #press(act: Armed['act'], id: string): void {
+  /**
+   * First press arms (the button asks “Delete?”), a second within 4 s confirms; Esc, blur or the timeout disarm.
+   * Arming taps subtly; a confirmed Complete taps, a confirmed delete or remove plays a strong close.
+   */
+  #press(act: Armed['act'], id: string, e: Event): void {
     const a = this.#armed;
     const now = Date.now();
     if (a && a.act === act && a.id === id) {
@@ -841,10 +851,10 @@ export class UiGoalCard extends UiElement<GoalCardData> {
         this.#disarm(false);
         if (act === 'complete') {
           const detail: GoalIdDetail = { id };
-          this.emit('ui-complete', detail);
+          if (this.emit('ui-complete', detail)) this.sound('tap', undefined, e);
         } else {
           const detail: GoalDeleteDetail = { id, queued: act === 'remove' };
-          this.emit('ui-delete', detail);
+          if (this.emit('ui-delete', detail)) this.sound('close', { emphasis: 'strong' }, e);
         }
         this.requestRender();
         return;
@@ -854,6 +864,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     this.#armedAt = now;
     clearTimeout(this.#armTimer);
     this.#armTimer = window.setTimeout(() => this.#disarm(), GOAL_ARM_MS);
+    this.sound('tap', { emphasis: 'subtle' }, e);
     this.requestRender();
   }
 

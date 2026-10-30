@@ -1,7 +1,9 @@
 /**
  * @2lab.ai/ui — agent UI Web Components. Importing this module registers every element.
  * Import a single component with `@2lab.ai/ui/<slug>` to register only that one; the icon set is
- * `@2lab.ai/ui/icons`, the light-DOM CSS kit `@2lab.ai/ui/ui-kit.css` (or `kitCss` from `@2lab.ai/ui/kit`).
+ * `@2lab.ai/ui/icons`, the light-DOM CSS kit `@2lab.ai/ui/ui-kit.css` (or `kitCss` from `@2lab.ai/ui/kit`). Interface
+ * sounds: the policy (`setSound`, `bindSound` …) is exported here and from `@2lab.ai/ui/sound`; the Cuelume player is
+ * `@2lab.ai/ui/sound-cuelume` (import it only when the user turns sound on).
  */
 export * from './components/agent-inbox';
 export * from './components/agent-queue';
@@ -57,3 +59,4 @@ export { parsePlacement, placePopover } from './core/popover';
 export { baseCss, DARK, LIGHT, SHARED, tokensCss } from './core/tokens';
 export * from './icons';
 export * from './kit';
+export * from './sound';

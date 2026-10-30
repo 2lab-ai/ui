@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiLogScroller } from '../log-scroller/log-scroller';
 import { doc } from './docs';
 import {
@@ -871,5 +872,82 @@ describe('docs', () => {
     run.renderNow();
     expect(run.shadowRoot!.querySelector('img')).toBeNull();
     expect(q(run, '.wl-agent[data-status="running"]')).not.toBeNull();
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (n: Element | null | undefined, detail = 1) =>
+    (n as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail }));
+  const head = (el: UiWorkLog, g: string) => q(el, `.wl-group[data-item="${g}"] .wl-gh`);
+  const row = (el: UiWorkLog, id: string) => entry(el, id)?.querySelector('.wl-row');
+
+  it('groups and rows: open / close by click or key', async () => {
+    const el = mount({ groups: groups() });
+    tap(head(el, 'g1'));
+    await spy.settle();
+    press(head(el, 'g2')!, 'ArrowLeft');
+    await spy.settle();
+    tap(row(el, 'e6'));
+    await spy.settle();
+    press(key(el, 'e:e6'), 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('a copy that lands → success; Retry → tap; Open on a child agent → navigate', async () => {
+    const write = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: write }, configurable: true });
+    const el = mount({ groups: groups() });
+    tap(row(el, 'e6'));
+    tap(row(el, 'e8'));
+    await spy.settle();
+    spy.calls.length = 0;
+    tap(entry(el, 'e6')?.querySelector('.raw-copy'));
+    await spy.settle();
+    tap(entry(el, 'e8')?.querySelector('.raw-retry'), 0);
+    await spy.settle();
+    tap(q(el, '.wl-agent'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['success', { emphasis: 'subtle', input: 'mouse' }],
+      ['tap', { input: 'keyboard' }],
+      ['navigate', { input: 'mouse' }],
+    ]);
+  });
+
+  it('nothing for a prevented event, data the app sets, or a data-ui-sound="off" region', async () => {
+    const data = groups();
+    const el = mount({ groups: data });
+    tap(row(el, 'e8'));
+    await spy.settle();
+    spy.calls.length = 0;
+    for (const n of ['ui-toggle', 'ui-retry', 'ui-open']) el.addEventListener(n, (e) => e.preventDefault());
+    tap(head(el, 'g1'));
+    tap(row(el, 'e6'));
+    tap(entry(el, 'e8')?.querySelector('.raw-retry'));
+    tap(q(el, '.wl-agent'));
+    data[0].open = true;
+    el.data = { groups: data };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount({ groups: groups() });
+    quiet.append(off);
+    tap(head(off, 'g1'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

@@ -693,6 +693,7 @@ export const doc: ComponentDoc = {
     'The progress row is role="progressbar" with aria-valuenow and a spoken aria-valuetext (“1:12 / ~2:30, 48%”); the bar itself is decoration.',
     'Status is never colour alone: errors carry an icon and words, system kinds an icon and a word. Focus survives a turn’s rebuild.',
     'Reduced motion: no press scale, no slide; regions fade only; the over-run sweep becomes a still bar.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again; loading older turns stays silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-conversation style="height: 560px"></ui-conversation>
 <script type="module">

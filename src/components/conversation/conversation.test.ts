@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiAiAnswer } from '../ai-answer/ai-answer';
 import type { UiLogScroller } from '../log-scroller/log-scroller';
 import { CONVERSATION_COPIED_MS, type UiConversation } from './conversation';
@@ -777,5 +778,60 @@ describe('docs', () => {
     live.renderNow();
     expect(keys(live)).toContain('a-23');
     vi.clearAllTimers();
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (n: Element | null | undefined, detail = 1) =>
+    (n as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail }));
+
+  it('Try again → tap; a Raw copy that lands → success; a nested answer sounds once, from the answer', async () => {
+    vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    const el = mount({
+      turns: [
+        { ...BOT, source: 'raw' },
+        { id: 'a9', role: 'assistant', error: 'x', canRetry: true },
+      ],
+      error: 'HTTP 500',
+    });
+    press(q(el, '.cv-errbar [data-act="retry"]'), 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([['tap', { input: 'keyboard' }]]);
+    const a = node(el, 'a1');
+    click(a.querySelector('[data-act="raw"]'));
+    press(a.querySelector('.raw-copy'));
+    await spy.settle();
+    expect(spy.calls.at(-1)).toEqual(['success', { emphasis: 'subtle', input: 'mouse' }]);
+    const ans = answerOf(el, 'a9');
+    ans.renderNow();
+    press(ans.shadowRoot?.querySelector('.ans-retry'));
+    await spy.settle();
+    expect(spy.calls.slice(2)).toEqual([['tap', { input: 'mouse' }]]);
+  });
+
+  it('nothing for a prevented retry, data the app sets, or a data-ui-sound="off" region', async () => {
+    const el = mount({ turns: [{ id: 'a9', role: 'assistant', error: 'x', canRetry: true }], error: 'HTTP 500' });
+    el.addEventListener('ui-retry', (e) => e.preventDefault());
+    press(q(el, '.cv-errbar [data-act="retry"]'));
+    const ans = answerOf(el, 'a9');
+    ans.renderNow();
+    press(ans.shadowRoot?.querySelector('.ans-retry'));
+    el.data = { turns: [USER, BOT, SYS], hasMore: true };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount({ turns: [USER], error: 'HTTP 500' });
+    quiet.append(off);
+    press(q(off, '.cv-errbar [data-act="retry"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

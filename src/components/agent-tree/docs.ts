@@ -560,6 +560,7 @@ export const doc: ComponentDoc = {
     'A polite live region outside the re-rendered markup says the counts (agents, running, needs you, failed) when they change — not every cent.',
     'Focus survives live updates (the markup is morphed, items keyed by id); an agent that left or was folded away hands focus to its nearest ancestor on screen.',
     'Touch: compact rows are 44px tall and the fold targets reach 44px on coarse pointers. Reduced motion: no spinner, shimmer or rise.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person folds or unfolds a branch (not for reveal()), a select when a pick moves the selection. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-tree></ui-agent-tree>
 <script type="module">

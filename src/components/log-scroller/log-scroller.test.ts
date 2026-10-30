@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import './log-scroller';
 import { type LogScrollerData, logAtBottom, logJumpText, logPageDue, type UiLogScroller } from './log-scroller';
 
@@ -361,5 +362,56 @@ describe('<ui-log-scroller>', () => {
     el.prependItems([], { hasMore: false });
     expect(q(el, '.ls-start')?.textContent).toBe('기록의 시작');
     expect(q(el, '.ls-vp')?.getAttribute('aria-label')).toBe('기록');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (t: EventTarget, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+
+  it('the “latest” pill plays a subtle navigate', async () => {
+    const { el, vp } = mount();
+    el.appendItems(rows(el, 0, 20));
+    scrollTo(vp, 0);
+    el.appendItems(rows(el, 20, 3));
+    tap(q(el, '.ls-jump')!, 0);
+    await spy.settle();
+    expect(el.pinned).toBe(true);
+    expect(spy.calls).toEqual([['navigate', { emphasis: 'subtle', input: 'keyboard' }]]);
+  });
+
+  it('silent for scrolling, loading older items, new items, and the host’s scrollToLatest()', async () => {
+    const { el, vp } = mount({ hasMore: true });
+    el.appendItems(rows(el, 0, 20));
+    scrollTo(vp, 0);
+    el.appendItems(rows(el, 20, 3));
+    tap(q(el, '.ls-older')!);
+    el.prependItems(rows(el, -5, 5), { hasMore: false });
+    el.data = { hasMore: false };
+    el.renderNow();
+    el.scrollToLatest();
+    tap(q(el, '.ls-jump')!); // already at the newest: nothing to jump to
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('a quiet region silences the pill', async () => {
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const { el, vp } = mount();
+    quiet.append(el);
+    el.appendItems(rows(el, 0, 20));
+    scrollTo(vp, 0);
+    expect(el.pinned).toBe(false);
+    tap(q(el, '.ls-jump')!);
+    expect(el.pinned).toBe(true);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

@@ -289,7 +289,8 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
     if (opener) {
       const id = opener.closest<HTMLElement>('.tr-run')?.dataset.id;
       if (id === undefined) return;
-      if (!this.emit<TaskRunOpen>('ui-open', { id })) e.preventDefault();
+      if (this.emit<TaskRunOpen>('ui-open', { id })) this.sound('navigate', undefined, e);
+      else e.preventDefault();
       return;
     }
     const row = target?.closest?.('.tr-row') as HTMLElement | null;
@@ -301,6 +302,7 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
     this.#current = id;
     this.renderNow();
     this.notify<TaskRunToggle>('ui-toggle', { id, open });
+    this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
   }
 
   /** Up/Down move between rows (wrapping), Home/End to the first / last; Enter and Space are the button's own. */
