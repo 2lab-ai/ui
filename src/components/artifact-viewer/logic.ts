@@ -59,9 +59,19 @@ export const PEEK_DELAY_MS = 350;
 export const PEEK_GRACE_MS = 200;
 /** Moving between tiles while a peek is open swaps it quickly. */
 export const PEEK_WARM_MS = 90;
-/** The peek draws a document's head only; the viewer stops at this many characters. */
+/** The peek draws a document’s head only. */
 const PEEK_CHARS = 4000;
+/** Plain text stops here (escaping is linear, but a viewer is not a pager). */
 const VIEW_CHARS = 1_000_000;
+/** A markdown document longer than this is shown as plain text (escaping is linear; marking up is not free). */
+export const MARKDOWN_VIEW_CHARS = 256_000;
+
+/** The last markdown body built, so re-syncing the open viewer with the same document never re-renders it. */
+let mdMemo: { text: string; html: string } | undefined;
+function markdownBody(text: string): string {
+  if (mdMemo?.text !== text) mdMemo = { text, html: markdownHtml(text) };
+  return mdMemo.html;
+}
 
 /** The first `lines` lines of a text (the peek's code / text preview). */
 export function textHead(text: unknown, lines = 24): string {
@@ -197,7 +207,8 @@ export function viewerBodyKind(item: FileItem, broken: ReadonlySet<string> = new
   const kind = fileItemKind(item);
   const src = mediaSrc(item);
   if (kind === 'image') return src && !broken.has(src) ? 'image' : 'fallback';
-  if (kind === 'markdown') return hasText(item) ? 'markdown' : 'fallback';
+  if (kind === 'markdown')
+    return hasText(item) ? (String(item.text).length > MARKDOWN_VIEW_CHARS ? 'text' : 'markdown') : 'fallback';
   if (kind === 'html') return frameAttrs(item) ? 'html' : 'fallback';
   if (kind === 'audio') return src ? 'audio' : 'fallback';
   if (kind === 'video') return src ? 'video' : 'fallback';
@@ -218,7 +229,7 @@ export function viewerBodyHtml(item: FileItem, o: ViewerBodyOptions): string {
         src,
       )}" alt="${escAttr(name)}" decoding="async" draggable="false"></div></div>`;
     case 'markdown':
-      return `<div class="av-body av-doc"><div class="md-doc">${markdownHtml(String(item.text).slice(0, VIEW_CHARS))}</div></div>`;
+      return `<div class="av-body av-doc"><div class="md-doc">${markdownBody(String(item.text))}</div></div>`;
     case 'text':
       return `<div class="av-body av-text"><pre class="av-pre"><code>${esc(String(item.text).slice(0, VIEW_CHARS))}</code></pre></div>`;
     case 'html':

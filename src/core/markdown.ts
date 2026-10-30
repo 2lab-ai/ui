@@ -1,7 +1,7 @@
 import { esc, escAttr, safeHref } from './html';
 
 /**
- * Safe markdown → HTML: the soma-work dashboard's `renderMarkdownDoc`, shared by `<ui-ai-answer>` (answers) and
+ * Safe markdown → HTML (ported from a dashboard renderer), shared by `<ui-ai-answer>` (answers) and
  * `<ui-artifact-viewer>` (markdown documents). Everything is escaped before it is marked up; raw HTML never
  * survives; only http(s) targets become links. Style the output with `mdDocCss` on a `.md-doc` container.
  */
@@ -52,7 +52,7 @@ function mdInline(s: string, link: LinkRenderer): string {
     });
   t = esc(t);
   // Links become placeholders so emphasis never reaches into an href.
-  t = t.replace(/!?\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, href: string) => {
+  t = t.replace(/!?\[([^\]\n]{1,512})\]\(([^)\s]{1,2048})\)/g, (_m, label: string, href: string) => {
     const url = restoreRaw(unescHtml(href));
     if (!HTTP.test(url)) return label;
     links.push(link(url, restoreCodes(marks(label))));
@@ -63,11 +63,19 @@ function mdInline(s: string, link: LinkRenderer): string {
   return restoreCodes(t);
 }
 
+/** Quotes nest this deep; anything deeper stays inside the last level as text (bounds the recursion). */
+export const MAX_QUOTE_DEPTH = 16;
+
 /**
- * Markdown as a document — the dashboard’s `renderMarkdownDoc`: headings, paragraphs, nested lists, tables,
- * fenced code, quotes, rules. Everything is escaped before it is marked up; only http(s) links are links.
+ * Markdown as a document: headings, paragraphs, nested lists, tables, fenced code, quotes, rules. Everything is
+ * escaped before it is marked up; only http(s) links are links. Linear in the input: link labels and targets are
+ * length-bounded and quotes stop nesting at {@link MAX_QUOTE_DEPTH}.
  */
 export function markdownHtml(src: string, link: LinkRenderer = plainLink): string {
+  return docHtml(src, link, 0);
+}
+
+function docHtml(src: string, link: LinkRenderer, depth: number): string {
   const lines = String(src ?? '')
     .replace(/\r\n?/g, '\n')
     .split('\n');
@@ -126,10 +134,15 @@ export function markdownHtml(src: string, link: LinkRenderer = plainLink): strin
       flush();
       const quote: string[] = [];
       while (i < lines.length && /^\s{0,3}>/.test(lines[i])) {
-        quote.push(lines[i].replace(/^\s{0,3}>\s?/, ''));
+        // At the depth limit the markers stay as text instead of opening another level.
+        quote.push(depth + 1 >= MAX_QUOTE_DEPTH ? lines[i] : lines[i].replace(/^\s{0,3}>\s?/, ''));
         i++;
       }
-      out.push(`<blockquote>${markdownHtml(quote.join('\n'), link)}</blockquote>`);
+      out.push(
+        depth + 1 >= MAX_QUOTE_DEPTH
+          ? `<blockquote><p>${quote.map((q) => mdInline(q, link)).join('<br>')}</p></blockquote>`
+          : `<blockquote>${docHtml(quote.join('\n'), link, depth + 1)}</blockquote>`,
+      );
       continue;
     }
     if (

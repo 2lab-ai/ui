@@ -13,6 +13,7 @@ import {
   actionUrl,
   artifactItems,
   artifactLayout,
+  MARKDOWN_VIEW_CHARS,
   mediaSrc,
   PEEK_DELAY_MS,
   PEEK_GRACE_MS,
@@ -176,6 +177,13 @@ describe('helpers', () => {
     expect(viewerActions(it, { openInTab: false })).toEqual(['download']);
     expect(viewerActions({ id: '1', name: 'a.pdf' })).toEqual([]);
     expect(viewerActions({ id: '1', name: 'a.pdf', url: 'javascript:alert(1)' })).toEqual([]);
+  });
+
+  it('a markdown document past MARKDOWN_VIEW_CHARS is shown as plain text, not marked up', () => {
+    const big: FileItem = { id: 'big', name: 'big.md', text: `# t\n${'x'.repeat(MARKDOWN_VIEW_CHARS)}` };
+    const small: FileItem = { id: 'small', name: 'small.md', text: '# t' };
+    expect(viewerBodyKind(big)).toBe('text');
+    expect(viewerBodyKind(small)).toBe('markdown');
   });
 
   it('viewerBodyKind picks the body from the kind and the content it carries', () => {
