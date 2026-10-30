@@ -31,6 +31,8 @@ export const baseCss = `
 :host([theme="dark"]) { ${hostVars(DARK)} color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :host(:not([theme="light"])) { ${hostVars(DARK)} color-scheme: dark; } }
 :host([hidden]) { display: none; }
+/* Korean breaks between words, never inside them; long unbroken strings still wrap where an element says overflow-wrap. */
+:host([lang="ko"]), :host(:lang(ko)) { word-break: keep-all; }
 *, *::before, *::after { box-sizing: border-box; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }

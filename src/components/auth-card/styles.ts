@@ -82,14 +82,20 @@ code { padding: 1px 5px; border-radius: 5px; background: var(--ib-pill); box-sha
 .ac-session .ac-label-sm { margin: 0; }
 .ac-session .ac-name { font-size: 14px; }
 .ac-session .ac-arrow { flex: none; color: var(--ib-muted); }
-.ac-actions { display: flex; gap: 10px; }
-.ac-actions .ac-btn { flex: 1 1 0; min-width: 0; margin: 0; }
+/* Cancel · Continue as …: the primary grows and its label wraps; when the pair cannot share the row the primary takes
+   a row of its own, above Cancel (wrap-reverse), so a long name never cuts off */
+.ac-actions { display: flex; flex-wrap: wrap-reverse; gap: 10px; }
+.ac-actions .ac-btn { flex: 1 1 auto; min-width: 0; margin: 0; padding: 10px 16px; }
+.ac-actions .ac-btn.is-primary { flex: 2 1 auto; white-space: normal; }
+.ac-actions .ac-btn.is-primary .ac-label { overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .ac-actions form { display: contents; }
 
 .ac-fine { max-width: var(--ac-width); margin: 0; font-size: 12px; line-height: 1.5; text-align: center; color: var(--ib-muted);
   overflow-wrap: anywhere; }
 .ac-fine:empty { display: none; }
 .ac-fine a, .ac-hint a, .ac-text a { color: var(--accent); text-decoration: none; }
+/* Korean prose breaks between words, never inside them (the base sheet sets it for the whole card; named here too) */
+:host([lang="ko"]) :is(.ac-title, .ac-text, .ac-hint, .ac-fine, .ac-error, .ac-label) { word-break: keep-all; }
 ::slotted([slot="fine-print"]) { margin: 0; }
 
 :is(.ac-btn, .ac-brand, a):focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }

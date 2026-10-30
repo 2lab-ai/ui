@@ -1,10 +1,13 @@
 import { playSound, type SoundCue, type SoundOptions, soundInput } from '../sound/sound';
+import { morphInto } from './morph';
 import { baseCss } from './tokens';
 
 /**
  * Base class for every @2lab.ai/ui component.
  *
- * - Open shadow root with `baseCss` + the subclass's `static styles`.
+ * - Open shadow root with `baseCss` + the subclass's `static styles`. A declarative shadow root the parser already
+ *   attached (server-rendered markup such as `authCardHtml`) is adopted as it is — its `<style>` and `.ui-root` stay —
+ *   and the first render patches it in place instead of replacing it, so nothing enters twice.
  * - Data in, events out: set `el.data = {...}` (or the component's own properties) → one batched render;
  *   user intent leaves as a bubbling, composed `CustomEvent` (`ui-*`) that the host app handles.
  * - `render()` returns an HTML string; every dynamic value must go through `esc` / `escAttr` / `safeHref`.
@@ -16,20 +19,40 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
 
   protected readonly root: ShadowRoot;
   protected readonly content: HTMLElement;
+  /** The shadow root came from the parser (a declarative shadow root): the element hydrates what is already drawn. */
+  protected readonly declarative: boolean;
   #data: D | undefined;
   #queued = false;
   #gen = 0;
+  #hydrate = false;
 
   constructor() {
     super();
-    this.root = this.attachShadow({ mode: 'open' });
     const ctor = this.constructor as typeof UiElement;
-    const style = document.createElement('style');
-    style.textContent = [baseCss, ...ctor.styles].join('\n');
-    this.content = document.createElement('div');
-    this.content.setAttribute('part', 'root');
-    this.content.className = 'ui-root';
-    this.root.append(style, this.content);
+    const css = [baseCss, ...ctor.styles].join('\n');
+    // `attachShadow` on a declarative root would empty it: read the root the parser made first and keep its nodes.
+    const declared = this.shadowRoot;
+    this.declarative = !!declared;
+    this.root = declared ?? this.attachShadow({ mode: 'open' });
+    const kids = Array.from(this.root.children);
+    let style = kids.find((c): c is HTMLStyleElement => c.localName === 'style');
+    if (!style) {
+      style = document.createElement('style');
+      this.root.prepend(style);
+    }
+    if (style.textContent !== css) style.textContent = css;
+    let content = kids.find(
+      (c): c is HTMLElement => c.classList.contains('ui-root') || c.getAttribute('part') === 'root',
+    );
+    if (!content) {
+      content = document.createElement('div');
+      this.root.append(content);
+    }
+    content.setAttribute('part', 'root');
+    content.className = 'ui-root';
+    this.content = content;
+    // Server-drawn content is hydrated by the first render: its nodes stay where the fresh markup matches.
+    this.#hydrate = !!declared && content.childNodes.length > 0;
   }
 
   get data(): D | undefined {
@@ -76,7 +99,11 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
 
   protected update(): void {
     const focus = this.#focusState();
-    this.content.innerHTML = this.render();
+    if (this.#hydrate) {
+      // The first render over server-drawn nodes: patch, so a card that is already on screen does not enter again.
+      this.#hydrate = false;
+      morphInto(this.content, this.render());
+    } else this.content.innerHTML = this.render();
     // After updated(): a subclass may unhide or move what was focused there (a display:none element takes no focus).
     this.updated();
     if (!focus) return;

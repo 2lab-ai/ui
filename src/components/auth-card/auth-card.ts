@@ -1,4 +1,5 @@
 import { define, UiElement } from '../../core/element';
+import { morphInto } from '../../core/morph';
 import {
   type AuthCardData,
   type AuthConfirmDetail,
@@ -90,6 +91,16 @@ export class UiAuthCard extends UiElement<AuthCardData> {
   protected render(): string {
     this.#busy = false;
     return authCardMarkup(this.data, this.getAttribute('lang'));
+  }
+
+  /**
+   * Patch the live card instead of replacing it: the `.ac-card` node (and its entrance animation) survives a
+   * re-render — new data after the upgrade, an error line arriving, a language switch — so the card never fades in
+   * twice; a server-drawn card (declarative shadow root) is hydrated the same way.
+   */
+  protected override update(): void {
+    morphInto(this.content, this.render());
+    this.updated();
   }
 
   /** Mark one control busy and the rest unavailable — in place, so a link's navigation is never disturbed. */
