@@ -91,7 +91,7 @@ export const doc: ComponentDoc = {
   slug: 'log-scroller',
   name: 'Log Scroller',
   tag: 'ui-log-scroller',
-  group: 'Components',
+  group: 'Primitives',
   summary: 'Where am I in a growing stream? — it follows the newest line, and never moves what you are reading.',
   description:
     'A scroll box for newest-at-bottom streams: chat turns, activity logs, build output. While you are at the bottom it follows each new item; scroll up and it stops following, keeps the rows you read exactly where they are, and offers a quiet “3 new” pill to jump back. Near the top it asks for older items (ui-load-older) and, when they arrive above you, restores your place to the pixel — then marks the start of history once there is nothing older. Items are its children: appendItems, prependItems, upsertItem and removeItem touch only the nodes they name, so nothing already on screen is re-rendered (no virtual list, and cheap). New items fade up from 3px; history never animates.',

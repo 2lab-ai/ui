@@ -14,7 +14,7 @@ import {
   type WorkLogData,
 } from './logic';
 import { styles } from './styles';
-import { COPIED_MS, type UiWorkLog } from './work-log';
+import { type UiWorkLog, WORK_LOG_COPIED_MS } from './work-log';
 
 const XSS = '<img src=x onerror=alert(1)>"\'&';
 const T0 = new Date(2026, 9, 30, 14, 2, 7).getTime();
@@ -671,7 +671,7 @@ describe('<ui-work-log> raw output, skills and actions', () => {
     const now = entry(el, 'e6')!.querySelector('.raw-copy')!;
     expect(now.textContent).toBe('Copied');
     expect(el.shadowRoot!.activeElement).toBe(now);
-    vi.advanceTimersByTime(COPIED_MS + 10);
+    vi.advanceTimersByTime(WORK_LOG_COPIED_MS + 10);
     expect(entry(el, 'e6')!.querySelector('.raw-copy')?.textContent).toBe('Copy');
   });
 

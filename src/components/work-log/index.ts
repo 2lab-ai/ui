@@ -31,4 +31,4 @@ export {
   toolStatus,
   workLogStrings,
 } from './logic';
-export { COPIED_MS, UiWorkLog } from './work-log';
+export { UiWorkLog, WORK_LOG_COPIED_MS } from './work-log';

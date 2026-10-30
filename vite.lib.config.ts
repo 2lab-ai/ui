@@ -28,6 +28,15 @@ const COMPONENTS = [
   'file-card',
   'artifact-viewer',
   'composer',
+  'log-scroller',
+  'goal-card',
+  'choice-form',
+  'task-plan',
+  'task-runs',
+  'status-bar',
+  'deck-nav',
+  'conversation',
+  'work-log',
 ];
 /** Non-element entries: the icon set and the CSS kit (as a string; copy-assets also writes dist/ui-kit.css). */
 const MODULES = ['icons', 'kit'];

@@ -129,6 +129,42 @@
       "types": "./dist/components/composer/index.d.ts",
       "import": "./dist/composer.js"
     },
+    "./log-scroller": {
+      "types": "./dist/components/log-scroller/index.d.ts",
+      "import": "./dist/log-scroller.js"
+    },
+    "./goal-card": {
+      "types": "./dist/components/goal-card/index.d.ts",
+      "import": "./dist/goal-card.js"
+    },
+    "./choice-form": {
+      "types": "./dist/components/choice-form/index.d.ts",
+      "import": "./dist/choice-form.js"
+    },
+    "./task-plan": {
+      "types": "./dist/components/task-plan/index.d.ts",
+      "import": "./dist/task-plan.js"
+    },
+    "./task-runs": {
+      "types": "./dist/components/task-runs/index.d.ts",
+      "import": "./dist/task-runs.js"
+    },
+    "./status-bar": {
+      "types": "./dist/components/status-bar/index.d.ts",
+      "import": "./dist/status-bar.js"
+    },
+    "./deck-nav": {
+      "types": "./dist/components/deck-nav/index.d.ts",
+      "import": "./dist/deck-nav.js"
+    },
+    "./conversation": {
+      "types": "./dist/components/conversation/index.d.ts",
+      "import": "./dist/conversation.js"
+    },
+    "./work-log": {
+      "types": "./dist/components/work-log/index.d.ts",
+      "import": "./dist/work-log.js"
+    },
     "./icons": {
       "types": "./dist/icons/index.d.ts",
       "import": "./dist/icons.js"

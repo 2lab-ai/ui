@@ -31,7 +31,7 @@ import {
 import { styles } from './styles';
 
 /** How long a Copy button says "Copied". */
-export const COPIED_MS = 1500;
+export const CONVERSATION_COPIED_MS = 1500;
 
 type RawFrom = Exclude<ConversationCopyDetail['from'], 'answer'>;
 type AnswerView = 'summary' | 'source';
@@ -857,7 +857,7 @@ export class UiConversation extends UiElement<ConversationData> {
       const k = this.#copied;
       this.#copied = '';
       this.#repaintView(k);
-    }, COPIED_MS);
+    }, CONVERSATION_COPIED_MS);
   }
 
   #repaintView(key: string): void {

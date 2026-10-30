@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UiAiAnswer } from '../ai-answer/ai-answer';
 import type { UiLogScroller } from '../log-scroller/log-scroller';
-import { COPIED_MS, type UiConversation } from './conversation';
+import { CONVERSATION_COPIED_MS, type UiConversation } from './conversation';
 import {
   type ConversationData,
   type ConversationTurn,
@@ -545,7 +545,7 @@ describe('<ui-conversation> events', () => {
     expect(seen[0].cancelable).toBe(false);
     expect(a.querySelector('.raw-copy')?.hasAttribute('data-copied')).toBe(true);
     expect(a.querySelector('.raw-copy')?.textContent).toBe('Copied');
-    vi.advanceTimersByTime(COPIED_MS);
+    vi.advanceTimersByTime(CONVERSATION_COPIED_MS);
     expect(a.querySelector('.raw-copy')?.hasAttribute('data-copied')).toBe(false);
 
     click(node(el, 's1').querySelector('[data-act="sys"]'));
