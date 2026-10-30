@@ -1,6 +1,7 @@
 import { define, UiElement } from '../../core/element';
 import { fmtClock, fmtDuration } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
+import { PLAN_ICON, planFoldedSteps, planFootHtml, planListHtml, planPhase, planTimeOfDay } from '../../core/plan';
 import { styles } from './styles';
 
 /** The run's phase (the head chip). `running` and `waiting` are live: the elapsed clock ticks and Stop shows. */
@@ -134,20 +135,6 @@ const STRINGS = {
     plan: 'Plan',
     planSteps: 'Plan steps',
     noSteps: 'No steps yet',
-    stepSr: {
-      pending: 'pending',
-      running: 'in progress',
-      done: 'done',
-      failed: 'failed',
-      skipped: 'skipped',
-    } as Record<AgentRunStepStatus, string>,
-    calls: (n: number) => (n === 1 ? '1 tool call' : `${n} tool calls`),
-    foldShow: (n: number) => `Show ${n} more completed`,
-    foldHide: 'Hide completed',
-    phase: { running: 'Running', done: 'Done', failed: 'Failed', idle: 'Idle' } as Record<
-      AgentRunPlanPhase['phase'],
-      string
-    >,
     stepDone: (l: string) => `Step done: ${l}`,
     stepFailed: (l: string) => `Step failed: ${l}`,
     needs: 'Needs input',
@@ -203,20 +190,6 @@ const STRINGS = {
     plan: '계획',
     planSteps: '계획 단계',
     noSteps: '아직 작업 목록이 없습니다',
-    stepSr: {
-      pending: '대기',
-      running: '진행 중',
-      done: '완료',
-      failed: '실패',
-      skipped: '건너뜀',
-    } as Record<AgentRunStepStatus, string>,
-    calls: (n: number) => `툴 ${n}회`,
-    foldShow: (n: number) => `완료 ${n}개 더 보기`,
-    foldHide: '완료 숨기기',
-    phase: { running: '실행 중', done: '완료', failed: '실패', idle: '대기' } as Record<
-      AgentRunPlanPhase['phase'],
-      string
-    >,
     stepDone: (l: string) => `단계 완료: ${l}`,
     stepFailed: (l: string) => `단계 실패: ${l}`,
     needs: '입력 필요',
@@ -256,15 +229,13 @@ type Strings = (typeof STRINGS)['en'];
 type Lang = keyof typeof STRINGS;
 
 const ICON = {
-  check:
-    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>',
-  cross:
-    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>',
+  check: PLAN_ICON.check,
+  cross: PLAN_ICON.cross,
   stop: '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2"/></svg>',
   clock:
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.2l2 1.3"/></svg>',
-  dot: '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="8" r="3"/></svg>',
-  dash: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8h6"/></svg>',
+  dot: PLAN_ICON.dot,
+  /** The run's own spinner (`.ar-spin`), also drawn in the plan's running marker and foot. */
   spin: '<span class="ar-spin" aria-hidden="true"></span>',
   lock: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>',
   ask: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 0 1 3.4.7c0 1.2-1.7 1.5-1.7 2.6M8 11.3v.1"/></svg>',
@@ -280,7 +251,13 @@ const STATUS_ICON: Record<AgentRunStatus, string> = {
 };
 
 const LIVE: ReadonlySet<AgentRunStatus> = new Set(['running', 'waiting']);
-const FOLD_LIMIT = 3;
+const STEP_STATUSES: ReadonlySet<string> = new Set<AgentRunStepStatus>([
+  'pending',
+  'running',
+  'done',
+  'failed',
+  'skipped',
+]);
 
 const num = (v: unknown): number => {
   const n = Number(v);
@@ -300,37 +277,18 @@ export interface AgentRunPlanPhase {
   tookMs: number;
 }
 
+/** A run step with a status this element knows (anything else is drawn and counted as pending). */
+const runStep = (s: AgentRunStep): AgentRunStep => (STEP_STATUSES.has(s.status) ? s : { ...s, status: 'pending' });
+
 /** The plan footer: phase, done/total and the time — since the first start while running, the total once finished. */
 export function runPlanPhase(steps: AgentRunStep[]): AgentRunPlanPhase {
-  let done = 0;
-  let finished = 0;
-  let running = false;
-  let failed = false;
-  let first = 0;
-  let last = 0;
-  for (const s of steps) {
-    if (s.status === 'done') done++;
-    if (s.status === 'done' || s.status === 'skipped') finished++;
-    if (s.status === 'running') running = true;
-    if (s.status === 'failed') failed = true;
-    const st = num(s.startedAt);
-    if (st && (!first || st < first)) first = st;
-    const en = num(s.endedAt);
-    if (en > last) last = en;
-  }
-  const total = steps.length;
-  const phase = running ? 'running' : failed ? 'failed' : total > 0 && finished === total ? 'done' : 'idle';
-  const tookMs = (phase === 'done' || phase === 'failed') && first && last > first ? last - first : 0;
-  return { phase, done, total, since: phase === 'running' ? first : 0, tookMs };
+  // Run steps are never paused or dropped, so the shared phase is one of this element's four.
+  return planPhase(steps.map(runStep)) as AgentRunPlanPhase;
 }
 
 /** Indexes of the done steps folded away: every done step but the last `limit` (earliest first). */
-export function runFoldedSteps(steps: AgentRunStep[], limit = FOLD_LIMIT): number[] {
-  const doneAt: number[] = [];
-  steps.forEach((s, i) => {
-    if (s.status === 'done') doneAt.push(i);
-  });
-  return doneAt.slice(0, Math.max(0, doneAt.length - limit));
+export function runFoldedSteps(steps: AgentRunStep[], limit?: number): number[] {
+  return planFoldedSteps(steps, limit);
 }
 
 /**
@@ -390,10 +348,7 @@ export function runNeedsCount(d: Pick<AgentRunData, 'approvals' | 'questions'>):
 
 /** Time of day: `6:56 PM` (en) / `오후 06:56` (ko). */
 export function runTimeOfDay(ts: number, lang: Lang = 'en'): string {
-  if (!num(ts)) return '';
-  return lang === 'ko'
-    ? new Date(ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-    : new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return planTimeOfDay(ts, lang);
 }
 
 const answerable = (v: boolean | string | undefined) => v === undefined || v === true;
@@ -735,74 +690,13 @@ ${this.#head(d, t)}${bands ? `<div class="ar-body"${side ? ` data-side="${side}"
     const head = `<h3 class="ar-sec-h" id="ar-plan-h">${esc(t.plan)}</h3>`;
     if (!steps.length)
       return `<section class="ar-band ar-plan" aria-labelledby="ar-plan-h">${head}<p class="pl-empty">${esc(t.noSteps)}</p></section>`;
-    const fold = runFoldedSteps(steps);
-    const hidden = new Set(this.#expanded ? [] : fold);
-    let rows = '';
-    steps.forEach((s, i) => {
-      if (fold.length && i === fold[0]) {
-        rows += `<li class="pl-fold"><button type="button" class="pl-fold-btn" data-key="pl-fold" aria-expanded="${
-          this.#expanded
-        }">${esc(this.#expanded ? t.foldHide : t.foldShow(fold.length))}</button></li>`;
-      }
-      if (!hidden.has(i)) rows += this.#step(s, t);
-    });
-    return `<section class="ar-band ar-plan" aria-labelledby="ar-plan-h">${head}<ol class="pl-list" aria-label="${escAttr(
-      t.planSteps,
-    )}">${rows}</ol>${this.#foot(steps, t)}</section>`;
-  }
-
-  #step(s: AgentRunStep, t: Strings): string {
-    const st: AgentRunStepStatus = t.stepSr[s.status] ? s.status : 'pending';
-    const marker =
-      st === 'done'
-        ? ICON.check
-        : st === 'running'
-          ? ICON.spin
-          : st === 'failed'
-            ? ICON.cross
-            : st === 'skipped'
-              ? ICON.dash
-              : '';
-    const calls =
-      st !== 'pending' && s.toolCalls !== undefined
-        ? `<span class="pl-chip">${esc(t.calls(Math.round(num(s.toolCalls))))}</span>`
-        : '';
-    const start = num(s.startedAt);
-    const end = num(s.endedAt);
-    let aside = '';
-    if (st === 'running' && start) aside = `<span data-since="${start}"></span>`;
-    else if (st !== 'running' && start && end > start) aside = esc(fmtDuration(end - start));
-    const times = [start ? runTimeOfDay(start, this.#lang) : '', end ? runTimeOfDay(end, this.#lang) : '']
-      .filter(Boolean)
-      .join(' → ');
-    return `<li class="pl-step${this.#pop.has(s.id) ? ' pl-pop' : ''}" data-step="${st}"${
-      st === 'running' ? ' aria-current="step"' : ''
-    }${times ? ` title="${escAttr(times)}"` : ''}><span class="pl-marker" aria-hidden="true">${marker}</span><span class="pl-main"><span class="pl-line">${
-      s.ref ? `<span class="pl-ref">${esc(s.ref)}</span>` : ''
-    }<span class="pl-text">${esc(s.label)}</span>${calls}</span>${
-      s.detail ? `<span class="pl-sub" title="${escAttr(s.detail)}">${esc(s.detail)}</span>` : ''
-    }<span class="sr-only">, ${esc(t.stepSr[st])}</span></span><span class="pl-aside">${aside}</span></li>`;
-  }
-
-  #foot(steps: AgentRunStep[], t: Strings): string {
-    const p = runPlanPhase(steps);
-    const icon =
-      p.phase === 'running'
-        ? ICON.spin
-        : p.phase === 'done'
-          ? ICON.check
-          : p.phase === 'failed'
-            ? ICON.cross
-            : ICON.dot;
-    const time =
-      p.phase === 'running' && p.since
-        ? `<span data-since="${p.since}"></span>`
-        : p.tookMs
-          ? esc(fmtDuration(p.tookMs))
-          : '';
-    return `<div class="pl-foot" data-phase="${p.phase}"><span class="pl-foot-st"><span class="pl-foot-icon" aria-hidden="true">${icon}</span>${esc(
-      t.phase[p.phase],
-    )} · ${p.done}/${p.total}</span>${time ? `<span class="pl-foot-time" aria-hidden="true">${time}</span>` : ''}</div>`;
+    const known = steps.map(runStep);
+    const o = { lang: this.#lang, pop: this.#pop, spin: ICON.spin };
+    return `<section class="ar-band ar-plan" aria-labelledby="ar-plan-h">${head}${planListHtml(known, {
+      ...o,
+      label: t.planSteps,
+      fold: { expanded: this.#expanded },
+    })}${planFootHtml(known, o)}</section>`;
   }
 
   // ── Needs input ───────────────────────────────────────────────────────────
