@@ -380,7 +380,7 @@ export class UiConversation extends UiElement<ConversationData> {
         : '';
     const detail = error ? `<span class="cv-err-detail"> (${esc(error)})</span>` : '';
     const barHtml =
-      error && !empty ? `${icon('alert')}<span class="cv-err-text">${esc(t.failed)}${detail}</span>${retry}` : '';
+      error && !empty ? `${icon('alert')}<span class="cv-err-text">${esc(t.failedSome)}${detail}</span>${retry}` : '';
     if (barHtml !== this.#barHtml && this.#bar) {
       this.#barHtml = barHtml;
       swap(this.#bar, barHtml, this.root);
