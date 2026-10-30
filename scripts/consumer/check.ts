@@ -6,12 +6,17 @@ import { UiAgentRun } from '@2lab.ai/ui/agent-run';
 import { type AgentSteeringData, steerEnterAction, UiAgentSteering } from '@2lab.ai/ui/agent-steering';
 import { type AgentTreeData, buildTree, UiAgentTree } from '@2lab.ai/ui/agent-tree';
 import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
+import { type AppBarData, appBarInitials, UiAppBar } from '@2lab.ai/ui/app-bar';
 import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
+import { type ArtifactViewerData, stepIndex, UiArtifactViewer } from '@2lab.ai/ui/artifact-viewer';
+import { type BarChartData, niceScale, UiBarChart } from '@2lab.ai/ui/bar-chart';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
+import { type ComposerData, composerEnterAction, UiComposer } from '@2lab.ai/ui/composer';
 import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-window';
 import { type DialogCloseDetail, dialogSize, UiDialog } from '@2lab.ai/ui/dialog';
 import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
 import { clampDrawerWidth, type DrawerMode, UiDrawer } from '@2lab.ai/ui/drawer';
+import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
@@ -19,6 +24,7 @@ import { applyMenuSelect, type MenuData, UiMenu } from '@2lab.ai/ui/menu';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
 import { type SegmentedData, segmentedOptions, UiSegmented } from '@2lab.ai/ui/segmented';
+import { fmtMetric, type StatStripData, UiStatStrip } from '@2lab.ai/ui/stat-strip';
 import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
 import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
@@ -53,6 +59,16 @@ const toggled: DisclosureToggle = { open: true };
 const glyph: IconName = 'gear';
 const dlg: HTMLElementTagNameMap['ui-dialog'] = document.createElement('ui-dialog');
 const drawer: HTMLElementTagNameMap['ui-drawer'] = document.createElement('ui-drawer');
+// 0.6.0 surfaces.
+const bar: AppBarData = { brand: { label: 'Workbench' }, status: { tone: 'done', label: 'Live' }, theme: 'light' };
+const stats: StatStripData = { metrics: [{ key: 's', label: 'Sessions', value: 12 }] };
+const chart: BarChartData = { title: 'Sessions', bars: [{ label: 'Mon', value: 3 }] };
+const file: FileItem = { id: 'f', name: 'report.md', size: 2048 };
+const shelf: ArtifactViewerData = { items: [file], layout: 'grid' };
+const draft: ComposerData = { placeholder: 'Write a message…', maxLength: 4000 };
+const appBar: HTMLElementTagNameMap['ui-app-bar'] = document.createElement('ui-app-bar');
+const viewer: HTMLElementTagNameMap['ui-artifact-viewer'] = document.createElement('ui-artifact-viewer');
+const composerEl: HTMLElementTagNameMap['ui-composer'] = document.createElement('ui-composer');
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
@@ -75,6 +91,12 @@ const classes = [
   UiDialog,
   UiDrawer,
   UiDisclosure,
+  UiAppBar,
+  UiStatStrip,
+  UiBarChart,
+  UiFileCard,
+  UiArtifactViewer,
+  UiComposer,
 ];
 console.log(
   UiContextWindow.name,
@@ -113,4 +135,18 @@ console.log(
   kitCss.length,
   dlg.tagName,
   drawer.tagName,
+  bar.status?.label,
+  appBarInitials('Mina Park'),
+  stats.metrics.length,
+  fmtMetric(1234),
+  chart.bars.length,
+  niceScale(17).max,
+  fileMeta(file, 0),
+  shelf.items.length,
+  stepIndex(0, 1, 3),
+  draft.maxLength,
+  composerEnterAction({ key: 'Enter', shiftKey: true, metaKey: false, ctrlKey: false, altKey: false }),
+  appBar.tagName,
+  viewer.tagName,
+  composerEl.tagName,
 );

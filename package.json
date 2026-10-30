@@ -1,7 +1,7 @@
 {
   "name": "@2lab.ai/ui",
-  "version": "0.5.0",
-  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree; primitives Segmented, Tabs, Menu, Tooltip, Dialog, Drawer, Disclosure; an icon set and a light-DOM CSS kit.",
+  "version": "0.6.0",
+  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Composer; primitives Segmented, Tabs, Menu, Tooltip, Dialog, Drawer, Disclosure; an icon set and a light-DOM CSS kit.",
   "type": "module",
   "license": "UNLICENSED",
   "repository": {
@@ -104,6 +104,30 @@
     "./disclosure": {
       "types": "./dist/components/disclosure/index.d.ts",
       "import": "./dist/disclosure.js"
+    },
+    "./app-bar": {
+      "types": "./dist/components/app-bar/index.d.ts",
+      "import": "./dist/app-bar.js"
+    },
+    "./stat-strip": {
+      "types": "./dist/components/stat-strip/index.d.ts",
+      "import": "./dist/stat-strip.js"
+    },
+    "./bar-chart": {
+      "types": "./dist/components/bar-chart/index.d.ts",
+      "import": "./dist/bar-chart.js"
+    },
+    "./file-card": {
+      "types": "./dist/components/file-card/index.d.ts",
+      "import": "./dist/file-card.js"
+    },
+    "./artifact-viewer": {
+      "types": "./dist/components/artifact-viewer/index.d.ts",
+      "import": "./dist/artifact-viewer.js"
+    },
+    "./composer": {
+      "types": "./dist/components/composer/index.d.ts",
+      "import": "./dist/composer.js"
     },
     "./icons": {
       "types": "./dist/icons/index.d.ts",

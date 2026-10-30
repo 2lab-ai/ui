@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 20 element subpaths registers its element(s) (21 in
+// Runtime smoke test against the installed package: each of the 26 element subpaths registers its element(s) (27 in
 // all); the icon set and the kit load and return their strings.
 import { Window } from 'happy-dom';
 
@@ -32,6 +32,12 @@ const slugs = [
   'dialog',
   'drawer',
   'disclosure',
+  'app-bar',
+  'stat-strip',
+  'bar-chart',
+  'file-card',
+  'artifact-viewer',
+  'composer',
 ];
 // Subpaths that register more than their own tag.
 const extra = { 'tool-call-card': ['ui-tool-call-group'] };
@@ -70,6 +76,14 @@ if (at.shadowRoot?.querySelectorAll('[role="treeitem"]').length !== 2) {
   console.error('register: <ui-agent-tree> did not render its two agents');
   process.exit(1);
 }
+const fc = document.createElement('ui-file-card');
+document.body.append(fc);
+fc.data = { id: 'f', name: 'report.md', size: 2048 };
+fc.renderNow();
+if (!(fc.shadowRoot?.querySelector('.fc-name')?.textContent ?? '').includes('report.md')) {
+  console.error('register: <ui-file-card> did not render its name');
+  process.exit(1);
+}
 const { icon } = await import('@2lab.ai/ui/icons');
 const { kitCss } = await import('@2lab.ai/ui/kit');
 if (!icon('gear').startsWith('<svg') || !kitCss.includes('.ui-btn')) {
@@ -78,5 +92,5 @@ if (!icon('gear').startsWith('<svg') || !kitCss.includes('.ui-btn')) {
 }
 const tags = slugs.length + Object.values(extra).flat().length;
 console.log(
-  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window> and <ui-compact-breakdown> rendered; icons and kit load`,
+  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window>, <ui-compact-breakdown>, <ui-agent-tree> and <ui-file-card> rendered; icons and kit load`,
 );
