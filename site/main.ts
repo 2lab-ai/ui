@@ -29,7 +29,16 @@ const ICON = {
   ext: icon('external', { size: 12 }),
 };
 
-const WIDE = new Set(['agent-run', 'agent-inbox', 'agent-queue', 'app-bar', 'stat-strip', 'artifact-viewer']);
+const WIDE = new Set([
+  'agent-run',
+  'agent-inbox',
+  'agent-queue',
+  'app-bar',
+  'stat-strip',
+  'artifact-viewer',
+  'settings-nav',
+  'knowledge-pages',
+]);
 
 function themeNow(): 'light' | 'dark' {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -40,6 +49,7 @@ function shell(active: string, body: string): string {
     `<a href="${href}" data-link${active === href ? ' aria-current="page"' : ''}>${label}${extra}</a>`;
   const screens = DOCS.filter((d) => d.group === 'Screens');
   const comps = DOCS.filter((d) => d.group === 'Components');
+  const pages = DOCS.filter((d) => d.group === 'Pages');
   const prims = DOCS.filter((d) => d.group === 'Primitives');
   return `<header class="top">
   <button class="icon-btn menu-btn" id="menu" aria-label="Menu">${ICON.menu}</button>
@@ -59,6 +69,8 @@ function shell(active: string, body: string): string {
     ${screens.map((d) => link(`/components/${d.slug}`, esc(d.name), '<small>screen</small>')).join('')}
     <h4>Components</h4>
     ${comps.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
+    <h4>Page parts</h4>
+    ${pages.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
     <h4>Primitives</h4>
     ${prims.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
   </aside>
@@ -107,6 +119,7 @@ function countWord(n: number): string {
 const GROUP_LABEL: Record<ComponentDoc['group'], string> = {
   Screens: 'Screen',
   Components: 'Component',
+  Pages: 'Page part',
   Primitives: 'Primitive',
 };
 
@@ -117,10 +130,11 @@ function homePage(): string {
       <div class="meta"><em>${GROUP_LABEL[d.group]}</em><b>${esc(d.name)}</b><span>${esc(d.summary)}</span></div></a>`,
   ).join('');
   const prims = DOCS.filter((d) => d.group === 'Primitives').length;
+  const parts = DOCS.filter((d) => d.group === 'Pages').length;
   return `<section class="hero">
     <div class="crumb">@2lab.ai/ui</div>
     <h1>Agent UI components that show what the agent is doing — and what it needs from you.</h1>
-    <p class="lede">${countWord(DOCS.length)} Web Components lifted from the 2lab soma-work dashboard: the app bar, the run screen, the inbox board, the agent tree, the conversation and the work log, approvals, questions and steering, the composer, answer cards, tool calls, files and the artifact viewer, goals, plans and runs, provider capacity, context usage, spend, the stats strip and bar chart, toasts, memory, the model picker, the session status row and the card deck nav — plus the ${prims} primitives they share (segmented control, tabs, menu, tooltip, hovercard, dialog, drawer, disclosure, log scroller), an icon set and a light-DOM CSS kit. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
+    <p class="lede">${countWord(DOCS.length)} Web Components lifted from the 2lab soma-work dashboard: the app bar, the run screen, the inbox board, the agent tree, the conversation and the work log, approvals, questions and steering, the composer, answer cards, tool calls, files and the artifact viewer, goals, plans and runs, provider capacity, context usage, spend, the stats strip and bar chart, toasts, memory, the model picker, the session status row and the card deck nav; ${parts} parts for the pages around them (settings rows and their side nav, a knowledge-pages editor, an observation log, the sign-in card) — plus the ${prims} primitives they share (segmented control, tabs, menu, tooltip, hovercard, dialog, drawer, disclosure, log scroller, live time), an icon set and a light-DOM CSS kit. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
     <div class="cta"><a class="btn primary" href="/components/${DOCS[0]?.slug ?? ''}" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
   </section>
   <h2 id="components">Components <span class="chip">${DOCS.length}</span></h2>

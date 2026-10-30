@@ -303,7 +303,7 @@ export const doc: ComponentDoc = {
   slug: 'setting-row',
   name: 'Setting row',
   tag: 'ui-setting-row',
-  group: 'Components',
+  group: 'Pages',
   summary: 'What this setting does, what it is now, and whether the change was saved — one row.',
   description:
     'One preference in a settings card: a label, a description, quiet hints (the default value, the command that does the same thing), the control the host slots in (a kit input, select or switch, or a <ui-segmented>), and the result of the last write — Saving…, a check with Saved, or an alert with what went wrong. A value that differs from its default gets an ink dot before the label and, when the host allows it, a quiet Reset to default. A locked row hides the control and shows the value read-only with a lock and the reason. Rows stack inside a .ui-card with a hairline between them; at 560px of row width and up the description sits beside the control, below that above it.',

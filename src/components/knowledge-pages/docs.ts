@@ -361,7 +361,7 @@ export const doc: ComponentDoc = {
   slug: 'knowledge-pages',
   name: 'Knowledge Pages',
   tag: 'ui-knowledge-pages',
-  group: 'Components',
+  group: 'Pages',
   summary:
     'Long-lived notes, one page per topic — find a page, fix what is true now, and keep the dated record of how it changed.',
   description:

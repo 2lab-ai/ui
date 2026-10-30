@@ -140,7 +140,7 @@ export const doc: ComponentDoc = {
     'Observations grouped by day, newest first, under a day filter (Today, Yesterday, then dates). Each entry shows its time in tabular figures and its text with line breaks kept; Edit opens it in place (⌘↵ saves, Esc cancels, an empty entry cannot be saved), Delete asks twice, and a note box at the foot adds to today’s log. Nothing typed is ever lost: when the host updates the log under an open editor, the editor stays on its entry; if that entry changed or went away meanwhile, the draft moves into the note box with a quiet notice. A refused note stays in the box; an added one rises into today’s list and the box empties.',
   usedIn: 'soma-work settings — the 기억 tab’s 관찰 기록 (episodic memory) section (M-06).',
   reference: { name: 'Activity log', url: 'https://www.affectui.com' },
-  group: 'Components',
+  group: 'Pages',
   props: [
     {
       name: 'data.days',

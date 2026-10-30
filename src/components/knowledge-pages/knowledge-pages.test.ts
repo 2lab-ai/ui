@@ -834,7 +834,7 @@ describe('lang="ko"', () => {
 describe('docs', () => {
   it('ships at least three demos that build without the network', () => {
     expect(doc.tag).toBe('ui-knowledge-pages');
-    expect(doc.group).toBe('Components');
+    expect(doc.group).toBe('Pages');
     expect(doc.demos.length).toBeGreaterThanOrEqual(3);
     for (const d of doc.demos) {
       const node = d.create();

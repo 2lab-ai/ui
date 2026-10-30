@@ -1,5 +1,5 @@
-// Runtime smoke test against the installed package: each of the 36 element subpaths registers its element(s) (37 in
-// all); the icon set and the kit load and return their strings.
+// Runtime smoke test against the installed package: each of the 41 element subpaths registers its element(s); the icon
+// set and the kit load and return their strings.
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -48,6 +48,12 @@ const slugs = [
   'deck-nav',
   'conversation',
   'work-log',
+  'setting-row',
+  'settings-nav',
+  'knowledge-pages',
+  'episode-log',
+  'auth-card',
+  'elapsed',
 ];
 // Subpaths that register more than their own tag.
 const extra = {
