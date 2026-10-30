@@ -94,6 +94,8 @@ export interface ConversationData {
   emptyText?: string;
   /** Marker at the top once there is nothing older. Default "Start of conversation"; empty string hides it. */
   startText?: string;
+  /** Announce new turns politely (`role="log"`). Default true; older pages are never announced. */
+  live?: boolean;
 }
 
 /** `ui-retry` detail: the turn whose answer to fetch again, or null for the conversation itself. */

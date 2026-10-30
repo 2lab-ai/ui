@@ -126,6 +126,9 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
   #olderLoading = false;
   /** A page request ended without a page: wait for the reader before asking again on our own. */
   #stalled = false;
+  /** While an older page goes in above, the live region is off: a page of history is not news to announce. */
+  #muted = false;
+  #unmute = 0;
   #lastTop = 0;
   #held: Anchor[] | null = null;
   #capture = false;
@@ -172,6 +175,8 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
   }
 
   override disconnectedCallback(): void {
+    cancelAnimationFrame(this.#unmute);
+    this.#muted = false;
     this.#ro?.disconnect();
     this.#io?.disconnect();
     this.#ro = null;
@@ -233,8 +238,20 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     this.#stalled = false;
     if (opts.hasMore !== undefined) this.#setData({ hasMore: opts.hasMore, loading: false });
     else if (this.data?.loading) this.#setData({ loading: false });
-    if (list.length) this.#mutate(() => this.prepend(...list));
-    else this.renderNow();
+    if (list.length) {
+      // Silence the log before the nodes go in, and only lift it a frame later, so assistive tech never reads
+      // the older page as new entries.
+      this.#muted = true;
+      this.renderNow();
+      this.#mutate(() => this.prepend(...list));
+      cancelAnimationFrame(this.#unmute);
+      this.#unmute = requestAnimationFrame(() => {
+        this.#unmute = requestAnimationFrame(() => {
+          this.#muted = false;
+          if (this.isConnected) this.renderNow();
+        });
+      });
+    } else this.renderNow();
     this.#fillSoon();
   }
 
@@ -336,6 +353,7 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
       part: 'viewport',
       tabindex: '0',
       role: live ? 'log' : 'region',
+      'aria-live': live && this.#muted ? 'off' : undefined,
       'aria-label': d.label || t.label,
       'aria-busy': loading ? 'true' : undefined,
     })}>${top}<div class="ls-list" part="list"><slot></slot></div>${empty}${first}</div>${this.#jumpHtml()}`;

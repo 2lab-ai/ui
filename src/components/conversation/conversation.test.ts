@@ -171,6 +171,15 @@ describe('logic', () => {
 });
 
 describe('<ui-conversation> rendering', () => {
+  it('live passes to the scroller: a polite log by default, a plain region with live: false', () => {
+    const on = mount({ turns: [] });
+    on.renderNow();
+    expect(logOf(on).data?.live).toBeUndefined();
+    const off = mount({ turns: [], live: false });
+    off.renderNow();
+    expect(logOf(off).data?.live).toBe(false);
+  });
+
   it('renders a user turn: initial, name, time, words, skills; media only when the host has some', () => {
     const el = mount({ turns: [USER, { ...USER, id: 'u2', media: true, skills: [] }] });
     const u = node(el, 'u1');
