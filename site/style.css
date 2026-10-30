@@ -722,7 +722,8 @@ ul.plain li {
   align-items: flex-start;
   gap: 8px;
 }
-.kit-col .ui-skeleton {
+.kit-col .ui-skeleton,
+.kit-col .ui-section-head {
   width: 100%;
 }
 .kit-say {
