@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { rovingIndex, type SegmentedData, segmentedOptions, type UiSegmented } from './segmented';
+import { lastEnabled, rovingIndex } from '../../core/roving';
+import { type SegmentedData, segmentedOptions, type UiSegmented } from './segmented';
 import { styles } from './styles';
 
 function mount(data: SegmentedData, attrs: Record<string, string> = {}): UiSegmented {
@@ -37,6 +38,8 @@ describe('helpers', () => {
     expect(rovingIndex([true, false], 0, 0)).toBe(1);
     expect(rovingIndex([true, true], 0, 1)).toBe(-1);
     expect(rovingIndex([], 0, 1)).toBe(-1);
+    expect(lastEnabled([false, false, true])).toBe(1);
+    expect(lastEnabled([true])).toBe(-1);
   });
   it('segmentedOptions drops junk and duplicate values', () => {
     const out = segmentedOptions({
