@@ -1,7 +1,22 @@
 import { type FileKind, fileExt, fileKind, fileKindIcon, fmtBytes } from '../../core/files';
 import { fmtAgo } from '../../core/format';
 import { attrs, cls, esc, safeSrc } from '../../core/html';
-import { icon } from '../../icons/icons';
+import { type IconName, icon } from '../../icons/icons';
+
+/**
+ * An extra action on a file, beside the viewer's Open in new tab / Download (open in Slack, copy a link, retry):
+ * a link to a new tab when `href` is a safe link, else a button the host answers on `ui-action`.
+ */
+export interface FileAction {
+  /** Echoed as `detail.action` in `ui-action`. `open` and `download` are the built-ins' and are skipped here. */
+  id: string;
+  /** The button's text (and its name). */
+  label: string;
+  /** A glyph from `@2lab.ai/ui/icons`. Without one the action keeps its text on phones too. */
+  icon?: IconName;
+  /** Follow this link in a new tab: http(s), `mailto:` or relative. Any other scheme is dropped (a button then). */
+  href?: string;
+}
 
 /**
  * One file the agent made (or the person attached): what `<ui-file-card>` draws and `<ui-artifact-viewer>` pages
@@ -27,6 +42,8 @@ export interface FileItem {
   meta?: string;
   /** File name for Download (default `name`). */
   downloadName?: string;
+  /** Extra viewer actions after Open / Download (the file's Slack permalink …) → `ui-action` with their `id`. */
+  actions?: FileAction[];
 }
 
 /** `tile` — thumbnail card · `row` — one line in a list · `chip` — a pill with the glyph and name. */

@@ -21,6 +21,7 @@ import {
   actionUrl,
   artifactItems,
   artifactLayout,
+  extraActionsHtml,
   PEEK_DELAY_MS,
   PEEK_GRACE_MS,
   PEEK_WARM_MS,
@@ -70,11 +71,17 @@ export interface ArtifactViewDetail {
 export interface ArtifactCloseDetail {
   reason: DialogCloseReason;
 }
-/** `ui-action` (cancelable): Open in new tab / Download; preventDefault() stops the link (the host handles it). */
+/**
+ * `ui-action` (cancelable): Open in new tab / Download, or one of the file's extra `actions` (its `id`);
+ * preventDefault() stops a link (the host handles it). An extra action without a safe `href` is a button: `url` ''.
+ */
 export interface ArtifactActionDetail {
-  action: 'open' | 'download';
+  action: 'open' | 'download' | (string & {});
+  /** The file's id. */
   id: string;
   url: string;
+  /** True for one of the file's extra `actions`. */
+  extra?: boolean;
 }
 
 const VARIANT: Record<ArtifactLayout, FileCardVariant> = {
@@ -417,7 +424,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
           })}>${icon('search')}<span class="av-act-t">${esc(t.zoom)}</span></button>`
         : '';
     // The fallback card carries the actions itself; the footer keeps them for every other body.
-    const footActs = body === 'fallback' ? '' : actionsHtml(item, acts, t);
+    const footActs = body === 'fallback' ? '' : actionsHtml(item, acts, t) + extraActionsHtml(item);
     const right = zoom || footActs ? `<div class="av-acts">${zoom}${footActs}</div>` : '';
     const footer = nav || right ? `<div slot="footer" class="av-vf">${nav}${right}</div>` : '';
     this.#dialog.setAttribute('label', name);
@@ -543,6 +550,15 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     if (t.closest('.av-tg') || t.closest('.av-pic')) {
       this.#zoomed = !this.#zoomed;
       this.#syncViewer();
+      return;
+    }
+    const extra = t.closest<HTMLElement>('.av-act[data-x]');
+    if (extra) {
+      const item = this.#items()[this.#index];
+      if (!item) return;
+      const url = extra.tagName === 'A' ? (extra.getAttribute('href') ?? '') : '';
+      const detail: ArtifactActionDetail = { action: extra.dataset.x ?? '', id: String(item.id), url, extra: true };
+      if (!this.emit<ArtifactActionDetail>('ui-action', detail)) e.preventDefault();
       return;
     }
     const act = t.closest<HTMLAnchorElement>('a.av-act');

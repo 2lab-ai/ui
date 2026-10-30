@@ -1,6 +1,6 @@
 export type { FileOpenDetail } from './file-card';
 export { UiFileCard } from './file-card';
-export type { FileCardOptions, FileCardVariant, FileItem } from './render';
+export type { FileAction, FileCardOptions, FileCardVariant, FileItem } from './render';
 export {
   FILE_STRINGS,
   FILE_TINTS,

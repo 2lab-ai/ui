@@ -1,4 +1,4 @@
-export type { FileCardVariant, FileItem } from '../file-card/render';
+export type { FileAction, FileCardVariant, FileItem } from '../file-card/render';
 export type {
   ArtifactActionDetail,
   ArtifactCloseDetail,
@@ -8,4 +8,12 @@ export type {
 } from './artifact-viewer';
 export { UiArtifactViewer } from './artifact-viewer';
 export type { ArtifactLayout, ViewerBodyKind } from './logic';
-export { artifactLayout, stepIndex, textHead, viewerActions, viewerBodyKind } from './logic';
+export {
+  artifactLayout,
+  extraActions,
+  MAX_EXTRA_ACTIONS,
+  stepIndex,
+  textHead,
+  viewerActions,
+  viewerBodyKind,
+} from './logic';

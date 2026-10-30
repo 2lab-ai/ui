@@ -13,7 +13,9 @@ import {
   actionUrl,
   artifactItems,
   artifactLayout,
+  extraActions,
   MARKDOWN_VIEW_CHARS,
+  MAX_EXTRA_ACTIONS,
   mediaSrc,
   PEEK_DELAY_MS,
   PEEK_GRACE_MS,
@@ -705,6 +707,113 @@ describe('viewer', () => {
     expect(el.index).toBe(-1);
     expect(dialog(el).open).toBe(false);
     expect(native(el).open).toBe(false);
+  });
+});
+
+describe('extra actions (D2 G4-2)', () => {
+  const slack = { id: 'slack', label: 'Slack', icon: 'external' as const, href: 'https://x.slack.com/files/1' };
+
+  it('extraActions keeps drawable ones: id + label, no built-in ids, first of each id, safe hrefs only, capped', () => {
+    const item: FileItem = {
+      id: 'f',
+      name: 'f.txt',
+      actions: [
+        slack,
+        { id: 'open', label: 'Mine' },
+        { id: 'download', label: 'Mine' },
+        { id: 'slack', label: 'Again' },
+        { id: '', label: 'No id' },
+        { id: 'blank', label: '  ' },
+        { id: 'js', label: 'Run', href: 'javascript:alert(1)' },
+        null as unknown as { id: string; label: string },
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+        { id: 'c', label: 'C' },
+      ],
+    };
+    const out = extraActions(item);
+    expect(out.map((a) => a.id)).toEqual(['slack', 'js', 'a', 'b']);
+    expect(out).toHaveLength(MAX_EXTRA_ACTIONS);
+    expect(out[0]).toEqual(slack);
+    expect('href' in out[1]).toBe(false);
+    expect(extraActions({ id: 'x', name: 'x', actions: 'nope' as unknown as [] })).toEqual([]);
+    expect(extraActions(undefined)).toEqual([]);
+  });
+
+  it('draws after Open / Download in the footer: a link (new tab) with href, else a button; names escaped', () => {
+    const items = files();
+    items[3] = { ...items[3], actions: [slack, { id: BREAK, label: XSS }] };
+    const el = mount({ items });
+    el.open(3);
+    const acts = qa<HTMLElement>(el, '.av-vf .av-act');
+    expect(acts.map((a) => a.dataset.act ?? a.dataset.x)).toEqual(['open', 'download', 'slack', BREAK]);
+    const [, , link, btn] = acts;
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('https://x.slack.com/files/1');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(link.getAttribute('aria-label')).toBe('Slack');
+    expect(link.querySelector('svg')).not.toBeNull();
+    expect(link.classList.contains('is-text')).toBe(false);
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn.getAttribute('type')).toBe('button');
+    expect(btn.classList.contains('is-text')).toBe(true);
+    expect(btn.querySelector('.av-act-t')!.textContent).toBe(XSS);
+    expect(q(el, '.av-vf img')).toBeNull();
+    expect(q(el, '.av-vf b')).toBeNull();
+  });
+
+  it('a press sends a cancelable ui-action with the action id, the file id, the link and extra: true', () => {
+    const items = files();
+    items[3] = { ...items[3], actions: [slack, { id: 'copy', label: 'Copy', icon: 'copy' }] };
+    const el = mount({ items });
+    el.open(3);
+    const seen = record<ArtifactActionDetail>(el, 'ui-action');
+    const link = q(el, '.av-act[data-x="slack"]')!;
+    expect(click(link.querySelector('svg')!)).toBe(false);
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-action', stop);
+    expect(click(link)).toBe(true);
+    click(q(el, '.av-act[data-x="copy"]')!);
+    el.removeEventListener('ui-action', stop);
+    expect(seen).toEqual([
+      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
+      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
+      { action: 'copy', id: 'code', url: '', extra: true, cancelable: true },
+    ]);
+    // The viewer stays open on its own actions.
+    expect(dialog(el).open).toBe(true);
+  });
+
+  it('a file only Slack has (no url): its card leads with the first extra action in ink; the footer has no actions', () => {
+    const el = mount({
+      items: [{ id: 'call', name: 'call.m4a', mime: 'audio/mp4', actions: [slack, { id: 'copy', label: 'Copy' }] }],
+    });
+    el.open(0);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('fallback');
+    const acts = qa<HTMLElement>(el, '.av-card .av-act');
+    expect(acts.map((a) => a.dataset.x)).toEqual(['slack', 'copy']);
+    expect(acts[0].classList.contains('is-primary')).toBe(true);
+    expect(acts[1].classList.contains('is-primary')).toBe(false);
+    expect(q(el, '.av-vf .av-act')).toBeNull();
+    // With its own Download the card keeps Download in ink and the extra beside it.
+    el.open([{ ...files()[6], actions: [slack] }], 0);
+    const card = qa<HTMLElement>(el, '.av-card .av-act');
+    expect(card.map((a) => a.dataset.act ?? a.dataset.x)).toEqual(['open', 'download', 'slack']);
+    expect(card.filter((a) => a.classList.contains('is-primary')).map((a) => a.dataset.act)).toEqual(['download']);
+  });
+
+  it('download: false / openInTab: false leave the extra actions in place', () => {
+    const items = files();
+    items[3] = { ...items[3], actions: [slack] };
+    const el = mount({ items, download: false, openInTab: false });
+    el.open(3);
+    expect(qa<HTMLElement>(el, '.av-vf .av-act').map((a) => a.dataset.x)).toEqual(['slack']);
+  });
+
+  it('phones keep the words of an action without a glyph', () => {
+    expect(styles).toMatch(/\.av-vf \.av-act\.is-text \{ width: auto;/);
+    expect(styles).toMatch(/\.av-vf \.av-act\.is-text \.av-act-t \{ display: inline; \}/);
   });
 });
 

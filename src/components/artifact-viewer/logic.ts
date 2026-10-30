@@ -3,6 +3,7 @@ import { attrs, cls, esc, escAttr, safeLink, safeSrc } from '../../core/html';
 import { markdownHtml } from '../../core/markdown';
 import { icon } from '../../icons/icons';
 import {
+  type FileAction,
   type FileItem,
   fileDisplayName,
   fileItemKind,
@@ -156,6 +157,58 @@ export function actionsHtml(
     .join('');
 }
 
+/** At most this many extra actions per file (a footer, not a menu). */
+export const MAX_EXTRA_ACTIONS = 4;
+
+/**
+ * The item's extra actions that can be drawn: an id and a label, not a built-in id (`open` / `download`), the
+ * first of each id, at most `MAX_EXTRA_ACTIONS`. `href` is kept only when it is a safe link (else it is a button).
+ */
+export function extraActions(item: Partial<FileItem> | null | undefined): FileAction[] {
+  const list = Array.isArray(item?.actions) ? item.actions : [];
+  const seen = new Set<string>(['open', 'download']);
+  const out: FileAction[] = [];
+  for (const a of list) {
+    if (!a || typeof a !== 'object') continue;
+    const id = String(a.id ?? '').trim();
+    const label = String(a.label ?? '').trim();
+    if (!id || !label || seen.has(id)) continue;
+    seen.add(id);
+    const href = String(a.href ?? '').trim();
+    out.push({
+      id,
+      label,
+      ...(a.icon ? { icon: a.icon } : {}),
+      ...(href && safeLink(href) !== '#' ? { href } : {}),
+    });
+    if (out.length >= MAX_EXTRA_ACTIONS) break;
+  }
+  return out;
+}
+
+/**
+ * The extra actions as anchors (with a safe `href`, new tab) or buttons, `data-x` carrying the id. Without an icon
+ * the action keeps its text where the built-ins shrink to icons (`is-text`). `primary` draws the first in ink.
+ */
+export function extraActionsHtml(item: FileItem, primary = false): string {
+  return extraActions(item)
+    .map((a, i) => {
+      const glyph = a.icon ? icon(a.icon) : '';
+      const base = {
+        class: cls('av-act', !glyph && 'is-text', primary && i === 0 && 'is-primary'),
+        'data-x': a.id,
+        'data-key': `x:${a.id}`,
+        title: a.label,
+        'aria-label': a.label,
+      };
+      const inner = `${glyph}<span class="av-act-t">${esc(a.label)}</span>`;
+      return a.href
+        ? `<a${attrs({ ...base, target: '_blank', rel: 'noopener noreferrer' })} href="${safeLink(a.href)}">${inner}</a>`
+        : `<button${attrs({ type: 'button', ...base })}>${inner}</button>`;
+    })
+    .join('');
+}
+
 const frameAttrs = (item: FileItem): string => {
   const text = item.text;
   if (typeof text === 'string' && text) return ` srcdoc="${escAttr(text)}"`;
@@ -250,7 +303,8 @@ export function viewerBodyHtml(item: FileItem, o: ViewerBodyOptions): string {
     default: {
       const meta = fileMeta(item, o.now, o.lang);
       const extra = String(item.meta ?? '').trim();
-      const acts = actionsHtml(item, o.acts, t, 'download');
+      // A file with no Download of its own (only Slack has it) leads with its first extra action.
+      const acts = actionsHtml(item, o.acts, t, 'download') + extraActionsHtml(item, !o.acts.includes('download'));
       return `<div class="av-body av-fallback"><div class="av-card"><span class="av-big">${icon(fileKindIcon(kind), {
         size: 32,
       })}</span><span class="av-fname">${esc(name)}</span>${meta ? `<span class="av-fmeta">${esc(meta)}</span>` : ''}${
