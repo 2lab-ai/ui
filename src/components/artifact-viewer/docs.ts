@@ -74,6 +74,8 @@ const SAY_EN: Say = (name, d, items) => {
   }
   if (name === 'ui-close') return `ui-close → ${(d as ArtifactCloseDetail).reason}`;
   const a = d as ArtifactActionDetail;
+  if (a.extra)
+    return `ui-action → ${a.action} on ${nameOf(items, a.id)}${a.url ? ` (${a.url})` : ''} — the host's own action`;
   return `ui-action → ${a.action} ${a.url} — prevented: the demo files live nowhere`;
 };
 
@@ -85,6 +87,7 @@ const SAY_KO: Say = (name, d, items) => {
   }
   if (name === 'ui-close') return '뷰어를 닫았어요';
   const a = d as ArtifactActionDetail;
+  if (a.extra) return `${a.action}: ${nameOf(items, a.id)} — 호스트가 처리해요`;
   return `${a.action === 'download' ? '다운로드' : '새 탭에서 열기'}: ${a.url} — 데모라서 막았어요`;
 };
 
@@ -109,6 +112,34 @@ function stage(el: UiArtifactViewer, say: Say = SAY_EN): { box: HTMLElement; lin
 }
 
 const MIN = 60_000;
+
+/**
+ * The run's files with the page's own actions: every file opens in Slack (its permalink), the log can be copied,
+ * and one file lives only in Slack (no url: no Open / Download, so its Slack link leads in ink).
+ */
+function withActions(): FileItem[] {
+  const slack = (id: string) => ({
+    id: 'slack',
+    label: 'Slack',
+    icon: 'external' as const,
+    href: `https://example.slack.com/files/U0/${id}`,
+  });
+  const files = demoFiles().map((f) => ({
+    ...f,
+    actions: f.id === 'log' ? [slack(f.id), { id: 'copy', label: 'Copy', icon: 'copy' as const }] : [slack(f.id)],
+  }));
+  files.push({
+    id: 'slack-only',
+    name: 'customer-call.m4a',
+    size: 2_480_000,
+    time: Date.now() - 41 * MIN,
+    meta: 'Only in Slack',
+    actions: [
+      { id: 'slack', label: 'Open in Slack', icon: 'external', href: 'https://example.slack.com/files/U0/call' },
+    ],
+  });
+  return files;
+}
 
 const SIGNUPS = `week,signups,activated,rate
 2026-09-28,1204,688,57%
@@ -229,6 +260,12 @@ export const doc: ComponentDoc = {
     { name: 'data.items[].meta', type: 'string', description: 'One extra quiet line (“from Build agent”).' },
     { name: 'data.items[].downloadName', type: 'string', description: 'File name for Download. Default: name.' },
     {
+      name: 'data.items[].actions',
+      type: 'Array<{ id: string; label: string; icon?: IconName; href?: string }>',
+      description:
+        'Extra actions after Open in new tab / Download — the file’s Slack permalink, Copy link, Retry. With a safe href (http(s), mailto, relative) a link to a new tab, else a button; both send ui-action with action = id and extra: true. Ids open / download are skipped, the first of each id counts, at most 4. Without an icon the action keeps its words on phones. A file with no url of its own shows them on its card, the first one in ink.',
+    },
+    {
       name: 'data.layout',
       type: "'strip' | 'grid' | 'chips' | 'list' | 'none'",
       default: "'strip'",
@@ -314,13 +351,16 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-action',
-      detail: "{ action: 'open' | 'download'; id: string; url: string }",
+      detail: "{ action: 'open' | 'download' | string; id: string; url: string; extra?: true }",
       description:
-        'Open in new tab or Download was pressed; url is the safe link it follows. Cancelable: preventDefault() stops the link — fetch with the session token, log it, or route it yourself.',
+        'Open in new tab or Download was pressed — or one of the file’s own actions (action = its id, extra: true; url is its link, or empty for a button); id is the file’s. url is the safe link it follows. Cancelable: preventDefault() stops the link — fetch with the session token, log it, or route it yourself.',
     },
   ],
   keyboard: [
-    ['Tab', 'Move along the tiles; in the viewer: close, Previous, Next, Zoom, Open in new tab, Download'],
+    [
+      'Tab',
+      'Move along the tiles; in the viewer: close, Previous, Next, Zoom, Open in new tab, Download, the file’s own actions',
+    ],
     ['Enter / Space on a tile', 'Open the viewer at that file (ui-open)'],
     [
       '← / →',
@@ -402,10 +442,10 @@ export const doc: ComponentDoc = {
       id: 'actions',
       title: 'Events and host control',
       description:
-        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. The button opens the viewer through data.index; ui-close clears it.',
+        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. Each file also carries the page’s own actions (items[].actions): Slack on every file, Copy on the log, and customer-call.m4a lives only in Slack, so its card leads with Open in Slack. The button opens the viewer through data.index; ui-close clears it.',
       height: 330,
       create: () => {
-        const el = make({ title: 'Files', items: demoFiles() });
+        const el = make({ title: 'Files', items: withActions() });
         const { box } = stage(el);
         const open = document.createElement('button');
         open.type = 'button';

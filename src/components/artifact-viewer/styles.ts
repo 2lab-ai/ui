@@ -198,6 +198,9 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
 @media (max-width: 639px) {
   .av-vf .av-act, .av-tg { width: 44px; height: 44px; padding: 0; }
   .av-vf .av-act-t, .av-tg .av-act-t { display: none; }
+  /* An extra action without a glyph keeps its words. */
+  .av-vf .av-act.is-text { width: auto; padding: 0 12px; }
+  .av-vf .av-act.is-text .av-act-t { display: inline; }
   .av-doc { padding: 18px 18px 32px; }
 }
 @media (prefers-reduced-motion: reduce) {
