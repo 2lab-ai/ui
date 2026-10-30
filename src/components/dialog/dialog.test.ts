@@ -311,6 +311,53 @@ describe('<ui-dialog>', () => {
     expect(q(el2, '.dg-head')?.hasAttribute('hidden')).toBe(true);
   });
 
+  it('slot="actions" sits beside the close button, outside the heading (G7-2)', () => {
+    const el = mount(
+      { heading: 'report.html' },
+      '<p>Body</p><a slot="actions" href="#n">Open</a><button slot="actions">Download</button>',
+    );
+    el.renderNow();
+    const actions = q(el, '.dg-actions')!;
+    expect(actions.hidden).toBe(false);
+    expect(actions.getAttribute('part')).toBe('actions');
+    expect(actions.querySelector('slot')?.getAttribute('name')).toBe('actions');
+    expect(q(el, '.dg-title')!.contains(actions)).toBe(false);
+    expect(actions.nextElementSibling?.classList.contains('dg-close')).toBe(true);
+    expect(actions.parentElement?.classList.contains('dg-head')).toBe(true);
+    // Without slotted actions the box stays out.
+    expect(q(mount({ heading: 'x' }), '.dg-actions')?.hidden).toBe(true);
+  });
+
+  it('actions alone keep the header row (no heading, no close button)', () => {
+    const el = mount({ 'hide-close': '', label: 'Viewer' }, '<p>Body</p><button slot="actions">Next</button>');
+    el.renderNow();
+    expect(q(el, '.dg-head')?.hidden).toBe(false);
+    expect(q(el, '.dg-title')?.hidden).toBe(true);
+    expect(dlg(el).getAttribute('aria-label')).toBe('Viewer');
+    el.querySelector('[slot="actions"]')!.remove();
+    el.renderNow();
+    expect(q(el, '.dg-head')?.hidden).toBe(true);
+    expect(styles).toContain('.dg-actions:not([hidden]) + .dg-close { margin-left: 0; }');
+    // On a phone the toolbar wraps under the title and ×, end-aligned.
+    const phone = styles.slice(styles.lastIndexOf('@media (max-width: 639px)'));
+    expect(phone).toContain('.dg-head:has(> .dg-actions:not([hidden])) { flex-wrap: wrap; row-gap: 4px; }');
+    expect(phone).toContain('.dg-actions { order: 1; flex-basis: 100%; justify-content: flex-end; }');
+  });
+
+  it('size="full" goes edge to edge on phones: no rounding, no grab, safe areas inside (G7-2)', () => {
+    const phone = styles.slice(styles.lastIndexOf('@media (max-width: 639px)'));
+    expect(phone).toContain('.dg[data-size="full"] { place-items: stretch; }');
+    expect(phone).toMatch(
+      /\.dg\[data-size="full"\]\[data-sheet\] \.dg-panel \{\s*width: 100%; height: 100%; max-height: none; border-radius: 0;/,
+    );
+    expect(phone).toContain('env(safe-area-inset-top) env(safe-area-inset-right)');
+    expect(phone).toContain('.dg[data-size="full"][data-sheet] .dg-grab { display: none; }');
+    // Desktop full is unchanged: the viewport less 16px each side.
+    expect(styles).toContain(
+      '.dg[data-size="full"] .dg-panel { width: calc(100% - 32px); height: calc(100dvh - 32px); max-height: none; }',
+    );
+  });
+
   it('size and sheet land on the dialog as CSS hooks', () => {
     const el = mount({ size: 'xl', sheet: 'never' });
     expect(dlg(el).dataset.size).toBe('xl');
