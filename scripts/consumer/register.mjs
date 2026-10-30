@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 26 element subpaths registers its element(s) (27 in
+// Runtime smoke test against the installed package: each of the 35 element subpaths registers its element(s) (36 in
 // all); the icon set and the kit load and return their strings.
 import { Window } from 'happy-dom';
 
@@ -38,9 +38,22 @@ const slugs = [
   'file-card',
   'artifact-viewer',
   'composer',
+  'log-scroller',
+  'goal-card',
+  'choice-form',
+  'task-plan',
+  'task-runs',
+  'status-bar',
+  'deck-nav',
+  'conversation',
+  'work-log',
 ];
 // Subpaths that register more than their own tag.
-const extra = { 'tool-call-card': ['ui-tool-call-group'] };
+const extra = {
+  'tool-call-card': ['ui-tool-call-group'],
+  conversation: ['ui-log-scroller', 'ui-ai-answer'],
+  'work-log': ['ui-log-scroller', 'ui-tool-call-card', 'ui-tool-call-group'],
+};
 const missing = [];
 for (const slug of slugs) {
   await import(`@2lab.ai/ui/${slug}`);
@@ -90,7 +103,7 @@ if (!icon('gear').startsWith('<svg') || !kitCss.includes('.ui-btn')) {
   console.error('register: @2lab.ai/ui/icons or @2lab.ai/ui/kit did not load');
   process.exit(1);
 }
-const tags = slugs.length + Object.values(extra).flat().length;
+const tags = new Set([...slugs.map((s) => `ui-${s}`), ...Object.values(extra).flat()]).size;
 console.log(
   `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window>, <ui-compact-breakdown>, <ui-agent-tree> and <ui-file-card> rendered; icons and kit load`,
 );

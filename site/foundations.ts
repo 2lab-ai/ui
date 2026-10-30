@@ -127,6 +127,14 @@ const SPECIMENS: KitSpecimen[] = [
     desc: 'grid-template-rows 0fr → 1fr with an opacity fade on --dur-expand; closed content is hidden from focus (add inert too). Pair with a .ui-chev that turns while [aria-expanded="true"].',
     html: `<div class="kit-col"><button class="ui-btn is-quiet" aria-expanded="false" data-kit-expand>${icon('chevron-right', { size: 12, class: 'ui-chev' })}Details</button><div class="ui-expand"><div><p style="margin:6px 0 0">Expanded content rides the animated row; nothing below jumps.</p></div></div></div>`,
   },
+  {
+    title: 'Section head',
+    cls: 'ui-section-head',
+    desc: 'A panel’s section heading: 13px / 650, sentence case, quiet meta in <small>, trailing actions in .is-end. Pair it with a .ui-count badge — data-tone tints it, [data-pop] plays the arrival pop once.',
+    html: `<div class="kit-col"><div class="ui-section-head"><h3>Running tasks</h3><span class="ui-count" data-tone="run">3</span><small>updated 12:04</small><span class="is-end"><button class="ui-btn is-sm is-quiet">${I('refresh')}Refresh</button></span></div>
+<div class="ui-section-head"><h3>Waiting for you</h3><span class="ui-count" data-tone="wait">1</span></div>
+<div class="ui-section-head"><h3>Done today</h3><span class="ui-count">24</span></div></div>`,
+  },
 ];
 
 /** In the code sample an inline SVG reads as the call that makes it: \${icon('name')}. */

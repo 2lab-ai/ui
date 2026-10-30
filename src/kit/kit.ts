@@ -22,6 +22,8 @@ export const KIT_CLASSES = [
   'ui-sr-only',
   'ui-expand',
   'ui-chev',
+  'ui-section-head',
+  'ui-count',
 ] as const;
 
 const T = (name: string): string => `var(--ui-${name})`;
@@ -183,8 +185,28 @@ ${TONES.map(([k, , text]) => `.ui-status-line[data-tone="${k}"] { color: ${toneT
 .ui-chev { flex: none; transition: transform ${T('dur-press')} ${T('ease-out')}; }
 [aria-expanded="true"] > .ui-chev, [aria-expanded="true"] .ui-chev { transform: rotate(90deg); }
 
+/* ── Section head: a 13px / 650 heading row, sentence case; trailing actions in .is-end, quiet meta in <small> ── */
+.ui-section-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; box-sizing: border-box; min-width: 0; min-height: 28px;
+  margin: 0; font-size: 13px; font-weight: 650; line-height: 1.35; letter-spacing: -0.006em; text-transform: none; color: ${T('ib-text')};
+}
+.ui-section-head > :is(h1, h2, h3, h4, h5, h6, p) { min-width: 0; margin: 0; font: inherit; letter-spacing: inherit; color: inherit; overflow-wrap: anywhere; }
+.ui-section-head > small { font-size: 12px; font-weight: 500; letter-spacing: 0; color: ${T('ib-muted')}; font-variant-numeric: tabular-nums; }
+.ui-section-head > .is-end { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; font-weight: 500; letter-spacing: 0; }
+
+/* ── Count badge: a small pill number (tabular); data-tone tints it; [data-pop] plays the arrival pop once ── */
+.ui-count {
+  display: inline-grid; flex: none; place-items: center; box-sizing: border-box; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: ${T('ib-pill')}; color: ${T('ib-text-2')}; font-size: 11px; font-weight: 700; line-height: 1;
+  letter-spacing: 0; white-space: nowrap; font-variant-numeric: tabular-nums;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${toneTint(dot)}; color: ${toneText(text)}; }`).join('\n')}
+.ui-count[data-pop] { animation: ui-count-pop ${T('dur-move')} ${T('ease-out')} both; }
+
 /* ── Focus, press ── */
 :is(.ui-btn, .ui-icon-btn, .ui-fab, .ui-chip):focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
+.ui-section-head:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; border-radius: 6px; }
 :is(.ui-btn, .ui-icon-btn, button.ui-chip, a.ui-chip):active:not(:disabled):not([aria-disabled="true"]):not(:focus-visible) { transform: scale(0.97); }
 .ui-fab:active:not(:disabled):not(:focus-visible) { transform: scale(0.95); }
 
@@ -215,9 +237,11 @@ ${TONES.map(([k, , text]) => `.ui-status-line[data-tone="${k}"] { color: ${toneT
   .ui-expand { transition: none; }
   .ui-expand > *, .ui-expand.is-open > *, .ui-expand[data-open] > * { transition-duration: 120ms, 0s; }
   .ui-chev { transition: none; }
+  .ui-count[data-pop] { animation: ui-fade-in 120ms ease both; }
 }
 @keyframes ui-fab-in { from { opacity: 0; transform: scale(0.95); } }
 @keyframes ui-fade-in { from { opacity: 0; } }
+@keyframes ui-count-pop { from { opacity: 0; transform: scale(0.9); } }
 @keyframes ui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes ui-sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 `;
