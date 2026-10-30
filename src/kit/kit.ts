@@ -24,6 +24,11 @@ export const KIT_CLASSES = [
   'ui-chev',
   'ui-section-head',
   'ui-count',
+  'ui-input',
+  'ui-switch',
+  'ui-card',
+  'ui-notice',
+  'ui-row',
 ] as const;
 
 const T = (name: string): string => `var(--ui-${name})`;
@@ -41,6 +46,123 @@ const TONES: Array<[string, string, string]> = [
   ['done', T('st-done'), T('st-done')],
   ['fail', T('st-fail'), T('st-fail-text')],
 ];
+
+/**
+ * Page parts (0.9.0): form fields, the switch, the card a settings group sits in, the notice banner and the list
+ * row (a run, a job, an entry). Kept as one block with its own hover / touch / reduced-motion rules.
+ */
+const pageKitCss = `
+/* ── Input: text / number / search fields, selects and textareas — put .ui-input on each ── */
+.ui-input {
+  box-sizing: border-box; min-width: 0; max-width: 100%; min-height: 34px; margin: 0; padding: 6px 10px;
+  border: 1px solid ${T('ib-card-border')}; border-radius: 8px; background: ${T('surface-raised')}; color: ${T('ib-text')};
+  font: inherit; font-size: 13px; line-height: 1.35; font-variant-numeric: tabular-nums;
+  transition: border-color ${COLOR_T}, background-color ${COLOR_T}, opacity ${COLOR_T};
+}
+.ui-input::placeholder { color: ${T('text-tertiary')}; opacity: 1; }
+textarea.ui-input { display: block; width: 100%; min-height: 72px; padding: 8px 10px; line-height: 1.45; resize: vertical; }
+select.ui-input {
+  appearance: none; -webkit-appearance: none; padding-right: 30px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, ${T('ib-muted')} 50%), linear-gradient(135deg, ${T('ib-muted')} 50%, transparent 50%);
+  background-position: calc(100% - 16px) 52%, calc(100% - 12px) 52%; background-size: 4px 4px; background-repeat: no-repeat;
+}
+.ui-input.is-sm { min-height: 28px; padding: 3px 8px; border-radius: 7px; font-size: 12.5px; }
+select.ui-input.is-sm { padding-right: 26px; }
+.ui-input.is-block { display: block; width: 100%; }
+.ui-input:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
+.ui-input[aria-invalid="true"] { border-color: ${T('st-fail')}; }
+.ui-input:disabled { opacity: 0.55; cursor: not-allowed; }
+.ui-input[readonly] { background: transparent; }
+
+/* ── Switch: <label class="ui-switch"><input type="checkbox" role="switch"><span>On</span></label> — on is ink ── */
+.ui-switch {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; line-height: 1.3;
+  color: ${T('ib-text-2')}; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.ui-switch > input {
+  appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 32px; height: 18px; margin: 0;
+  border: 0; border-radius: 999px; background: color-mix(in srgb, ${T('ib-muted')} 30%, ${T('ib-pill')});
+  box-shadow: inset 0 0 0 1px ${T('ib-card-border')};
+  cursor: pointer; transition: background-color ${COLOR_T}, box-shadow ${COLOR_T};
+}
+.ui-switch > input::before {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: ${T('ib-card')}; box-shadow: ${T('ib-shadow')}, 0 0 0 0.5px ${T('ib-card-border')};
+  transition: transform ${T('dur-press')} ${T('ease-out')};
+}
+.ui-switch > input:checked { background: ${T('ib-text')}; box-shadow: inset 0 0 0 1px ${T('ib-text')}; }
+.ui-switch > input:checked::before { transform: translateX(14px); }
+.ui-switch > input:checked + span { color: ${T('ib-text')}; }
+.ui-switch > input:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
+.ui-switch:has(> input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.ui-switch > input:disabled { cursor: not-allowed; }
+
+/* ── Card: a 12px surface with the whisper shadow; <header> takes an h2/h3 and a quiet <p>; .is-body pads content ── */
+.ui-card {
+  box-sizing: border-box; min-width: 0; margin: 0; border: 1px solid ${T('ib-card-border')}; border-radius: 12px;
+  background: ${T('ib-card')}; box-shadow: ${T('ib-shadow')}; color: ${T('ib-text')};
+}
+.ui-card > header { padding: 14px 16px 12px; border-bottom: 1px solid ${T('ib-card-border')}; }
+.ui-card > header > :is(h1, h2, h3, h4) { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.3; letter-spacing: -0.01em; color: ${T('ib-text')}; }
+.ui-card > header > p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.45; color: ${T('ib-muted')}; }
+.ui-card > .is-body { padding: 14px 16px; }
+.ui-card.is-danger { border-color: color-mix(in srgb, ${T('st-fail')} 35%, ${T('ib-card-border')}); }
+.ui-card.is-danger > header { border-bottom-color: color-mix(in srgb, ${T('st-fail')} 25%, ${T('ib-card-border')}); }
+.ui-card.is-danger > header > :is(h1, h2, h3, h4) { color: ${toneText(T('st-fail-text'))}; }
+
+/* ── Notice: a banner above a page or a form — neutral, or a tone; a leading <svg> takes the tone ── */
+.ui-notice {
+  --ui-tone: ${T('ib-muted')};
+  display: flex; align-items: flex-start; gap: 8px; box-sizing: border-box; min-width: 0; margin: 0; padding: 10px 12px;
+  border: 1px solid ${T('ib-card-border')}; border-radius: 10px; background: ${T('ib-card')}; color: ${T('ib-text-2')};
+  font-size: 13px; line-height: 1.45; overflow-wrap: anywhere;
+}
+.ui-notice > svg { flex: none; width: 14px; height: 14px; margin-top: 2px; color: var(--ui-tone); }
+.ui-notice strong { font-weight: 600; color: ${T('ib-text')}; }
+.ui-notice a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+${TONES.map(
+  ([k, dot, text]) =>
+    `.ui-notice[data-tone="${k}"] { --ui-tone: ${dot}; border-color: color-mix(in srgb, ${dot} 35%, ${T('ib-card-border')}); background: ${toneTint(dot)}; color: ${toneText(text)}; }\n.ui-notice[data-tone="${k}"] strong { color: inherit; }`,
+).join('\n')}
+
+/* ── Row: a list row — leading glyph in the tone, a <div> with <strong> title and <small> meta, trailing .is-end ── */
+.ui-row {
+  --ui-tone: ${T('ib-muted')};
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 2px 10px; box-sizing: border-box;
+  min-width: 0; margin: 0; padding: 10px 12px; list-style: none; font-size: 13px; line-height: 1.4; color: ${T('ib-text')};
+  text-decoration: none;
+}
+.ui-row + .ui-row { border-top: 1px solid ${T('ib-card-border')}; }
+.ui-row > svg, .ui-row > .ui-avatar { grid-column: 1; margin-top: 1px; }
+.ui-row > svg { width: 16px; height: 16px; color: var(--ui-tone); }
+.ui-row > div { grid-column: 2; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ui-row > div:first-child { grid-column: 1 / 3; }
+.ui-row strong { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ui-row small { font-size: 12px; color: ${T('ib-muted')}; font-variant-numeric: tabular-nums; }
+.ui-row .ui-status-line { font-size: 12px; }
+.ui-row > .is-end { grid-column: 3; display: inline-flex; align-items: center; gap: 4px; align-self: center; }
+${TONES.map(([k, dot]) => `.ui-row[data-tone="${k}"] { --ui-tone: ${dot}; }`).join('\n')}
+:is(a, button).ui-row { width: 100%; border: 0; border-radius: 8px; background: transparent; font: inherit; text-align: left; cursor: pointer; transition: background-color ${COLOR_T}, ${PRESS_T}; }
+:is(a, button).ui-row:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: -2px; }
+:is(a, button).ui-row:active:not(:focus-visible) { transform: scale(0.99); }
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-input:hover:not(:disabled):not(:focus) { border-color: ${T('ib-muted')}; }
+  .ui-switch:hover > input:not(:disabled):not(:checked) { box-shadow: inset 0 0 0 1px ${T('ib-muted')}; }
+  :is(a, button).ui-row:hover { background: ${T('ib-pill')}; }
+}
+@media (pointer: coarse), (max-width: 639px) {
+  .ui-input, .ui-input.is-sm { min-height: 44px; }
+  .ui-switch { min-height: 44px; }
+}
+@media (pointer: coarse) {
+  .ui-input, .ui-input.is-sm { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-input, .ui-switch > input { transition-duration: 0.01ms; }
+  .ui-switch > input::before, :is(a, button).ui-row { transition: none; }
+}
+`;
 
 export const kitCss = `/* @2lab.ai/ui kit — light-DOM classes. Reads the --ui-* tokens (@2lab.ai/ui/tokens.css). */
 
@@ -251,4 +373,4 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
 @keyframes ui-count-pop { from { opacity: 0; transform: scale(0.9); } }
 @keyframes ui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes ui-sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-`;
+${pageKitCss}`;
