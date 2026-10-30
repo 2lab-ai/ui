@@ -104,6 +104,13 @@ export const doc: ComponentDoc = {
         '2+ series stack in this order (first at the baseline) with a legend. One series = a single series with its label (legend and tooltip) and colour. Omitted = one series read from value.',
     },
     {
+      name: 'data.color',
+      type: "'spark' | 'run' | 'done' | 'wait' | 'fail' | 'purple' | 'orange' | 'muted'",
+      default: "'spark'",
+      description:
+        'The colour of a single series read from value — no legend (the title already names it; a series entry would draw one). Ignored when series is given.',
+    },
+    {
       name: 'data.series[].color',
       type: "'spark' | 'run' | 'done' | 'wait' | 'fail' | 'purple' | 'orange' | 'muted'",
       description:
@@ -227,6 +234,30 @@ export const doc: ComponentDoc = {
           bars: days(COST),
           selected: '2026-10-30',
         }),
+    },
+    {
+      id: 'colour',
+      title: 'One series, own colour',
+      description:
+        'data.color sets a single series’ colour without a legend — two charts side by side, each named by its title.',
+      height: 300,
+      frame: false,
+      create: () => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText =
+          'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;width:100%';
+        wrap.append(
+          make({ title: 'Sessions · last 7 days', unit: 'sessions', bars: days(SESSIONS.slice(-7)) }),
+          make({
+            title: 'Code changes · last 7 days',
+            unit: 'lines',
+            color: 'purple',
+            format: 'compact',
+            bars: days(SESSIONS.slice(-7).map((n) => n * 137)),
+          }),
+        );
+        return wrap;
+      },
     },
     {
       id: 'empty-loading',

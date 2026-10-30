@@ -14,7 +14,9 @@ import {
   actionUrl,
   artifactItems,
   artifactLayout,
+  extraActions,
   MARKDOWN_VIEW_CHARS,
+  MAX_EXTRA_ACTIONS,
   mediaSrc,
   PEEK_DELAY_MS,
   PEEK_GRACE_MS,
@@ -29,6 +31,7 @@ import {
 } from './logic';
 import { styles } from './styles';
 import './artifact-viewer';
+import '../file-card/file-card';
 
 const NOW = Date.UTC(2026, 9, 30, 12, 0, 0);
 const MIN = 60_000;
@@ -120,8 +123,14 @@ afterEach(() => {
 });
 
 describe('helpers', () => {
-  it('artifactLayout keeps the four layouts and falls back to strip', () => {
-    expect(['strip', 'grid', 'chips', 'list'].map(artifactLayout)).toEqual(['strip', 'grid', 'chips', 'list']);
+  it('artifactLayout keeps the five layouts and falls back to strip', () => {
+    expect(['strip', 'grid', 'chips', 'list', 'none'].map(artifactLayout)).toEqual([
+      'strip',
+      'grid',
+      'chips',
+      'list',
+      'none',
+    ]);
     expect(artifactLayout(undefined)).toBe('strip');
     expect(artifactLayout('carousel')).toBe('strip');
     expect(artifactLayout(3)).toBe('strip');
@@ -700,6 +709,218 @@ describe('viewer', () => {
     expect(el.index).toBe(-1);
     expect(dialog(el).open).toBe(false);
     expect(native(el).open).toBe(false);
+  });
+});
+
+describe('extra actions (D2 G4-2)', () => {
+  const slack = { id: 'slack', label: 'Slack', icon: 'external' as const, href: 'https://x.slack.com/files/1' };
+
+  it('extraActions keeps drawable ones: id + label, no built-in ids, first of each id, safe hrefs only, capped', () => {
+    const item: FileItem = {
+      id: 'f',
+      name: 'f.txt',
+      actions: [
+        slack,
+        { id: 'open', label: 'Mine' },
+        { id: 'download', label: 'Mine' },
+        { id: 'slack', label: 'Again' },
+        { id: '', label: 'No id' },
+        { id: 'blank', label: '  ' },
+        { id: 'js', label: 'Run', href: 'javascript:alert(1)' },
+        null as unknown as { id: string; label: string },
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+        { id: 'c', label: 'C' },
+      ],
+    };
+    const out = extraActions(item);
+    expect(out.map((a) => a.id)).toEqual(['slack', 'js', 'a', 'b']);
+    expect(out).toHaveLength(MAX_EXTRA_ACTIONS);
+    expect(out[0]).toEqual(slack);
+    expect('href' in out[1]).toBe(false);
+    expect(extraActions({ id: 'x', name: 'x', actions: 'nope' as unknown as [] })).toEqual([]);
+    expect(extraActions(undefined)).toEqual([]);
+  });
+
+  it('draws after Open / Download in the footer: a link (new tab) with href, else a button; names escaped', () => {
+    const items = files();
+    items[3] = { ...items[3], actions: [slack, { id: BREAK, label: XSS }] };
+    const el = mount({ items });
+    el.open(3);
+    const acts = qa<HTMLElement>(el, '.av-vf .av-act');
+    expect(acts.map((a) => a.dataset.act ?? a.dataset.x)).toEqual(['open', 'download', 'slack', BREAK]);
+    const [, , link, btn] = acts;
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('https://x.slack.com/files/1');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(link.getAttribute('aria-label')).toBe('Slack');
+    expect(link.querySelector('svg')).not.toBeNull();
+    expect(link.classList.contains('is-text')).toBe(false);
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn.getAttribute('type')).toBe('button');
+    expect(btn.classList.contains('is-text')).toBe(true);
+    expect(btn.querySelector('.av-act-t')!.textContent).toBe(XSS);
+    expect(q(el, '.av-vf img')).toBeNull();
+    expect(q(el, '.av-vf b')).toBeNull();
+  });
+
+  it('a press sends a cancelable ui-action with the action id, the file id, the link and extra: true', () => {
+    const items = files();
+    items[3] = { ...items[3], actions: [slack, { id: 'copy', label: 'Copy', icon: 'copy' }] };
+    const el = mount({ items });
+    el.open(3);
+    const seen = record<ArtifactActionDetail>(el, 'ui-action');
+    const link = q(el, '.av-act[data-x="slack"]')!;
+    expect(click(link.querySelector('svg')!)).toBe(false);
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-action', stop);
+    expect(click(link)).toBe(true);
+    click(q(el, '.av-act[data-x="copy"]')!);
+    el.removeEventListener('ui-action', stop);
+    expect(seen).toEqual([
+      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
+      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
+      { action: 'copy', id: 'code', url: '', extra: true, cancelable: true },
+    ]);
+    // The viewer stays open on its own actions.
+    expect(dialog(el).open).toBe(true);
+  });
+
+  it('a file only Slack has (no url): its card leads with the first extra action in ink; the footer has no actions', () => {
+    const el = mount({
+      items: [{ id: 'call', name: 'call.m4a', mime: 'audio/mp4', actions: [slack, { id: 'copy', label: 'Copy' }] }],
+    });
+    el.open(0);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('fallback');
+    const acts = qa<HTMLElement>(el, '.av-card .av-act');
+    expect(acts.map((a) => a.dataset.x)).toEqual(['slack', 'copy']);
+    expect(acts[0].classList.contains('is-primary')).toBe(true);
+    expect(acts[1].classList.contains('is-primary')).toBe(false);
+    expect(q(el, '.av-vf .av-act')).toBeNull();
+    // With its own Download the card keeps Download in ink and the extra beside it.
+    el.open([{ ...files()[6], actions: [slack] }], 0);
+    const card = qa<HTMLElement>(el, '.av-card .av-act');
+    expect(card.map((a) => a.dataset.act ?? a.dataset.x)).toEqual(['open', 'download', 'slack']);
+    expect(card.filter((a) => a.classList.contains('is-primary')).map((a) => a.dataset.act)).toEqual(['download']);
+  });
+
+  it('download: false / openInTab: false leave the extra actions in place', () => {
+    const items = files();
+    items[3] = { ...items[3], actions: [slack] };
+    const el = mount({ items, download: false, openInTab: false });
+    el.open(3);
+    expect(qa<HTMLElement>(el, '.av-vf .av-act').map((a) => a.dataset.x)).toEqual(['slack']);
+  });
+
+  it('phones keep the words of an action without a glyph', () => {
+    expect(styles).toMatch(/\.av-vf \.av-act\.is-text \{ width: auto;/);
+    expect(styles).toMatch(/\.av-vf \.av-act\.is-text \.av-act-t \{ display: inline; \}/);
+  });
+});
+
+describe('the card’s own words and focus (D2 G4-5)', () => {
+  it('kindLabel names the badge, the peek and the tile', () => {
+    const items: FileItem[] = [{ id: 'ans', name: 'final.md', kindLabel: '답변', text: '# Done', size: 2_048 }];
+    const el = mount({ items }, { lang: 'ko' });
+    expect(tiles(el)[0].getAttribute('aria-label')).toBe('final.md, 답변, 2 KB');
+    expect(peekHtml(items[0], 'ko', NOW, new Set())).toContain('답변 · 2 KB');
+    el.open(0);
+    expect(q(el, '.av-badge')!.textContent).toBe('답변');
+  });
+
+  it('a <ui-file-card> opener takes focus back to its button', () => {
+    const card = document.createElement('ui-file-card');
+    card.data = { id: 'a', name: 'a.md', text: '# a' };
+    document.body.append(card);
+    card.renderNow();
+    const el = mount({ items: [] }, { tiles: 'none' });
+    el.open([card.data], 0, card);
+    expect(dialog(el).open).toBe(true);
+    key(q(el, '.av-stage')!, 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(document.activeElement).toBe(card);
+    expect(card.shadowRoot!.activeElement).toBe(card.shadowRoot!.querySelector('button.fc'));
+  });
+});
+
+describe('dialog only (D2 G4-1)', () => {
+  /** The host's own tiles: plain buttons in the page. */
+  function hostTiles(n: number): HTMLButtonElement[] {
+    return Array.from({ length: n }, (_, i) => {
+      const b = document.createElement('button');
+      b.textContent = `tile ${i}`;
+      document.body.append(b);
+      return b;
+    });
+  }
+
+  it('layout none / tiles="none" draws no tiles, no title and no empty line', () => {
+    for (const el of [
+      mount({ items: files(), layout: 'none', title: 'Files' }),
+      mount({ items: files(), title: 'Files' }, { tiles: 'none' }),
+      mount({ items: [], layout: 'none', title: 'Files' }),
+    ]) {
+      expect(q(el, '.ui-root')!.innerHTML).toBe('');
+      expect(q(el, 'ui-dialog')).not.toBeNull();
+    }
+  });
+
+  it('open(items, index, opener) pages through the host list with steps, badge and actions; focus returns to the opener', () => {
+    const el = mount({ items: [], layout: 'none' }, { lang: 'ko' });
+    const [a, b] = hostTiles(2);
+    b.focus();
+    const views = record<ArtifactViewDetail>(el, 'ui-view');
+    const opens = record(el, 'ui-open');
+    el.open(files(), 3, a);
+    // Focus moved into the dialog (the viewer's shadow), not left on the tile pressed last.
+    expect(document.activeElement).toBe(el);
+    expect(dialog(el).open).toBe(true);
+    expect(el.index).toBe(3);
+    expect(el.data?.items).toHaveLength(7);
+    expect(q(el, '.av-pos [aria-hidden]')!.textContent).toBe('4 / 7');
+    expect(q(el, '.av-badge')!.textContent).toBe('코드');
+    expect(q(el, '.av-vf a.av-act[data-act="download"]')).not.toBeNull();
+    navBtn(el, 'next').click();
+    expect(el.index).toBe(4);
+    expect(views.map((v) => v.id)).toEqual(['code', 'memo']);
+    expect(opens).toEqual([]);
+    key(q(el, '.av-stage')!, 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(dialog(el).open).toBe(false);
+    expect(document.activeElement).toBe(a);
+    expect(q(el, '.ui-root')!.innerHTML).toBe('');
+  });
+
+  it('a new list while open replaces the shown file even at the same index; an old data.index never reopens', () => {
+    const el = mount({ items: files(), layout: 'none', index: 0 });
+    expect(el.index).toBe(0);
+    const views = record<ArtifactViewDetail>(el, 'ui-view');
+    const other: FileItem[] = [
+      { id: 'x', name: 'x.md', text: '# x' },
+      { id: 'y', name: 'y.txt', text: 'y' },
+    ];
+    el.open(other, 0);
+    expect(views.map((v) => v.id)).toEqual(['x']);
+    expect(q(el, '.av-vname')!.textContent).toBe('x.md');
+    el.renderNow();
+    expect(el.index).toBe(0);
+    expect(views).toHaveLength(1);
+    expect('index' in (el.data ?? {})).toBe(false);
+    el.close();
+    el.renderNow();
+    expect(el.index).toBe(-1);
+    // open(index) still opens over the current list.
+    el.open(1);
+    expect(q(el, '.av-vname')!.textContent).toBe('y.txt');
+  });
+
+  it('open(items) on a strip viewer swaps its tiles to the list', () => {
+    const el = mount({ items: files().slice(0, 2), title: 'Files' });
+    el.open(files(), 6);
+    el.renderNow();
+    expect(tiles(el)).toHaveLength(7);
+    expect(el.index).toBe(6);
   });
 });
 

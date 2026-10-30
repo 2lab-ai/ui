@@ -191,6 +191,128 @@ function rolling(): HTMLElement {
   );
 }
 
+/** A period switch that loads: the bar hides each figure, and the answer rolls from what it showed (`from: 'last'`). */
+function loadingPeriod(): HTMLElement {
+  const figs = (f: Figures): StatMetric[] => metrics(f, EN).map((m) => ({ ...m, from: 'last' as const }));
+  const el = make({ period: { options: EN.options, value: '7d' }, metrics: figs(FIGURES['7d']) });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  el.addEventListener('ui-period', (e) => {
+    const { value } = (e as CustomEvent<StatPeriodChange>).detail;
+    const f = FIGURES[value];
+    if (!f || !el.data) return;
+    clearTimeout(timer);
+    // The host's whole job: loading meanwhile, then the answer — no old → new trick.
+    el.data = { ...el.data, period: { ...el.data.period!, value }, loading: true };
+    timer = setTimeout(() => {
+      if (el.data) el.data = { ...el.data, loading: false, metrics: figs(f) };
+    }, 700);
+  });
+  return el;
+}
+
+interface Detail {
+  turns: number;
+  opened: number;
+  merged: number;
+  added: number;
+  deleted: number;
+  workflows: Array<[string, number]>;
+}
+const DETAILS: Detail[] = [
+  {
+    turns: 1942,
+    opened: 31,
+    merged: 19,
+    added: 12_480,
+    deleted: 3_215,
+    workflows: [
+      ['z', 42],
+      ['autoz', 17],
+      ['zfix', 9],
+      ['review', 4],
+    ],
+  },
+  {
+    turns: 2310,
+    opened: 38,
+    merged: 27,
+    added: 15_902,
+    deleted: 4_877,
+    workflows: [
+      ['z', 51],
+      ['autoz', 22],
+      ['zfix', 6],
+    ],
+  },
+  {
+    turns: 1488,
+    opened: 22,
+    merged: 14,
+    added: 8_130,
+    deleted: 2_406,
+    workflows: [
+      ['z', 30],
+      ['autoz', 11],
+      ['review', 7],
+    ],
+  },
+];
+const DETAIL_KO = { turns: '턴 사용', opened: 'PR 생성', merged: 'PR 머지', lines: '머지 코드', wf: '워크플로우' };
+const DETAIL_EN = { turns: 'Turns', opened: 'PRs opened', merged: 'PRs merged', lines: 'Merged code', wf: 'Workflows' };
+
+/**
+ * layout: 'cards' — five tiles: three rolling counts, a two-number figure and a name: count list in slots (the
+ * host's markup, tinted with tokens), loading between periods with from: 'last'.
+ */
+function cards(s: typeof DETAIL_EN, attrs: Record<string, string> = {}): HTMLElement {
+  const lines = document.createElement('span');
+  lines.slot = 'lines';
+  const wf = document.createElement('span');
+  wf.slot = 'wf';
+  const tone = (t: string) => `color:color-mix(in srgb, var(--ui-st-${t}) 70%, var(--ui-text))`;
+  const fill = (f: Detail) => {
+    lines.innerHTML = `<span style="${tone('done')}">+${f.added.toLocaleString('en-US')}</span><span style="color:var(--ui-text-tertiary)">/</span><span style="${tone('fail')}">−${f.deleted.toLocaleString('en-US')}</span>`;
+    wf.replaceChildren(
+      ...f.workflows.map(([name, n]) => {
+        const x = document.createElement('span');
+        x.innerHTML = `<span style="color:var(--ui-text-secondary);font-weight:500"></span> <b style="font-weight:600"></b>`;
+        x.firstElementChild!.textContent = `${name}:`;
+        x.lastElementChild!.textContent = String(n);
+        return x;
+      }),
+    );
+  };
+  const data = (f: Detail, loading = false): StatStripData => ({
+    layout: 'cards',
+    label: s.turns === 'Turns' ? 'Details' : '세부 사용량',
+    loading,
+    metrics: [
+      { key: 'turns', label: s.turns, value: f.turns, from: 'last' },
+      { key: 'opened', label: s.opened, value: f.opened, from: 'last' },
+      { key: 'merged', label: s.merged, value: f.merged, from: 'last' },
+      { key: 'lines', label: s.lines, slot: 'lines' },
+      { key: 'wf', label: s.wf, slot: 'wf', wide: true },
+    ],
+  });
+  fill(DETAILS[0]);
+  const el = make(data(DETAILS[0]), attrs);
+  el.append(lines, wf);
+  let at = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return stack(
+    el,
+    button(s.turns === 'Turns' ? 'Next period (loads)' : '다음 기간 (불러오기)', () => {
+      clearTimeout(timer);
+      at = (at + 1) % DETAILS.length;
+      el.data = data(DETAILS[at], true);
+      timer = setTimeout(() => {
+        fill(DETAILS[at]);
+        el.data = data(DETAILS[at]);
+      }, 600);
+    }),
+  );
+}
+
 function loading(): HTMLElement {
   const loaded: StatStripData = {
     period: { options: EN.options, value: 'today' },
@@ -255,6 +377,12 @@ export const doc: ComponentDoc = {
     },
     { name: 'data.metrics[].loading', type: 'boolean', description: 'A skeleton bar for this figure only.' },
     {
+      name: 'data.metrics[].from',
+      type: "number | 'last'",
+      description:
+        "Where the figure rolls from when it lands a value with none on screen — first paint, or after loading / no data. 'last': the value it showed before its loading bar (kept under the bar, mid-roll included), so a period switch that loads rolls from the old period. A number: a known start. Without it such a value appears at once. A figure already showing a value always rolls on from it; reduced motion and a change of format jump.",
+    },
+    {
       name: 'data.metrics[].breakdown',
       type: '{ title?: string; rows: Array<{ label: string; value: number | null; format?: MetricFormat }> }',
       description:
@@ -272,6 +400,24 @@ export const doc: ComponentDoc = {
         'The period control at the start of the line. `label` is its accessible name (default “Period” / “기간”). Left out = no control.',
     },
     { name: 'data.loading', type: 'boolean', default: 'false', description: 'Every figure shows a skeleton.' },
+    {
+      name: 'data.layout',
+      type: "'line' | 'cards'",
+      default: "'line'",
+      description:
+        'line: label · figure pairs on one calm line. cards: a grid of tiles (label above a 22px figure, 12px radius, hairline + resting shadow), as many columns as fit at 140px or more — the detail behind a More, a dashboard row. Everything else (rolling, loading, from, breakdowns, slots, More) works the same; below 480px of its own width the tiles tighten (18px figures).',
+    },
+    {
+      name: 'data.metrics[].slot',
+      type: 'string',
+      description:
+        'A free-form figure: the name of a slot whose light-DOM content takes the figure’s place (“+1,204 / −318”, a name: count list). No roll and no breakdown; loading still shows the bar; an empty slot shows “—”.',
+    },
+    {
+      name: 'data.metrics[].wide',
+      type: 'boolean',
+      description: 'cards: the tile spans two columns (one when only one fits) — for a long free-form figure.',
+    },
     {
       name: 'data.more',
       type: 'boolean | { label?: string; open?: boolean }',
@@ -307,7 +453,7 @@ export const doc: ComponentDoc = {
       name: 'ui-period',
       detail: '{ value: string; previous: string | undefined }',
       description:
-        'A period was chosen. Cancelable: preventDefault() keeps the old period; otherwise the control shows the new one right away — load its figures (set `loading` meanwhile). The inner `ui-change` never leaves the element.',
+        "A period was chosen. Cancelable: preventDefault() keeps the old period; otherwise the control shows the new one right away — load its figures (set `loading` meanwhile; with `from: 'last'` the answer rolls from the old figures). The inner `ui-change` never leaves the element.",
     },
     {
       name: 'ui-more',
@@ -328,7 +474,7 @@ export const doc: ComponentDoc = {
     'Loading sets aria-busy on the strip and reads “Loading” per figure; no data reads “No data” instead of the dash.',
     'A breakdown is a non-interactive tooltip: the figure button is described by it (aria-describedby). Hover after 500 ms, keyboard focus at once, a press toggles it (touch too); Esc or a press elsewhere hides it.',
     'More is a button with aria-expanded and aria-controls; the closed region is inert, so nothing inside takes focus.',
-    'Every control is ≥ 44px tall on coarse pointers (figures through a larger hit area, so the line stays one line).',
+    'Every control is ≥ 44px tall on coarse pointers (figures through a larger hit area, so the line stays one line); More is 44px on phone-width windows too.',
     'Reduced motion: figures jump instead of rolling, the region and chevron do not animate, skeletons stop pulsing.',
     'Sound (opt-in, @2lab.ai/ui/sound): the More toggle plays a subtle open or close when its ui-more goes through; a period change sounds in the inner segmented control (select). Silent until the page turns sound on.',
   ],
@@ -354,11 +500,12 @@ export const doc: ComponentDoc = {
   ] };
   async function load(value) {
     const s = await (await fetch('/usage?period=' + value)).json();
+    // from: 'last' — each answer rolls from the figure the loading bar hid.
     el.data = { ...el.data, loading: false, metrics: [
-      { key: 'sessions', label: 'Sessions', value: s.sessions },
-      { key: 'tokens', label: 'Tokens', value: s.tokens, format: 'tokens',
+      { key: 'sessions', label: 'Sessions', value: s.sessions, from: 'last' },
+      { key: 'tokens', label: 'Tokens', value: s.tokens, format: 'tokens', from: 'last',
         breakdown: { title: 'Tokens by environment', rows: s.byEnv } },
-      { key: 'cost', label: 'Cost', value: s.cost, format: 'usd' },
+      { key: 'cost', label: 'Cost', value: s.cost, format: 'usd', from: 'last' },
     ] };
   }
   el.addEventListener('ui-period', (e) => {
@@ -383,6 +530,33 @@ export const doc: ComponentDoc = {
         'Each figure rolls from what it shows to the new value in 620 ms, ease-out quart — count, tokens, cost, percent and duration.',
       height: 220,
       create: () => rolling(),
+    },
+    {
+      id: 'cards',
+      title: 'Cards',
+      description:
+        "layout: 'cards' — the detail tiles behind a More: three rolling counts, a two-number figure and a wide name: count list (both slots: the host's own markup). Next period loads, then rolls from the old figures (from: 'last').",
+      height: 280,
+      create: () => cards(DETAIL_EN),
+    },
+    {
+      id: 'cards-ko',
+      title: '카드 (한국어)',
+      description: '턴 사용 · PR 생성 · PR 머지 · 머지 코드 · 워크플로우 — lang="ko", 좁은 폭에서는 두 열.',
+      height: 320,
+      create: () => {
+        const box = cards(DETAIL_KO, { lang: 'ko' });
+        box.style.maxWidth = '420px';
+        return box;
+      },
+    },
+    {
+      id: 'loading-period',
+      title: 'A period that loads',
+      description:
+        "Pick a period: the host sets loading, then hands over the answer 700 ms later. With from: 'last' the bar keeps each figure's value underneath and the answer rolls from it — the host needs no old → new trick.",
+      height: 200,
+      create: () => loadingPeriod(),
     },
     {
       id: 'loading',

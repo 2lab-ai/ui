@@ -6,6 +6,7 @@ import type {
   ComposerData,
   ComposerFilesDetail,
   ComposerInputDetail,
+  ComposerOverCapDetail,
   ComposerRecordDetail,
   ComposerRejectDetail,
   ComposerSubmitDetail,
@@ -19,6 +20,7 @@ import {
   composerCheckFile,
   composerCounterTone,
   composerEnterAction,
+  composerEnterMode,
   composerLevel,
   composerPastedName,
   composerRecorderMime,
@@ -236,12 +238,15 @@ describe('logic', () => {
     const def = {
       maxFiles: 10,
       maxFileSize: 25 * 1024 * 1024,
+      maxTotalBytes: 0,
       maxRecordMs: 600_000,
       maxLength: 0,
       accept: '',
       attach: true,
       image: true,
       voice: true,
+      camera: '',
+      progress: null,
       busy: false,
       disabled: false,
       reason: '',
@@ -1373,6 +1378,238 @@ describe('<ui-composer> lang="ko"', () => {
 });
 
 // ── Styles ──
+
+describe('<ui-composer> enter="newline" (D2 G5-2)', () => {
+  it('composerEnterMode / composerEnterAction: Enter and Shift+Enter are new lines, ⌘/Ctrl+Enter sends', () => {
+    expect(composerEnterMode('newline')).toBe('newline');
+    expect(composerEnterMode('send')).toBe('send');
+    expect(composerEnterMode('NEWLINE')).toBe('send');
+    expect(composerEnterMode(undefined)).toBe('send');
+    const k = (o: Partial<KeyboardEvent> = {}) =>
+      ({ key: 'Enter', shiftKey: false, metaKey: false, ctrlKey: false, altKey: false, ...o }) as KeyboardEvent;
+    const nl = { enter: 'newline' as const };
+    expect(composerEnterAction(k(), nl)).toBe('newline');
+    expect(composerEnterAction(k({ shiftKey: true }), nl)).toBe('newline');
+    expect(composerEnterAction(k({ metaKey: true }), nl)).toBe('send');
+    expect(composerEnterAction(k({ ctrlKey: true }), nl)).toBe('send');
+    expect(composerEnterAction(k({ ctrlKey: true, isComposing: true }), nl)).toBe('none');
+    expect(composerEnterAction(k(), { enter: 'send' })).toBe('send');
+  });
+
+  it('data.enter newline: Enter leaves the new line to the field; Ctrl+Enter sends', () => {
+    const el = mount({ enter: 'newline' });
+    const sent = events<ComposerSubmitDetail>(el, 'ui-submit');
+    type(el, 'line one');
+    const e = key(field(el), 'Enter');
+    expect(e.defaultPrevented).toBe(false);
+    expect(sent).toEqual([]);
+    expect(el.enter).toBe('newline');
+    const c = key(field(el), 'Enter', { ctrlKey: true });
+    expect(c.defaultPrevented).toBe(true);
+    expect(sent).toEqual([{ text: 'line one', files: [] }]);
+  });
+
+  it('the enter attribute wins over data.enter; default send', () => {
+    const el = mount({ enter: 'newline' }, { enter: 'send' });
+    expect(el.enter).toBe('send');
+    el.removeAttribute('enter');
+    expect(el.enter).toBe('newline');
+    expect(mount().enter).toBe('send');
+    const attr = mount({}, { enter: 'newline' });
+    const sent = events(attr, 'ui-submit');
+    type(attr, 'x');
+    key(field(attr), 'Enter');
+    expect(sent).toEqual([]);
+  });
+
+  it('the hint says the mode: ⌘ on Apple keyboards, Ctrl elsewhere, Korean with lang="ko"', () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    const mac = mount({ hint: true, enter: 'newline' });
+    expect(q(mac, '.cp-hint')!.textContent).toBe('⌘+Enter to send · Enter for a new line');
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('Win32');
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Windows NT 10.0)');
+    const win = mount({ hint: true }, { enter: 'newline', lang: 'ko' });
+    expect(q(win, '.cp-hint')!.textContent).toBe('Ctrl+Enter로 보내기 · Enter로 줄바꿈');
+    expect(q(mount({ hint: true }), '.cp-hint')!.textContent).toBe(T.hint);
+  });
+});
+
+describe('<ui-composer> maxTotalBytes (D2 G5-3)', () => {
+  it('composerCheckFile: the total comes last; composerSettings: no cap by default', () => {
+    const o = { count: 0, maxFiles: 10, maxFileSize: 100, maxTotalBytes: 25 };
+    expect(composerCheckFile(mk('a', 10), { ...o, total: 15 })).toBeNull();
+    expect(composerCheckFile(mk('a', 10), { ...o, total: 16 })).toBe('total');
+    expect(composerCheckFile(mk('a', 200), { ...o, total: 16 })).toBe('size');
+    expect(composerCheckFile(mk('a', 10), { ...o, total: 99, maxTotalBytes: 0 })).toBeNull();
+    expect(composerSettings({}).maxTotalBytes).toBe(0);
+    expect(composerSettings({ maxTotalBytes: -5 }).maxTotalBytes).toBe(0);
+    expect(composerSettings({ maxTotalBytes: 30.7 }).maxTotalBytes).toBe(30);
+  });
+
+  it('a file that would cross the cap sends ui-over-cap, then is rejected (reason total) with an inline error', () => {
+    const el = mount({ maxTotalBytes: 25 });
+    const caps = events<ComposerOverCapDetail>(el, 'ui-over-cap');
+    const rejects = events<ComposerRejectDetail>(el, 'ui-reject');
+    const c = txt('c.txt', 10);
+    expect(el.addFiles([txt('a.txt', 10), txt('b.txt', 10), c])).toHaveLength(2);
+    expect(caps).toEqual([{ name: 'c.txt', file: c, size: 10, total: 20, max: 25 }]);
+    expect(rejects).toEqual([{ name: 'c.txt', reason: 'total', file: c }]);
+    expect(errorText(el)).toBe('c.txt — Too large together (max 25 B in all)');
+    expect(el.files.map((f) => f.name)).toEqual(['a.txt', 'b.txt']);
+    // Removing one makes room again.
+    el.removeFile(0);
+    expect(el.addFiles([c])).toHaveLength(1);
+  });
+
+  it('ui-over-cap is cancelable: preventDefault() takes the file anyway', () => {
+    const el = mount({ maxTotalBytes: 15 });
+    const caps = events<ComposerOverCapDetail>(el, 'ui-over-cap', true);
+    const rejects = events(el, 'ui-reject');
+    let cancelable = false;
+    el.addEventListener('ui-over-cap', (e) => {
+      cancelable = e.cancelable;
+    });
+    expect(el.addFiles([txt('a.txt', 10), txt('b.txt', 10)])).toHaveLength(2);
+    expect(caps).toHaveLength(1);
+    expect(cancelable).toBe(true);
+    expect(rejects).toEqual([]);
+    expect(errorText(el)).toBe('');
+  });
+
+  it('a drop past the cap says so in Korean with lang="ko"', () => {
+    const el = mount({ maxTotalBytes: 2048 }, { lang: 'ko' });
+    el.dispatchEvent(drag('drop', [txt('a.txt', 1500), txt('b.txt', 1500)]));
+    el.renderNow();
+    expect(el.files).toHaveLength(1);
+    expect(errorText(el)).toBe('b.txt — 첨부 합계가 너무 큽니다 (모두 합쳐 최대 2 KB)');
+  });
+});
+
+describe('<ui-composer> smaller notes (D2 G5-4)', () => {
+  /** A chip playing its audio: Audio is stubbed so play() resolves and pause() is recorded. */
+  function playing(data: ComposerData = {}) {
+    const paused: number[] = [];
+    let n = 0;
+    class FakeAudio {
+      src = '';
+      paused = true;
+      addEventListener() {}
+      play() {
+        this.paused = false;
+        return Promise.resolve();
+      }
+      pause() {
+        this.paused = true;
+        paused.push(++n);
+      }
+    }
+    vi.stubGlobal('Audio', FakeAudio);
+    const el = mount(data);
+    el.addFiles([wav()]);
+    act(el, 'play')!.click();
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.stop('memo.wav'));
+    return { el, paused };
+  }
+
+  it('pause() stops a chip’s preview (no event); calling it idle does nothing', () => {
+    const { el, paused } = playing();
+    const seen = events(el, 'ui-files');
+    el.pause();
+    expect(paused).toHaveLength(1);
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.play('memo.wav'));
+    el.pause();
+    expect(paused).toHaveLength(1);
+    expect(seen).toEqual([]);
+  });
+
+  it('disabled stops the preview', () => {
+    const { el, paused } = playing();
+    set(el, { disabled: true });
+    expect(paused).toHaveLength(1);
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.play('memo.wav'));
+  });
+
+  it('hidden (its size drops to 0 — a closed sheet) stops the preview', () => {
+    let cb: ResizeObserverCallback | null = null;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(fn: ResizeObserverCallback) {
+          cb = fn;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { el, paused } = playing();
+    expect(cb).not.toBeNull();
+    const call = (width: number, height: number) =>
+      cb!([{ contentRect: { width, height } } as ResizeObserverEntry], {} as ResizeObserver);
+    call(400, 60);
+    expect(paused).toHaveLength(0);
+    call(0, 0);
+    expect(paused).toHaveLength(1);
+    expect(act(el, 'play')!.getAttribute('aria-label')).toBe(T.play('memo.wav'));
+  });
+
+  it('cancelRecording() discards a recording and keeps the text and files', async () => {
+    stubMic();
+    const el = mount();
+    el.addFiles([pdf()]);
+    type(el, 'draft');
+    const rec = events<ComposerRecordDetail>(el, 'ui-record');
+    await startRec(el);
+    expect(q(el, '.cp-rec')).not.toBeNull();
+    el.cancelRecording();
+    await tick();
+    el.renderNow();
+    expect(q(el, '.cp-rec')).toBeNull();
+    expect(rec.map((r) => r.state)).toEqual(['start', 'cancel']);
+    expect(el.files).toHaveLength(1);
+    expect(el.value).toBe('draft');
+    expect(streams[0].tracks[0].stopped).toBe(true);
+    expect(() => el.cancelRecording()).not.toThrow();
+  });
+
+  it('camera: a tool on touch screens only, opening the camera input (capture)', () => {
+    touch(true);
+    const el = mount({ camera: true }, { lang: 'ko' });
+    const btn = act(el, 'camera')!;
+    expect(btn.getAttribute('aria-label')).toBe('사진 찍기');
+    const input = q<HTMLInputElement>(el, '.cp-in-camera')!;
+    expect(input.getAttribute('capture')).toBe('environment');
+    expect(input.getAttribute('accept')).toBe('image/*');
+    const clicked = vi.spyOn(input, 'click').mockImplementation(() => {});
+    btn.click();
+    expect(clicked).toHaveBeenCalledTimes(1);
+    expect(q(mount({ camera: 'user' }), '.cp-in-camera')!.getAttribute('capture')).toBe('user');
+    touch(false);
+    expect(act(mount({ camera: true }), 'camera')).toBeNull();
+    expect(q(mount({}), '.cp-in-camera')).toBeNull();
+    expect(composerSettings({ camera: 'front' as never }).camera).toBe('');
+  });
+
+  it('progress: a progressbar line above the toolbar, clamped; gone when unset', () => {
+    const el = mount({ busy: true, progress: 0.4213 });
+    const bar = q(el, '.cp-progress')!;
+    expect(bar.getAttribute('role')).toBe('progressbar');
+    expect(bar.getAttribute('aria-valuenow')).toBe('42');
+    expect(bar.getAttribute('aria-label')).toBe(T.uploading);
+    expect(q(el, '.cp-progress-bar')!.getAttribute('style')).toBe('transform:scaleX(0.421)');
+    expect(bar.nextElementSibling?.classList.contains('cp-bar')).toBe(true);
+    set(el, { progress: 7 });
+    expect(q(el, '.cp-progress')!.getAttribute('aria-valuenow')).toBe('100');
+    set(el, { progress: undefined });
+    expect(q(el, '.cp-progress')).toBeNull();
+    expect(composerSettings({ progress: Number.NaN }).progress).toBeNull();
+  });
+
+  it('fill stretches the card to the host: the field grows, no row cap', () => {
+    expect(styles).toMatch(/:host\(\[fill\]\) \.cp-card \{ flex: 1 1 auto; min-height: 0; \}/);
+    expect(styles).toMatch(/:host\(\[fill\]\) \.cp-field \{ flex: 1 1 auto; max-height: none; \}/);
+    expect(styles).not.toMatch(/#[0-9a-f]{3,6}\b|rgba?\(/i);
+  });
+});
 
 describe('styles', () => {
   it('tokens and color-mix() only; hover changes colour, never motion; press 0.97; spinner 0.9s', () => {

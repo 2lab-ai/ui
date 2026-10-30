@@ -20,6 +20,8 @@ export interface AppBarLink {
   current?: boolean;
   /** A small count after the label (tabular). */
   badge?: number | string;
+  /** What the page is for ("Every past conversation"): the link's `title`, and the folded menu row's second line. */
+  title?: string;
 }
 
 export type AppBarTone = 'run' | 'wait' | 'done' | 'fail' | 'idle';
@@ -30,6 +32,11 @@ export interface AppBarStatus {
   label: string;
   /** Pulse the dot (a live connection, a running sync). */
   live?: boolean;
+  /**
+   * What the status is about ("Live updates"): read before the word (visually hidden, so the region says
+   * "Live updates: Connected") and shown with it as the status's hover title.
+   */
+  description?: string;
 }
 
 /** Who is signed in. */
@@ -48,6 +55,8 @@ export interface AppBarBrand {
   href?: string;
   /** A glyph before the label: an icon name, or `true` for the library's own mark. Default none. */
   mark?: boolean | IconName;
+  /** The brand is the page's heading: drawn inside an `<h1>` (the link, when there is one, stays inside it). */
+  heading?: boolean;
 }
 
 export type AppBarTheme = 'light' | 'dark';
@@ -69,6 +78,11 @@ export interface AppBarData {
   sound?: boolean;
   /** The bar's own width (px) below which the nav folds into a menu. Default 720. */
   collapseAt?: number;
+  /**
+   * The bar's own width (px) below which the `toolbar` slot takes the row under the bar. Default 0: it moves
+   * only when the bar would overflow with it inline.
+   */
+  toolbarAt?: number;
 }
 
 /** `ui-navigate` detail. `href` is the link's target when it is safe to follow, else ''. */
@@ -171,6 +185,18 @@ export function appBarCollapsed(
   return w < Math.max(at, Number(needed) || 0);
 }
 
+/**
+ * Whether the `toolbar` slot takes the row under the bar: never without toolbar content or an unmeasured width;
+ * otherwise below `toolbarAt` (default 0) or below `needed` — the width at which the bar last overflowed with the
+ * toolbar inline.
+ */
+export function appBarToolbarRow(width: number, toolbarAt?: number, needed = 0, hasToolbar = true): boolean {
+  const w = Number(width);
+  if (!hasToolbar || !(w > 0)) return false;
+  const at = typeof toolbarAt === 'number' && Number.isFinite(toolbarAt) && toolbarAt > 0 ? toolbarAt : 0;
+  return w < Math.max(at, Number(needed) || 0);
+}
+
 /** Where a link may go: its trimmed href when `safeLink` accepts it, else '' (javascript:, data:, //host, `#`, empty). */
 export function appBarTarget(href: unknown): string {
   const s = str(href).trim();
@@ -233,8 +259,9 @@ export function appBarMenuItems(nav: unknown, account?: AppBarAccount | null): M
     label: l.label,
     icon: l.icon,
     checked: !!l.current,
-    // A count is not a key hint: it reads as the row's description, never in the shortcut slot.
-    description: badgeText(l.badge) || undefined,
+    // A count is not a key hint: it reads as the row's description (before the link's title), never in the
+    // shortcut slot.
+    description: [badgeText(l.badge), str(l.title).trim()].filter(Boolean).join(' · ') || undefined,
   }));
   const acc = accountOf(account);
   if (acc.name) {
@@ -247,7 +274,8 @@ export function appBarMenuItems(nav: unknown, account?: AppBarAccount | null): M
 /**
  * `<ui-app-bar>` — the page's top bar: brand, page links, a live status, the signed-in account and a theme
  * toggle, sticky and translucent over the page. Below its `collapseAt` width the links fold into a menu; links
- * send a cancelable `ui-navigate`, the account pill `ui-account`, the toggle `ui-theme-change`.
+ * send a cancelable `ui-navigate`, the account pill `ui-account`, the toggle `ui-theme-change`. Wide host
+ * controls go in the `toolbar` slot: inline while they fit, the row under the bar (wrapping) when they do not.
  */
 export class UiAppBar extends UiElement<AppBarData> {
   static override styles = [styles];
@@ -262,6 +290,12 @@ export class UiAppBar extends UiElement<AppBarData> {
   #needed = 0;
   /** Folded and narrow: the width the brand's name needed when it last ellipsized (0 = fits / not measured). */
   #brandNeed = 0;
+  /** The width the bar needed with the toolbar inline when it last overflowed (0 = fits / not measured). */
+  #toolNeed = 0;
+  /** The toolbar slot sits in the row under the bar (`toolbar-row`). */
+  #toolRow = false;
+  /** The light-DOM children and their slots when last seen: a slotchange that changed none of them is ours. */
+  #light: Array<[Element, string]> = [];
   /** What the content's width depends on; a change measures again. */
   #sig = '';
   /** The theme was toggled here: the next glyph enters. */
@@ -271,6 +305,7 @@ export class UiAppBar extends UiElement<AppBarData> {
   readonly #fold: HTMLElement;
   readonly #menu: UiMenu;
   readonly #trigger: HTMLButtonElement;
+  readonly #row: HTMLElement;
 
   constructor() {
     super();
@@ -296,14 +331,23 @@ export class UiAppBar extends UiElement<AppBarData> {
     this.#menu.append(this.#trigger);
     this.#fold.append(this.#menu);
     this.#bar.append(this.#parts, this.#fold);
-    this.content.append(this.#bar);
+    // The row under the bar. Its toolbar slot comes after the bar's in tree order, so it holds the toolbar only
+    // while the bar draws none (toolbar-row): the host's nodes never move, only which slot shows them.
+    this.#row = document.createElement('div');
+    this.#row.className = 'ab-row';
+    this.#row.setAttribute('part', 'toolbar-row');
+    this.#row.innerHTML = '<slot name="toolbar"></slot>';
+    this.content.append(this.#bar, this.#row);
 
     this.root.addEventListener('click', (e) => this.#onClick(e as MouseEvent));
     // The menu's own events never leave the bar: its choice becomes ui-navigate / ui-account.
     this.root.addEventListener('ui-select', (e) => this.#onMenuSelect(e as CustomEvent<MenuSelect>));
     this.root.addEventListener('ui-open-change', (e) => e.stopPropagation());
-    // Slotted actions changed: the content's width did too.
-    this.root.addEventListener('slotchange', () => this.#refit());
+    // Slotted actions changed: the content's width did too. The toolbar moving between its two slots is not a
+    // change of content (no child came, left or changed its slot): measuring again then would only loop.
+    this.root.addEventListener('slotchange', () => {
+      if (this.#lightChanged()) this.#refit();
+    });
   }
 
   attributeChangedCallback(name: string): void {
@@ -343,8 +387,30 @@ export class UiAppBar extends UiElement<AppBarData> {
 
   // ── fold ──────────────────────────────────────────────────────────────────
 
-  /** Reflect `collapsed` / `narrow` from the measured width; unfolding closes the menu. */
+  /** Did a light-DOM child come, leave or change its slot since the last look? */
+  #lightChanged(): boolean {
+    const now = Array.from(this.children, (c): [Element, string] => [c, c.getAttribute('slot') ?? '']);
+    const prev = this.#light;
+    this.#light = now;
+    return now.length !== prev.length || now.some(([c, s], i) => prev[i][0] !== c || prev[i][1] !== s);
+  }
+
+  #hasToolbar(): boolean {
+    for (const c of Array.from(this.children)) if (c.getAttribute('slot') === 'toolbar') return true;
+    return false;
+  }
+
+  /** Move the toolbar between the bar and the row under it (the bar's slot is drawn or not). */
+  #setToolRow(on: boolean): void {
+    if (this.#toolRow === on) return;
+    this.#toolRow = on;
+    this.toggleAttribute('toolbar-row', on);
+    morphInto(this.#parts, this.render());
+  }
+
+  /** Reflect `collapsed` / `narrow` / `toolbar-row` from the measured width; unfolding closes the menu. */
   #sync(): void {
+    this.#setToolRow(appBarToolbarRow(this.#width, this.data?.toolbarAt, this.#toolNeed, this.#hasToolbar()));
     const mode = appBarCollapseMode(this.getAttribute('collapse'));
     const on = appBarCollapsed(this.#width, this.data?.collapseAt, mode, this.#needed);
     this.toggleAttribute('narrow', this.#width > 0 && this.#width < APP_BAR_NARROW_AT);
@@ -353,9 +419,20 @@ export class UiAppBar extends UiElement<AppBarData> {
     if (!on && this.#menu.open) this.#menu.hide();
   }
 
-  /** Unfolded but overflowing (long names, many actions): remember the width it needs and fold. */
+  /**
+   * Overflowing (long names, many actions): first the toolbar takes the row under the bar, then — unfolded and
+   * still overflowing — the links fold. Each remembers the width it needed.
+   */
   #fit(): void {
-    if (this.#width <= 0 || this.hasAttribute('collapsed')) return;
+    if (this.#width <= 0) return;
+    if (!this.#toolRow && this.#hasToolbar()) {
+      const over = this.#bar.scrollWidth - this.#bar.clientWidth;
+      if (over > 1) {
+        this.#toolNeed = Math.ceil(this.#width + over + FIT_SLACK);
+        this.#setToolRow(true);
+      }
+    }
+    if (this.hasAttribute('collapsed')) return;
     if (appBarCollapseMode(this.getAttribute('collapse')) !== 'auto') return;
     const over = this.#bar.scrollWidth - this.#bar.clientWidth;
     if (over > 1) {
@@ -396,6 +473,7 @@ export class UiAppBar extends UiElement<AppBarData> {
   #refit(): void {
     this.#needed = 0;
     this.#brandNeed = 0;
+    this.#toolNeed = 0;
     this.removeAttribute('mark-only');
     this.#sync();
     this.#fit();
@@ -405,7 +483,12 @@ export class UiAppBar extends UiElement<AppBarData> {
   /** Everything the unfolded content's width depends on. */
   #signature(): string {
     const d = this.data;
-    const parts: string[] = [str(d?.brand?.label), String(d?.brand?.mark ?? ''), str(d?.status?.label)];
+    const parts: string[] = [
+      str(d?.brand?.label),
+      String(d?.brand?.mark ?? ''),
+      str(d?.status?.label),
+      String(d?.toolbarAt ?? ''),
+    ];
     for (const l of appBarLinks(d?.nav)) parts.push(l.label, str(l.icon), badgeText(l.badge));
     const acc = accountOf(d?.account);
     parts.push(acc.name, acc.role, String(!!themeOf(d?.theme)), String(typeof d?.sound === 'boolean'));
@@ -522,6 +605,7 @@ export class UiAppBar extends UiElement<AppBarData> {
       this.#sig = sig;
       this.#needed = 0;
       this.#brandNeed = 0;
+      this.#toolNeed = 0;
       this.removeAttribute('mark-only');
     }
     const key = this.#active()?.dataset?.key;
@@ -558,6 +642,7 @@ export class UiAppBar extends UiElement<AppBarData> {
       this.#brand(d.brand),
       this.#nav(d.nav),
       '<span class="ab-grow" aria-hidden="true"></span>',
+      this.#toolRow ? '' : '<slot name="toolbar" data-mk="slot:toolbar"></slot>',
       '<slot name="actions" data-mk="slot:actions"></slot>',
       this.#status(d.status),
       this.#account(d.account, t),
@@ -575,7 +660,7 @@ export class UiAppBar extends UiElement<AppBarData> {
     const brand = str(b.href).trim()
       ? `<a class="ab-brand" href="${safeLink(b.href)}" data-act="brand" data-key="brand">${inner}</a>`
       : `<span class="ab-brand">${inner}</span>`;
-    return `<slot name="brand" data-mk="slot:brand">${brand}</slot>`;
+    return `<slot name="brand" data-mk="slot:brand">${b.heading ? `<h1 class="ab-heading">${brand}</h1>` : brand}</slot>`;
   }
 
   #nav(nav: AppBarLink[] | undefined): string {
@@ -585,6 +670,7 @@ export class UiAppBar extends UiElement<AppBarData> {
       .map((l) => {
         const badge = badgeText(l.badge);
         return `<li class="ab-li" data-mk="${escAttr(l.id)}"><a class="ab-link" href="${safeLink(l.href)}"${attrs({
+          title: str(l.title).trim() || undefined,
           'aria-current': l.current ? 'page' : undefined,
           'data-act': 'nav',
           'data-id': l.id,
@@ -601,13 +687,17 @@ export class UiAppBar extends UiElement<AppBarData> {
     const label = str(s?.label).trim();
     if (!s || !label) return '';
     const tone = TONES.has(s.tone) ? s.tone : 'idle';
+    const about = str(s.description).trim();
     return `<span${attrs({
       class: 'ab-status',
       role: 'status',
       'aria-live': 'polite',
+      title: about ? `${about}: ${label}` : undefined,
       'data-tone': tone,
       'data-live': !!s.live,
-    })}><span class="ab-dot" aria-hidden="true"></span><span class="ab-status-label">${esc(label)}</span></span>`;
+    })}><span class="ab-dot" aria-hidden="true"></span>${
+      about ? `<span class="ab-vh">${esc(about)}: </span>` : ''
+    }<span class="ab-status-label">${esc(label)}</span></span>`;
   }
 
   #account(a: AppBarAccount | undefined, t: Strings): string {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fmtDurationKo } from '../../core/format';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type AgentInboxData,
@@ -449,11 +450,26 @@ describe('<ui-agent-inbox>', () => {
     expect(q(el, '.ib-col-name')?.textContent).toBe('응답 필요');
     expect(card(el, 'migrate').querySelector('.ib-tag')?.textContent).toBe('입력 대기6분 전');
     expect(card(el, 'notes').querySelector('.ib-agents-text')?.textContent).toBe('서브에이전트 40 · 실행 2 · 실패 1');
-    expect(card(el, 'digest').querySelector('.ib-tag')?.textContent).toBe('완료 · 4m 12s13시간 전');
+    // The ko table's own duration (D2 G6-1): 4분 12초, not 4m 12s.
+    expect(card(el, 'digest').querySelector('.ib-tag')?.textContent).toBe('완료 · 4분 12초13시간 전');
+    expect(card(el, 'notes').querySelector('.ib-tag')?.textContent).toBe('실행 중 · 3분 49초');
     expect(card(el, 'notes').querySelector('[data-open]')?.textContent).toBe('작업 로그');
     expect(q(el, '[aria-live="polite"]')?.textContent).toBe('응답이 필요한 세션 1개, 실행 중 1개');
     const empty = mount({ columns: columnsByStatus([], 'ko') }, { lang: 'ko' });
     expect(q(empty, '.ib-empty')?.textContent).toBe('비어 있음');
+  });
+});
+
+describe('Korean duration (D2 G6-1)', () => {
+  it('fmtDurationKo: 초 under a minute, 분 초, then 시간 분; whole units drop the zero', () => {
+    expect(fmtDurationKo(0)).toBe('0초');
+    expect(fmtDurationKo(42_400)).toBe('42초');
+    expect(fmtDurationKo(432_000)).toBe('7분 12초');
+    expect(fmtDurationKo(420_000)).toBe('7분');
+    expect(fmtDurationKo(7_380_000)).toBe('2시간 3분');
+    expect(fmtDurationKo(7_200_000)).toBe('2시간');
+    expect(fmtDurationKo(-5)).toBe('0초');
+    expect(fmtDurationKo(Number.NaN)).toBe('0초');
   });
 });
 

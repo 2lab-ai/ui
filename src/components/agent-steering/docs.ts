@@ -1,4 +1,5 @@
 import type { ComponentDoc } from '../../docs/types';
+import '../composer/composer';
 import './agent-steering';
 import type {
   AgentSteeringData,
@@ -57,7 +58,8 @@ function host(el: El, opts: HostOpts = {}): El {
     later(2800, () => without(id));
   };
   el.addEventListener('ui-submit', (e) => {
-    const { text, mode, ref } = (e as CustomEvent<SteeringSubmitDetail>).detail;
+    const { text, mode, ref, files } = (e as CustomEvent<SteeringSubmitDetail>).detail;
+    const names = files?.map((f) => f.name) ?? [];
     if (opts.failFirst && !failed) {
       failed = true;
       later(700, () =>
@@ -72,7 +74,16 @@ function host(el: El, opts: HostOpts = {}): El {
     if (!el.data?.running) return; // Idle: the message starts a turn; the transcript shows it, not the queue.
     const id = `C0AKY7W2UGZ:1793008217#${++seq}`;
     later(500, () => {
-      patch((items) => [...items, { id, text, at: now(), state: mode === 'steer' ? 'steered' : 'queued' }]);
+      patch((items) => [
+        ...items,
+        {
+          id,
+          text,
+          at: now(),
+          state: mode === 'steer' ? 'steered' : 'queued',
+          ...(names.length ? { files: names } : {}),
+        },
+      ]);
       if (mode === 'steer') later(2800, () => without(id));
     });
   });
@@ -226,14 +237,20 @@ export const doc: ComponentDoc = {
       type: 'elements',
       description: 'The host’s own buttons inside the field (attach, voice) and its file chips above it.',
     },
+    {
+      name: 'slot="composer"',
+      type: '<ui-composer>',
+      description:
+        'A <ui-composer slot="composer"> becomes the field: its attach / image / voice, chips, limits and camera replace the built-in field and the tools / attachments slots. This element sets the composer’s placeholder, label and disabled (and turns its own hint off — the key hints stay below); set the rest on the composer. Enter queues, ⌘/Ctrl+Enter steers; the composer’s ui-submit stops here and leaves as this element’s, with its files. value and focus() go to the composer.',
+    },
     { name: 'lang', type: "'en' | 'ko'", default: 'en', description: 'Korean follows the dashboard and Slack queue.' },
   ],
   events: [
     {
       name: 'ui-submit',
-      detail: "{ text, mode: 'queue' | 'steer', ref }",
+      detail: "{ text, mode: 'queue' | 'steer', ref, files?: File[] }",
       description:
-        'A note from the field (or Retry). Cancelable: cancelled → the text stays. ref names the row it shows as until the list has it: setItemState(ref, "failed", why) offers Retry.',
+        'A note from the field (or Retry). Cancelable: cancelled → the text stays (with a composer: its files too). ref names the row it shows as until the list has it: setItemState(ref, "failed", why) offers Retry. files: the slotted composer’s attachments (a Retry resends the ref without them — keep them by ref).',
     },
     {
       name: 'ui-promote',
@@ -265,6 +282,7 @@ export const doc: ComponentDoc = {
     'The queue is a list named by its heading and count; every button names its note (“Cancel “Use Postgres 16…””).',
     'Queuing, steering, sending, delivery, cancelling and failures are announced in a polite live region.',
     'Focus survives host updates; when a note’s control goes away it moves to the next note, the one before, or the field.',
+    'With a slotted composer, its field carries this element’s name and placeholder; its chips, recorder and errors keep the composer’s own semantics.',
     'Touch targets are 44px on coarse pointers; reduced motion drops the enter/leave motion and the spinners.',
     'Sound (opt-in, @2lab.ai/ui/sound): sending, queuing, Send now and Retry tap, Cancel plays a subtle close and a saved edit a subtle tap — once their event is not prevented; keystrokes in the field and the edit box play type while typing sounds are on. Silent until the page turns sound on.',
   ],
@@ -400,6 +418,21 @@ export const doc: ComponentDoc = {
           for (const c of Array.from(el.querySelectorAll('[slot="attachments"]'))) c.remove();
           if (el.data) el.data = { ...el.data, attachments: 0 };
         });
+        return stage(el);
+      },
+    },
+    {
+      id: 'composer',
+      title: 'With a composer',
+      description:
+        'A <ui-composer slot="composer"> is the field — attach, image, voice, chips and a 30 MB cap are the composer’s. Enter queues, ⌘/Ctrl+Enter steers; the note leaves as this element’s ui-submit with its files, and shows with its file count.',
+      height: 420,
+      create: () => {
+        const el = host(steering({ running: true, items: queue().slice(0, 1) }));
+        const c = document.createElement('ui-composer');
+        c.slot = 'composer';
+        c.data = { maxFiles: 4, maxTotalBytes: 30 * 1024 * 1024 };
+        el.append(c);
         return stage(el);
       },
     },

@@ -42,26 +42,50 @@ export interface ComposerData {
   maxFiles?: number;
   /** Bytes per file. Default 25 MB. */
   maxFileSize?: number;
+  /**
+   * Bytes all attachments may take together (the server's request cap). A file that would cross it sends the
+   * cancelable `ui-over-cap` first; unless the host prevents it, it is rejected (reason `total`). Default: no cap.
+   */
+  maxTotalBytes?: number;
   /** Built-in tools. Default `true`; voice is hidden where MediaRecorder / getUserMedia are missing. */
   attach?: boolean;
   image?: boolean;
   voice?: boolean;
+  /**
+   * A camera tool on touch screens (phones, tablets): takes a photo with the back camera (`true` / `environment`) or
+   * the front one (`user`) and attaches it. Hidden on fine pointers, where the image tool covers it. Default off.
+   */
+  camera?: boolean | 'environment' | 'user';
+  /** Upload progress 0–1 while you send: a thin line above the toolbar (role="progressbar"). Leave unset when idle. */
+  progress?: number;
   /** A recording stops (and is kept) at this length. Default 10 min. */
   maxRecordMs?: number;
   /** Extra host tools → `ui-tool`. */
   tools?: ComposerTool[];
   /** Text on the send button (e.g. “Start task”). Without it the button is a 32px arrow-up icon named “Send”. */
   submitLabel?: string;
-  /** Show “Enter to send · Shift+Enter for a new line” (desktop only). */
+  /** Show the key hint (desktop only): “Enter to send · Shift+Enter for a new line”, or the newline mode's. */
   hint?: boolean;
+  /**
+   * What a plain Enter does: `send` (default; Shift+Enter is a new line) or `newline` — for long instructions:
+   * Enter is a new line and ⌘/Ctrl+Enter sends. The `enter` attribute wins over this.
+   */
+  enter?: ComposerEnterMode;
   /** Autosize bounds in text rows. Default 2 / 10. */
   minRows?: number;
   maxRows?: number;
 }
 
-export type ComposerRejectReason = 'count' | 'size' | 'type' | 'empty';
+export type ComposerRejectReason = 'count' | 'size' | 'type' | 'empty' | 'total';
 export type ComposerRecordState = 'start' | 'stop' | 'cancel' | 'error';
 export type ComposerEnterAction = 'none' | 'newline' | 'send';
+/** What a plain Enter does in the field. */
+export type ComposerEnterMode = 'send' | 'newline';
+
+/** An `enter` value as a mode (anything but `newline` → `send`). */
+export function composerEnterMode(value: unknown): ComposerEnterMode {
+  return value === 'newline' ? 'newline' : 'send';
+}
 
 export interface ComposerSubmitDetail {
   /** The text with leading / trailing whitespace trimmed (inner whitespace and new lines kept). */
@@ -88,6 +112,17 @@ export interface ComposerRecordDetail {
   /** `stop`: length of the recording. */
   durationMs?: number;
 }
+/** `ui-over-cap` (cancelable): this file would take the attachments past `maxTotalBytes`. */
+export interface ComposerOverCapDetail {
+  name: string;
+  file: File;
+  /** The file's bytes. */
+  size: number;
+  /** Bytes already attached (this batch's earlier files included). */
+  total: number;
+  /** `maxTotalBytes`. */
+  max: number;
+}
 export interface ComposerToolDetail {
   id: string;
   /** Toggles only: the state the press asks for. */
@@ -108,6 +143,8 @@ const MAX_ROWS_CAP = 40;
 export interface ComposerSettings {
   maxFiles: number;
   maxFileSize: number;
+  /** 0 = no cap. */
+  maxTotalBytes: number;
   maxRecordMs: number;
   /** 0 = no limit. */
   maxLength: number;
@@ -115,6 +152,10 @@ export interface ComposerSettings {
   attach: boolean;
   image: boolean;
   voice: boolean;
+  /** The camera tool's `capture` ('' = no camera tool). */
+  camera: '' | 'environment' | 'user';
+  /** 0–1, or null without progress. */
+  progress: number | null;
   busy: boolean;
   disabled: boolean;
   reason: string;
@@ -133,12 +174,18 @@ export function composerSettings(d: ComposerData | null | undefined): ComposerSe
   return {
     maxFiles: Math.max(1, Math.floor(posNum(o.maxFiles, COMPOSER_DEFAULTS.maxFiles))),
     maxFileSize: posNum(o.maxFileSize, COMPOSER_DEFAULTS.maxFileSize),
+    maxTotalBytes: Math.floor(posNum(o.maxTotalBytes, 0)),
     maxRecordMs: Math.max(1000, posNum(o.maxRecordMs, COMPOSER_DEFAULTS.maxRecordMs)),
     maxLength: Math.floor(posNum(o.maxLength, 0)),
     accept: typeof o.accept === 'string' ? o.accept.trim() : '',
     attach: o.attach !== false,
     image: o.image !== false,
     voice: o.voice !== false,
+    camera: o.camera === 'user' ? 'user' : o.camera === true || o.camera === 'environment' ? 'environment' : '',
+    progress:
+      o.progress === null || o.progress === undefined || !Number.isFinite(Number(o.progress))
+        ? null
+        : Math.max(0, Math.min(1, Number(o.progress))),
     busy: !!o.busy,
     disabled: !!o.disabled,
     reason: typeof o.disabled === 'string' ? o.disabled.trim() : '',
@@ -181,19 +228,19 @@ export function composerRows(minRows?: unknown, maxRows?: unknown): { min: numbe
 /**
  * What Enter does in the field. Never during IME composition (isComposing, or keyCode 229 — Safari's composition
  * Enter). ⌘/Ctrl+Enter sends (touch too). Shift+Enter or Alt+Enter: a new line; on touch screens plain Enter is a new
- * line too (the send button sends). Otherwise Enter sends.
+ * line too (the send button sends), and so it is in `enter: 'newline'` mode. Otherwise Enter sends.
  */
 export function composerEnterAction(
   e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey'> & {
     isComposing?: boolean;
     keyCode?: number;
   },
-  opts: { touch?: boolean } = {},
+  opts: { touch?: boolean; enter?: ComposerEnterMode } = {},
 ): ComposerEnterAction {
   if (!e || e.key !== 'Enter') return 'none';
   if (e.isComposing || e.keyCode === 229) return 'none';
   if (e.metaKey || e.ctrlKey) return 'send';
-  if (e.shiftKey || e.altKey || opts.touch) return 'newline';
+  if (e.shiftKey || e.altKey || opts.touch || opts.enter === 'newline') return 'newline';
   return 'send';
 }
 
@@ -224,16 +271,28 @@ export function composerAccepts(file: { name?: unknown; type?: unknown }, accept
   });
 }
 
-/** Why a file cannot be attached (count first, then type, empty, size), or null when it can. */
+/**
+ * Why a file cannot be attached (count first, then type, empty, size, then the total over `maxTotalBytes` given the
+ * `total` bytes already attached), or null when it can.
+ */
 export function composerCheckFile(
   file: { name?: unknown; type?: unknown; size?: unknown },
-  opts: { count: number; maxFiles: number; maxFileSize: number; accept?: string },
+  opts: {
+    count: number;
+    maxFiles: number;
+    maxFileSize: number;
+    accept?: string;
+    total?: number;
+    maxTotalBytes?: number;
+  },
 ): ComposerRejectReason | null {
   if (opts.count >= opts.maxFiles) return 'count';
   if (!composerAccepts(file, opts.accept)) return 'type';
   const size = Number(file?.size);
   if (!(size > 0)) return 'empty';
   if (size > opts.maxFileSize) return 'size';
+  const cap = Number(opts.maxTotalBytes);
+  if (cap > 0 && (Number(opts.total) || 0) + size > cap) return 'total';
   return null;
 }
 

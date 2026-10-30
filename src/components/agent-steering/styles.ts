@@ -105,6 +105,9 @@ svg { display: block; flex: none; }
 .as-field:focus-within { background: var(--as-card);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--as-accent) 55%, var(--as-line)), 0 0 0 3px var(--as-ring); }
 .as[data-closed] .as-field { opacity: 0.6; cursor: not-allowed; }
+/* A slotted <ui-composer> is the field: the built-in one and the attachments / tools slots step aside. */
+.as[data-composer] .as-field, .as[data-composer] slot[name="attachments"] { display: none; }
+::slotted([slot="composer"]) { display: block; }
 ::slotted([slot="tools"]) { display: flex; flex: none; align-items: center; align-self: center; margin-left: -6px; }
 .as-input { flex: 1; min-width: 0; height: 20px; max-height: 200px; margin: 4px 0; padding: 0; border: 0; outline: none;
   background: none; color: var(--as-ink); font: inherit; line-height: 20px; resize: none; overflow-y: auto; }
