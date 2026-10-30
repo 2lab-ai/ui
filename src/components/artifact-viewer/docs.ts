@@ -134,9 +134,7 @@ function withActions(): FileItem[] {
     size: 2_480_000,
     time: Date.now() - 41 * MIN,
     meta: 'Only in Slack',
-    actions: [
-      { id: 'slack', label: 'Open in Slack', icon: 'chat', href: 'https://example.slack.com/files/U0/call' },
-    ],
+    actions: [{ id: 'slack', label: 'Open in Slack', icon: 'chat', href: 'https://example.slack.com/files/U0/call' }],
   });
   return files;
 }
