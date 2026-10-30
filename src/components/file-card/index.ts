@@ -1,4 +1,4 @@
-export type { FileOpenDetail } from './file-card';
+export type { FileOpenDetail, FilePlayDetail } from './file-card';
 export { UiFileCard } from './file-card';
 export type { FileAction, FileCardOptions, FileCardVariant, FileItem } from './render';
 export {
@@ -12,6 +12,7 @@ export {
   fileItemKind,
   fileKindLabel,
   fileMeta,
+  filePlaySrc,
   fileThumbSrc,
 } from './render';
 export { fileCardStyles, fileKindCss } from './styles';
