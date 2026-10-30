@@ -1,7 +1,10 @@
+import { planCss } from '../../core/plan';
+
 /**
  * Ported from the soma-work dashboard session panel (.prd/affectui/re-agent-run.md): SESSION CHIP (D18), PLAN (D1–D7),
  * 입력 필요 approval cards (D8–D17) and 세부 (D19). Every colour is a token or a color-mix of tokens, so light and dark
  * follow the host tokens; the screen is one container (two columns from 760px), each approval card is its own.
+ * The plan's look is the shared `planCss` (src/core/plan.ts); only its placement inside the run is here.
  */
 export const styles = `
 :host { --ar-wait-text: color-mix(in srgb, var(--st-wait) 74%, var(--text)); }
@@ -50,47 +53,11 @@ export const styles = `
   .ar-body[data-side="details"] > .ar-details { grid-area: 1 / 2 / 3 / 3; align-self: stretch; border-left: 1px solid var(--border); }
 }
 
-/* ── PLAN: a marker per step (check · spinner · ring · ✕ · dash) on one rail, time on the right, phase foot ── */
-.pl-list { position: relative; margin: 0; padding: 0; list-style: none; }
-.pl-empty { margin: 0; padding: 2px 0 4px; font-size: 12px; color: var(--text-tertiary); }
-.pl-step { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 10px; align-items: start; padding: 5px 0; font-size: 12.5px; line-height: 18px; }
-.pl-marker { position: relative; z-index: 1; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--ib-card-border); color: var(--text-secondary); }
-.pl-step[data-step="done"] .pl-marker { background: var(--ib-pill); box-shadow: none; color: var(--text); }
-.pl-step[data-step="running"] .pl-marker { box-shadow: none; color: var(--st-run); }
-.pl-step[data-step="failed"] .pl-marker { background: color-mix(in srgb, var(--st-fail) 16%, var(--surface)); box-shadow: none; color: var(--st-fail-text); }
-.pl-step[data-step="skipped"] .pl-marker { box-shadow: none; border: 1px dashed var(--text-tertiary); color: var(--text-tertiary); }
-.pl-marker svg { width: 10px; height: 10px; }
+${planCss}
+/* The plan inside the run: its spinner is the run's own (.ar-spin); the foot sticks to the band's bottom edge. */
 .pl-marker .ar-spin { width: 11px; height: 11px; }
-.pl-step.pl-pop .pl-marker > * { animation: pl-pop var(--dur-move) var(--ease-out) both; }
-@keyframes pl-pop { from { opacity: 0; transform: scale(0.6); } }
-.pl-list > .pl-step:not(:last-child)::before { content: ""; position: absolute; left: 8.5px; top: 25px; bottom: -3px; width: 1px; background: var(--ib-card-border); }
-.pl-list > .pl-step[data-step="done"]:not(:last-child)::after { content: ""; position: absolute; left: 8.5px; top: 25px; bottom: -3px; width: 1px; background: var(--text-tertiary); transform-origin: top; }
-.pl-list > .pl-step.pl-pop[data-step="done"]:not(:last-child)::after { animation: pl-rail 560ms var(--ease-out) both; }
-@keyframes pl-rail { from { transform: scaleY(0); } }
-.pl-main { min-width: 0; }
-.pl-line { display: block; overflow-wrap: anywhere; }
-.pl-ref { margin-right: 6px; font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.pl-text { color: var(--text-secondary); }
-.pl-step[data-step="running"] .pl-text { font-weight: 600; color: var(--text); }
-.pl-step[data-step="failed"] .pl-text { color: var(--text); }
-.pl-step[data-step="skipped"] .pl-text { color: var(--text-tertiary); }
-.pl-chip { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; background: var(--ib-pill); color: var(--text-secondary); font-size: 11px; font-weight: 400; line-height: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; vertical-align: 1px; }
-.pl-sub { display: block; margin-top: 1px; overflow: hidden; font-size: 12px; color: var(--text-tertiary); text-overflow: ellipsis; white-space: nowrap; }
-.pl-step[data-step="failed"] .pl-sub { color: var(--st-fail-text); white-space: normal; overflow-wrap: anywhere; }
-.pl-aside { min-height: 18px; font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pl-step[data-step="running"] .pl-aside { color: var(--text); }
-.pl-fold { padding: 0 0 0 28px; }
-.pl-fold-btn { min-height: 28px; padding: 4px 0; border: 0; background: none; color: var(--accent); font-size: 11.5px; font-weight: 600; }
-.pl-fold-btn:hover { text-decoration: underline; }
-.pl-foot { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 8px; margin: 6px calc(-1 * var(--ar-pad)) -12px; padding: 8px var(--ar-pad) 10px; border-top: 1px solid var(--border); background: var(--surface); font-size: 12.5px; color: var(--text-secondary); }
-.pl-foot-st { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: var(--text); font-variant-numeric: tabular-nums; }
-.pl-foot-icon { display: inline-grid; place-items: center; width: 14px; height: 14px; color: var(--text-tertiary); }
-.pl-foot[data-phase="running"] .pl-foot-icon { color: var(--st-run); }
-.pl-foot[data-phase="done"] .pl-foot-icon { color: var(--st-done); }
-.pl-foot[data-phase="failed"] .pl-foot-icon { color: var(--st-fail-text); }
-.pl-foot-icon svg { width: 12px; height: 12px; }
 .pl-foot-icon .ar-spin { width: 11px; height: 11px; }
-.pl-foot-time { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pl-foot { position: sticky; bottom: 0; z-index: 2; margin: 6px calc(-1 * var(--ar-pad)) -12px; padding: 8px var(--ar-pad) 10px; background: var(--surface); }
 @container ar (min-width: 760px) { .pl-foot { margin-bottom: -14px; } }
 
 /* ── 입력 필요 / Needs input: a head with the count, then cards in a tray ── */

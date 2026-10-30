@@ -11,6 +11,12 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Agent Tree | `<ui-agent-tree>` | Who started whom, what each agent is doing, and which branch costs what |
 | AI Answer | `<ui-ai-answer>` | The answer, the links in it, copy, response time |
 | Tool Call Card | `<ui-tool-call-card>`, `<ui-tool-call-group>` | What the agent called, with what, what came back, and how long it took |
+| Conversation | `<ui-conversation>` | Who said what and when — instructions, answers with their response time, system events; older turns load as you scroll up |
+| Work Log | `<ui-work-log>` | What the agent did, task by task — instructions, narration, tool calls, raw output, child agents |
+| Choice Form | `<ui-choice-form>` | What the agent needs you to decide — numbered questions, the recommended choice, your own answer, submit all at once |
+| Goal Card | `<ui-goal-card>` | What the agent is working toward, how far it is, and what is queued — complete, pause, delete with a second press |
+| Task Plan | `<ui-task-plan>` | The plan step by step — done, running, dropped or moved — and the plans before it |
+| Task Runs | `<ui-task-runs>` | Each run of a task — status, time, tokens, tools and revisions, with a totals row |
 | Agent Queue | `<ui-agent-queue>` | Provider capacity, rate limits, and the scheduled-job lane |
 | Context Window | `<ui-context-window>` | How full the context is and how far auto-compaction is |
 | Approval Card | `<ui-approval-card>` | What the agent wants to do and how risky it is — Approve / Deny, or answer its question, before it expires |
@@ -19,6 +25,8 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Compact Breakdown | `<ui-compact-breakdown>` | One number and what it is made of — spend and tokens by model or by user |
 | Memory Panel | `<ui-memory-panel>` | What the agent remembers about you — search, edit, delete with undo |
 | Model Picker | `<ui-model-picker>` | Which model and effort to run, with window, compaction and price |
+| Status Bar | `<ui-status-bar>` | Whether the session is live — status word, start time and running clock, and its actions |
+| Deck Nav | `<ui-deck-nav>` | Which card of a one-at-a-time deck you are on — ‹ n / m ›, with peeking edges |
 
 Surfaces — the page-level pieces around the agent (0.6.0):
 
@@ -42,10 +50,12 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Dialog | `<ui-dialog>` | Native `<dialog>` with a fading scrim, enter / exit motion, focus trap and return, a bottom sheet on phones |
 | Drawer | `<ui-drawer>` | Side sheet that docks beside the page on wide screens; resizable edge, scrim, interruptible slide |
 | Disclosure | `<ui-disclosure>` | Summary row over a region that grows 0fr → 1fr and is inert while closed |
+| Log Scroller | `<ui-log-scroller>` | Newest-at-bottom scroll box: follows the latest, pages older items in without moving your place, “jump to latest” with an unread count |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
 `@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab`, `.ui-chip`,
-`.ui-status`, `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`).
+`.ui-status`, `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`,
+`.ui-section-head` with a `.ui-count` badge).
 
 ## Install
 

@@ -47,7 +47,7 @@ export const doc: ComponentDoc = {
   group: 'Primitives',
   summary: 'Detail you open when you want it — the region grows in place and is out of the way while closed.',
   description:
-    'A summary row (chevron, text, optional quiet meta such as a count) over a region the host slots in. Opening turns the chevron on the press duration and grows the region from 0fr to 1fr with a fade on the expand duration — the same recipe as the board’s cards — so everything below rides along instead of jumping. While closed the region is inert: nothing inside takes focus or clicks. Toggling sends a cancelable ui-toggle; setting open from the host changes state without an event.',
+    'A summary row (chevron, text, optional quiet meta such as a count) over a region the host slots in. Opening turns the chevron on the press duration and grows the region from 0fr to 1fr with a fade on the expand duration — the same recipe as the board’s cards — so everything below rides along instead of jumping. While closed the region is inert: nothing inside takes focus or clicks. Toggling sends a cancelable ui-toggle; setting open from the host changes state without an event. It is also the recipe for an info summary — no separate element: the one-line summary (owner · workflow · tokens · cost · last activity) as `summary`, a quiet `meta`, and a kit `.ui-dl` fact grid as the region (see the Info summary demo).',
   usedIn:
     'soma-work dashboard › 11 hand-rolled disclosures (K-06): stats 자세히, 세션 정보, panel sections, work-log groups, raw turn <details>, goal history, task plan toggles.',
   reference: { name: 'WAI-ARIA APG Disclosure', url: 'https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/' },
@@ -109,6 +109,11 @@ export const doc: ComponentDoc = {
   usage: `<ui-disclosure summary="Session info" meta="6">
   <dl class="ui-dl">…</dl>
 </ui-disclosure>
+
+<!-- The info summary recipe: one summary line, a quiet meta, a .ui-dl fact grid. -->
+<ui-disclosure variant="card" summary="Dana Kim · code-review · 12.3K tokens · $0.42 · 3m ago" meta="ctx 27%">
+  <dl class="ui-dl"><dt>Model</dt><dd>claude-opus-5-5[1m]</dd><dt>Cost</dt><dd>$0.42</dd>…</dl>
+</ui-disclosure>
 <script type="module">
   import '@2lab.ai/ui/disclosure';
   const d = document.querySelector('ui-disclosure');
@@ -155,6 +160,29 @@ export const doc: ComponentDoc = {
             ['Workspace', 'soma-work · feat/upload-retry'],
           ]),
           { variant: 'card', level: '3', open: '' },
+        ),
+    },
+    {
+      id: 'info',
+      title: 'Info summary',
+      description:
+        'The recipe for an info summary: the whole record in one summary line, a quiet meta, and a two-column .ui-dl fact grid when opened.',
+      height: 380,
+      create: () =>
+        make(
+          { summary: 'Dana Kim · code-review · 12.3K tokens · $0.42 · 3m ago', meta: 'ctx 27%' },
+          facts([
+            ['Agent', 'claude-opus-5-5[1m]'],
+            ['Started by', 'Dana Kim'],
+            ['Workflow', 'code-review'],
+            ['Tool calls', '48'],
+            ['Input', '9.8K'],
+            ['Output', '2.5K'],
+            ['Cache read', '272.3K'],
+            ['Cost', '$0.42'],
+            ['Last activity', '3m ago'],
+          ]),
+          { variant: 'card', level: '3' },
         ),
     },
     {
