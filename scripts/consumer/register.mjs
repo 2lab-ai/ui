@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 41 element subpaths registers its element(s); the icon
+// Runtime smoke test against the installed package: each of the 42 element subpaths registers its element(s); the icon
 // set and the kit load and return their strings.
 import { Window } from 'happy-dom';
 

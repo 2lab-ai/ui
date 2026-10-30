@@ -519,7 +519,7 @@ describe('events', () => {
     expect(byKey(el, 'delete')).not.toBeNull();
   });
 
-  it('⌘S / Ctrl+S inside the editor saves; outside it does nothing', () => {
+  it('⌘S / Ctrl+S anywhere in the element saves an open page (never the browser’s Save page); not while saving', () => {
     const el = mount();
     const got = listen<KnowledgeSaveDetail>(el, 'ui-save');
     const t = type(el, 'title', 'Deploy list');
@@ -533,10 +533,11 @@ describe('events', () => {
     el.data = { ...BASE(), page: PAGE({ title: 'Deploy list', revision: 8 }), status: 'Saved' };
     el.renderNow();
     type(el, 'title', 'Deploy list 2');
-    key(field(el, 'q'), 's', { ctrlKey: true });
-    expect(got).toHaveLength(1);
-    key(field(el, 'title'), 'S', { ctrlKey: true });
+    const fromSearch = key(field(el, 'q'), 's', { ctrlKey: true });
+    expect(fromSearch.defaultPrevented).toBe(true);
     expect(got).toHaveLength(2);
+    key(field(el, 'title'), 'S', { ctrlKey: true });
+    expect(got).toHaveLength(3);
   });
 
   it('the saved answer clears the draft; a refused save keeps it', () => {
