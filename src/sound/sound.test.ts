@@ -212,6 +212,11 @@ describe('typing is opt-in', () => {
     expect(typedKey(down(pw, { key: 'x' }))).toBeUndefined();
     const ro = field('<input readonly>');
     expect(typedKey(down(ro, { key: 'x' }))).toBeUndefined();
+    // A held key repeats: only Backspace / Delete keep sounding as they keep deleting (Cuelume's rule).
+    const held = field('<input value="abc">') as HTMLInputElement;
+    held.setSelectionRange(3, 3);
+    expect(typedKey(down(held, { key: 'x', repeat: true }))).toBeUndefined();
+    expect(typedKey(down(held, { key: 'Backspace', repeat: true }))).toBe('delete');
     const composing = down(field('<input>'), { key: 'x' });
     Object.defineProperty(composing, 'isComposing', { value: true });
     expect(typedKey(composing)).toBeUndefined();
@@ -228,6 +233,9 @@ describe('soundInput', () => {
     expect(soundInput(new MouseEvent('click', { detail: 1 }))).toBe('mouse');
     expect(soundInput(new KeyboardEvent('keydown', { key: 'Enter' }))).toBe('keyboard');
     expect(soundInput(undefined)).toBeUndefined();
+    // An event that says nothing about what activated it (change, submit, a custom event) gives no input.
+    expect(soundInput(new Event('change'))).toBeUndefined();
+    expect(soundInput(new CustomEvent('ui-select'))).toBeUndefined();
   });
 });
 

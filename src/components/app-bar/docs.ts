@@ -339,7 +339,7 @@ export const doc: ComponentDoc = {
 </header>
 <script type="module">
   import '@2lab.ai/ui/app-bar';
-  import { setSound } from '@2lab.ai/ui/sound';
+  import { playSound, setSound } from '@2lab.ai/ui/sound';
   const bar = document.querySelector('ui-app-bar');
   bar.data = {
     brand: { label: 'Workbench', href: '/', mark: true },
@@ -368,6 +368,7 @@ export const doc: ComponentDoc = {
     const { cuelumeSound, unlockSound } = await import('@2lab.ai/ui/sound-cuelume');
     setSound({ player: cuelumeSound, enabled: true });
     unlockSound();
+    playSound('toggle'); // the speaker's own cue played before the player loaded: confirm now
   });
   socket.addEventListener('open', () => {
     bar.data = { ...bar.data, status: { tone: 'done', label: 'Live', live: true } };

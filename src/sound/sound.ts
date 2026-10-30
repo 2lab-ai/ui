@@ -219,6 +219,8 @@ export function resetSoundQueue(): void {
 export function soundInput(event?: Event | null): SoundOptions['input'] {
   if (!event) return undefined;
   if (typeof KeyboardEvent !== 'undefined' && event instanceof KeyboardEvent) return 'keyboard';
+  // change, submit or a custom event says nothing about what did the activating.
+  if (typeof MouseEvent === 'undefined' || !(event instanceof MouseEvent)) return undefined;
   const e = event as Partial<PointerEvent>;
   if (e.pointerType === 'mouse' || e.pointerType === 'touch' || e.pointerType === 'pen') return e.pointerType;
   return e.detail === 0 ? 'keyboard' : 'mouse';
@@ -244,6 +246,8 @@ export function typedKey(
   if (!isField(field) || event.isComposing || field.readOnly || field.disabled) return undefined;
   if (field instanceof HTMLInputElement && field.type === 'password') return undefined;
   const { key } = event;
+  // A held key repeats: only Backspace / Delete keep sounding, as they keep deleting.
+  if (event.repeat && key !== 'Backspace' && key !== 'Delete') return undefined;
   if (key === 'Backspace' || key === 'Delete') {
     const start = field.selectionStart ?? 0;
     const end = field.selectionEnd ?? 0;
@@ -311,7 +315,8 @@ const bound = new WeakMap<Node, { holders: number; stop: () => void }>();
  * while typing is on. `data-ui-sound-emphasis` on the control or an ancestor sets how much it matters. Listeners are
  * delegated, so controls added later just work. Returns a function that stops listening.
  */
-export function bindSound(root: Document | Element | ShadowRoot = document): () => void {
+export function bindSound(root: Document | Element | ShadowRoot = globalThis.document): () => void {
+  if (!root) return () => {};
   const held = bound.get(root);
   if (held) {
     held.holders++;

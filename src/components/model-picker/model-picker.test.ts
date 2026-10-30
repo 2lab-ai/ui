@@ -592,7 +592,9 @@ describe('sound', () => {
     await spy.settle();
     openByKey(el);
     await spy.settle();
-    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+    document.body.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, composed: true, pointerType: 'mouse' }),
+    );
     await spy.settle();
     expect(el.open).toBe(false);
     expect(spy.calls).toEqual([
