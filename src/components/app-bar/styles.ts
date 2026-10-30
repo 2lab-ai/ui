@@ -6,25 +6,32 @@
  */
 export const styles = `
 :host {
-  position: sticky; top: 0; z-index: var(--ui-app-bar-z, 30); height: 56px;
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
-  -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px);
+  position: sticky; top: 0; z-index: var(--ui-app-bar-z, 30); isolation: isolate; height: 56px;
   border-bottom: 1px solid var(--border); color: var(--ib-text);
 }
+/* The translucent layer is a pseudo-element, not the host: backdrop-filter on the host would make it the
+   containing block of its position: fixed descendants, and the folded menu would be clipped by any scrolling
+   ancestor of the bar. It reaches under the hairline so the border sits on the blur. */
+:host::before {
+  content: ""; position: absolute; inset: 0 0 -1px; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px);
+}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :host { background: var(--bg); }
+  :host::before { background: var(--bg); }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :host { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :host::before { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 .ui-root { height: 100%; }
-.ab-bar { display: flex; align-items: center; gap: 12px; height: 100%; min-width: 0; padding: 0 20px; }
+.ab-bar { display: flex; align-items: center; gap: 10px; height: 100%; min-width: 0; padding: 0 20px; }
 .ab-parts { display: contents; }
-.ab-grow { flex: 1 1 0; min-width: 0; }
+/* The spacer takes the free room but not two gaps of its own: a crowded bar folds later. */
+.ab-grow { flex: 1 1 0; min-width: 0; margin: 0 -5px; }
 
 /* ── Brand: mark + label, 15 / 650 ── */
 .ab-brand {
-  display: inline-flex; align-items: center; gap: 9px; flex: 0 1 auto; min-width: 0; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 9px; flex: none; min-width: 0; border-radius: 8px;
   color: var(--ib-text); font-size: 15px; font-weight: 650; letter-spacing: -0.01em; line-height: 20px;
   text-decoration: none; white-space: nowrap; -webkit-tap-highlight-color: transparent;
 }
@@ -32,7 +39,7 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 .ab-mark { display: inline-grid; flex: none; place-items: center; width: 20px; height: 20px; }
 .ab-mark > svg { width: 20px; height: 20px; }
 .ab-brand-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-::slotted([slot="brand"]) { flex: 0 1 auto; min-width: 0; }
+::slotted([slot="brand"]) { flex: none; min-width: 0; }
 
 /* ── Nav: chip links ── */
 .ab-nav { flex: none; margin-left: 4px; }
@@ -72,7 +79,7 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 
 /* ── Account: avatar + name + role tag, a neutral pill ── */
 .ab-account {
-  display: inline-flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; height: 34px; margin: 0;
+  display: inline-flex; align-items: center; gap: 8px; flex: none; min-width: 0; height: 34px; margin: 0;
   padding: 0 10px 0 4px; border: 1px solid var(--ib-card-border); border-radius: 999px; background: transparent;
   color: var(--ib-text); font-size: 13px; font-weight: 500; line-height: 18px; text-decoration: none;
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
@@ -104,6 +111,9 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 .ab-glyph.is-in { animation: ab-glyph-in var(--dur-expand) var(--ease-out); }
 
 /* ── Fold: below collapseAt the links leave for the menu ── */
+/* Unfolded, brand and account keep their full width, so a crowded bar overflows and folds instead of clipping
+   them; folded, they may give way (ellipsis) on the narrowest bars. */
+:host([collapsed]) :is(.ab-brand, .ab-account), :host([collapsed]) ::slotted([slot="brand"]) { flex: 0 1 auto; }
 .ab-fold { display: none; flex: none; }
 :host([collapsed]) .ab-fold:not([hidden]) { display: flex; }
 :host([collapsed]) .ab-nav { display: none; }
