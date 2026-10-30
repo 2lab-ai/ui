@@ -166,6 +166,12 @@ export const doc: ComponentDoc = {
     { name: 'data.maxFiles', type: 'number', default: '10', description: 'Attachments at most (a voice note counts).' },
     { name: 'data.maxFileSize', type: 'number', default: '26214400 (25 MB)', description: 'Bytes per file.' },
     {
+      name: 'data.maxTotalBytes',
+      type: 'number',
+      description:
+        'Bytes all attachments may take together (your server’s request cap, a voice note included). A file that would cross it sends the cancelable ui-over-cap; unless you prevent it, the file is rejected (ui-reject, reason total) and the error line says “Too large together (max 30 MB in all)”. Default: no cap.',
+    },
+    {
       name: 'data.attach / data.image / data.voice',
       type: 'boolean',
       default: 'true',
@@ -249,8 +255,14 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-reject',
-      detail: "{ name: string; reason: 'count' | 'size' | 'type' | 'empty'; file: File }",
+      detail: "{ name: string; reason: 'count' | 'size' | 'type' | 'empty' | 'total'; file: File }",
       description: 'One per file that was not attached; the error line says why (role="alert").',
+    },
+    {
+      name: 'ui-over-cap',
+      detail: '{ name: string; file: File; size: number; total: number; max: number }',
+      description:
+        'This file would take the attachments past maxTotalBytes (total = bytes already attached, this batch’s earlier files included). Cancelable: preventDefault() takes it anyway — you will compress it, or upload it apart. Otherwise it is rejected with reason total.',
     },
     {
       name: 'ui-record',
@@ -378,10 +390,16 @@ export const doc: ComponentDoc = {
       id: 'limits',
       title: 'Limits',
       description:
-        'accept="image/*,.pdf", at most 3 files of 2 MB. Drop something else, or a fourth file, to see ui-reject and the error line.',
+        'accept="image/*,.pdf", at most 3 files of 2 MB, 3 MB together (maxTotalBytes). Drop something else, a fourth file, or two big ones, to see ui-over-cap, ui-reject and the error line.',
       height: 280,
       create: () => {
-        const el = make({ accept: 'image/*,.pdf', maxFiles: 3, maxFileSize: 2 * 1024 * 1024, voice: false });
+        const el = make({
+          accept: 'image/*,.pdf',
+          maxFiles: 3,
+          maxFileSize: 2 * 1024 * 1024,
+          maxTotalBytes: 3 * 1024 * 1024,
+          voice: false,
+        });
         const line = statusLine();
         el.addEventListener('ui-reject', (e) => {
           const { name, reason } = (e as CustomEvent<ComposerRejectDetail>).detail;

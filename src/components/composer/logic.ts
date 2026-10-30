@@ -42,6 +42,11 @@ export interface ComposerData {
   maxFiles?: number;
   /** Bytes per file. Default 25 MB. */
   maxFileSize?: number;
+  /**
+   * Bytes all attachments may take together (the server's request cap). A file that would cross it sends the
+   * cancelable `ui-over-cap` first; unless the host prevents it, it is rejected (reason `total`). Default: no cap.
+   */
+  maxTotalBytes?: number;
   /** Built-in tools. Default `true`; voice is hidden where MediaRecorder / getUserMedia are missing. */
   attach?: boolean;
   image?: boolean;
@@ -64,7 +69,7 @@ export interface ComposerData {
   maxRows?: number;
 }
 
-export type ComposerRejectReason = 'count' | 'size' | 'type' | 'empty';
+export type ComposerRejectReason = 'count' | 'size' | 'type' | 'empty' | 'total';
 export type ComposerRecordState = 'start' | 'stop' | 'cancel' | 'error';
 export type ComposerEnterAction = 'none' | 'newline' | 'send';
 /** What a plain Enter does in the field. */
@@ -100,6 +105,17 @@ export interface ComposerRecordDetail {
   /** `stop`: length of the recording. */
   durationMs?: number;
 }
+/** `ui-over-cap` (cancelable): this file would take the attachments past `maxTotalBytes`. */
+export interface ComposerOverCapDetail {
+  name: string;
+  file: File;
+  /** The file's bytes. */
+  size: number;
+  /** Bytes already attached (this batch's earlier files included). */
+  total: number;
+  /** `maxTotalBytes`. */
+  max: number;
+}
 export interface ComposerToolDetail {
   id: string;
   /** Toggles only: the state the press asks for. */
@@ -120,6 +136,8 @@ const MAX_ROWS_CAP = 40;
 export interface ComposerSettings {
   maxFiles: number;
   maxFileSize: number;
+  /** 0 = no cap. */
+  maxTotalBytes: number;
   maxRecordMs: number;
   /** 0 = no limit. */
   maxLength: number;
@@ -145,6 +163,7 @@ export function composerSettings(d: ComposerData | null | undefined): ComposerSe
   return {
     maxFiles: Math.max(1, Math.floor(posNum(o.maxFiles, COMPOSER_DEFAULTS.maxFiles))),
     maxFileSize: posNum(o.maxFileSize, COMPOSER_DEFAULTS.maxFileSize),
+    maxTotalBytes: Math.floor(posNum(o.maxTotalBytes, 0)),
     maxRecordMs: Math.max(1000, posNum(o.maxRecordMs, COMPOSER_DEFAULTS.maxRecordMs)),
     maxLength: Math.floor(posNum(o.maxLength, 0)),
     accept: typeof o.accept === 'string' ? o.accept.trim() : '',
@@ -236,16 +255,28 @@ export function composerAccepts(file: { name?: unknown; type?: unknown }, accept
   });
 }
 
-/** Why a file cannot be attached (count first, then type, empty, size), or null when it can. */
+/**
+ * Why a file cannot be attached (count first, then type, empty, size, then the total over `maxTotalBytes` given the
+ * `total` bytes already attached), or null when it can.
+ */
 export function composerCheckFile(
   file: { name?: unknown; type?: unknown; size?: unknown },
-  opts: { count: number; maxFiles: number; maxFileSize: number; accept?: string },
+  opts: {
+    count: number;
+    maxFiles: number;
+    maxFileSize: number;
+    accept?: string;
+    total?: number;
+    maxTotalBytes?: number;
+  },
 ): ComposerRejectReason | null {
   if (opts.count >= opts.maxFiles) return 'count';
   if (!composerAccepts(file, opts.accept)) return 'type';
   const size = Number(file?.size);
   if (!(size > 0)) return 'empty';
   if (size > opts.maxFileSize) return 'size';
+  const cap = Number(opts.maxTotalBytes);
+  if (cap > 0 && (Number(opts.total) || 0) + size > cap) return 'total';
   return null;
 }
 

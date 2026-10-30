@@ -5,6 +5,7 @@ import type {
   ComposerData,
   ComposerFilesDetail,
   ComposerInputDetail,
+  ComposerOverCapDetail,
   ComposerRecordDetail,
   ComposerRejectDetail,
   ComposerSubmitDetail,
@@ -236,6 +237,7 @@ describe('logic', () => {
     const def = {
       maxFiles: 10,
       maxFileSize: 25 * 1024 * 1024,
+      maxTotalBytes: 0,
       maxRecordMs: 600_000,
       maxLength: 0,
       accept: '',
@@ -1426,6 +1428,57 @@ describe('<ui-composer> enter="newline" (D2 G5-2)', () => {
     const win = mount({ hint: true }, { enter: 'newline', lang: 'ko' });
     expect(q(win, '.cp-hint')!.textContent).toBe('Ctrl+Enter로 보내기 · Enter로 줄바꿈');
     expect(q(mount({ hint: true }), '.cp-hint')!.textContent).toBe(T.hint);
+  });
+});
+
+describe('<ui-composer> maxTotalBytes (D2 G5-3)', () => {
+  it('composerCheckFile: the total comes last; composerSettings: no cap by default', () => {
+    const o = { count: 0, maxFiles: 10, maxFileSize: 100, maxTotalBytes: 25 };
+    expect(composerCheckFile(mk('a', 10), { ...o, total: 15 })).toBeNull();
+    expect(composerCheckFile(mk('a', 10), { ...o, total: 16 })).toBe('total');
+    expect(composerCheckFile(mk('a', 200), { ...o, total: 16 })).toBe('size');
+    expect(composerCheckFile(mk('a', 10), { ...o, total: 99, maxTotalBytes: 0 })).toBeNull();
+    expect(composerSettings({}).maxTotalBytes).toBe(0);
+    expect(composerSettings({ maxTotalBytes: -5 }).maxTotalBytes).toBe(0);
+    expect(composerSettings({ maxTotalBytes: 30.7 }).maxTotalBytes).toBe(30);
+  });
+
+  it('a file that would cross the cap sends ui-over-cap, then is rejected (reason total) with an inline error', () => {
+    const el = mount({ maxTotalBytes: 25 });
+    const caps = events<ComposerOverCapDetail>(el, 'ui-over-cap');
+    const rejects = events<ComposerRejectDetail>(el, 'ui-reject');
+    const c = txt('c.txt', 10);
+    expect(el.addFiles([txt('a.txt', 10), txt('b.txt', 10), c])).toHaveLength(2);
+    expect(caps).toEqual([{ name: 'c.txt', file: c, size: 10, total: 20, max: 25 }]);
+    expect(rejects).toEqual([{ name: 'c.txt', reason: 'total', file: c }]);
+    expect(errorText(el)).toBe('c.txt — Too large together (max 25 B in all)');
+    expect(el.files.map((f) => f.name)).toEqual(['a.txt', 'b.txt']);
+    // Removing one makes room again.
+    el.removeFile(0);
+    expect(el.addFiles([c])).toHaveLength(1);
+  });
+
+  it('ui-over-cap is cancelable: preventDefault() takes the file anyway', () => {
+    const el = mount({ maxTotalBytes: 15 });
+    const caps = events<ComposerOverCapDetail>(el, 'ui-over-cap', true);
+    const rejects = events(el, 'ui-reject');
+    let cancelable = false;
+    el.addEventListener('ui-over-cap', (e) => {
+      cancelable = e.cancelable;
+    });
+    expect(el.addFiles([txt('a.txt', 10), txt('b.txt', 10)])).toHaveLength(2);
+    expect(caps).toHaveLength(1);
+    expect(cancelable).toBe(true);
+    expect(rejects).toEqual([]);
+    expect(errorText(el)).toBe('');
+  });
+
+  it('a drop past the cap says so in Korean with lang="ko"', () => {
+    const el = mount({ maxTotalBytes: 2048 }, { lang: 'ko' });
+    el.dispatchEvent(drag('drop', [txt('a.txt', 1500), txt('b.txt', 1500)]));
+    el.renderNow();
+    expect(el.files).toHaveLength(1);
+    expect(errorText(el)).toBe('b.txt — 첨부 합계가 너무 큽니다 (모두 합쳐 최대 2 KB)');
   });
 });
 

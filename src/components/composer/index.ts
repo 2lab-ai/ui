@@ -5,6 +5,7 @@ export type {
   ComposerEnterMode,
   ComposerFilesDetail,
   ComposerInputDetail,
+  ComposerOverCapDetail,
   ComposerRecordDetail,
   ComposerRecordState,
   ComposerRejectDetail,
