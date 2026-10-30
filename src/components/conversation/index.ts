@@ -1,4 +1,4 @@
-export { COPIED_MS, UiConversation } from './conversation';
+export { CONVERSATION_COPIED_MS, UiConversation } from './conversation';
 export type {
   ConversationCopyDetail,
   ConversationData,
@@ -13,7 +13,7 @@ export type {
 export {
   clampLinesOf,
   clampOverflows,
-  clockText,
+  clockText as progressClockText,
   conversationStrings,
   DEFAULT_CLAMP,
   initialOf,

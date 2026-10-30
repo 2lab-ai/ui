@@ -41,7 +41,7 @@ export type {
 } from './logic';
 
 /** How long Copy reads “Copied”. */
-export const COPIED_MS = 1500;
+export const WORK_LOG_COPIED_MS = 1500;
 /** A group stops clipping its body this long after it starts opening (the expand is 240ms). */
 const SETTLE_MS = 260;
 
@@ -626,7 +626,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       setTimeout(() => {
         this.#copied.delete(id);
         if (this.isConnected) this.renderNow();
-      }, COPIED_MS),
+      }, WORK_LOG_COPIED_MS),
     );
     this.renderNow();
     this.notify<WorkCopyDetail>('ui-copy', { id, group: rec.group, text });

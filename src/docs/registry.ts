@@ -12,6 +12,12 @@ export const ORDER = [
   'tool-call-card',
   'file-card',
   'artifact-viewer',
+  'conversation',
+  'work-log',
+  'choice-form',
+  'goal-card',
+  'task-plan',
+  'task-runs',
   'agent-queue',
   'context-window',
   'compact-breakdown',
@@ -21,6 +27,8 @@ export const ORDER = [
   'memory-panel',
   'model-picker',
   'app-bar',
+  'status-bar',
+  'deck-nav',
   'segmented',
   'tabs',
   'menu',
@@ -28,6 +36,7 @@ export const ORDER = [
   'dialog',
   'drawer',
   'disclosure',
+  'log-scroller',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });
