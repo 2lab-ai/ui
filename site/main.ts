@@ -29,7 +29,7 @@ const ICON = {
   ext: icon('external', { size: 12 }),
 };
 
-const WIDE = new Set(['agent-run', 'agent-inbox', 'agent-queue']);
+const WIDE = new Set(['agent-run', 'agent-inbox', 'agent-queue', 'app-bar', 'stat-strip', 'artifact-viewer']);
 
 function themeNow(): 'light' | 'dark' {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -120,7 +120,7 @@ function homePage(): string {
   return `<section class="hero">
     <div class="crumb">@2lab.ai/ui</div>
     <h1>Agent UI components that show what the agent is doing — and what it needs from you.</h1>
-    <p class="lede">${countWord(DOCS.length)} Web Components lifted from the 2lab soma-work dashboard: the run screen, the inbox board, the agent tree, approvals and steering, answer cards, tool calls, provider capacity, context usage, spend, toasts, memory and the model picker — plus the ${prims} primitives they share (segmented control, tabs, menu, tooltip, dialog, drawer, disclosure), an icon set and a light-DOM CSS kit. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
+    <p class="lede">${countWord(DOCS.length)} Web Components lifted from the 2lab soma-work dashboard: the run screen, the inbox board, the agent tree, approvals and steering, the composer, answer cards, tool calls, files and the artifact viewer, provider capacity, context usage, spend, the stats strip and bar chart, toasts, memory, the model picker and the app bar — plus the ${prims} primitives they share (segmented control, tabs, menu, tooltip, dialog, drawer, disclosure), an icon set and a light-DOM CSS kit. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
     <div class="cta"><a class="btn primary" href="/components/${DOCS[0]?.slug ?? ''}" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
   </section>
   <h2 id="components">Components <span class="chip">${DOCS.length}</span></h2>
