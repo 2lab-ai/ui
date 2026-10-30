@@ -129,6 +129,7 @@ export const styles = `
 .aq-mark { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; max-width: 100%; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: background-color var(--dur-fade) var(--ease-out), color var(--dur-fade) var(--ease-out), border-color var(--dur-fade) var(--ease-out); }
 .aq-mark b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .aq-si { flex: none; width: 12px; height: 12px; }
+/* No position here: the account card measures marks against .aq-workers (see updated()). */
 .aq-stack { --aq-sc: var(--ib-muted); --aq-st: var(--ib-text-2); display: inline-flex; align-items: center; max-width: 100%; }
 .aq-stack.is-warn { --aq-sc: var(--aq-warn); --aq-st: var(--aq-warn-text); }
 .aq-stack.is-fail { --aq-sc: var(--st-fail); --aq-st: var(--st-fail-text); }
@@ -144,6 +145,7 @@ export const styles = `
 .aq-wdot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 .aq-wdot.is-h5 { background: var(--aq-now); }
 .aq-wdot.is-wk { background: var(--aq-wk); }
+.aq-wdot.is-ok { background: var(--st-done); }
 .aq-pop { position: absolute; z-index: 6; top: 100%; left: 8px; width: min(280px, calc(100% - 16px)); display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--ib-card); color: var(--ib-text); box-shadow: 0 0 0 1px var(--ib-card-border), var(--ib-shadow-raised); animation: aq-open var(--dur-fade) var(--ease-out); }
 .cap-prov.is-narrow .aq-pop { width: calc(100% - 24px); }
 @keyframes aq-open { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }

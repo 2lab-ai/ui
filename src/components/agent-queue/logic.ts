@@ -489,7 +489,8 @@ function lines(widths: number[], width: number): number {
 /**
  * Which runs fold to one `icon count` badge so the strip (head first) fits `rows` lines of `width` px: the widest
  * blocked stack first, the usable run last — who can work now is the last thing hidden. Usable badges that sit
- * side by side wrap like any badge, so the usable run is measured badge by badge.
+ * side by side wrap like any badge, so the usable run is measured badge by badge. A blocked stack wider than the
+ * row folds even when the count fits (one stack never wraps; it would be clipped).
  */
 export function stripFolds(stacks: AqStack[], head: string, width: number, rows = 2): Set<string> {
   const folds = new Set<string>();
@@ -502,8 +503,11 @@ export function stripFolds(stacks: AqStack[], head: string, width: number, rows 
     }
     return out;
   };
-  while (lines(widths(), width) > rows) {
-    const open = stacks.filter((s) => !folds.has(s.key) && s.accounts.length > 1 && foldPx(s) < runPx(s));
+  const foldable = (s: AqStack) => !folds.has(s.key) && s.accounts.length > 1 && foldPx(s) < runPx(s);
+  // A stack wider than the row cannot wrap — it would be clipped on one line — so it folds whatever the count.
+  const tooWide = () => stacks.some((s) => s.key !== OK_STACK && foldable(s) && runPx(s) > width);
+  while (lines(widths(), width) > rows || tooWide()) {
+    const open = stacks.filter(foldable);
     const blocked = open.filter((s) => s.key !== OK_STACK);
     const pick = (blocked.length ? blocked : open).reduce<AqStack | null>(
       (m, s) => (!m || runPx(s) > runPx(m) ? s : m),
