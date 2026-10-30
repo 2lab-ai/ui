@@ -33,7 +33,7 @@ svg { display: block; flex: none; }
 
 /* Attachment chips: one scrolling row under the text. Chips added later scale in; those on first paint do not. */
 .cp-files { display: flex; gap: 6px; margin: 0; padding: 2px 8px 8px; list-style: none; overflow-x: auto;
-  scroll-snap-type: x proximity; scrollbar-width: thin; cursor: default; }
+  scroll-snap-type: x proximity; scroll-padding-inline: 8px; scrollbar-width: thin; cursor: default; }
 .cp-chip { display: flex; flex: none; align-items: center; gap: 8px; max-width: 232px; height: 44px; padding: 0 4px 0 5px;
   border: 1px solid var(--ib-card-border); border-radius: 10px; background: var(--ib-card-dim); scroll-snap-align: start;
   animation: cp-in var(--dur-expand) var(--ease-out) both; }

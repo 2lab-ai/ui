@@ -311,7 +311,8 @@ export class UiComposer extends UiElement<ComposerData> {
     for (const r of rejected)
       this.notify<ComposerRejectDetail>('ui-reject', { name: str(r.file.name), reason: r.reason, file: r.file });
     if (accepted.length) {
-      this.#scrollEnd = true;
+      // Files added later scroll into view; files there on first paint (a restored draft) start at the first chip.
+      this.#scrollEnd = this.#painted;
       this.#say(accepted.length === 1 ? t.attached(accepted[0].name || t.untitled) : t.attachedMany(accepted.length));
       this.notify<ComposerFilesDetail>('ui-files', { files: this.files });
     }
