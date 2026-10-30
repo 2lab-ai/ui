@@ -326,6 +326,7 @@ export const doc: ComponentDoc = {
     'Folds are buttons with `aria-expanded` / `aria-controls`; a closed region is `inert` (nothing inside takes focus or clicks).',
     'A polite live region says when a step is done, failed or paused (never on the first render). Clocks tick in text nodes, never re-rendering; the foot’s clock is hidden from screen readers.',
     'Reduced motion: no marker pop or rail draw; folds fade (120 ms) without growing.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or folds earlier plans or steps. Silent until the page turns sound on.',
   ],
   usage: `<ui-task-plan id="plan"></ui-task-plan>
 <script type="module">

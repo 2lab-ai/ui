@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { capacityNews, laneNews, type UiAgentQueue } from './agent-queue';
 import {
   type AgentQueueData,
@@ -639,6 +640,98 @@ describe('events', () => {
     el.data = { now: NOW, providers: [{ ...p, accounts: p.accounts?.filter((a) => a.id !== 'ai43') }] };
     el.renderNow();
     expect(q(el, '.aq-pop')).toBeNull();
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (t: Element, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const FOLDS: AgentQueueData = {
+    now: NOW,
+    providers: [claude()],
+    lane: { jobs: jobs() },
+    collapsible: true,
+    collapsed: { capacity: true },
+  };
+
+  it('a fold toggle plays a subtle open when it unfolds, close when it folds', async () => {
+    const el = mount(FOLDS);
+    press(q(el, '.cap-head .aq-fold')!);
+    await spy.settle();
+    press(q(el, '.aq-lane-head .aq-fold')!, 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('an account mark opens its card (open); the close button, Esc or a second press close it (close)', async () => {
+    const el = mount({ now: NOW, providers: [claude()] });
+    const steps: Array<() => void> = [
+      () => press(qa(el, '.aq-mark')[2]),
+      () => press(q(el, '.aq-pop-close')!, 0),
+      () => press(qa(el, '.aq-mark')[2]),
+      () => q(el, '.aq-pop-close')!.dispatchEvent(key('Escape')),
+      () => press(qa(el, '.aq-mark')[0]),
+      () => press(qa(el, '.aq-mark')[0]),
+      () => press(qa(el, '.aq-mark')[0]),
+      () => document.body.click(),
+    ];
+    for (const step of steps) {
+      step();
+      await spy.settle();
+    }
+    expect(q(el, '.aq-pop')).toBeNull();
+    expect(spy.calls).toEqual([
+      ['open', { input: 'mouse' }],
+      ['close', { input: 'keyboard' }],
+      ['open', { input: 'mouse' }],
+      ['close', { input: 'keyboard' }],
+      ['open', { input: 'mouse' }],
+      ['close', { input: 'mouse' }],
+      ['open', { input: 'mouse' }],
+    ]);
+  });
+
+  it('opening a job plays navigate', async () => {
+    const el = mount({ now: NOW, lane: { jobs: jobs() } });
+    press(q(el, '.aq-q')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([['navigate', { input: 'mouse' }]]);
+  });
+
+  it('a cancelled ui-collapse, ui-account-open or ui-job-open, or data from code plays nothing', async () => {
+    const el = mount(FOLDS);
+    for (const n of ['ui-collapse', 'ui-account-open', 'ui-job-open'])
+      el.addEventListener(n, (e) => e.preventDefault());
+    press(q(el, '.cap-head .aq-fold')!);
+    press(q(el, '.aq-lane-head .aq-fold')!);
+    press(q(el, '.aq-q')!);
+    el.data = { ...FOLDS, collapsed: { capacity: false, lane: true } };
+    el.renderNow();
+    press(qa(el, '.aq-mark')[2]);
+    await spy.settle();
+    expect(q(el, '.aq-pop')).toBeNull();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('is silent inside data-ui-sound="off"', async () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount(FOLDS);
+    wrap.append(el);
+    el.renderNow();
+    press(q(el, '.cap-head .aq-fold')!);
+    press(q(el, '.aq-q')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });
 

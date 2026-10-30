@@ -233,18 +233,22 @@ export class UiStatusBar extends UiElement<StatusBarData> {
     const link = target?.closest?.('.sb-link');
     if (link) {
       const l = this.data?.link;
-      if (l && !this.emit<StatusBarActionDetail>('ui-action', { id: l.id ?? 'link', href: l.href })) e.preventDefault();
+      if (!l) return;
+      if (this.emit<StatusBarActionDetail>('ui-action', { id: l.id ?? 'link', href: l.href }))
+        this.sound('navigate', undefined, e);
+      else e.preventDefault();
       return;
     }
     const btn = target?.closest?.('.sb-btn') as HTMLButtonElement | null;
-    if (btn && !btn.disabled && btn.dataset.id !== undefined) this.#press(btn.dataset.id);
+    if (btn && !btn.disabled && btn.dataset.id !== undefined) this.#press(btn.dataset.id, e);
   }
 
-  #press(id: string): void {
+  /** A plain action taps; a danger one arms with a subtle tap, and its confirming press taps. */
+  #press(id: string, e: Event): void {
     const a = this.data?.actions?.find((x) => x.id === id);
     if (!a || a.disabled || a.busy || this.#pending.has(id)) return;
     if (a.tone !== 'danger') {
-      this.emit<StatusBarActionDetail>('ui-action', { id });
+      if (this.emit<StatusBarActionDetail>('ui-action', { id })) this.sound('tap', undefined, e);
       return;
     }
     if (this.#armed !== id) {
@@ -252,11 +256,15 @@ export class UiStatusBar extends UiElement<StatusBarData> {
       clearTimeout(this.#armTimer);
       this.#armTimer = setTimeout(() => this.#disarm(), STATUS_ARM_MS);
       this.#say(this.#t.armedLabel(a.label));
+      this.sound('tap', { emphasis: 'subtle' }, e);
       this.requestRender();
       return;
     }
     this.#disarm(false);
-    if (this.emit<StatusBarActionDetail>('ui-action', { id })) this.#pending.add(id);
+    if (this.emit<StatusBarActionDetail>('ui-action', { id })) {
+      this.#pending.add(id);
+      this.sound('tap', undefined, e);
+    }
     this.requestRender();
   }
 

@@ -87,7 +87,7 @@ export class UiToolCallGroup extends UiElement<ToolCallGroupData> {
     this.#live.setAttribute('aria-live', 'polite');
     this.root.append(this.#body, this.#live);
     this.root.addEventListener('click', (e) => {
-      if ((e.target as Element | null)?.closest?.('.tcg-head')) this.#toggle();
+      if ((e.target as Element | null)?.closest?.('.tcg-head')) this.#toggle(e);
     });
   }
 
@@ -246,11 +246,12 @@ export class UiToolCallGroup extends UiElement<ToolCallGroupData> {
     this.#body.toggleAttribute('inert', !open);
   }
 
-  #toggle(): void {
+  #toggle(e: Event): void {
     const d = this.data;
     if (!d) return;
     const next = !this.#isOpen(d);
     if (!this.emit<ToolCallToggleDetail>('ui-toggle', { open: next })) return;
+    this.sound(next ? 'open' : 'close', { emphasis: 'subtle' }, e);
     if (d.open !== undefined) return; // controlled: the host answers with data.open
     this.#open = next;
     this.#shownOpen = next;

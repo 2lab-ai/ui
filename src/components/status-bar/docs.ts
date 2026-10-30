@@ -130,6 +130,7 @@ export const doc: ComponentDoc = {
     'The clock is one text node updated in place; data updates patch the row, so focus stays on the button it was on.',
     'The link’s accessible name starts with its visible label and says it opens a new tab.',
     'Buttons and the link are 44px tall on coarse pointers and narrow screens. Reduced motion: no press scale, the spinner stops.',
+    "Sound (opt-in, @2lab.ai/ui/sound): an action taps once ui-action is not prevented; a danger action's arming press plays a subtle tap and its confirming press a tap; the link plays navigate. Silent until the page turns sound on.",
   ],
   usage: `<ui-status-bar></ui-status-bar>
 <script type="module">

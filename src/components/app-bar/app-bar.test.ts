@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { MenuItem, UiMenu } from '../menu/menu';
 import {
   type AppBarData,
@@ -615,6 +616,124 @@ describe('folded menu', () => {
     trigger(el).click();
     menuRows(el)[3].click();
     expect(assign).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (t: Element, init: MouseEventInit = {}) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1, ...init }));
+
+  it('a link, the brand and the account play navigate with the input that pressed them', async () => {
+    const el = mount(DATA);
+    el.addEventListener('click', (e) => e.preventDefault());
+    press(qa(el, 'a.ab-link')[1]);
+    await spy.settle();
+    press(q(el, '.ab-brand-label')!, { detail: 0 });
+    await spy.settle();
+    press(q(el, '.ab-name')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['navigate', { input: 'mouse' }],
+      ['navigate', { input: 'keyboard' }],
+      ['navigate', { input: 'mouse' }],
+    ]);
+  });
+
+  it('the theme toggle plays toggle: back to light, forward to dark', async () => {
+    const el = mount(DATA);
+    press(q(el, '.ab-theme')!);
+    await spy.settle();
+    press(q(el, '.ab-theme')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['toggle', { direction: 'back', input: 'mouse' }],
+      ['toggle', { direction: 'forward', input: 'mouse' }],
+    ]);
+  });
+
+  it('a folded menu row that goes through plays navigate once (the menu, cancelled here, stays quiet)', async () => {
+    vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+    const el = mount(DATA, { collapse: 'always' });
+    menuOf(el).renderNow();
+    trigger(el).click();
+    await spy.settle();
+    spy.calls.length = 0;
+    menuRows(el)[1].click();
+    await spy.settle();
+    expect(spy.calls).toEqual([['navigate', undefined]]);
+  });
+
+  it('a cancelled ui-navigate still plays navigate (the host routes on the client); a cancelled theme change, a modified click or data from code plays nothing', async () => {
+    const el = mount(DATA);
+    for (const n of ['ui-navigate', 'ui-account', 'ui-theme-change', 'ui-sound-change'])
+      el.addEventListener(n, (e) => e.preventDefault());
+    el.addEventListener('click', (e) => e.preventDefault());
+    press(qa(el, 'a.ab-link')[1]);
+    await spy.settle();
+    expect(spy.calls).toEqual([['navigate', { input: 'mouse' }]]);
+    spy.calls.length = 0;
+    press(q(el, '.ab-theme')!);
+    el.data = { ...DATA, sound: false };
+    el.renderNow();
+    press(q(el, '.ab-sound')!);
+    const free = mount(DATA);
+    free.addEventListener('click', (e) => e.preventDefault());
+    press(qa(free, 'a.ab-link')[1], { metaKey: true });
+    free.data = { ...DATA, theme: 'light', sound: true, nav: DATA.nav!.slice(1) };
+    free.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('the speaker sends ui-sound-change and plays its toggle through the page setting as the host leaves it', async () => {
+    const el = mount({ ...DATA, sound: false });
+    const asked: boolean[] = [];
+    el.addEventListener('ui-sound-change', (e) => asked.push((e as CustomEvent<{ sound: boolean }>).detail.sound));
+    const b = q(el, '.ab-sound')!;
+    expect(b.getAttribute('aria-pressed')).toBe('false');
+    expect(b.getAttribute('aria-label')).toBe('Turn sound on');
+    expect(b.querySelector('[data-icon]')!.getAttribute('data-icon')).toBe('sound-off');
+    // The theme toggle stays last; the speaker sits right before it.
+    expect(b.nextElementSibling?.classList.contains('ab-theme')).toBe(true);
+    press(b);
+    await spy.settle();
+    el.renderNow();
+    expect(asked).toEqual([true]);
+    expect(spy.calls).toEqual([['toggle', { direction: 'forward', input: 'mouse' }]]);
+    const on = q(el, '.ab-sound')!;
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+    expect(on.getAttribute('aria-label')).toBe('Turn sound off');
+    expect(on.querySelector('[data-icon]')!.getAttribute('data-icon')).toBe('sound');
+    // A host that turns sound off in its listener hears nothing for the off switch.
+    el.addEventListener('ui-sound-change', () => spy.restore(), { once: true });
+    press(on);
+    await spy.settle();
+    expect(asked).toEqual([true, false]);
+    expect(spy.calls).toHaveLength(1);
+  });
+
+  it('no speaker without data.sound; Korean labels with lang="ko"', () => {
+    expect(q(mount(DATA), '.ab-sound')).toBeNull();
+    const ko = mount({ ...DATA, sound: true }, { lang: 'ko' });
+    expect(q(ko, '.ab-sound')!.getAttribute('aria-label')).toBe('소리 끄기');
+  });
+
+  it('is silent inside data-ui-sound="off"', async () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount(DATA);
+    wrap.append(el);
+    el.addEventListener('click', (e) => e.preventDefault());
+    press(qa(el, 'a.ab-link')[1]);
+    press(q(el, '.ab-theme')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });
 

@@ -5,6 +5,7 @@ import { markdownHtml } from '../../core/markdown';
 import { morphInto } from '../../core/morph';
 import { rovingIndex } from '../../core/roving';
 import { icon } from '../../icons/icons';
+import { typedKey } from '../../sound/sound';
 import { styles } from './styles';
 
 // ── types ──
@@ -1132,13 +1133,13 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     }
     switch (b.dataset.act) {
       case 'open':
-        this.#request({ kind: 'select', id: b.dataset.id ?? '' });
+        this.#request({ kind: 'select', id: b.dataset.id ?? '' }, e);
         break;
       case 'new':
-        this.#request({ kind: 'new' });
+        this.#request({ kind: 'new' }, e);
         break;
       case 'cancel-new':
-        this.#request({ kind: 'close' });
+        this.#request({ kind: 'close' }, e);
         break;
       case 'back':
         this.#back();
@@ -1147,7 +1148,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
         this.#keep();
         break;
       case 'discard':
-        this.#discard();
+        this.#discard(e);
         break;
       case 'mode':
         this.#preview = b.dataset.mode === 'preview';
@@ -1160,16 +1161,16 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
         this.#removeEntry(b.dataset.h ?? '');
         break;
       case 'save':
-        this.#save(false);
+        this.#save(false, e);
         break;
       case 'overwrite':
-        this.#save(true);
+        this.#save(true, e);
         break;
       case 'reload':
-        this.#reload();
+        this.#reload(e);
         break;
       case 'delete':
-        this.#press();
+        this.#press(e);
         break;
       case 'clear-q':
         this.#q = '';
@@ -1182,11 +1183,14 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
   #onKey(e: KeyboardEvent): void {
     const el = e.target as HTMLElement | null;
     if (!el) return;
+    // A keystroke that edits one of the fields (shortcuts, Escape, arrows and read-only fields never do).
+    const typed = el.dataset.f && !e.defaultPrevented ? typedKey(e, el) : undefined;
+    if (typed) this.sound('type', { key: typed }, e);
     if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
       // Anywhere in the element while a page is open for editing (list and search too), so the browser never saves the page.
       if (!this.$('.kp-edit')) return;
       e.preventDefault();
-      this.#save(false);
+      this.#save(false, e);
       return;
     }
     if (e.key === 'Escape') {
@@ -1245,7 +1249,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
   // ── actions ──
 
   /** Switch the editor — unless it holds unsaved changes: then ask first. */
-  #request(a: Pending): void {
+  #request(a: Pending, e: Event): void {
     const d = this.data;
     if (!d) return;
     if (a.kind === 'select' && !this.#creating && a.id === this.#sel) {
@@ -1279,14 +1283,15 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
       this.requestRender();
       return;
     }
-    this.#run(a);
+    this.#run(a, e);
   }
 
   /** Carry out a switch (the guard is answered or was not needed). False when the host prevented it. */
-  #run(a: Pending): boolean {
+  #run(a: Pending, e: Event): boolean {
     if (a.kind === 'select') {
       const detail: KnowledgeSelectDetail = { id: a.id };
       if (!this.emit('ui-select', detail)) return false;
+      this.sound('select', undefined, e);
       this.#dropOpenDraft();
       this.#sel = a.id;
       this.#creating = false;
@@ -1296,6 +1301,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     } else if (a.kind === 'new') {
       const detail: KnowledgeNewDetail = {};
       if (!this.emit('ui-new', detail)) return false;
+      this.sound('tap', undefined, e);
       this.#dropOpenDraft();
       this.#creating = true;
       this.#preview = false;
@@ -1321,10 +1327,10 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     this.requestRender();
   }
 
-  #discard(): void {
+  #discard(e: Event): void {
     const a = this.#pending;
     if (!a) return;
-    if (!this.#run(a)) {
+    if (!this.#run(a, e)) {
       this.#pending = null;
       this.#want('f|title');
       this.requestRender();
@@ -1361,7 +1367,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     this.requestRender();
   }
 
-  #save(overwrite: boolean): void {
+  #save(overwrite: boolean, e: Event): void {
     const d = this.data;
     if (!d || d.readOnly || d.saving) return;
     const isNew = this.#creating;
@@ -1390,21 +1396,25 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     if (rev != null) detail.revision = rev;
     if (overwrite) detail.overwrite = true;
     this.#disarm(false);
-    if (this.emit('ui-save', detail)) this.#sent = { id: detail.id, key: normKey(n) };
+    if (this.emit('ui-save', detail)) {
+      this.#sent = { id: detail.id, key: normKey(n) };
+      this.sound('tap', undefined, e);
+    }
     this.requestRender();
   }
 
-  #reload(): void {
+  #reload(e: Event): void {
     if (this.#creating || !this.#sel || this.data?.saving) return;
     const detail: KnowledgeReloadDetail = { id: this.#sel };
     if (!this.emit('ui-reload', detail)) return;
+    this.sound('tap', { emphasis: 'subtle' }, e);
     this.#drafts.delete(this.#sel);
     this.#sent = null;
     this.requestRender();
   }
 
   /** First press arms (“Delete?”), a second within 4 s confirms; Esc, blur, typing or the timeout disarm. */
-  #press(): void {
+  #press(e: Event): void {
     const d = this.data;
     const page = this.#creating ? null : this.#pageFor(this.#sel);
     if (!d || !page || d.saving || d.readOnly) return;
@@ -1417,7 +1427,10 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
         this.#disarm(false);
         const detail: KnowledgeDeleteDetail = { id };
         if (page.revision != null) detail.revision = page.revision;
-        if (this.emit('ui-delete', detail)) this.#deleted.add(id);
+        if (this.emit('ui-delete', detail)) {
+          this.#deleted.add(id);
+          this.sound('close', { emphasis: 'strong' }, e);
+        }
         this.requestRender();
         return;
       }
@@ -1426,6 +1439,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     this.#armedAt = now;
     clearTimeout(this.#armTimer);
     this.#armTimer = window.setTimeout(() => this.#disarm(), KNOWLEDGE_ARM_MS);
+    this.sound('tap', { emphasis: 'subtle' }, e);
     this.requestRender();
   }
 

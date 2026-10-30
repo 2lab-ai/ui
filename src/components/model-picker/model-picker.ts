@@ -401,7 +401,8 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
 
   // ── open / close ──────────────────────────────────────────────────────────
 
-  #setOpen(v: boolean, o: { user: boolean; focusList?: boolean; returnFocus?: boolean }): void {
+  /** `event`: the user's own open or close (sounds); a close that comes from a pick, a scroll or a timer passes none. */
+  #setOpen(v: boolean, o: { user: boolean; focusList?: boolean; returnFocus?: boolean; event?: Event }): void {
     if (v === this.#open) {
       if (v && o.focusList) this.#focusList();
       return;
@@ -437,6 +438,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       if (this.isConnected) this.renderNow();
     }
     if (o.user) this.emit('ui-open-change', { open: v });
+    if (o.event) this.sound(v ? 'select' : 'close', v ? undefined : { emphasis: 'subtle' }, o.event);
   }
 
   #reflect(v: boolean): void {
@@ -451,7 +453,9 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
   }
 
   readonly #onOutside = (e: Event): void => {
-    if (this.#open && !e.composedPath().includes(this)) this.#setOpen(false, { user: true });
+    // A press outside is the user closing it; focus that moved away may be the page's doing (silent).
+    if (this.#open && !e.composedPath().includes(this))
+      this.#setOpen(false, { user: true, event: e.type === 'pointerdown' ? e : undefined });
   };
 
   readonly #onViewport = (): void => this.#queuePlace();
@@ -554,14 +558,15 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
   // ── picks ─────────────────────────────────────────────────────────────────
 
   /** A row picks its model — by id, never by position. The current row only closes; locked rows do nothing. */
-  #pickKey(key: string): void {
+  #pickKey(key: string, e?: Event): void {
     const d = this.data;
     if (!d || this.#off()) return;
     const opts = this.#opts();
     const i = opts.findIndex((o) => o.key === key);
     if (i < 0) return;
-    if (i === currentIndex(opts, d.value?.model ?? '')) {
-      this.#setOpen(false, { user: true, returnFocus: true });
+    const cur = currentIndex(opts, d.value?.model ?? '');
+    if (i === cur) {
+      this.#setOpen(false, { user: true, returnFocus: true, event: e });
       return;
     }
     const o = opts[i];
@@ -570,17 +575,23 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const detail: ModelPickerChange = { model: o.model.id, effort: d.value?.effort, changed: 'model' };
     // Optimistic value on top of the LATEST data: a listener may have set busy/error synchronously; if it set a
     // value of its own, that value wins.
-    if (this.emit('ui-change', detail) && this.data && this.data.value === d.value)
+    if (!this.emit('ui-change', detail)) return;
+    this.sound('select', { direction: i < cur ? 'back' : 'forward' }, e);
+    if (this.data && this.data.value === d.value)
       this.data = { ...this.data, value: { model: o.model.id, effort: d.value?.effort } };
   }
 
   /** A level keeps the menu open (it is a setting of the same choice). */
-  #pickEffort(level: string): void {
+  #pickEffort(level: string, e?: Event): void {
     const d = this.data;
     if (!d || this.#off() || d.busy?.effort || !level || level === d.value?.effort) return;
     const model = d.value?.model ?? '';
     const detail: ModelPickerChange = { model, effort: level, changed: 'effort' };
-    if (this.emit('ui-change', detail) && this.data && this.data.value === d.value)
+    if (!this.emit('ui-change', detail)) return;
+    const levels = this.$$('.mp-seg-btn').map((b) => b.dataset.effort);
+    const back = levels.indexOf(level) < levels.indexOf(d.value?.effectiveEffort || d.value?.effort);
+    this.sound('select', { direction: back ? 'back' : 'forward' }, e);
+    if (this.data && this.data.value === d.value)
       this.data = { ...this.data, value: { model, effort: level, effortLevels: d.value?.effortLevels } };
   }
 
@@ -592,18 +603,18 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     if (t.closest('.mp-trigger')) {
       if (this.#off()) return;
       const opening = !this.#open;
-      this.#setOpen(opening, { user: true, focusList: opening, returnFocus: !opening });
+      this.#setOpen(opening, { user: true, focusList: opening, returnFocus: !opening, event: e });
       return;
     }
     if (!this.#open) return;
     const opt = t.closest('.mp-opt');
     if (opt) {
-      this.#pickKey(opt.getAttribute('data-k') ?? '');
+      this.#pickKey(opt.getAttribute('data-k') ?? '', e);
       return;
     }
     const b = t.closest('.mp-seg-btn');
     if (b && b.parentElement?.getAttribute('aria-disabled') !== 'true')
-      this.#pickEffort(b.getAttribute('data-effort') ?? '');
+      this.#pickEffort(b.getAttribute('data-effort') ?? '', e);
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -619,7 +630,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const onList = t.classList.contains('mp-list');
     if (e.key === 'Escape') {
       e.preventDefault();
-      this.#setOpen(false, { user: true, returnFocus: true });
+      this.#setOpen(false, { user: true, returnFocus: true, event: e });
     } else if (e.key === 'Tab') {
       // Two stops, moved by the menu itself: the list, then the checked level. Past either end the menu closes,
       // back on its trigger — a non-modal menu never keeps focus, and a later Esc still lands on the trigger.
@@ -628,7 +639,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       const list = this.$('.mp-list');
       if (onList && !e.shiftKey && level) level.focus();
       else if (!onList && e.shiftKey && list) list.focus();
-      else this.#setOpen(false, { user: true, returnFocus: true });
+      else this.#setOpen(false, { user: true, returnFocus: true, event: e });
     } else if (onList) {
       this.#listKey(e);
     } else {
@@ -642,13 +653,13 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     if (e.key === 'Escape' && this.#open) {
       e.preventDefault();
       e.stopPropagation();
-      this.#setOpen(false, { user: true, returnFocus: true });
+      this.#setOpen(false, { user: true, returnFocus: true, event: e });
       return;
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
     if (this.#off()) return;
-    this.#setOpen(true, { user: true, focusList: true });
+    this.#setOpen(true, { user: true, focusList: true, event: e });
   }
 
   /** ↑ ↓ (wrapping) · Home · End point at a row; Enter · Space pick it. */
@@ -668,7 +679,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       this.$('.mp-opt[data-active]')?.scrollIntoView?.({ block: 'nearest' });
     } else if (k === 'Enter' || k === ' ') {
       e.preventDefault();
-      this.#pickKey(opts[this.#activeIndex(opts, cur)].key);
+      this.#pickKey(opts[this.#activeIndex(opts, cur)].key, e);
     }
   }
 
@@ -695,7 +706,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     if (group.getAttribute('aria-disabled') === 'true') return;
     const next = btns[((j % n) + n) % n];
     next.focus();
-    this.#pickEffort(next.getAttribute('data-effort') ?? '');
+    this.#pickEffort(next.getAttribute('data-effort') ?? '', e);
   }
 
   /** The mouse points at a row: it lights, the others step back; leaving the list lets go. */

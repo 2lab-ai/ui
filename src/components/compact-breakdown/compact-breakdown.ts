@@ -102,7 +102,7 @@ export class UiCompactBreakdown extends UiElement<CompactBreakdownData> {
     this.root.append(this.#live);
     this.root.addEventListener('click', (e) => {
       const opt = (e.target as Element | null)?.closest?.<HTMLElement>('.cb-opt[data-opt]');
-      if (opt) this.#choose(opt.dataset.opt ?? '', false);
+      if (opt) this.#choose(opt.dataset.opt ?? '', false, e);
     });
     this.root.addEventListener('keydown', (e) => this.#keydown(e as KeyboardEvent));
     this.root.addEventListener('pointerover', (e) => {
@@ -607,20 +607,24 @@ ${this.#list(d, mode, t)}
               : null;
     if (n === null) return;
     e.preventDefault();
-    this.#choose(opts[(n + opts.length) % opts.length].id, true);
+    this.#choose(opts[(n + opts.length) % opts.length].id, true, e);
   }
 
   /** A pick leaves as ui-change (cancelable); uncontrolled, the card moves its own selection. */
-  #choose(id: string, focus: boolean): void {
+  #choose(id: string, focus: boolean, e: Event): void {
     const d = this.data;
     if (!d) return;
     const opts = this.#options(d);
-    if (!opts.some((o) => o.id === id)) return;
-    if (id !== this.#current(d, opts)) {
+    const to = opts.findIndex((o) => o.id === id);
+    if (to < 0) return;
+    const cur = this.#current(d, opts);
+    if (id !== cur) {
       if (!this.emit<CompactBreakdownChangeDetail>('ui-change', { value: id })) {
         if (focus) this.$<HTMLElement>('.cb-opt[aria-checked="true"]')?.focus();
         return;
       }
+      const from = opts.findIndex((o) => o.id === cur);
+      this.sound('select', { direction: to > from ? 'forward' : 'back' }, e);
       this.#sayFor = id;
       if (this.data?.value === undefined) {
         this.#value = id;

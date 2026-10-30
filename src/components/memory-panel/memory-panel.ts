@@ -1,6 +1,7 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { fmtInt } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
+import { typedKey } from '../../sound/sound';
 import { styles } from './styles';
 
 /** One memory store (a file the agent reads at the start of every session). */
@@ -385,7 +386,10 @@ export class UiMemoryPanel extends UiElement<MemoryPanelData> {
     super();
     const r = this.root;
     r.addEventListener('click', (e) => this.#onClick(e));
-    r.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
+    r.addEventListener('keydown', (e) => {
+      this.#onKey(e as KeyboardEvent);
+      this.#typed(e as KeyboardEvent);
+    });
     r.addEventListener('input', (e) => this.#onInput(e));
     r.addEventListener('focusin', () => this.#hold('panel', true));
     r.addEventListener('focusout', (e) => {
@@ -840,13 +844,13 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
         this.#editStart(sid, row);
         break;
       case 'delete':
-        this.#delete(sid, row);
+        this.#delete(sid, row, e);
         break;
       case 'cancel':
         this.#editCancel();
         break;
       case 'save':
-        this.#editSave();
+        this.#editSave(e);
         break;
       case 'add-open':
         this.#addOpen(sid);
@@ -855,13 +859,13 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
         this.#addClose(sid);
         break;
       case 'add-save':
-        this.#add(sid);
+        this.#add(sid, e);
         break;
       case 'clear':
-        this.#clear(sid);
+        this.#clear(sid, e);
         break;
       case 'undo':
-        this.#restore();
+        this.#restore(e);
         break;
     }
   }
@@ -894,8 +898,8 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       const sid = el.closest<HTMLElement>('.mm-group')?.dataset.store ?? '';
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        if (isEdit) this.#editSave();
-        else this.#add(sid);
+        if (isEdit) this.#editSave(e);
+        else this.#add(sid, e);
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -908,6 +912,12 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       e.stopPropagation();
       this.#disarm();
     }
+  }
+
+  /** A keystroke that edits the text of a field here (heard only when the page turned typing sounds on). */
+  #typed(e: KeyboardEvent): void {
+    const key = e.defaultPrevented ? undefined : typedKey(e, e.target);
+    if (key) this.sound('type', { key }, e);
   }
 
   #onInput(e: Event): void {
@@ -1017,7 +1027,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     return s.entries[near] === text ? near : s.entries.indexOf(text);
   }
 
-  #editSave(): void {
+  #editSave(ev: Event): void {
     const e = this.#editing;
     const s = e ? this.#store(e.store) : undefined;
     if (!e || !s) return;
@@ -1039,6 +1049,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     }
     const detail: MemoryEditDetail = { store: s.id, index: i, text, previous: e.orig };
     if (!this.#emitWrite('ui-edit', detail)) return;
+    this.sound('tap', undefined, ev);
     s.entries[i] = text;
     this.#pend('edit', detail, () => {
       const at = s.entries[i] === text ? i : s.entries.indexOf(text);
@@ -1052,7 +1063,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
 
   // ── delete + undo ──
 
-  #delete(sid: string, key: string): void {
+  #delete(sid: string, key: string, ev: Event): void {
     if (this.#ro) return;
     if (this.#timers.settle) this.#paintAll(); // a previous fold still running: finish it first
     const s = this.#store(sid);
@@ -1062,6 +1073,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     const text = s.entries[i];
     const detail: MemoryDeleteDetail = { store: sid, index: i, text };
     if (!this.#emitWrite('ui-delete', detail)) return;
+    this.sound('close', undefined, ev);
     const link: UndoLink = { restored: false, refused: false };
     this.#pend('delete', detail, () => {
       link.refused = true;
@@ -1157,7 +1169,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     this.#undo = null;
   }
 
-  #restore(): void {
+  #restore(ev: Event): void {
     const u = this.#undo;
     if (!u || this.#ro) return;
     const s = this.#store(u.store);
@@ -1171,6 +1183,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       this.#focusKey(`new|${s.id}`);
       return;
     }
+    this.sound('navigate', { emphasis: 'subtle', direction: 'back' }, ev);
     const at = Math.min(u.index, s.entries.length);
     s.entries.splice(at, 0, u.text);
     const e = this.#editing;
@@ -1259,7 +1272,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     this.#paintTray();
   }
 
-  #add(sid: string): void {
+  #add(sid: string, e: Event): void {
     const s = this.#store(sid);
     if (!s || this.#ro) return;
     const ta = this.#byKey(`new|${sid}`) as HTMLTextAreaElement | null;
@@ -1267,6 +1280,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
     if (!text.trim()) return;
     const detail: MemoryAddDetail = { store: sid, text };
     if (!this.#emitWrite('ui-add', detail)) return;
+    this.sound('tap', undefined, e);
     s.entries.push(text);
     this.#pend('add', detail, () => {
       const at = s.entries.lastIndexOf(text);
@@ -1281,7 +1295,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
   }
 
   /** Two presses within 4 s: the first names the count, the second sends `ui-clear`. No undo. */
-  #clear(sid: string): void {
+  #clear(sid: string, ev: Event): void {
     const s = this.#store(sid);
     if (!s || this.#ro || !s.entries.length) return;
     const a = this.#armed;
@@ -1294,6 +1308,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       }, ARM_MS);
       this.#paintClear();
       this.#paintTray();
+      this.sound('tap', { emphasis: 'subtle' }, ev);
       return;
     }
     this.#disarm(false);
@@ -1303,6 +1318,7 @@ ${title ? `<div class="mm-head"><span class="mm-title" id="mm-title">${esc(title
       this.#paintTray();
       return;
     }
+    this.sound('close', { emphasis: 'strong' }, ev);
     const e = this.#editing;
     if (e?.store === sid) {
       this.#editing = null;

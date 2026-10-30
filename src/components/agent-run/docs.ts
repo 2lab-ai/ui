@@ -501,6 +501,7 @@ export const doc: ComponentDoc = {
     'Keyboard landing: el.focusNeeds() focuses the first unanswered card itself (not its Approve), as the dashboard does when the panel opens from the keyboard — Esc still reaches the page, ⌘/Ctrl+Enter is a deliberate second step.',
     'Colour is never the only cue: step markers and the status pill have distinct shapes and words. Touch: answers, choices, Stop and the fold toggle are 44px tall on coarse pointers; key hints hide without hover.',
     'Reduced motion: marker pop, rail fill, badge pop and the resolved-row rise collapse to their end state; spinners stop.',
+    'Sound (opt-in, @2lab.ai/ui/sound): Stop plays close once ui-stop is not prevented. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-run></ui-agent-run>
 <script type="module">

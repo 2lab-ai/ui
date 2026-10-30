@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
+import { resetSoundQueue } from '../../sound/sound';
 import { doc } from './docs';
 import {
   GOAL_ARM_GUARD_MS,
@@ -874,5 +876,106 @@ describe('styles and docs', () => {
     el.renderNow();
     expect(el.data?.current?.status).toBe('paused');
     expect(q(el, '.gc-btn[data-act="resume"]')).not.toBeNull();
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useFakeTimers({ now: NOW });
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  /** Fake timers: play what the queue holds, then start a fresh gesture. */
+  const settle = () => {
+    vi.advanceTimersByTime(40);
+    resetSoundQueue();
+  };
+  const click = (el: UiGoalCard, s: string) => {
+    q(el, s)!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+    el.renderNow();
+    settle();
+  };
+  const confirm = (el: UiGoalCard, s: string) => {
+    click(el, s);
+    vi.advanceTimersByTime(GOAL_ARM_GUARD_MS);
+    click(el, s);
+  };
+  const ARM = ['tap', { emphasis: 'subtle', input: 'mouse' }];
+
+  it('delete: arming taps subtly, confirming plays a strong close; a double click is one press', () => {
+    const el = mount(BASE);
+    click(el, '.gc-btn[data-act="delete"]');
+    click(el, '.gc-btn[data-act="delete"]');
+    vi.advanceTimersByTime(GOAL_ARM_GUARD_MS);
+    click(el, '.gc-btn[data-act="delete"]');
+    expect(spy.calls).toEqual([ARM, ['close', { emphasis: 'strong', input: 'mouse' }]]);
+  });
+
+  it('complete: arming taps subtly, confirming taps; removing a queued goal closes strongly', () => {
+    const el = mount(BASE);
+    confirm(el, '.gc-btn[data-act="complete"]');
+    confirm(el, '.gc-q-row:nth-child(1) .gc-rm');
+    expect(spy.calls).toEqual([
+      ARM,
+      ['tap', { input: 'mouse' }],
+      ARM,
+      ['close', { emphasis: 'strong', input: 'mouse' }],
+    ]);
+  });
+
+  it('pause plays toggle back, resume toggle forward', () => {
+    click(mount(BASE), '.gc-btn[data-act="pause"]');
+    click(mount({ ...BASE, current: { ...BASE.current!, status: 'paused' } }), '.gc-btn[data-act="resume"]');
+    expect(spy.calls).toEqual([
+      ['toggle', { direction: 'back', input: 'mouse' }],
+      ['toggle', { direction: 'forward', input: 'mouse' }],
+    ]);
+  });
+
+  it('add taps; keystrokes in the box play type while typing is on; prevented events are silent', () => {
+    spy.restore();
+    spy = soundSpy({ typing: true });
+    const el = mount(BASE);
+    const ta = type(el, 'Write the changelog');
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    key(ta, 'x');
+    settle();
+    key(ta, 'Enter', { shiftKey: true });
+    settle();
+    key(ta, 'Enter');
+    settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'enter', input: 'keyboard' }],
+      ['tap', { input: 'keyboard' }],
+    ]);
+    for (const name of ['ui-add', 'ui-delete', 'ui-pause']) listen(el, name, true);
+    type(el, 'Kept');
+    click(el, '.gc-add-btn');
+    click(el, '.gc-btn[data-act="pause"]');
+    vi.advanceTimersByTime(GOAL_ARM_GUARD_MS);
+    confirm(el, '.gc-btn[data-act="delete"]');
+    expect(spy.calls.slice(3)).toEqual([ARM]);
+  });
+
+  it('el.data from code is silent, and so is a card inside data-ui-sound="off"', () => {
+    const el = mount(BASE);
+    el.data = { ...BASE, current: { ...BASE.current!, status: 'paused' }, busy: 'pause' };
+    el.renderNow();
+    el.data = { ...BASE, current: { ...BASE.current!, status: 'complete' } };
+    el.renderNow();
+    settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const muted = document.createElement('ui-goal-card');
+    quiet.append(muted);
+    muted.data = BASE;
+    muted.renderNow();
+    click(muted, '.gc-btn[data-act="pause"]');
+    confirm(muted, '.gc-btn[data-act="delete"]');
+    expect(spy.calls).toEqual([]);
   });
 });

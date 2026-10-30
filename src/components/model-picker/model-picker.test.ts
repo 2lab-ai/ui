@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   anchorMoved,
   fmtModelPrice,
@@ -567,5 +568,103 @@ describe('<ui-model-picker>', () => {
     el.renderNow();
     expect(q(el, '.mp-caption')!.textContent).toBe('가격 정보 없음 · 창 500.0K');
     expect(q(el, '.mp-opt[data-k="opus"] .mp-desc')!.textContent).toContain('compact 후 전환');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+
+  it('the user opening plays select, closing a subtle close — by click, arrow, Esc or a press outside', async () => {
+    const el = mount(BASE);
+    click(q(el, '.mp-trigger'));
+    await spy.settle();
+    click(q(el, '.mp-trigger'));
+    await spy.settle();
+    const list = openByKey(el);
+    await spy.settle();
+    key(list, 'Escape');
+    await spy.settle();
+    openByKey(el);
+    await spy.settle();
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+    await spy.settle();
+    expect(el.open).toBe(false);
+    expect(spy.calls).toEqual([
+      ['select', { input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'mouse' }],
+      ['select', { input: 'keyboard' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+      ['select', { input: 'keyboard' }],
+      ['close', { emphasis: 'subtle', input: 'mouse' }],
+    ]);
+  });
+
+  it('a model change plays select (back when it moves up the list); the current row only closes', async () => {
+    const el = mount(BASE);
+    openByKey(el);
+    await spy.settle();
+    click(q(el, '.mp-opt[data-k="sonnet"]'));
+    await spy.settle();
+    openByKey(el);
+    await spy.settle();
+    click(q(el, '.mp-opt[data-k="opus"]'));
+    await spy.settle();
+    const list = openByKey(el);
+    await spy.settle();
+    key(list, ' ');
+    await spy.settle();
+    const open = ['select', { input: 'keyboard' }];
+    expect(spy.calls).toEqual([
+      open,
+      ['select', { direction: 'forward', input: 'mouse' }],
+      open,
+      ['select', { direction: 'back', input: 'mouse' }],
+      open,
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('an effort change plays select by its direction; a prevented ui-change is silent', async () => {
+    const el = mount({ ...BASE, value: { model: 'sonnet', effort: 'high' } });
+    el.open = true;
+    const high = q(el, '.mp-seg-btn[data-effort="high"]')!;
+    high.focus();
+    key(high, 'ArrowLeft');
+    await spy.settle();
+    key(active(el)!, 'End');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['select', { direction: 'back', input: 'keyboard' }],
+      ['select', { direction: 'forward', input: 'keyboard' }],
+    ]);
+    el.addEventListener('ui-change', (e) => e.preventDefault());
+    click(q(el, '.mp-seg-btn[data-effort="low"]'));
+    click(q(el, '.mp-opt[data-k="grok"]'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(2);
+  });
+
+  it('data and a programmatic open are silent, and so is a picker inside data-ui-sound="off"', async () => {
+    const el = mount(BASE);
+    el.data = { ...BASE, value: { model: 'fable', effort: 'high' } };
+    el.open = true;
+    el.setAttribute('open', '');
+    el.open = false;
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    quiet.append(el);
+    click(q(el, '.mp-trigger'));
+    click(q(el, '.mp-opt[data-k="sonnet"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

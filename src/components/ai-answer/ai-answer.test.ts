@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   answerCopyText,
   answerLinkInfo,
@@ -484,5 +485,53 @@ describe('<ui-ai-answer>', () => {
     expect(vi.getTimerCount()).toBe(1);
     el.remove();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (t: HTMLElement | null, detail = 1) =>
+    t!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+
+  it('copy that lands → success; Try again → tap; a followed link → navigate', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as unknown as Clipboard);
+    const el = mount({ markdown: ANSWER });
+    press(q(el, '.ans-copy'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['success', { emphasis: 'subtle', input: 'mouse' }]]);
+    el.addEventListener('click', (e) => e.preventDefault()); // keep happy-dom on the page
+    press(qa(el, '.ans-cite')[0], 0);
+    await spy.settle();
+    expect(spy.calls.at(-1)).toEqual(['navigate', { input: 'keyboard' }]);
+    const failed = mount({ markdown: '', error: 'HTTP 500', canRetry: true });
+    press(q(failed, '.ans-retry'));
+    await spy.settle();
+    expect(spy.calls.at(-1)).toEqual(['tap', { input: 'mouse' }]);
+    expect(spy.calls).toHaveLength(3);
+  });
+
+  it('nothing for a prevented event, data the app sets, or a data-ui-sound="off" region', async () => {
+    const el = mount({ markdown: '', error: 'HTTP 500', canRetry: true });
+    for (const n of ['ui-retry', 'ui-copy', 'ui-link']) el.addEventListener(n, (e) => e.preventDefault());
+    press(q(el, '.ans-retry'));
+    el.data = { markdown: ANSWER, error: 'stream closed', canRetry: true };
+    el.renderNow();
+    press(q(el, '.ans-copy'));
+    press(q(el, '.ans-src[data-n="1"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount({ markdown: '', error: 'HTTP 500', canRetry: true });
+    quiet.append(off);
+    press(q(off, '.ans-retry'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

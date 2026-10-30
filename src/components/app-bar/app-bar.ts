@@ -62,6 +62,11 @@ export interface AppBarData {
   account?: AppBarAccount;
   /** The page's current theme. When set, the theme toggle shows (a sun while dark, a moon while light). */
   theme?: AppBarTheme;
+  /**
+   * The page's interface-sound choice (`@2lab.ai/ui/sound`). When set, a speaker toggle shows before the theme toggle
+   * (pressed while on) and sends `ui-sound-change`; the host keeps the choice and calls `setSound`.
+   */
+  sound?: boolean;
   /** The bar's own width (px) below which the nav folds into a menu. Default 720. */
   collapseAt?: number;
 }
@@ -77,6 +82,11 @@ export interface AppBarThemeChange {
   theme: AppBarTheme;
 }
 
+/** `ui-sound-change` detail: whether the person turned interface sound on. */
+export interface AppBarSoundChange {
+  sound: boolean;
+}
+
 const STRINGS = {
   en: {
     nav: 'Main',
@@ -84,6 +94,8 @@ const STRINGS = {
     account: 'Account',
     toLight: 'Switch to light theme',
     toDark: 'Switch to dark theme',
+    soundOn: 'Turn sound on',
+    soundOff: 'Turn sound off',
   },
   ko: {
     nav: '주 메뉴',
@@ -91,6 +103,8 @@ const STRINGS = {
     account: '계정',
     toLight: '라이트 테마로 전환',
     toDark: '다크 테마로 전환',
+    soundOn: '소리 켜기',
+    soundOff: '소리 끄기',
   },
 };
 type Strings = (typeof STRINGS)['en'];
@@ -394,7 +408,8 @@ export class UiAppBar extends UiElement<AppBarData> {
     const parts: string[] = [str(d?.brand?.label), String(d?.brand?.mark ?? ''), str(d?.status?.label)];
     for (const l of appBarLinks(d?.nav)) parts.push(l.label, str(l.icon), badgeText(l.badge));
     const acc = accountOf(d?.account);
-    parts.push(acc.name, acc.role, String(!!themeOf(d?.theme)), this.getAttribute('lang') ?? '');
+    parts.push(acc.name, acc.role, String(!!themeOf(d?.theme)), String(typeof d?.sound === 'boolean'));
+    parts.push(this.getAttribute('lang') ?? '');
     return parts.join('\u0000');
   }
 
@@ -407,7 +422,9 @@ export class UiAppBar extends UiElement<AppBarData> {
     const d = this.data;
     const act = el.dataset.act;
     if (act === 'theme') {
-      this.#toggleTheme();
+      this.#toggleTheme(e);
+    } else if (act === 'sound') {
+      this.#toggleSound(e);
     } else if (act === 'account') {
       this.#follow(e, appBarTarget(d?.account?.href), () => this.emit('ui-account', {}));
     } else if (act === 'brand') {
@@ -423,18 +440,36 @@ export class UiAppBar extends UiElement<AppBarData> {
 
   /**
    * A link press: a modified click on a real link (new tab, window, download) is the browser's — no event.
-   * Otherwise the event goes out; cancelled, or with nowhere safe to go, the link does not navigate.
+   * Otherwise the event goes out; cancelled, or with nowhere safe to go, the link does not navigate. It sounds either
+   * way: cancelling `ui-navigate` is how a host routes on the client, so the person still went somewhere.
    */
   #follow(e: MouseEvent, href: string, send: () => boolean): void {
     if (href && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return;
-    if (!send() || !href) e.preventDefault();
+    const sent = send();
+    this.sound('navigate', undefined, e);
+    if (!sent || !href) e.preventDefault();
   }
 
-  #toggleTheme(): void {
+  /**
+   * The speaker: `ui-sound-change` with the new choice, then optimistic. Its toggle cue plays through the page's
+   * setting as it stands once listeners ran — heard when the host turned sound on synchronously, silent once off.
+   */
+  #toggleSound(e: Event): void {
+    const cur = this.data?.sound;
+    if (typeof cur !== 'boolean') return;
+    const next = !cur;
+    if (!this.emit<AppBarSoundChange>('ui-sound-change', { sound: next })) return;
+    this.sound('toggle', { direction: next ? 'forward' : 'back' }, e);
+    const now = this.data;
+    if (now && now.sound === cur) this.data = { ...now, sound: next };
+  }
+
+  #toggleTheme(e: Event): void {
     const cur = themeOf(this.data?.theme);
     if (!cur) return;
     const next: AppBarTheme = cur === 'dark' ? 'light' : 'dark';
     if (!this.emit<AppBarThemeChange>('ui-theme-change', { theme: next })) return;
+    this.sound('toggle', { direction: next === 'dark' ? 'forward' : 'back' }, e);
     // Optimistic on the latest data: a listener that already set the theme wins.
     const now = this.data;
     if (now && themeOf(now.theme) === cur) {
@@ -452,16 +487,20 @@ export class UiAppBar extends UiElement<AppBarData> {
     const value = str(e.detail?.value);
     if (value === ACCOUNT_VALUE) {
       const acc = accountOf(d?.account);
-      if (acc.name && this.emit('ui-account', {})) this.#assign(appBarTarget(acc.href));
+      if (!acc.name) return;
+      // Sounds whether or not the host takes it over (cancelling is client-side routing): the menu stays quiet.
+      this.sound('navigate');
+      if (this.emit('ui-account', {})) this.#assign(appBarTarget(acc.href));
       return;
     }
     const link = appBarLinks(d?.nav).find((l) => NAV_VALUE + l.id === value);
     if (!link) return;
     const href = appBarTarget(link.href);
+    this.sound('navigate');
     if (this.emit<AppBarNavigate>('ui-navigate', { id: link.id, href })) this.#assign(href);
   }
 
-  /** Follow a menu row's link (a real `<a>` follows itself). Only targets that passed `appBarTarget`. */
+  /** A menu row's event went through: follow its link (a real `<a>` follows itself). Only targets that passed `appBarTarget`. */
   #assign(href: string): void {
     if (href) globalThis.location?.assign(href);
   }
@@ -522,6 +561,7 @@ export class UiAppBar extends UiElement<AppBarData> {
       '<slot name="actions" data-mk="slot:actions"></slot>',
       this.#status(d.status),
       this.#account(d.account, t),
+      this.#sound(d.sound, t),
       this.#theme(d.theme, t),
     ].join('');
   }
@@ -587,6 +627,14 @@ export class UiAppBar extends UiElement<AppBarData> {
     return acc.href !== undefined
       ? `<a href="${safeLink(acc.href)}"${common}>${inner}</a>`
       : `<button type="button"${common}>${inner}</button>`;
+  }
+
+  #sound(on: boolean | undefined, t: Strings): string {
+    if (typeof on !== 'boolean') return '';
+    const glyph = on ? 'sound' : 'sound-off';
+    return `<button type="button" class="ab-icon-btn ab-sound" aria-pressed="${on}" aria-label="${escAttr(
+      on ? t.soundOff : t.soundOn,
+    )}" data-act="sound" data-key="sound"><span class="ab-glyph" data-mk="${glyph}">${icon(glyph)}</span></button>`;
   }
 
   #theme(theme: AppBarTheme | undefined, t: Strings): string {

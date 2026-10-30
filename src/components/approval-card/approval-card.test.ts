@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiApprovalCard } from './approval-card';
 import './approval-card';
 import type { ApprovalCardData, ApprovalPermissionData, ApprovalQuestionData } from './logic';
@@ -356,5 +357,105 @@ describe('lang="ko"', () => {
       lang: 'ko',
     });
     expect(q(row, '.ac-row-status')?.textContent).toContain(t.outcome.approved);
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+  const down = (t: Element | null | undefined, key: string, init: KeyboardEventInit = {}) =>
+    t?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true, ...init }));
+
+  it('Approve and Explain tap, Deny closes — each once its ui-decide goes through', async () => {
+    const a = mount(perm({ id: 'a', canExplain: true }));
+    click(q(a, '[data-act="approve"]'));
+    await spy.settle();
+    const b = mount(perm({ id: 'b' }));
+    click(q(b, '[data-act="deny"]'));
+    await spy.settle();
+    const c = mount(perm({ id: 'c', canExplain: true }));
+    click(q(c, '[data-act="explain"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['close', { input: 'mouse' }],
+      ['tap', { input: 'mouse' }],
+    ]);
+  });
+
+  it('⌘/Ctrl+Enter approves and Esc denies from the keyboard; a prevented ui-decide is silent', async () => {
+    const a = mount(perm({ id: 'a' }));
+    down(q(a, '.ac-card'), 'Enter', { ctrlKey: true });
+    await spy.settle();
+    const b = mount(perm({ id: 'b' }));
+    down(q(b, '[data-act="approve"]'), 'Escape');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'keyboard' }],
+      ['close', { input: 'keyboard' }],
+    ]);
+    const c = mount(perm({ id: 'c' }));
+    c.addEventListener('ui-decide', (e) => e.preventDefault());
+    click(q(c, '[data-act="approve"]'));
+    click(q(c, '[data-act="deny"]'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(2);
+  });
+
+  it('answering the question taps; keystrokes in the free-text box play type while typing is on', async () => {
+    const el = mount(ques({ allowOther: true }));
+    click(q(el, '[data-act="submit"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['tap', { input: 'mouse' }]]);
+    spy.restore();
+    spy = soundSpy({ typing: true });
+    const other = mount(ques({ id: 'q2', allowOther: true, recommendedId: undefined }));
+    click(q(other, '[data-other]'));
+    other.renderNow();
+    await spy.settle();
+    const input = q<HTMLInputElement>(other, '.ac-other input')!;
+    down(input, 'x');
+    await spy.settle();
+    input.value = 'merge after review';
+    input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    down(input, 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['tap', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('expiry is silent', () => {
+    vi.useFakeTimers();
+    const el = mount(perm({ expiresAt: Date.now() + 2_000 }));
+    const expired = events(el, 'ui-expire');
+    vi.advanceTimersByTime(3_000);
+    el.renderNow();
+    vi.advanceTimersByTime(100);
+    expect(expired).toHaveLength(1);
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('el.data from code is silent, and so is a card inside data-ui-sound="off"', async () => {
+    const el = mount(perm());
+    set(el, { state: { status: 'resolved', outcome: 'denied', at: Date.now() } });
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const muted = document.createElement('ui-approval-card');
+    quiet.append(muted);
+    muted.data = perm({ id: 'm' });
+    muted.renderNow();
+    click(q(muted, '[data-act="approve"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

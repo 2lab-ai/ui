@@ -1,5 +1,6 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
+import { typedKey } from '../../sound/sound';
 import {
   type AgentSteeringData,
   claimLocals,
@@ -281,12 +282,12 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     if (el.getAttribute('aria-disabled') === 'true') return;
     const act = el.dataset.act;
     if (act === 'send') {
-      this.#submit('queue');
+      this.#submit('queue', e);
       if (!this.#field.disabled) this.#field.focus();
       return;
     }
     if (act === 'save') {
-      this.#save();
+      this.#save(e);
       return;
     }
     if (act === 'discard') {
@@ -296,10 +297,10 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     const key = (el.closest('.as-item') as HTMLElement | null)?.dataset.row;
     const row = this.#rows.find((r) => r.key === key);
     if (!row || !steeringActions(row, this.#acts(this.#d)).includes(act as SteeringAction)) return;
-    if (act === 'promote') this.#promote(row);
-    else if (act === 'retry') this.#retry(row);
+    if (act === 'promote') this.#promote(row, e);
+    else if (act === 'retry') this.#retry(row, e);
     else if (act === 'edit') this.#startEdit(row);
-    else if (act === 'cancel') this.#cancel(row);
+    else if (act === 'cancel') this.#cancel(row, e);
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -315,9 +316,12 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
         return;
       }
       const act = steerEnterAction(e, { touch: isTouch(), running: !!this.#d.running });
-      if (act !== 'queue' && act !== 'steer') return;
+      if (act !== 'queue' && act !== 'steer') {
+        this.#typed(e, target);
+        return;
+      }
       e.preventDefault();
-      this.#submit(act);
+      this.#submit(act, e);
       return;
     }
     if (target?.matches?.('.as-edit')) {
@@ -327,10 +331,19 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
         this.#stopEdit();
         return;
       }
-      if (steerEnterAction(e, { touch: isTouch() }) !== 'queue') return;
+      if (steerEnterAction(e, { touch: isTouch() }) !== 'queue') {
+        this.#typed(e, target);
+        return;
+      }
       e.preventDefault();
-      this.#save();
+      this.#save(e);
     }
+  }
+
+  /** A keystroke that edits a note plays `type` (silent unless the page turned typing sounds on). */
+  #typed(e: KeyboardEvent, field: HTMLElement): void {
+    const key = typedKey(e, field);
+    if (key) this.sound('type', { key }, e);
   }
 
   #onInput(e: Event): void {
@@ -346,7 +359,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   }
 
   /** Emit the note; not cancelled → the field clears and, while the agent runs, the note shows until the list has it. */
-  #submit(mode: SteerMode): void {
+  #submit(mode: SteerMode, e?: Event): void {
     const d = this.#d;
     if (!this.#built || !this.#open(d)) return;
     const text = this.#field.value.trim();
@@ -356,6 +369,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     const m: SteerMode = running && mode === 'steer' ? 'steer' : 'queue';
     const ref = `as-${Date.now().toString(36)}-${++this.#seq}`;
     if (!this.emit<SteeringSubmitDetail>('ui-submit', { text, mode: m, ref })) return;
+    this.sound('tap', undefined, e);
     this.value = '';
     const local: SteeringLocal = { ref, text, mode: m, at: Date.now(), state: 'sending' };
     if (files) local.attachments = files;
@@ -376,17 +390,18 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     return row.local ? undefined : this.#items.find((i) => i.id === row.id);
   }
 
-  #promote(row: SteeringRow): void {
+  #promote(row: SteeringRow, e?: Event): void {
     const item = this.#hostItem(row);
     if (!item || !this.emit<SteeringItemDetail>('ui-promote', { id: item.id })) return;
+    this.sound('tap', undefined, e);
     this.#overlays.set(item.id, { state: 'sending', base: steeringItemKey(item) });
     this.#say(this.#t.say.promoted(clipNote(row.text)));
     this.renderNow();
   }
 
-  #retry(row: SteeringRow): void {
+  #retry(row: SteeringRow, e?: Event): void {
     if (!row.local) {
-      this.#promote(row);
+      this.#promote(row, e);
       return;
     }
     const at = this.#locals.findIndex((l) => l.ref === row.id);
@@ -395,6 +410,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     const running = !!this.#d.running;
     const mode: SteerMode = running ? l.mode : 'queue';
     if (!this.emit<SteeringSubmitDetail>('ui-submit', { text: l.text, mode, ref: l.ref })) return;
+    this.sound('tap', undefined, e);
     const next: SteeringLocal = { ...l, mode, state: 'sending', message: undefined };
     if (running) this.#locals[at] = next;
     else {
@@ -408,9 +424,10 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.renderNow();
   }
 
-  #cancel(row: SteeringRow): void {
+  #cancel(row: SteeringRow, e?: Event): void {
     const item = this.#hostItem(row);
     if (!this.emit<SteeringItemDetail>('ui-cancel', { id: row.id })) return;
+    this.sound('close', { emphasis: 'subtle' }, e);
     if (item) this.#overlays.set(item.id, { state: 'cancelled', base: steeringItemKey(item) });
     else this.#locals = this.#locals.filter((l) => l.ref !== row.id);
     this.#say(this.#t.say.cancelled(clipNote(row.text) || this.#t.filesOnly));
@@ -430,7 +447,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.renderNow();
   }
 
-  #save(): void {
+  #save(e?: Event): void {
     const ed = this.#editing;
     if (!ed) return;
     const row = this.#rows.find((r) => r.key === ed.key);
@@ -442,6 +459,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     }
     if (!text) return;
     if (!this.emit<SteeringEditDetail>('ui-edit', { id: item.id, text })) return;
+    this.sound('tap', { emphasis: 'subtle' }, e);
     this.#overlays.set(item.id, { state: item.state, text, saving: true, base: steeringItemKey(item) });
     this.#editing = null;
     this.#say(this.#t.say.saved(clipNote(text)));

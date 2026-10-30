@@ -189,6 +189,7 @@ export const doc: ComponentDoc = {
     'Runs between separators are role="group", named by their heading (aria-labelledby); separators are role="separator". A description and a shortcut are the row’s description (aria-describedby), not part of its name.',
     'Disabled rows stay visible with aria-disabled, are skipped by the arrows and never activate. Keys inside the open menu never reach page shortcuts.',
     'Closed, the menu is inert and visibility: hidden, and it stops taking hits the moment it starts closing. Reduced motion: no slide or scale, a 120ms fade.',
+    'Sound (opt-in, @2lab.ai/ui/sound): opening from the trigger plays select; Esc, Tab, the trigger or a press outside plays a subtle close; choosing an action or radio plays select, a checkbox plays toggle (forward when it turns on). The open property and show / hide / toggle are silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-menu id="defaults">
   <button class="ui-btn" slot="trigger">Defaults</button>

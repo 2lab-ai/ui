@@ -656,6 +656,7 @@ export const doc: ComponentDoc = {
     '“No settings match” sits in a role=status region so the result of a search is announced.',
     'Links never change the URL hash and never steal focus from the page; the scroll is instant under reduced motion.',
     'The search box is type="search" with an accessible name; its clear button is named “Clear search”. 44px targets on touch.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a section link plays a subtle navigate when its ui-navigate goes through; “Modified only” plays toggle (forward on, back off); keystrokes in the search play type while the page has typing sounds on. Silent until the page turns sound on.',
   ],
   usage: `<div class="settings">
   <ui-settings-nav id="nav">

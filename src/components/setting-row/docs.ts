@@ -387,6 +387,7 @@ export const doc: ComponentDoc = {
     'Modified is a dot (shape, not colour) plus “Modified” read after the label; Reset to default is named “Reset {label} to default”.',
     'Locked rows draw no control at all, so nothing unusable takes focus; the value and the reason are plain text.',
     'Reduced motion: status words appear without the rise.',
+    'Sound (opt-in, @2lab.ai/ui/sound): “Reset to default” plays a subtle tap when its ui-reset goes through; the slotted control is the host’s to sound (bindSound). Silent until the page turns sound on.',
   ],
   usage: `<section class="ui-card">
   <header><h2>Models</h2><p>Choices save as soon as you make them.</p></header>

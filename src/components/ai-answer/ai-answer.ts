@@ -351,8 +351,8 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
         this.#follow(e, a);
         return;
       }
-      if (t?.closest?.('.ans-copy')) this.#copy();
-      else if (t?.closest?.('.ans-retry')) this.emit('ui-retry', {});
+      if (t?.closest?.('.ans-copy')) this.#copy(e);
+      else if (t?.closest?.('.ans-retry') && this.emit('ui-retry', {})) this.sound('tap', undefined, e);
     });
   }
 
@@ -514,16 +514,20 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
     const link = this.#links[n - 1];
     if (!link) return;
     const from = a.classList.contains('ans-cite') ? 'chip' : 'card';
-    if (!this.emit('ui-link', { url: link.href, index: n - 1, from })) e.preventDefault();
+    if (this.emit('ui-link', { url: link.href, index: n - 1, from })) this.sound('navigate', undefined, e);
+    else e.preventDefault();
   }
 
-  #copy(): void {
+  #copy(e: Event): void {
     const d = this.data;
     const md = String(d?.markdown ?? '');
     if (!d || d.streaming || !md.trim()) return;
     const text = answerCopyText(md, this.#links, this.#lang);
     if (!this.emit('ui-copy', { text })) return;
-    const done = () => this.#flash(true, strings(this.#lang).copiedSay(this.#links.length));
+    const done = () => {
+      this.#flash(true, strings(this.#lang).copiedSay(this.#links.length));
+      this.sound('success', { emphasis: 'subtle' }, e);
+    };
     const fallback = () => (this.#viaTextarea(text) ? done() : this.#selectBody());
     try {
       const clip = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;

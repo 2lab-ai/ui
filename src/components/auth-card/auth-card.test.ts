@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import tokens from '../../core/tokens.json';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type AuthCardData,
   type AuthConfirmDetail,
@@ -276,6 +277,88 @@ describe('<ui-auth-card> confirm a session switch', () => {
     click(cancel);
     expect(got).toEqual([{ id: 'cancel', href: null }]);
     expect(q(el, 'form')?.getAttribute('method')).toBe('get');
+  });
+});
+
+describe('<ui-auth-card> sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const SIGNED_IN: AuthCardData = {
+    ...SIGN_IN,
+    account: { name: 'Mina Park', continue: { href: '/app' }, signOut: { href: '/logout' } },
+  };
+  const CONFIRM: AuthCardData = {
+    title: 'Switch accounts?',
+    confirm: { to: { name: 'Jon Lee' }, action: '/auth/switch', fields: { token: 'abc' } },
+  };
+  /** Mount with the page's navigation held back (the card's own handling runs first). */
+  const card = (data: AuthCardData) => {
+    const el = mount(data);
+    el.addEventListener('click', (e) => e.preventDefault());
+    return el;
+  };
+  const press = (t: Element, detail = 1) => click(t, { detail });
+  const submit = (el: UiAuthCard) =>
+    q(el, 'form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+  it('a provider plays navigate; a second press while it redirects plays nothing', async () => {
+    const el = card(SIGN_IN);
+    const [google, sso] = qa(el, 'a.ac-provider');
+    press(google);
+    await spy.settle();
+    press(sso);
+    await spy.settle();
+    expect(spy.calls).toEqual([['navigate', { input: 'mouse' }]]);
+  });
+
+  it('brand, Continue and Sign out play navigate', async () => {
+    const el = card(SIGNED_IN);
+    for (const act of ['brand', 'continue', 'sign-out']) {
+      press(q(el, `[data-act="${act}"]`)!, act === 'continue' ? 0 : 1);
+      await spy.settle();
+    }
+    expect(spy.calls).toEqual([
+      ['navigate', { input: 'mouse' }],
+      ['navigate', { input: 'keyboard' }],
+      ['navigate', { input: 'mouse' }],
+    ]);
+  });
+
+  it('confirming a session switch plays a tap', async () => {
+    const el = card(CONFIRM);
+    submit(el);
+    await spy.settle();
+    expect(spy.calls).toEqual([['tap', undefined]]);
+  });
+
+  it('a cancelled ui-provider or ui-navigate still navigates (the host takes it over); a cancelled ui-confirm or data from code plays nothing', async () => {
+    const el = card(SIGNED_IN);
+    for (const n of ['ui-provider', 'ui-navigate', 'ui-confirm']) listen(el, n, true);
+    press(q(el, 'a.ac-provider')!);
+    await spy.settle();
+    press(q(el, '[data-act="continue"]')!);
+    await spy.settle();
+    expect(spy.cues()).toEqual(['navigate', 'navigate']);
+    spy.calls.length = 0;
+    el.data = CONFIRM;
+    el.renderNow();
+    submit(el);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('is silent inside data-ui-sound="off"', async () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = card(SIGN_IN);
+    wrap.append(el);
+    press(q(el, 'a.ac-provider')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });
 

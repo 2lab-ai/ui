@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import './setting-row';
 import { firstControl, hasAccessibleName, type SettingRowData, type UiSettingRow } from './setting-row';
 import { styles } from './styles';
@@ -211,6 +212,47 @@ describe('<ui-setting-row> reset', () => {
     el.addEventListener('ui-reset', (e) => fired((e as CustomEvent).detail));
     q(el, '.sr-reset')!.click();
     expect(fired).toHaveBeenCalledWith({ key: '' });
+  });
+});
+
+describe('<ui-setting-row> sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (t: Element, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const MOD = { ...BASE, modified: true, canReset: true };
+
+  it('Reset to default plays a subtle tap; the slotted control is the host’s own', async () => {
+    const el = mount(MOD, '<input type="checkbox" class="ui-switch">');
+    press(q(el, '.sr-reset')!, 0);
+    await spy.settle();
+    press(el.querySelector('input')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([['tap', { emphasis: 'subtle', input: 'keyboard' }]]);
+  });
+
+  it('a cancelled ui-reset or data from code plays nothing', async () => {
+    const el = mount(MOD);
+    el.addEventListener('ui-reset', (e) => e.preventDefault());
+    press(q(el, '.sr-reset')!);
+    el.data = { ...MOD, modified: false };
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('is silent inside data-ui-sound="off"', async () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount(MOD);
+    wrap.append(el);
+    press(q(el, '.sr-reset')!);
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });
 

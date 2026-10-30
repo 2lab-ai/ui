@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiSegmented } from '../segmented/segmented';
 import type { UiTooltip } from '../tooltip/tooltip';
 import {
@@ -571,6 +572,55 @@ describe('<ui-stat-strip> more', () => {
     const none = mount(DATA);
     none.toggle();
     expect(none.open).toBe(false);
+  });
+});
+
+describe('<ui-stat-strip> sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const press = (t: Element, detail = 1) =>
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+
+  it('the More toggle plays open, then close, subtle, with the input that pressed it', async () => {
+    const el = mount({ ...DATA, more: true });
+    press(q(el, '.ss-more')!);
+    await spy.settle();
+    el.renderNow();
+    press(q(el, '.ss-more')!, 0);
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['open', { emphasis: 'subtle', input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('a cancelled ui-more or ui-period, data.more.open or open from code plays nothing', async () => {
+    const el = mount({ ...DATA, more: { open: false } });
+    el.addEventListener('ui-more', (e) => e.preventDefault());
+    el.addEventListener('ui-period', (e) => e.preventDefault());
+    press(q(el, '.ss-more')!);
+    press(segOpts(el)[0]);
+    el.data = { ...DATA, more: { open: true } };
+    el.renderNow();
+    el.open = false;
+    el.renderNow();
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+  });
+
+  it('is silent inside data-ui-sound="off"', async () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-ui-sound', 'off');
+    document.body.append(wrap);
+    const el = mount({ ...DATA, more: true });
+    wrap.append(el);
+    press(q(el, '.ss-more')!);
+    await spy.settle();
+    expect(el.open).toBe(true);
+    expect(spy.calls).toEqual([]);
   });
 });
 

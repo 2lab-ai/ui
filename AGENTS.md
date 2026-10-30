@@ -34,6 +34,10 @@ npm run build:site  # lib build + d.ts + site build + site-dist/lib
   blocks the components and the dashboard share. Reuse `src/core/popover.ts` (anchored overlays), `src/core/roving.ts`
   (roving tabindex) and glyphs from `src/icons/icons.ts` (`icon(name)`) instead of drawing new ones. Light-DOM styling
   for hosts lives in `src/kit/kit.ts` (`ui-kit.css`): tokens and `color-mix()` only, no hex / rgba literals.
+- Sound (`src/sound/`): a user action that went through plays one cue with `this.sound(cue, options, event)` — after the
+  `emit` was not prevented and only when state changed; never from render, hover, timers, streams or data the app set
+  (toasts are the one code-driven exception). Pick the cue by the job (see https://ui.2lab.ai/docs/sound), test it with
+  `soundSpy()` from `src/sound/fixtures.ts`, and add one `Sound (opt-in …)` line to the docs' `a11y`.
 - Exemplar: `src/components/context-window/` (math helpers exported and unit-tested, two-press action, hover state kept
   outside markup, rolling number, en/ko).
 

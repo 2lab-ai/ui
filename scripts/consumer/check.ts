@@ -36,6 +36,8 @@ import { UiModelPicker } from '@2lab.ai/ui/model-picker';
 import { type SegmentedData, segmentedOptions, UiSegmented } from '@2lab.ai/ui/segmented';
 import { type SettingRowData, UiSettingRow } from '@2lab.ai/ui/setting-row';
 import { applySettingsFilter, type SettingsNavData, settingMatches, UiSettingsNav } from '@2lab.ai/ui/settings-nav';
+import { bindSound, playSound, type SoundCue, type SoundPlayer, setSound } from '@2lab.ai/ui/sound';
+import { cuelumeSound, type SoundTheme, setSoundTheme, unlockSound } from '@2lab.ai/ui/sound-cuelume';
 import { fmtMetric, type StatStripData, UiStatStrip } from '@2lab.ai/ui/stat-strip';
 import { STATUS_ARM_MS, type StatusBarData, UiStatusBar } from '@2lab.ai/ui/status-bar';
 import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
@@ -109,6 +111,11 @@ const auth: AuthCardData = { title: 'Sign in', providers: [{ id: 'sso', label: '
 const timer: ElapsedData = { since: 0, format: 'clock' };
 const navEl: HTMLElementTagNameMap['ui-settings-nav'] = document.createElement('ui-settings-nav');
 const authEl: HTMLElementTagNameMap['ui-auth-card'] = document.createElement('ui-auth-card');
+// Sound: the policy from the root and the subpath is one API; the Cuelume player has the SoundPlayer shape.
+const player: SoundPlayer = cuelumeSound;
+const cue: SoundCue = 'tap';
+const theme: SoundTheme = 'mech';
+setSound({ player, enabled: false });
 const classes = [
   UiAgentInbox,
   UiAgentQueue,
@@ -155,6 +162,12 @@ const classes = [
   UiElapsed,
 ];
 console.log(
+  typeof bindSound,
+  typeof playSound,
+  cue,
+  theme,
+  typeof setSoundTheme,
+  typeof unlockSound,
   UiContextWindow.name,
   classes.length,
   fmtTokens(1500),

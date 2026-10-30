@@ -543,7 +543,11 @@ export class UiStatStrip extends UiElement<StatStripData> {
       this.#toggleTip(btn);
       return;
     }
-    if (this.#hit(e, '.ss-more')) this.toggle();
+    if (!this.#hit(e, '.ss-more')) return;
+    const was = this.#open;
+    this.toggle();
+    // The period sounds in its own <ui-segmented>; here only a toggle that went through.
+    if (this.#open !== was) this.sound(this.#open ? 'open' : 'close', { emphasis: 'subtle' }, e);
   }
 
   /** A press on a figure toggles its breakdown — the only way to see it on touch, where tooltips never show. */

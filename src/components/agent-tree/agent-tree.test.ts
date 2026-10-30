@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiAgentTree } from './agent-tree';
 import './agent-tree';
 import type { AgentTreeData, AgentTreeNode } from './logic';
@@ -553,5 +554,72 @@ describe('<ui-agent-tree>', () => {
       expect(best).toBeLessThan(16);
       el.remove();
     }
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const tap = (n: Element | null | undefined, detail = 1) =>
+    (n as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail }));
+  const fold = (el: UiAgentTree, id: string) => row(el, id)?.querySelector('[data-toggle]');
+
+  it('fold control and ← / → / * open and close; a pick that changes the selection → select', async () => {
+    const el = mount({ nodes: NODES, now: T0 });
+    tap(fold(el, 'a'));
+    await spy.settle();
+    key(el, 'a', 'ArrowRight');
+    await spy.settle();
+    key(el, 'a', 'ArrowLeft');
+    await spy.settle();
+    key(el, 'a', '*');
+    await spy.settle();
+    tap(row(el, 'b'));
+    await spy.settle();
+    tap(row(el, 'b')); // already selected: nothing changed
+    await spy.settle();
+    key(el, 'c', 'Enter');
+    await spy.settle();
+    const subtle = (cue: string, input: string) => [cue, { emphasis: 'subtle', input }];
+    expect(spy.calls).toEqual([
+      subtle('close', 'mouse'),
+      subtle('open', 'keyboard'),
+      subtle('close', 'keyboard'),
+      subtle('open', 'keyboard'),
+      ['select', { input: 'mouse' }],
+      ['select', { input: 'keyboard' }],
+    ]);
+  });
+
+  it('the bar’s jump sounds its pick only (the folds it opens on the way are silent)', async () => {
+    const el = mount({ nodes: NODES, expanded: ['main'], now: T0 });
+    tap(q(el, '[data-jump="failed"]'));
+    await spy.settle();
+    expect(spy.calls).toEqual([['select', { input: 'mouse' }]]);
+  });
+
+  it('nothing for reveal(), a prevented event, data the app sets, or a data-ui-sound="off" region', async () => {
+    const el = mount({ nodes: NODES, expanded: ['main'], now: T0 });
+    el.reveal('a1');
+    set(el, { expanded: [], selectedId: 'c' });
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    for (const n of ['ui-toggle', 'ui-select']) el.addEventListener(n, (e) => e.preventDefault());
+    tap(fold(el, 'main'));
+    tap(row(el, 'main'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const off = mount({ nodes: NODES, now: T0 });
+    quiet.append(off);
+    tap(fold(off, 'a'));
+    tap(row(off, 'b'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

@@ -271,6 +271,7 @@ export const doc: ComponentDoc = {
     'Recording moves focus to Done; the recorder row is a group named “Recording” with a role="timer" clock; ending it returns focus to the field.',
     'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom.',
     'Reduced motion: chip, error and recorder enters switch at once; the drop wash keeps a short fade; the send spinner keeps turning.',
+    'Sound (opt-in, @2lab.ai/ui/sound): sending taps once ui-submit is not prevented; a tool plays select (a toggle tool toggle, by its new state); starting a voice note taps, Done taps subtly, Cancel or Esc closes subtly; removing an attachment closes subtly and a refused file plays a subtle error; keystrokes play type while typing sounds are on. Silent until the page turns sound on.',
   ],
   usage: `<ui-composer></ui-composer>
 <script type="module">

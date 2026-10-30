@@ -255,7 +255,7 @@ export class UiSettingRow extends UiElement<SettingRowData> {
   #onClick(e: Event): void {
     if (!(e.target as Element | null)?.closest?.('.sr-reset')) return;
     const detail: SettingResetDetail = { key: this.data?.key ?? '' };
-    this.emit('ui-reset', detail);
+    if (this.emit('ui-reset', detail)) this.sound('tap', { emphasis: 'subtle' }, e);
   }
 
   /** Name the first slotted control after the row when it has no name of its own. */

@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiAgentSteering } from './agent-steering';
 import './agent-steering';
 import type { AgentSteeringData, SteeringItem, SteeringLocal, SteeringOverlay, SteeringRow } from './logic';
@@ -648,5 +649,123 @@ describe('<ui-agent-steering> timers', () => {
     const el = mount({ running: true, items: [item('a')] });
     expect(vi.getTimerCount()).toBe(0);
     el.remove();
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  const click = (b: Element | null | undefined) =>
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+
+  it('sending a note taps — Enter, ⌘/Ctrl+Enter or the send button; a prevented ui-submit is silent', async () => {
+    const el = mount({ running: true, items: two() });
+    type(el, 'Use Postgres 16');
+    key(field(el), 'Enter');
+    await spy.settle();
+    type(el, 'now');
+    key(field(el), 'Enter', { metaKey: true });
+    await spy.settle();
+    type(el, 'later');
+    click(q(el, '.as-send'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'keyboard' }],
+      ['tap', { input: 'keyboard' }],
+      ['tap', { input: 'mouse' }],
+    ]);
+    el.addEventListener('ui-submit', (e) => e.preventDefault());
+    type(el, 'kept');
+    key(field(el), 'Enter');
+    await spy.settle();
+    expect(spy.calls).toHaveLength(3);
+  });
+
+  it('Send now taps, Cancel closes subtly, a saved edit taps subtly; Edit itself is silent', async () => {
+    const el = mount({ running: true, items: [item('a'), item('b'), item('c')] });
+    click(act(el, 0, 'promote'));
+    await spy.settle();
+    click(act(el, 2, 'cancel'));
+    await spy.settle();
+    click(act(el, 1, 'edit'));
+    await spy.settle();
+    const box = q<HTMLTextAreaElement>(el, '.as-edit') as HTMLTextAreaElement;
+    box.value = 'note b, but better';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    key(box, 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['close', { emphasis: 'subtle', input: 'mouse' }],
+      ['tap', { emphasis: 'subtle', input: 'keyboard' }],
+    ]);
+  });
+
+  it('prevented note actions are silent; a failed send’s Retry taps', async () => {
+    const el = mount({ running: true, items: two() });
+    for (const name of ['ui-promote', 'ui-cancel']) el.addEventListener(name, (e) => e.preventDefault());
+    click(act(el, 0, 'promote'));
+    click(act(el, 1, 'cancel'));
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const refs = events<{ ref: string }>(el, 'ui-submit');
+    type(el, 'flaky');
+    key(field(el), 'Enter');
+    await spy.settle();
+    el.setItemState(refs[0].ref, 'failed', 'HTTP 502');
+    el.renderNow();
+    click(act(el, 2, 'retry'));
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'keyboard' }],
+      ['tap', { input: 'mouse' }],
+    ]);
+  });
+
+  it('keystrokes in the field and the edit box play type only while typing sounds are on', async () => {
+    const el = mount({ running: true, items: two() });
+    key(field(el), 'a');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    spy.restore();
+    spy = soundSpy({ typing: true });
+    key(field(el), 'a');
+    await spy.settle();
+    key(field(el), 'Enter', { shiftKey: true });
+    await spy.settle();
+    key(field(el), 'ArrowUp');
+    click(act(el, 0, 'edit'));
+    await spy.settle();
+    key(q<HTMLTextAreaElement>(el, '.as-edit') as HTMLTextAreaElement, ' ');
+    await spy.settle();
+    expect(spy.calls).toEqual([
+      ['type', { key: 'printable', input: 'keyboard' }],
+      ['type', { key: 'enter', input: 'keyboard' }],
+      ['type', { key: 'space', input: 'keyboard' }],
+    ]);
+  });
+
+  it('el.data and setItemState from code are silent, and so is an element inside data-ui-sound="off"', async () => {
+    const el = mount({ running: true, items: two() });
+    set(el, { items: [item('a', { state: 'steered' }), item('b', { state: 'failed', reason: 'x' })] });
+    el.setItemState('b', 'queued', 'rolled back');
+    el.value = 'prefilled';
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const muted = document.createElement('ui-agent-steering');
+    quiet.append(muted);
+    muted.data = { running: true, items: two() };
+    muted.renderNow();
+    click(act(muted, 0, 'promote'));
+    muted.value = 'x';
+    key(muted.shadowRoot!.querySelector<HTMLTextAreaElement>('.as-input')!, 'Enter');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
   });
 });

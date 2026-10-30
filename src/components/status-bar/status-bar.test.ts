@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import tokens from '../../core/tokens.json';
+import { type SoundSpy, soundSpy } from '../../sound/fixtures';
+import { resetSoundQueue } from '../../sound/sound';
 import {
   STATUS_ARM_MS,
   type StatusBarActionDetail,
@@ -485,5 +487,72 @@ describe('styles', () => {
     const rm = styles.slice(styles.indexOf('@media (prefers-reduced-motion: reduce)'));
     expect(rm).toContain('transform: none');
     expect(rm).toContain('.sb-spin { animation: none; }');
+  });
+});
+
+describe('sound', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  /** Fake timers: play what the queue holds, then start a fresh gesture. */
+  const settle = () => {
+    vi.advanceTimersByTime(40);
+    resetSoundQueue();
+  };
+  const click = (el: UiStatusBar, b: Element | null | undefined) => {
+    b?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail: 1 }));
+    el.renderNow();
+    settle();
+  };
+
+  it('a plain action taps; a danger one arms with a subtle tap and taps when confirmed', () => {
+    const el = mount(BASE);
+    click(el, btn(el, 'log'));
+    click(el, btn(el, 'stop'));
+    click(el, btn(el, 'stop'));
+    click(el, btn(el, 'stop'));
+    expect(spy.calls).toEqual([
+      ['tap', { input: 'mouse' }],
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+      ['tap', { input: 'mouse' }],
+    ]);
+  });
+
+  it('the link plays navigate; prevented actions and links are silent', () => {
+    const el = mount(BASE);
+    const guard = (e: Event) => e.preventDefault();
+    window.addEventListener('click', guard);
+    click(el, q(el, '.sb-link'));
+    expect(spy.calls).toEqual([['navigate', { input: 'mouse' }]]);
+    el.addEventListener('ui-action', (e) => e.preventDefault());
+    click(el, q(el, '.sb-link'));
+    click(el, btn(el, 'log'));
+    click(el, btn(el, 'stop'));
+    click(el, btn(el, 'stop'));
+    window.removeEventListener('click', guard);
+    expect(spy.calls).toEqual([
+      ['navigate', { input: 'mouse' }],
+      ['tap', { emphasis: 'subtle', input: 'mouse' }],
+    ]);
+  });
+
+  it('el.data from code is silent, and so is a bar inside data-ui-sound="off"', () => {
+    const el = mount(BASE);
+    el.data = { ...BASE, status: 'stopped' };
+    el.renderNow();
+    settle();
+    expect(spy.calls).toEqual([]);
+    const quiet = document.createElement('div');
+    quiet.setAttribute('data-ui-sound', 'off');
+    document.body.append(quiet);
+    const muted = document.createElement('ui-status-bar') as UiStatusBar;
+    quiet.append(muted);
+    muted.data = BASE;
+    muted.renderNow();
+    click(muted, btn(muted, 'log'));
+    click(muted, btn(muted, 'stop'));
+    expect(spy.calls).toEqual([]);
   });
 });

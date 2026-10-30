@@ -1025,33 +1025,35 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const art = target.closest?.('[data-art]');
     if (art) {
       const id = this.#cardOf(art);
-      if (id !== null) this.emit('ui-artifact', { cardId: id, artifactId: art.getAttribute('data-art') ?? '' });
+      if (id !== null && this.emit('ui-artifact', { cardId: id, artifactId: art.getAttribute('data-art') ?? '' }))
+        this.sound('navigate', { emphasis: 'subtle' }, e);
       return;
     }
     const act = target.closest?.('[data-act]');
     if (act) {
       const id = this.#cardOf(act);
       if (id === null || act.getAttribute('aria-disabled') === 'true') return;
-      this.emit('ui-action', { cardId: id, actionId: act.getAttribute('data-act') ?? '' });
+      if (this.emit('ui-action', { cardId: id, actionId: act.getAttribute('data-act') ?? '' }))
+        this.sound('tap', undefined, e);
       return;
     }
     const open = target.closest?.('[data-open]');
     if (open) {
       const id = this.#cardOf(open);
-      if (id !== null) this.emit('ui-open', { cardId: id });
+      if (id !== null && this.emit('ui-open', { cardId: id })) this.sound('navigate', undefined, e);
       return;
     }
     const gh = target.closest?.('.ib-group-head');
     if (gh) {
       const col = gh.closest('section.ib-col')?.getAttribute('data-col');
       const group = gh.closest('.ib-group')?.getAttribute('data-group');
-      if (col != null && group != null) this.#setGroup(col, group, gh.getAttribute('aria-expanded') !== 'true');
+      if (col != null && group != null) this.#setGroup(col, group, gh.getAttribute('aria-expanded') !== 'true', e);
       return;
     }
     const face = target.closest?.('.ib-face[role="button"]');
     if (face && !this.#selecting()) {
       const id = this.#cardOf(face);
-      if (id !== null) this.#toggle(id, false);
+      if (id !== null) this.#toggle(id, false, e);
     }
   }
 
@@ -1062,7 +1064,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       e.preventDefault();
       if (e.repeat) return;
       const id = this.#cardOf(target);
-      if (id !== null) this.#toggle(id, true);
+      if (id !== null) this.#toggle(id, true, e);
       return;
     }
     if (e.key !== 'Escape' || ownsEscape(target)) return;
@@ -1070,7 +1072,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const id = li ? li.getAttribute('data-card') : null;
     if (id === null || !this.#open.has(id)) return;
     e.stopPropagation();
-    if (this.#toggle(id, true)) this.#cards.get(id)?.face.focus({ preventScroll: true });
+    if (this.#toggle(id, true, e)) this.#cards.get(id)?.face.focus({ preventScroll: true });
   }
 
   /** Esc inside a host's slotted body (`slot="body:<id>"`) closes that card like Esc inside a built-in body. */
@@ -1086,15 +1088,19 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const id = slot.slice(5);
     if (!this.#open.has(id)) return;
     e.stopPropagation();
-    if (this.#toggle(id, true)) this.#cards.get(id)?.face.focus({ preventScroll: true });
+    if (this.#toggle(id, true, e)) this.#cards.get(id)?.face.focus({ preventScroll: true });
   }
 
-  /** Open / close one card in place. Keyboard toggles skip the transition. Returns false when the host prevented it. */
-  #toggle(id: string, instant: boolean): boolean {
+  /**
+   * Open / close one card in place. Keyboard toggles skip the transition. Returns false when the host prevented it.
+   * `e` is the person's event (sounded); `reveal()` passes none.
+   */
+  #toggle(id: string, instant: boolean, e?: Event): boolean {
     const sh = this.#cards.get(id);
     if (!sh || !sh.face.hasAttribute('aria-controls')) return false;
     const open = !this.#open.has(id);
     if (!this.emit('ui-toggle', { cardId: id, expanded: open })) return false;
+    if (e) this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
     if (open) this.#open.add(id);
     else this.#open.delete(id);
     if (instant) sh.el.classList.add('no-motion');
@@ -1107,8 +1113,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   }
 
   /** Open / close a group (`ui-group-toggle`, cancelable). The person's choice then rules over `group.open`. */
-  #setGroup(col: string, group: string, open: boolean): boolean {
+  #setGroup(col: string, group: string, open: boolean, e?: Event): boolean {
     if (!this.emit('ui-group-toggle', { columnId: col, groupId: group, open })) return false;
+    if (e) this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
     this.#groupOpen.set(gkey(col, group), open);
     this.renderNow();
     return true;
