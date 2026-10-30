@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { capacityNews, laneNews, type UiAgentQueue } from './agent-queue';
 import {
   type AgentQueueData,
+  type AqAccount,
   type AqJob,
   type AqProvider,
   type AqRun,
+  accountStacks,
   advanceProvider,
   dayRuns,
   fmtCount,
@@ -18,6 +20,7 @@ import {
   runBins,
   runKind,
   scheduleLabel,
+  stripFolds,
   timelineMarks,
   toMs,
   upNext,
@@ -54,6 +57,61 @@ function claude(over: Partial<AqProvider> = {}): AqProvider {
     ...over,
   };
 }
+
+/** The 20 llmux accounts of the 2026-10-30 dashboard screenshot, in llmux order. */
+function twenty(): AqAccount[] {
+  const ok = (name: string, binding: '5h' | '7d'): AqAccount => ({ id: name, name, state: 'available', binding });
+  const cool = (name: string, back?: number): AqAccount => ({
+    id: name,
+    name,
+    state: 'limited',
+    reason: 'cooldown',
+    ...(back ? { returnAt: NOW + back } : {}),
+  });
+  const weekly = (name: string, back: number): AqAccount => ({
+    id: name,
+    name,
+    state: 'limited',
+    reason: 'weekly',
+    returnAt: NOW + back,
+  });
+  const held = (name: string, reason: 'auth' | 'paused'): AqAccount => ({ id: name, name, state: 'paused', reason });
+  return [
+    ok('ai5', '7d'),
+    ok('ai6', '5h'),
+    ok('ai4', '7d'),
+    ok('ai2', '5h'),
+    held('ai8', 'auth'),
+    cool('ai3'),
+    cool('ai7'),
+    cool('ai15'),
+    cool('ai40', 13 * H + 38 * M + 30 * S),
+    cool('ai30'),
+    weekly('ai43', 4 * D + 2 * H + 30 * S),
+    cool('ai41'),
+    cool('info'),
+    cool('dev1'),
+    held('icedac', 'paused'),
+    cool('ai'),
+    cool('ai44'),
+    held('z', 'paused'),
+    cool('ai16', 14 * H + 38 * M + 30 * S),
+    weekly('ai17', 38 * M + 30 * S),
+  ];
+}
+
+/** Mount at a given element width (the strip fits itself to it). */
+function mountAt(width: number, data: AgentQueueData, attrs: Record<string, string> = {}): UiAgentQueue {
+  const el = document.createElement('ui-agent-queue') as UiAgentQueue;
+  Object.defineProperty(el, 'clientWidth', { value: width });
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  document.body.append(el);
+  el.data = data;
+  el.renderNow();
+  return el;
+}
+const names = (box: Element) =>
+  Array.from(box.querySelectorAll('.aq-mark')).map((m) => m.textContent?.replace(/\s+/g, ' ').trim());
 
 function jobs(): AqJob[] {
   return [
@@ -292,6 +350,8 @@ describe('<ui-agent-queue> capacity', () => {
     expect(qa(el, '.cap-low')).toHaveLength(2);
     expect(q(el, '.cap-bar')?.getAttribute('aria-label')).toBe('5-hour 1.5 of 4.0 accounts, 38%');
     expect(text(el, '.aq-workers .aq-col-head')).toBe('Accounts 2/4');
+    // The head sits on the badges' own row.
+    expect(q(el, '.aq-marks')?.firstElementChild?.className).toBe('aq-col-head');
     const marks = qa(el, '.aq-mark');
     expect(marks.map((m) => m.className)).toEqual([
       'aq-mark is-available',
@@ -299,9 +359,13 @@ describe('<ui-agent-queue> capacity', () => {
       'aq-mark is-limited',
       'aq-mark is-paused',
     ]);
-    expect(marks[2].textContent?.replace(/\s+/g, ' ').trim()).toBe('⏸ai43 · weekly limit · 7h 22m');
+    // A badge is its name: the reason and the return live in the label, the title and the card.
+    expect(marks[2].textContent).toBe('ai43');
     expect(marks[2].getAttribute('aria-label')).toBe('ai43, weekly limit, back in 7h 22m');
-    expect(marks[3].textContent).toBe('icedac · paused');
+    expect(marks[2].getAttribute('title')).toBe('ai43 · weekly limit · back in 7h 22m');
+    expect(marks[3].textContent).toBe('icedac');
+    expect(marks[3].getAttribute('title')).toBe('icedac · paused');
+    expect(qa(el, '.aq-stack').map((s) => s.className)).toEqual(['aq-stack is-warn', 'aq-stack is-mute']);
     expect(q(el, '.aq-wdot.is-h5')).not.toBeNull();
     expect(qa(el, '.cap-tl circle')).toHaveLength(1);
     expect(qa(el, '.cap-tl-mk rect')).toHaveLength(1);
@@ -482,7 +546,7 @@ describe('escaping', () => {
         ],
       },
     });
-    (qa(el, '.aq-mark')[0] as HTMLButtonElement).click();
+    (qa(el, '.aq-mark').find((m) => m.dataset.aid === XSS_ATTR) as HTMLButtonElement).click();
     expect(q(el, '.aq-pop')).not.toBeNull();
     // No element was injected and no handler attribute exists (attribute values may contain a literal `<`).
     expect(q(el, 'img')).toBeNull();
@@ -605,21 +669,156 @@ describe('keyboard', () => {
     expect(el.shadowRoot!.activeElement?.getAttribute('data-job')).toBe('audit');
   });
 
-  it('folds the usable accounts into one mark when narrow, with a list card', () => {
-    const el = document.createElement('ui-agent-queue') as UiAgentQueue;
-    Object.defineProperty(el, 'clientWidth', { value: 390 });
-    document.body.append(el);
-    el.data = { now: NOW, providers: [claude()] };
-    el.renderNow();
+  it('keeps every name on a phone when the strip fits two lines', () => {
+    const el = mountAt(390, { now: NOW, providers: [claude()] });
+    expect(names(q(el, '.aq-marks')!)).toEqual(['ai7', 'ai3', 'ai43', 'icedac']);
+    expect(qa(el, '.aq-mark.is-fold')).toHaveLength(0);
+  });
+
+  it('roves through stacks and folded badges as one strip', () => {
+    const el = mountAt(390, { now: NOW, providers: [claude({ accounts: twenty() })] });
     const marks = qa(el, '.aq-mark');
-    expect(marks.map((m) => m.textContent?.trim().slice(0, 13))).toEqual([
-      '● Available 2',
-      '⏸ai43 · weekl',
-      'icedac · paus',
+    expect(marks.map((m) => m.dataset.aid ?? m.dataset.grp)).toEqual([
+      'ai5',
+      'ai6',
+      'ai4',
+      'ai2',
+      'limited|weekly',
+      'limited|cooldown',
+      'ai8',
+      'paused|paused',
     ]);
-    marks[0].click();
+    marks[0].focus();
+    marks[0].dispatchEvent(key('End'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-grp')).toBe('paused|paused');
+    qa(el, '.aq-mark')[7].dispatchEvent(key('ArrowLeft'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai8');
+    qa(el, '.aq-mark')[6].dispatchEvent(key('Home'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai5');
+  });
+});
+
+describe('workers strip (stacks, one icon, two lines)', () => {
+  it('stacks the same state and reason; usable first, then limited, held, left out', () => {
+    const stacks = accountStacks(twenty());
+    expect(stacks.map((s) => [s.key, s.accounts.map((a) => a.name).join(' ')])).toEqual([
+      ['available', 'ai5 ai6 ai4 ai2'],
+      ['limited|weekly', 'ai43 ai17'],
+      ['limited|cooldown', 'ai3 ai7 ai15 ai40 ai30 ai41 info dev1 ai ai44 ai16'],
+      ['paused|auth', 'ai8'],
+      ['paused|paused', 'icedac z'],
+    ]);
+    expect(accountStacks(undefined)).toEqual([]);
+  });
+
+  it('folds nothing when the strip fits; the widest blocked stack first; the usable run last', () => {
+    const stacks = accountStacks(twenty());
+    expect([...stripFolds(stacks, '계정 4/20', 1336)]).toEqual([]);
+    expect([...stripFolds(stacks, '계정 4/20', 326)]).toEqual(['limited|cooldown', 'limited|weekly']);
+    // Too narrow for anything: every run that a fold makes smaller folds, the usable run last.
+    expect([...stripFolds(stacks, '계정 4/20', 120)].at(-1)).toBe('available');
+    // A run of one is never folded: its badge is no wider than the fold.
+    expect(stripFolds(stacks, '계정 4/20', 120).has('paused|auth')).toBe(false);
+  });
+
+  it("draws the screenshot's 20 accounts on one line: names only, one icon per stack", () => {
+    const el = mountAt(1400, { now: NOW, providers: [claude({ accounts: twenty() })] }, { lang: 'ko' });
+    expect(text(el, '.aq-col-head')).toBe('계정 4/20');
+    const box = q(el, '.aq-marks')!;
+    const kids = Array.from(box.children).map((c) => c.className);
+    expect(kids).toEqual([
+      'aq-col-head',
+      'aq-mark is-available',
+      'aq-mark is-available',
+      'aq-mark is-available',
+      'aq-mark is-available',
+      'aq-stack is-warn',
+      'aq-stack is-warn',
+      'aq-stack is-fail',
+      'aq-stack is-mute',
+    ]);
+    const stacks = qa(el, '.aq-stack');
+    expect(stacks.map((s) => names(s).join(' '))).toEqual([
+      'ai43 ai17',
+      'ai3 ai7 ai15 ai40 ai30 ai41 info dev1 ai ai44 ai16',
+      'ai8',
+      'icedac z',
+    ]);
+    // One icon per stack, on its first badge; no badge says a reason, a countdown or "복귀 약속 없음".
+    for (const st of stacks) {
+      expect(st.querySelectorAll('.aq-si')).toHaveLength(1);
+      expect(st.querySelector('.aq-mark')?.querySelector('.aq-si')).not.toBeNull();
+    }
+    const said = qa(el, '.aq-mark').map((m) => m.textContent ?? '');
+    expect(said.some((x) => /·|쿨다운|복귀|주간|일시정지|인증|⏸/.test(x))).toBe(false);
+    expect(
+      qa(el, '.aq-mark')
+        .find((m) => m.dataset.aid === 'ai3')
+        ?.getAttribute('aria-label'),
+    ).toBe('ai3, 쿨다운, 복귀 약속 없음');
+    expect(
+      qa(el, '.aq-mark')
+        .find((m) => m.dataset.aid === 'ai8')
+        ?.getAttribute('title'),
+    ).toBe('ai8 · 인증 실패');
+  });
+
+  it("folds the wide stacks to icon + count on a phone; the fold's card lists who and when", () => {
+    const el = mountAt(390, { now: NOW, providers: [claude({ accounts: twenty() })] }, { lang: 'ko' });
+    const folds = qa(el, '.aq-mark.is-fold');
+    expect(folds.map((f) => [f.dataset.grp, f.textContent])).toEqual([
+      ['limited|weekly', '2'],
+      ['limited|cooldown', '11'],
+    ]);
+    expect(folds[1].querySelector('.aq-si')).not.toBeNull();
+    expect(folds[1].getAttribute('aria-label')).toBe('쿨다운 계정 11개 — 목록 보기');
+    // The usable accounts, the failed login and the paused pair keep their names.
+    expect(names(q(el, '.aq-marks')!).filter((x) => /^[a-z]/.test(x ?? ''))).toEqual([
+      'ai5',
+      'ai6',
+      'ai4',
+      'ai2',
+      'ai8',
+      'icedac',
+      'z',
+    ]);
+    folds[1].click();
+    expect(q(el, '.aq-pop')?.getAttribute('aria-label')).toBe('쿨다운 계정 세부');
+    expect(text(el, '.aq-pop-name')).toBe('쿨다운');
+    expect(text(el, '.aq-pop-kind')).toBe('Claude · 계정 11');
+    const rows = qa(el, '.aq-pop-stats > div').map((d) => [
+      d.querySelector('dt')?.textContent,
+      d.querySelector('dd')?.textContent,
+    ]);
+    expect(rows.find((r) => r[0] === 'ai40')?.[1]).toBe('13시간 38분');
+    expect(rows.find((r) => r[0] === 'ai3')?.[1]).toBe('—');
+    expect(qa(el, '.aq-mark.is-fold')[1].getAttribute('aria-expanded')).toBe('true');
+    // Esc closes it and puts focus back on the fold.
+    q(el, '.aq-pop-close')!.focus();
+    q(el, '.aq-pop-close')!.dispatchEvent(key('Escape'));
+    expect(q(el, '.aq-pop')).toBeNull();
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-grp')).toBe('limited|cooldown');
+  });
+
+  it('folds the usable run last, to a dot and a count, with its list card', () => {
+    const many = Array.from(
+      { length: 12 },
+      (_, i): AqAccount => ({
+        id: `acct${i}`,
+        name: `account-${i}`,
+        state: 'available',
+        binding: '5h',
+        fiveHour: 0.5,
+        weekly: 0.25,
+      }),
+    );
+    const el = mountAt(390, { now: NOW, providers: [claude({ accounts: [...many, ...twenty()] })] });
+    const ok = qa(el, '.aq-mark.is-fold').find((f) => f.dataset.grp === 'available')!;
+    expect(ok.textContent).toBe('16');
+    expect(ok.querySelector('.aq-wdot')).not.toBeNull();
+    ok.click();
     expect(q(el, '.aq-pop')?.getAttribute('aria-label')).toBe('Available accounts');
-    expect(qa(el, '.aq-pop-stats dd').map((d) => d.textContent)).toEqual(['now 40% · week 60%', 'now 90% · week 50%']);
+    expect(qa(el, '.aq-pop-stats dd')[0].textContent).toBe('now 50% · week 25%');
   });
 });
 
@@ -934,7 +1133,8 @@ describe('lang="ko"', () => {
     expect(qa(el, '.cap-bar-next')[0].textContent).toBe('다음 +0.4계정 · 22분 후');
     expect(qa(el, '.cap-bar-val')[0].textContent).toBe('1.5 / 4.0 계정 38%');
     expect(text(el, '.aq-workers .aq-col-head')).toBe('계정 2/4');
-    expect(qa(el, '.aq-mark')[2].textContent?.replace(/\s+/g, ' ').trim()).toBe('⏸ai43 · 주간 한도 · 7시간 22분');
+    expect(qa(el, '.aq-mark')[2].textContent).toBe('ai43');
+    expect(qa(el, '.aq-mark')[2].getAttribute('title')).toBe('ai43 · 주간 한도 · 7시간 22분 후 복귀');
     expect(qa(el, '.aq-stat dt').map((d) => d.textContent)).toEqual([
       '다음 실행',
       '실행 중',
