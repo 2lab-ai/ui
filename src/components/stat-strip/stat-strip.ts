@@ -52,7 +52,17 @@ export interface StatMetric {
    * such a value appears at once. A figure that already shows a value always rolls on from it.
    */
   from?: number | 'last';
+  /**
+   * A free-form figure: the name of a slot whose light-DOM content is drawn in the figure's place ("+1,204 /
+   * −318", a name: count list). No roll, no breakdown; `loading` still shows the bar.
+   */
+  slot?: string;
+  /** `layout: 'cards'`: the card spans two columns (a long free-form figure). */
+  wide?: boolean;
 }
+
+/** `line`: label · figure pairs on one line (default). `cards`: a grid of tiles — label above a large figure. */
+export type StatLayout = 'line' | 'cards';
 
 /** A period option (the inner `<ui-segmented>` option). */
 export interface StatPeriodOption {
@@ -86,6 +96,8 @@ export interface StatStripData {
   more?: boolean | StatMore;
   /** Accessible name of the strip. Default "Usage" / "사용량". */
   label?: string;
+  /** Default `'line'`. `'cards'` draws each figure as a tile in a grid (the detail behind More, a dashboard row). */
+  layout?: StatLayout;
 }
 
 /** `ui-period` detail. */
@@ -111,6 +123,11 @@ const STRINGS = {
 type Strings = (typeof STRINGS)['en'];
 
 const NONE = '—';
+
+/** The metric's slot name ('' = a plain figure). */
+function slotOf(m: StatMetric): string {
+  return typeof m.slot === 'string' ? m.slot.trim() : '';
+}
 
 /** A known format, else `'int'`. */
 export function metricFormat(f: unknown): MetricFormat {
@@ -366,6 +383,7 @@ export class UiStatStrip extends UiElement<StatStripData> {
       role: 'group',
       'aria-label': d.label || t.label,
       'aria-busy': busy ? 'true' : undefined,
+      'data-layout': d.layout === 'cards' ? 'cards' : undefined,
       'data-open': open,
       'data-settled': open && this.#settled,
     })}><div${attrs({ class: 'ss-row', 'data-period': period })}>${seg}${
@@ -378,8 +396,11 @@ export class UiStatStrip extends UiElement<StatStripData> {
     const fmt = metricFormat(m.format);
     const loading = allLoading || !!m.loading;
     let fig: string;
+    const slot = slotOf(m);
     if (loading) {
       fig = `<span class="ss-sk" aria-hidden="true"></span><span class="sr-only">${esc(t.loading)}</span>`;
+    } else if (slot) {
+      fig = `<span class="ss-free"><slot name="${escAttr(slot)}"><span class="ss-fig is-none">${NONE}</span></slot></span>`;
     } else if (!isNum(m.value)) {
       fig = `<span class="ss-fig is-none" aria-hidden="true">${NONE}</span><span class="sr-only">${esc(t.noData)}</span>`;
     } else {
@@ -390,7 +411,7 @@ export class UiStatStrip extends UiElement<StatStripData> {
         fmtMetric(m.value, fmt, lang),
       )}</span>`;
     }
-    const tip = loading ? null : this.#tip(m, i, fmt, lang);
+    const tip = loading || slot ? null : this.#tip(m, i, fmt, lang);
     const val = tip
       ? `<ui-tooltip${attrs({
           class: 'ss-tip',
@@ -404,9 +425,9 @@ export class UiStatStrip extends UiElement<StatStripData> {
           'aria-describedby': tip.id,
         })}>${fig}</button>${tip.html}</ui-tooltip>`
       : fig;
-    return `<div class="ss-m" data-mk="m:${escAttr(m.key)}" data-metric="${escAttr(m.key)}" style="--i: ${i}"><dt class="ss-label">${esc(
-      m.label,
-    )}</dt><dd class="ss-val">${val}</dd></div>`;
+    return `<div class="ss-m" data-mk="m:${escAttr(m.key)}" data-metric="${escAttr(m.key)}"${
+      m.wide ? ' data-wide' : ''
+    } style="--i: ${i}"><dt class="ss-label">${esc(m.label)}</dt><dd class="ss-val">${val}</dd></div>`;
   }
 
   /**
