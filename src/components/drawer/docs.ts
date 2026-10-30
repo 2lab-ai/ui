@@ -89,7 +89,7 @@ export const doc: ComponentDoc = {
   summary:
     'A side panel for detail next to the work — docked beside the page when there is room, a sheet when there is not.',
   description:
-    'A native <dialog> as a side panel. On wide screens (≥ dock-at, 840px) it docks beside the page: opened with show(), no scrim, the page stays live. Narrower, it is a modal sheet over a scrim (showModal(): focus trapped, page inert). Either way it slides in from its edge on the drawer curve (320ms) and leaves the same way; open it again mid-exit and it turns around. When the breakpoint is crossed while it is open it switches over without motion and keeps focus where it was. resizable adds a separator on the inner edge: drag it, or focus it and use the arrows. Escape, the scrim and the close button send a cancelable ui-close; show(), hide(), toggle() and open send nothing.',
+    'A native <dialog> as a side panel. On wide screens (≥ dock-at, 840px) it docks beside the page: opened with show(), no scrim, the page stays live. Narrower, it is a modal sheet over a scrim (showModal(): focus trapped, page inert). Either way it slides in from its edge on the drawer curve (320ms) and leaves the same way; open it again mid-exit and it turns around. When the breakpoint is crossed while it is open it switches in place: the same dialog, its DOM and form state, focus and the caret, every scroll place in the panel — and the panel’s box morphs to the new mode in 320ms (retargeting if the window keeps moving) while the scrim fades; under reduced motion it switches at once. resizable adds a separator on the inner edge: drag it, or focus it and use the arrows. Escape, the scrim and the close button send a cancelable ui-close; show(), hide(), toggle() and open send nothing.',
   usedIn:
     'soma-work dashboard › session detail slide panel (docked beside the board under the top bar, resizable; a full sheet on phones) and the cron run drawer (right sheet).',
   reference: {
@@ -205,7 +205,7 @@ export const doc: ComponentDoc = {
     'Labelled by its heading (aria-labelledby) or the label attribute (aria-label).',
     'On open, focus goes to the first [autofocus] element in your content, else the panel; after the close it returns to the opener — unless the person has moved on into the page (docked).',
     'The resize handle is role="separator" (aria-orientation vertical) with aria-valuenow / min / max, focusable, named “Resize panel” / “패널 크기 조절”.',
-    'A mode switch while open keeps focus where it was.',
+    'A mode switch while open keeps focus (and the caret) where it was and puts every scroll place in the panel back.',
     'Reduced motion: nothing slides — the panel and scrim fade in 120ms.',
   ],
   usage: `<button id="open-detail">Open detail</button>
@@ -226,7 +226,7 @@ export const doc: ComponentDoc = {
       id: 'session',
       title: 'Session detail',
       description:
-        'mode="auto" + resizable: docked under the top bar on a wide window (drag or arrow the left edge), a sheet on a narrow one. Either way it ends at the visible bottom, above a soft keyboard.',
+        'mode="auto" + resizable: docked under the top bar on a wide window (drag or arrow the left edge), a sheet on a narrow one — resize the window across 840px while it is open and it morphs in place. Either way it ends at the visible bottom, above a soft keyboard.',
       height: 200,
       create: () => {
         const { box, line } = stage();
