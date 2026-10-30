@@ -38,8 +38,8 @@ export interface ComponentDoc {
   /** Where it lives in the soma-work dashboard. */
   usedIn: string;
   reference: { name: string; url: string };
-  /** Group in the sidebar. */
-  group: 'Components' | 'Screens';
+  /** Group in the sidebar. Primitives are the building blocks (menus, dialogs, tabs …) the components share. */
+  group: 'Components' | 'Screens' | 'Primitives';
   props: PropDoc[];
   events: EventDoc[];
   keyboard: Array<[keys: string, action: string]>;

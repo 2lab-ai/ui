@@ -17,5 +17,5 @@ done
 echo "registry-check: installed $(node -p "require('@2lab.ai/ui/package.json').name + '@' + require('@2lab.ai/ui/package.json').version") from $(npm config get registry)"
 npm ls @2lab.ai/ui
 npx tsc -p .
-echo "registry-check: NodeNext typecheck ok (root + 7 subpaths)"
+echo "registry-check: NodeNext typecheck ok (root + every subpath in check.ts)"
 node register.mjs

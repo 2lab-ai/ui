@@ -114,6 +114,11 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
     return this.dispatchEvent(new CustomEvent<T>(name, { detail, bubbles: true, composed: true, cancelable: true }));
   }
 
+  /** Dispatch a bubbling, composed notification that cannot be prevented (it reports what already happened). */
+  protected notify<T>(name: string, detail: T): void {
+    this.dispatchEvent(new CustomEvent<T>(name, { detail, bubbles: true, composed: true, cancelable: false }));
+  }
+
   /** Query inside the shadow root. */
   protected $<E extends Element = HTMLElement>(selector: string): E | null {
     return this.root.querySelector<E>(selector);
