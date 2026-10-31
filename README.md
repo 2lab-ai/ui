@@ -63,7 +63,7 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Drawer | `<ui-drawer>` | Side sheet that docks beside the page on wide screens; resizable edge, scrim, interruptible slide |
 | Disclosure | `<ui-disclosure>` | Summary row over a region that grows 0fr → 1fr and is inert while closed; a links row that stays in view while closed |
 | Log Scroller | `<ui-log-scroller>` | Newest-at-bottom scroll box: follows the latest, pages older items in without moving your place (`[data-anchor]` rows inside an item count too), “jump to latest” with an unread count; or as tall as its items while the page scrolls |
-| Elapsed | `<ui-elapsed>` | A live time — running for, stopwatch, how long ago, countdown — on one shared whole-second tick, text changed in place |
+| Elapsed | `<ui-elapsed>` | A live time — running for, stopwatch, how long ago, countdown — on one shared whole-second tick, text changed in place; a countdown in the host’s words (`after="후 복귀"`, `at-zero="곧 복귀"`, `precision="minute"` for 24분 · 1시간 20분) |
 | Breadcrumbs | `<ui-breadcrumbs>` | Where you are — the trail root first, links or `ui-select` buttons, the current page last; the middle folds behind “…” when the row is narrow, a status chip in its end slot; `sm` for a panel’s path |
 | Meter | `<ui-meter>` | How much is left (or used) of a bounded thing — a bar or a battery with its fill, the percent or your own words, a tone from `low` / `high` / `optimum` (the native `<meter>`'s rule); a new value slides the fill in place; `role="meter"`, unknown is “?” |
 

@@ -38,7 +38,7 @@ import {
 } from '@2lab.ai/ui/dialog';
 import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
 import { clampDrawerWidth, DRAWER_MORPH_MS, type DrawerMode, type DrawerViewport, UiDrawer } from '@2lab.ai/ui/drawer';
-import { type ElapsedData, elapsedText, UiElapsed } from '@2lab.ai/ui/elapsed';
+import { type ElapsedData, type ElapsedPrecision, elapsedText, fmtSpanCoarse, UiElapsed } from '@2lab.ai/ui/elapsed';
 import { EPISODE_ARM_MS, type EpisodeLogData, episodeDays, UiEpisodeLog } from '@2lab.ai/ui/episode-log';
 import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
 import { GOAL_ARM_MS, type GoalCardData, goalMetaHtml, UiGoalCard } from '@2lab.ai/ui/goal-card';
@@ -167,6 +167,8 @@ const trail: BreadcrumbsData = {
 };
 const chosen: BreadcrumbsSelect = { id: 'here', index: 1, item: trail.items[1] };
 const trailEl: HTMLElementTagNameMap['ui-breadcrumbs'] = document.createElement('ui-breadcrumbs');
+const loose: ElapsedPrecision = 'minute';
+const nextRun: ElapsedData = { until: 0, format: 'countdown', precision: loose, after: '후 복귀', atZero: '곧 복귀' };
 const navEl: HTMLElementTagNameMap['ui-settings-nav'] = document.createElement('ui-settings-nav');
 const authEl: HTMLElementTagNameMap['ui-auth-card'] = document.createElement('ui-auth-card');
 // Sound: the policy from the root and the subpath is one API; the Cuelume player has the SoundPlayer shape.
@@ -332,4 +334,6 @@ console.log(
   breadcrumbVisible(trail.items.length, false).length,
   chosen.index,
   trailEl.tagName,
+  elapsedText(nextRun, 0),
+  fmtSpanCoarse(80 * 60_000, 'ko'),
 );
