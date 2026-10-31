@@ -217,7 +217,7 @@ function liveDemo(): UiConversation {
 function systemDemo(): UiConversation {
   const now = Date.now();
   const at = (ago: number) => now - ago;
-  return make(
+  const el = make(
     {
       turns: [
         {
@@ -253,6 +253,16 @@ function systemDemo(): UiConversation {
         },
         { id: 's-4', role: 'system', at: at(12 * MIN), kind: 'background', text: 'Indexing 1,284 files' },
         {
+          id: 's-7',
+          role: 'system',
+          at: at(9 * MIN),
+          kind: 'compact',
+          label: 'Held',
+          text: 'A message arrived during compaction — delivered after it',
+          facts: [['From', 'Mina Park']],
+          media: true,
+        },
+        {
           id: 's-5',
           role: 'system',
           at: at(200_000),
@@ -276,6 +286,19 @@ function systemDemo(): UiConversation {
     },
     440,
   );
+  // The files the held message carried: the host's chips in slot media-<id>, shown in the open detail.
+  const files = document.createElement('div');
+  files.slot = 'media-s-7';
+  files.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+  for (const name of ['screenshot-2.png', 'error.log']) {
+    const chip = document.createElement('span');
+    chip.textContent = name;
+    chip.style.cssText =
+      'display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid var(--ui-ib-card-border);border-radius:8px;background:var(--ui-ib-card);color:var(--ui-ib-text);font-size:12px';
+    files.append(chip);
+  }
+  el.append(files);
+  return el;
 }
 
 /** First load, empty, a failed load, and a failed answer with Try again. */
@@ -556,7 +579,7 @@ export const doc: ComponentDoc = {
       name: 'data.turns[].text · media · skills',
       type: 'string · boolean · { name, text?, tokens? }[]',
       description:
-        'user: the instruction as typed (plain text, folded to data.clampLines with Show more when it overflows); media in slot "media-<id>" above the words; skill chips that open their text.',
+        'user: the instruction as typed (plain text, folded to data.clampLines with Show more when it overflows); media in slot "media-<id>" above the words; skill chips that open their text. A system turn takes media too: the files an intercepted message carried, in the same slot at the head of its open detail.',
     },
     {
       name: 'data.turns[].markdown · source · summary',
@@ -580,7 +603,7 @@ export const doc: ComponentDoc = {
       name: 'data.turns[].kind · label · facts · raw',
       type: 'string · string · [label, value][] · string',
       description:
-        'system: compact · restart · retry · goal · cron · background (or any word, shown as is) as an icon + word badge, or `label` instead; the row opens to the facts and the raw text (Copy).',
+        'system: compact · restart · retry · goal · cron · background (or any word, shown as is) as an icon + word badge, or `label` instead; the row opens to the media (slot "media-<id>"), the facts and the raw text (Copy).',
     },
     {
       name: 'data.turns[].progress',
