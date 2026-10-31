@@ -13,6 +13,8 @@ const en = {
     if (h) return `${h}h ${m % 60}m`;
     return `${m}m`;
   },
+  /** How long ago, minutes floored: <1m · 11m · 3h 5m · 1d 6h (the `since` phrase). */
+  span: (secs: number) => spanShort(secs),
   soon: 'soon',
   in: (x: string) => `in ${x}`,
   back: (x: string) => `back in ${x}`,
@@ -233,6 +235,15 @@ const ko: Strings = {
     if (h) return `${h}시간 ${m % 60}분`;
     return `${m}분`;
   },
+  span: (secs: number) => {
+    const sec = Math.max(0, Math.floor(Number(secs) || 0));
+    if (sec < 60) return '방금';
+    const m = Math.floor(sec / 60);
+    if (m < 60) return `${m}분`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}시간 ${m % 60}분`;
+    return `${Math.floor(h / 24)}일 ${h % 24}시간`;
+  },
   soon: '곧',
   in: (x) => `${x} 후`,
   back: (x) => `${x} 후 복귀`,
@@ -435,7 +446,7 @@ export const STRINGS = { en, ko };
  * `since` / `fetched` count up from a past epoch.
  */
 export function timeText(kind: TimeKind, atMs: number, nowMs: number, t: Strings): string {
-  if (kind === 'since') return t.since(spanShort((nowMs - atMs) / 1000));
+  if (kind === 'since') return t.since(t.span((nowMs - atMs) / 1000));
   if (kind === 'fetched') return t.fetched(Math.max(0, Math.round((nowMs - atMs) / 1000)));
   const s = Math.floor((atMs - nowMs) / 1000);
   if (!(s > 0)) return kind === 'back' ? t.backSoon : kind === 'runs' ? t.runsSoon : t.soon;
