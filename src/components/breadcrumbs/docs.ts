@@ -126,7 +126,7 @@ export const doc: ComponentDoc = {
   ],
   a11y: [
     'A `<nav aria-label>` (“Breadcrumbs” / “위치”, or the host’s) over an `<ol>`; the current page is `aria-current="page"` and not a control.',
-    'Separators are drawn by the element and `aria-hidden`; the “…” button is named (“Show 2 more” / “2개 더 보기”) and `aria-expanded="false"`; once opened the crumbs are in the list and the button is gone, focus on the first revealed crumb.',
+    'Separators are drawn by the element and `aria-hidden`; the “…” button is named (“Show 2 more” / “2개 더 보기”) ; once opened the crumbs are in the list and the button is gone, focus on the first revealed crumb.',
     'Hover tints on fine pointers only (nothing moves); 44px targets on coarse pointers; the reveal fades once, not under reduced motion. Korean breaks between words only (`word-break: keep-all`).',
     'Sound (opt-in, @2lab.ai/ui/sound): a quiet navigate (back) when a crumb is chosen and the host did not prevent it; a quiet open when “…” reveals the trail. Links are silent (the page leaves).',
   ],

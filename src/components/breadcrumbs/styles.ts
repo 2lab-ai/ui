@@ -32,15 +32,17 @@ export const styles = `
 :host([size="sm"]) .bc-link, :host([size="sm"]) .bc-btn, :host([size="sm"]) .bc-cur, :host([size="sm"]) .bc-more { padding: 2px 5px; border-radius: 5px; }
 .bc-link { cursor: pointer; }
 .bc-cur { color: var(--text); font-weight: 600; cursor: default; }
-.bc-more { display: inline-grid; flex: none; place-items: center; width: 28px; padding: 0; color: var(--text-secondary); }
+.bc-more { display: inline-grid; flex: none; place-items: center; width: 28px; height: 28px; padding: 0; color: var(--text-secondary); }
 :host([size="sm"]) .bc-more { width: 24px; height: 22px; }
 .bc-more svg { width: 14px; height: 14px; }
 .bc-link:active:not(:focus-visible), .bc-btn:active:not(:focus-visible), .bc-more:active:not(:focus-visible) { transform: scale(0.97); }
-.bc-link:focus-visible, .bc-btn:focus-visible, .bc-more:focus-visible { outline-offset: 0; }
+/* Inset ring: the list clips its overflow (the fold), so a ring outside the crumb's box would be cut (as tabs do). */
+.bc-link:focus-visible, .bc-btn:focus-visible, .bc-more:focus-visible { outline-offset: -2px; }
 
 /* The host's chip after the trail (a .ui-status): it keeps its width, the trail folds first. */
 .bc-end { display: inline-flex; flex: none; align-items: center; min-width: 0; margin-left: auto; }
-.bc-end:empty { display: none; }
+/* No chip slotted: no end box and no gap paid for it. */
+.bc-end.is-empty { display: none; }
 
 @media (hover: hover) and (pointer: fine) {
   .bc-link:hover, .bc-btn:hover, .bc-more:hover { background: var(--ib-pill); color: var(--text); }

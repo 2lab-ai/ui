@@ -232,7 +232,8 @@ describe('collapse', () => {
     expect(labels(el)).toEqual(['soma-work', '', 'Tasks']);
     const more = q<HTMLButtonElement>(el, '.bc-more')!;
     expect(more.getAttribute('aria-label')).toBe('Show 2 more');
-    expect(more.getAttribute('aria-expanded')).toBe('false');
+    // The button goes once pressed (the crumbs take its place): it never says expanded, its name says what it does.
+    expect(more.hasAttribute('aria-expanded')).toBe(false);
     expect(more.dataset.key).toBe('more');
     expect(more.querySelector('svg')).not.toBeNull();
     expect(qa(el, '.bc-sep').length).toBe(2);
@@ -336,6 +337,30 @@ describe('collapse', () => {
     expect(el.querySelector('[slot="end"]')).toBe(chip);
     el.remove();
     expect(FakeRO.all[0].targets).toEqual([]);
+  });
+});
+
+describe('review fixes (LG6 r1)', () => {
+  it('the end box shows only with a chip in it — no gap paid for an empty slot', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const el = mount(TRAIL);
+    expect(q(el, '.bc-end')!.classList.contains('is-empty')).toBe(true);
+    const chip = document.createElement('span');
+    chip.slot = 'end';
+    chip.textContent = 'Running';
+    el.append(chip);
+    el.shadowRoot!.querySelector('slot[name="end"]')!.dispatchEvent(new Event('slotchange'));
+    el.renderNow();
+    expect(q(el, '.bc-end')!.classList.contains('is-empty')).toBe(false);
+  });
+
+  it('the focus ring is drawn inside the crumb (the list clips its overflow), and the … button is a 28px target', async () => {
+    const { styles } = await import('./styles');
+    expect(styles).toContain(
+      '.bc-link:focus-visible, .bc-btn:focus-visible, .bc-more:focus-visible { outline-offset: -2px; }',
+    );
+    expect(styles).not.toContain('outline-offset: 0;');
+    expect(styles).toMatch(/\.bc-more \{[^}]*width: 28px; height: 28px;/);
   });
 });
 
