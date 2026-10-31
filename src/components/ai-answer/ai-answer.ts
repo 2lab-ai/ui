@@ -18,7 +18,10 @@ export interface AiAnswerData {
   loading?: boolean;
   /** Optional heading above the card (e.g. the question or the turn’s summary title). */
   title?: string;
-  /** Failure detail (e.g. `HTTP 404`). Without text it replaces the answer; with text it shows in the footer. */
+  /**
+   * Failure detail — the cause only (e.g. `HTTP 404`), not a sentence: it is shown as “Couldn’t get the answer (<error>)” /
+   * “답변을 불러오지 못했습니다 (<error>)”. Without text it replaces the answer; with text it shows in the footer.
+   */
   error?: string;
   /** Show “Try again” next to an error (emits `ui-retry`). Default false. */
   canRetry?: boolean;
