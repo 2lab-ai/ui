@@ -76,7 +76,7 @@ const SPECIMENS: KitSpecimen[] = [
     title: 'Chip',
     cls: 'ui-chip',
     desc: 'A pill label, or a toggle when it is a button: “on” is the raised neutral chip, never an accent fill.',
-    html: `<div class="kit-row"><span class="ui-chip">${I('file-code', 12)}report.html</span><span class="ui-chip">${I('file-image', 12)}chart.png</span><button class="ui-chip" aria-pressed="true">Mine</button><button class="ui-chip" aria-pressed="false">All</button><span class="ui-chip is-quiet">+3</span></div>`,
+    html: `<div class="kit-row"><span class="ui-chip">${I('file-code', 12)}report.html</span><span class="ui-chip">${I('file-image', 12)}chart.png</span><button class="ui-chip" aria-pressed="true">Mine</button><button class="ui-chip" aria-pressed="false">All</button><span class="ui-chip is-quiet">+3</span><span class="ui-chip is-toned is-sm" style="--ui-tone: var(--ui-st-run)">mac-mini</span><span class="ui-chip is-toned is-sm" style="--ui-tone: var(--ui-purple)">oudwood</span></div>`,
   },
   {
     title: 'Select chip',

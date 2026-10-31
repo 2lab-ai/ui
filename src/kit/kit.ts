@@ -238,6 +238,14 @@ button.ui-chip, a.ui-chip { cursor: pointer; -webkit-tap-highlight-color: transp
   background: ${T('ib-seg-on')}; border-color: ${T('ib-card-border')}; box-shadow: ${T('ib-shadow')};
 }
 .ui-chip.is-quiet { background: transparent; }
+/* A toned chip: a tag in a colour the host picks per thing (an environment, a team) — not a status. Set --ui-tone
+   inline (a palette token); the fill is its 14% tint, the word 70% toward the ink (≥ 4.5:1 in both themes). */
+.ui-chip.is-toned {
+  border-color: color-mix(in srgb, var(--ui-tone, ${T('ib-muted')}) 28%, ${T('ib-card-border')});
+  background: color-mix(in srgb, var(--ui-tone, ${T('ib-muted')}) 14%, ${T('ib-card')});
+  color: color-mix(in srgb, var(--ui-tone, ${T('ib-muted')}) 70%, ${T('ib-text')});
+}
+.ui-chip.is-sm { gap: 4px; height: 20px; padding: 0 7px; font-size: 11px; }
 .ui-chip:disabled, .ui-chip[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Select chip: a native <select> read as a label (the model picker's trigger shape) — as wide as its selected
