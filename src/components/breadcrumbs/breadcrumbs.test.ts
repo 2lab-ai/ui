@@ -169,6 +169,8 @@ describe('<ui-breadcrumbs> rendering', () => {
     expect(css).toContain('.bc { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px;');
     expect(css).toContain(':host([size="sm"]) .bc { font-size: 12px;');
     expect(css).toMatch(/\(pointer: coarse\)[^{]*\{\s*\.bc-link, \.bc-btn, \.bc-more \{ min-height: 44px;/);
+    expect(css).toMatch(/\(pointer: coarse\)[^}]*\}\s*\.bc-more \{ width: 44px; \}/);
+    expect(css).toContain('.bc-item.bc-fold { flex: none; }');
     expect(css).toMatch(/prefers-reduced-motion: reduce\)[^}]*\.bc-item\.is-in \{ animation: none; \}/);
     expect(css).toContain(
       '.bc-link:hover, .bc-btn:hover, .bc-more:hover { background: var(--ib-pill); color: var(--text); }',
@@ -260,6 +262,26 @@ describe('collapse', () => {
     el.renderNow();
     expect(el.folded).toBe(true);
     expect(q(el, '.bc-more')?.getAttribute('aria-label')).toBe('Show 3 more');
+  });
+
+  it('folds when a crumb had to ellipsize even though the list itself fits (its need counts the cut text)', () => {
+    vi.stubGlobal('ResizeObserver', FakeRO);
+    const el = mount(TRAIL);
+    size(el, 400, 400);
+    const cut = qa(el, '.bc-link')[2];
+    Object.defineProperty(cut, 'scrollWidth', { value: 150, configurable: true });
+    Object.defineProperty(cut, 'clientWidth', { value: 90, configurable: true });
+    FakeRO.fire(q(el, '.bc-list')!);
+    expect(el.folded).toBe(true);
+    expect(labels(el)).toEqual(['soma-work', '', 'Tasks']);
+    // It needed 460: a 450 box keeps the fold, a 460 box lets it go.
+    size(el, 300, 450);
+    FakeRO.fire(q(el, '.bc-list')!);
+    expect(el.folded).toBe(true);
+    size(el, 300, 460);
+    FakeRO.fire(q(el, '.bc-list')!);
+    expect(el.folded).toBe(false);
+    expect(labels(el).length).toBe(4);
   });
 
   it('unfolds once the box is as wide as the row needed, and never flips in between', () => {

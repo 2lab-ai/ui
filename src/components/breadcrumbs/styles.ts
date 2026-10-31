@@ -12,6 +12,7 @@ export const styles = `
 .bc-list { display: flex; flex: 1 1 auto; align-items: center; gap: 0; min-width: 0; margin: 0; padding: 0; list-style: none; overflow: hidden; white-space: nowrap; }
 .bc-item { display: flex; align-items: center; flex: 0 1 auto; min-width: 0; }
 .bc-item:first-child { flex-shrink: 0; max-width: 55%; }
+.bc-item.bc-fold { flex: none; }
 .bc-item.is-in { animation: bc-in var(--dur-fade) var(--ease-out) both; }
 @keyframes bc-in { from { opacity: 0; } }
 .bc-sep { display: inline-grid; flex: none; place-items: center; width: 16px; color: var(--text-tertiary); }
