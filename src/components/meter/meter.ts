@@ -201,11 +201,12 @@ export class UiMeter extends UiElement<MeterData> {
     const label = String(r.label ?? '').trim();
     const unknown = Number.isNaN(pct);
     // An unknown reading has no value to report: an image named "<label>: unknown" instead of a meter at nothing.
+    // Without a label the meter is still named — by its words ("72%", or the host's text): the amount, if not what of.
     const a = unknown
       ? attrs({ role: 'img', 'aria-label': label ? `${label}: ${s.unknown}` : s.unknown })
       : attrs({
           role: 'meter',
-          'aria-label': label || undefined,
+          'aria-label': label || words,
           'aria-valuemin': 0,
           'aria-valuemax': 100,
           'aria-valuenow': pct,
