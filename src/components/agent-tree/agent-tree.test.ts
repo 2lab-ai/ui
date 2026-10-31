@@ -237,6 +237,8 @@ describe('<ui-agent-tree>', () => {
     expect(item(el, 'c')?.hasAttribute('aria-expanded')).toBe(false);
     expect(qa(el, '[role="treeitem"][tabindex="0"]').map((li) => li.dataset.id)).toEqual(['main']);
     expect(item(el, 'a1')?.parentElement?.getAttribute('role')).toBe('group');
+    // G1-1: every row is a place-keeping anchor for a <ui-log-scroller> that holds the tree as one item.
+    expect(qa(el, '.at-item').every((li) => li.hasAttribute('data-anchor'))).toBe(true);
     expect(el.expanded).toEqual(['main', 'a']);
   });
 

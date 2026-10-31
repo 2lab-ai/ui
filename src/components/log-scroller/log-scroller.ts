@@ -102,11 +102,41 @@ interface Anchor {
 }
 
 /**
+ * A host's hook naming the rows inside an item (`anchorsFor`): the elements, in order, whose place is kept — rows an
+ * element item draws in its own shadow root, say. Nothing (null / undefined / empty) falls back to `[data-anchor]`.
+ */
+export type LogAnchorsHook = (item: HTMLElement) => Iterable<Element> | null | undefined;
+
+/**
+ * The finer anchors of an item, in order: the host's `anchorsFor` hook first, then the item's own `[data-anchor]`
+ * descendants, then `[data-anchor]` rows inside its open shadow root (an element as an item — an agent tree whose
+ * rows live in its shadow). Empty when the item itself is the anchor.
+ */
+export function anchorsIn(item: HTMLElement, hook?: LogAnchorsHook | null): Element[] {
+  if (hook) {
+    try {
+      const own = hook(item);
+      if (own) {
+        const list = Array.from(own).filter((n): n is Element => !!n && n.nodeType === 1);
+        if (list.length) return list;
+      }
+    } catch {
+      // A hook that throws names nothing: the item keeps the reader's place as a whole.
+    }
+  }
+  const light = Array.from(item.querySelectorAll('[data-anchor]'));
+  if (light.length) return light;
+  return item.shadowRoot ? Array.from(item.shadowRoot.querySelectorAll('[data-anchor]')) : [];
+}
+
+/**
  * `<ui-log-scroller>` — a scroll box for newest-at-bottom streams (chat, logs). It follows the newest item while the
  * reader is at the bottom; a reader who scrolled up keeps their place and gets a "latest" pill with the unread count.
  * Scrolling near the top asks for older items (`ui-load-older`, cancelable) and the reader's place is restored after
  * they are prepended. Items are the element's children (`data-item` keys): `appendItems` / `prependItems` /
- * `upsertItem` / `removeItem` touch only the nodes they name — existing nodes are never re-rendered.
+ * `upsertItem` / `removeItem` touch only the nodes they name — existing nodes are never re-rendered. The reader's
+ * place is held on the rows they see: items, their `[data-anchor]` descendants, the rows a host's `anchorsFor`
+ * names, or `[data-anchor]` rows inside an element item's open shadow root (`<ui-agent-tree>` marks its rows so).
  */
 export class UiLogScroller extends UiElement<LogScrollerData> {
   static override styles = [styles];
@@ -136,6 +166,13 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
   #ro: ResizeObserver | null = null;
   #io: IntersectionObserver | null = null;
   #fillQueued = false;
+
+  /**
+   * Names the rows inside an item whose place is kept (`(item) => Element[]`) — for an element item that draws its
+   * rows in its shadow root and grows above the reader (older agents paged into a tree). Without one, `[data-anchor]`
+   * descendants, then `[data-anchor]` rows in the item's open shadow root.
+   */
+  anchorsFor: LogAnchorsHook | null = null;
 
   constructor() {
     super();
@@ -559,8 +596,9 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
       const item = items[i];
       const r = item.getBoundingClientRect();
       if (r.top >= bottom) break;
-      // A host can mark finer anchors inside an item (entries inside a group): `data-anchor`.
-      const fine = Array.from(item.querySelectorAll('[data-anchor]'));
+      // A host can mark finer anchors inside an item (entries inside a group): `data-anchor`, the `anchorsFor` hook,
+      // or `data-anchor` rows inside an element item's shadow root.
+      const fine = anchorsIn(item, this.anchorsFor);
       for (const el of fine.length ? fine : [item]) {
         const rr = el.getBoundingClientRect();
         if (!rr.height || rr.bottom <= top) continue;
