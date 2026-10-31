@@ -209,9 +209,14 @@ function docHtml(src: string, link: LinkRenderer, depth: number): string {
   return out.join('\n');
 }
 
-/** Styles for markdownHtml() output inside a `.md-doc` container (component tokens only). */
+/**
+ * Styles for markdownHtml() output inside a `.md-doc` container (component tokens only). Long unbroken strings wrap
+ * (overflow-wrap, never word-break — the host's Korean keep-all must reach the prose); a light-DOM page with lang="ko"
+ * gets keep-all here too.
+ */
 export const mdDocCss = `
-.md-doc { color: var(--text); word-break: break-word; }
+.md-doc { color: var(--text); overflow-wrap: anywhere; }
+.md-doc:lang(ko) { word-break: keep-all; }
 .md-doc h1, .md-doc h2, .md-doc h3, .md-doc h4, .md-doc h5, .md-doc h6 { margin: 1.3em 0 0.5em; line-height: 1.3; letter-spacing: -0.01em; }
 .md-doc h1, .md-doc h2 { font-size: 1.15em; }
 .md-doc h3, .md-doc h4, .md-doc h5, .md-doc h6 { font-size: 1em; }

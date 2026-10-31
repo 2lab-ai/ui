@@ -409,11 +409,10 @@ export const doc: ComponentDoc = {
         'A new plan dropped every task before it ran: no step is left, so the host names the fold (“Dropped before they ran”), draws no “no steps” line and opens the fold itself with setOpen() — as a “see every task” landing would.',
       height: 320,
       create: () => {
-        const p = longPlan();
         const el = make({
           title: 'Plan 3',
           steps: [],
-          earlier: p.earlier,
+          earlier: earlierPlans(Date.now()),
           labels: { earlier: 'Dropped before they ran', earlierList: 'Tasks dropped before they ran', noSteps: '' },
         });
         el.setOpen('earlier-plans', true);
