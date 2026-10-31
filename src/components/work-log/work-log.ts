@@ -1,7 +1,7 @@
 import { activityCss } from '../../core/activity';
 import { copyText } from '../../core/clipboard';
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
-import { fmtDuration } from '../../core/format';
+import { fmtDurationIn } from '../../core/format';
 import { attrs, esc } from '../../core/html';
 import { icon } from '../../icons/icons';
 import '../log-scroller/log-scroller';
@@ -777,7 +777,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
   #tickNow(): void {
     const now = Date.now();
     for (const el of this.$$<HTMLElement>('[data-since]')) {
-      const s = fmtDuration(now - Number(el.dataset.since));
+      const s = fmtDurationIn(now - Number(el.dataset.since), this.#langAttr);
       if (el.textContent !== s) el.textContent = s;
     }
   }

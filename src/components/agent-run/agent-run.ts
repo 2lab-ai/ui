@@ -1,5 +1,5 @@
 import { define, UiElement } from '../../core/element';
-import { fmtClock, fmtDuration } from '../../core/format';
+import { fmtClock, fmtDurationIn } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import { PLAN_ICON, planFoldedSteps, planFootHtml, planListHtml, planPhase, planTimeOfDay } from '../../core/plan';
 import { styles } from './styles';
@@ -622,7 +622,7 @@ export class UiAgentRun extends UiElement<AgentRunData> {
     const t = this.#t;
     for (const el of this.$$('[data-since]')) {
       const since = Number(el.dataset.since) || now;
-      const txt = fmtDuration(now - since + (Number(el.dataset.add) || 0));
+      const txt = fmtDurationIn(now - since + (Number(el.dataset.add) || 0), this.#lang);
       if (el.textContent !== txt) el.textContent = txt;
     }
     for (const el of this.$$('[data-until]')) {
@@ -661,9 +661,9 @@ ${this.#head(d, t)}${bands ? `<div class="ar-body"${side ? ` data-side="${side}"
     } else if (start && end > start) {
       time = `<span class="ps-time" title="${escAttr(t.ranTitle)}"><span class="ps-clock">${ICON.clock}</span>${esc(
         t.started(runTimeOfDay(start, this.#lang)),
-      )}<span class="ps-dot" aria-hidden="true">·</span>${esc(fmtDuration(end - start))}</span>`;
+      )}<span class="ps-dot" aria-hidden="true">·</span>${esc(fmtDurationIn(end - start, this.#lang))}</span>`;
     } else if (num(d.activeMs)) {
-      time = `<span class="ps-time" title="${escAttr(t.activeTitle)}">${esc(t.active)} ${esc(fmtDuration(num(d.activeMs)))}</span>`;
+      time = `<span class="ps-time" title="${escAttr(t.activeTitle)}">${esc(t.active)} ${esc(fmtDurationIn(num(d.activeMs), this.#lang))}</span>`;
     }
     let stop = '';
     if (live && d.canStop !== undefined && d.canStop !== false) {
@@ -862,7 +862,7 @@ ${this.#head(d, t)}${bands ? `<div class="ar-body"${side ? ` data-side="${side}"
             ? esc(String(v))
             : num(v.since)
               ? `<span data-since="${num(v.since)}" data-add="${num(v.addMs)}"></span>`
-              : esc(fmtDuration(num(v.addMs)));
+              : esc(fmtDurationIn(num(v.addMs), this.#lang));
         return `<div><dt>${esc(label)}</dt><dd>${value}</dd></div>`;
       })
       .join('');

@@ -1,5 +1,5 @@
 import { define, UiElement } from '../../core/element';
-import { fmtDuration, fmtTokens, fmtUsd } from '../../core/format';
+import { fmtDurationIn, fmtTokens, fmtUsd } from '../../core/format';
 import { esc, escAttr, safeHref } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { type PlanLang, planStateHtml, planTimeOfDay } from '../../core/plan';
@@ -420,12 +420,12 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
   #tick(): void {
     const now = Date.now() + this.#skew;
     for (const el of this.$$('[data-since]')) {
-      const txt = fmtDuration(now - (Number(el.dataset.since) || now));
+      const txt = fmtDurationIn(now - (Number(el.dataset.since) || now), this.#lang);
       if (el.textContent !== txt) el.textContent = txt;
     }
     const total = this.$('[data-total-live]');
     if (total) {
-      const txt = fmtDuration(taskRunTotals(runsOf(this.data?.runs), now).ms);
+      const txt = fmtDurationIn(taskRunTotals(runsOf(this.data?.runs), now).ms, this.#lang);
       if (total.textContent !== txt) total.textContent = txt;
     }
   }
@@ -463,7 +463,7 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
     const ticking = st === 'running' && !!start;
     const ms = taskRunMs(r, Date.now() + this.#skew);
     const ap = r.approx ? '≈' : '';
-    const time = ticking ? `<span data-since="${start}"></span>` : ms ? esc(ap + fmtDuration(ms)) : '';
+    const time = ticking ? `<span data-since="${start}"></span>` : ms ? esc(ap + fmtDurationIn(ms, this.#lang)) : '';
     const tools = taskRunToolCount(r);
     const meta = [
       start ? esc(planTimeOfDay(start, lang)) : '',
@@ -510,7 +510,7 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
     const ms = taskRunMs(r, Date.now() + this.#skew);
     const ap = r.approx ? '≈' : '';
     if (st === 'running' && start) rows.push([t.took, `<span data-since="${start}"></span>`]);
-    else if (ms) rows.push([t.took, esc(ap + fmtDuration(ms))]);
+    else if (ms) rows.push([t.took, esc(ap + fmtDurationIn(ms, this.#lang))]);
     if (r.tokens) {
       const parts = PARTS.filter((k) => r.tokens?.[k] !== undefined)
         .map((k) => `<span class="tr-part">${esc(t.part[k])} ${esc(ap + fmtTokens(num(r.tokens?.[k])))}</span>`)
@@ -586,7 +586,7 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
       if (has(given.tools))
         bits.push(esc(t.calls(ap ? `${ap}${Math.round(num(given.tools))}` : Math.round(num(given.tools)))));
       if (has(given.ms) && num(given.ms))
-        bits.push(`<span class="tr-total-time">${esc(ap + fmtDuration(num(given.ms)))}</span>`);
+        bits.push(`<span class="tr-total-time">${esc(ap + fmtDurationIn(num(given.ms), this.#lang))}</span>`);
       if (has(given.costUsd)) bits.push(esc(ap + fmtUsd(Math.max(0, num(given.costUsd)))));
     } else {
       const s = taskRunTotals(runs, Date.now() + this.#skew);
@@ -594,7 +594,7 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
       if (s.hasTokens) bits.push(esc(t.tokens(fmtTokens(s.tokens))));
       bits.push(esc(t.calls(s.tools)));
       if (s.live) bits.push(`<span class="tr-total-time" data-total-live></span>`);
-      else if (s.ms) bits.push(`<span class="tr-total-time">${esc(fmtDuration(s.ms))}</span>`);
+      else if (s.ms) bits.push(`<span class="tr-total-time">${esc(fmtDurationIn(s.ms, this.#lang))}</span>`);
       if (s.hasCost) bits.push(esc(fmtUsd(s.costUsd)));
     }
     const hidden = Math.round(num(d.hidden));

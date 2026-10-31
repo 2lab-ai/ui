@@ -7,7 +7,7 @@ import {
   skillBadgesHtml,
   sysBadgeHtml,
 } from '../../core/activity';
-import { fmtDuration } from '../../core/format';
+import { fmtDurationIn } from '../../core/format';
 import { attrs, esc } from '../../core/html';
 import { icon } from '../../icons/icons';
 
@@ -369,9 +369,9 @@ function agentParts(a: WorkAgent, lang: WorkLogLang | undefined, now: number) {
   const tools = Number.isFinite(Number(a.tools)) && a.tools !== undefined ? Math.max(0, Math.floor(a.tools)) : null;
   const live = status === 'running' && Number.isFinite(Number(a.startedAt)) && a.startedAt !== undefined;
   const time = live
-    ? fmtDuration(now - Number(a.startedAt))
+    ? fmtDurationIn(now - Number(a.startedAt), lang)
     : Number.isFinite(Number(a.duration)) && a.duration !== undefined
-      ? fmtDuration(Number(a.duration))
+      ? fmtDurationIn(Number(a.duration), lang)
       : '';
   return { t, status, word: t.agent[status], tools: tools === null ? '' : t.tools(tools), time, live };
 }

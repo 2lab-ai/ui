@@ -523,8 +523,9 @@ describe('lang="ko"', () => {
     el.renderNow();
     expect(text(q(el, '.tr-title'))).toBe('실행된 태스크');
     expect(qa(el, '.pl-state').map(text)).toEqual(['완료', '제외됨', '진행 중']);
+    // The run's time in the surface's language too (0.15.1): 1분 12초, as <ui-elapsed lang="ko"> says it.
     expect(Array.from(row(el, 'T1').querySelectorAll('.tr-m')).map(text).slice(1)).toEqual([
-      '1m 12s',
+      '1분 12초',
       '토큰 43.2K',
       '툴 5회',
     ]);
@@ -539,7 +540,7 @@ describe('lang="ko"', () => {
     expect(text(li.querySelector('.tr-open'))).toBe('열기');
     expect(text(dd(run(el, 'T2'), '종료'))).toMatch(/· 계획에서 빠짐$/);
     expect(text(dd(run(el, 'T2'), '변경 기록')?.querySelector('.tr-rev-at'))).toMatch(/^(오전|오후) \d{2}:\d{2}$/);
-    expect(qa(el, '.tr-total .tr-m').map(text)).toEqual(['실행 3', '토큰 44.7K', '툴 14회', '6m 08s', '$0.16']);
+    expect(qa(el, '.tr-total .tr-m').map(text)).toEqual(['실행 3', '토큰 44.7K', '툴 14회', '6분 08초', '$0.16']);
     expect(text(q(el, '.tr-total-k'))).toBe('합계');
     expect(text(q(mount({ runs: [] }, { lang: 'ko' }), '.tr-empty strong'))).toBe('아직 실행된 태스크가 없습니다');
   });
