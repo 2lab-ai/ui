@@ -290,6 +290,18 @@ export const doc: ComponentDoc = {
         'Plans this one replaced, oldest first, folded behind “Earlier plans” with their fate counts. Nothing in them runs: a step still marked running shows as paused.',
     },
     {
+      name: 'data.labels',
+      type: '{ earlier?: string; earlierList?: string; noSteps?: string }',
+      description:
+        'The host’s own words: the earlier fold’s label (“Dropped before they ran”) and its region’s name, and the line for a plan with no step left (`""` draws none — when the fold says it all).',
+    },
+    {
+      name: 'setOpen(id, open) / isOpen(id)',
+      type: 'method',
+      description:
+        'Open or close a fold (`earlier-plans` | `earlier-steps`) from the host — a “see every task” landing — without an event or a sound; and read whether it is open.',
+    },
+    {
       name: 'data.title',
       type: 'string',
       default: "'Plan' / '계획'",
@@ -389,6 +401,24 @@ export const doc: ComponentDoc = {
       description: 'No plan yet.',
       height: 200,
       create: () => make({ steps: [] }),
+    },
+    {
+      id: 'dropped',
+      title: 'Nothing left to run, opened by the host',
+      description:
+        'A new plan dropped every task before it ran: no step is left, so the host names the fold (“Dropped before they ran”), draws no “no steps” line and opens the fold itself with setOpen() — as a “see every task” landing would.',
+      height: 320,
+      create: () => {
+        const p = longPlan();
+        const el = make({
+          title: 'Plan 3',
+          steps: [],
+          earlier: p.earlier,
+          labels: { earlier: 'Dropped before they ran', earlierList: 'Tasks dropped before they ran', noSteps: '' },
+        });
+        el.setOpen('earlier-plans', true);
+        return el;
+      },
     },
     {
       id: 'ko',

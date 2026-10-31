@@ -34,6 +34,11 @@ export interface TaskPlanData {
   steps: PlanStep[];
   /** Plans this one replaced, oldest first — folded behind “Earlier plans”. */
   earlier?: TaskPlanEarlier[];
+  /**
+   * Words of the host's own: the earlier fold's label (`Dropped before they ran`) and its region's name, and the
+   * line for a plan with no step left (`''` draws none — when the fold says it all).
+   */
+  labels?: { earlier?: string; earlierList?: string; noSteps?: string };
   /** The host's clock (epoch ms) when it built this data: running clocks correct for this device's clock skew. */
   now?: number;
 }
@@ -190,6 +195,19 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
     return STRINGS[this.#lang];
   }
 
+  /** Open or close a fold from the host (no event, no sound — its own choice): a “see every task” landing. */
+  setOpen(id: TaskPlanToggle['id'], open: boolean): void {
+    if (id !== 'earlier-plans' && id !== 'earlier-steps') return;
+    if (this.#open[id] === !!open) return;
+    this.#open[id] = !!open;
+    this.requestRender();
+  }
+
+  /** Whether a fold is open now. */
+  isOpen(id: TaskPlanToggle['id']): boolean {
+    return id === 'earlier-plans' || id === 'earlier-steps' ? this.#open[id] : false;
+  }
+
   #onClick(e: Event): void {
     const btn = (e.target as Element | null)?.closest?.('.pl-earlier-btn') as HTMLElement | null;
     const id = btn?.dataset.earlier;
@@ -279,8 +297,9 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
         class: 'tp-empty-icon',
       })}<strong>${esc(t.empty)}</strong><span>${esc(t.emptyHint)}</span></div></section>`;
     }
+    const noSteps = typeof d.labels?.noSteps === 'string' ? d.labels.noSteps.trim() : t.noSteps;
     return `<section class="tp" ${label}>${head}${this.#earlierPlans(earlier, t, lang)}${
-      steps.length ? this.#current(steps, t, lang) : `<p class="pl-empty tp-none">${esc(t.noSteps)}</p>`
+      steps.length ? this.#current(steps, t, lang) : noSteps ? `<p class="pl-empty tp-none">${esc(noSteps)}</p>` : ''
     }</section>`;
   }
 
@@ -301,13 +320,16 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
         )}</section>`;
       })
       .join('');
+    const L = this.data?.labels;
+    const label = (typeof L?.earlier === 'string' && L.earlier.trim()) || t.earlier;
+    const listLabel = (typeof L?.earlierList === 'string' && L.earlierList.trim()) || t.earlierList;
     return planEarlierHtml({
       id: 'earlier-plans',
       open: this.#open['earlier-plans'],
-      label: t.earlier,
+      label,
       count: earlier.length,
       meta: taskFateSummary(counts, lang),
-      body: `<div class="tp-pasts" role="group" aria-label="${escAttr(t.earlierList)}">${groups}</div>`,
+      body: `<div class="tp-pasts" role="group" aria-label="${escAttr(listLabel)}">${groups}</div>`,
     });
   }
 

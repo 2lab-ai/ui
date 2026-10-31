@@ -291,6 +291,34 @@ describe('<ui-task-plan> rendering', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('opens a fold from the host with setOpen() — no event, no sound — and takes the host’s labels (D3 G5-3)', () => {
+    const el = mount({ ...BASE, labels: { earlier: 'Dropped before they ran', earlierList: 'Dropped tasks' } });
+    const seen: TaskPlanToggle[] = [];
+    el.addEventListener('ui-toggle', (e) => seen.push((e as CustomEvent<TaskPlanToggle>).detail));
+    const btn = q<HTMLButtonElement>(el, '.pl-earlier-btn[data-earlier="earlier-plans"]')!;
+    expect(text(btn.querySelector('.pl-earlier-label'))).toBe('Dropped before they ran');
+    expect(q(el, '.tp-pasts')?.getAttribute('aria-label')).toBe('Dropped tasks');
+    expect(el.isOpen('earlier-plans')).toBe(false);
+    el.setOpen('earlier-plans', true);
+    el.renderNow();
+    expect(el.isOpen('earlier-plans')).toBe(true);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    expect(q(el, '#pl-earlier-earlier-plans')?.hasAttribute('inert')).toBe(false);
+    el.setOpen('earlier-plans', false);
+    el.renderNow();
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    el.setOpen('nope' as never, true);
+    expect(el.isOpen('nope' as never)).toBe(false);
+    expect(seen).toEqual([]);
+    // No step left: the host's own line, or none at all when the fold says it.
+    const none = mount({ steps: [], earlier: EARLIER, labels: { noSteps: 'Every task was dropped before it ran' } });
+    expect(text(q(none, '.tp-none'))).toBe('Every task was dropped before it ran');
+    expect(q(mount({ steps: [], earlier: EARLIER, labels: { noSteps: '' } }), '.tp-none')).toBeNull();
+    expect(text(q(mount({ steps: [], earlier: EARLIER, labels: { earlier: ' ' } }), '.pl-earlier-label'))).toBe(
+      'Earlier plans',
+    );
+  });
+
   it('says what is empty: no plan, or no steps in the current plan', () => {
     const empty = mount({ steps: [] });
     expect(text(q(empty, '.tp-empty strong'))).toBe('No plan yet');
