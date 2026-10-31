@@ -191,7 +191,7 @@ export function kitPage(codeBlock: CodeBlock): string {
   ${codeBlock(s.html.replace(/<svg[\s\S]*?<\/svg>/g, iconCall), `kit-${i}`)}`,
   ).join('');
   return `<div class="crumb">Foundations</div><h1>UI kit <span class="chip">ui-kit.css</span></h1>
-  <p class="lede">Light-DOM classes for the parts of a host page that are not components: buttons, chips, status words, keys, facts, skeletons, empty states, avatars, fields and switches, cards, notices and list rows. Same tokens, same motion, same calm — every value is a <code>--ui-*</code> token or a <code>color-mix()</code> of them.</p>
+  <p class="lede">Light-DOM classes for the parts of a host page that are not components: buttons and the floating one, chips and select chips, the working ring, status words, keys, facts, skeletons, empty states, avatars, fields and switches, cards, notices and list rows. Same tokens, same motion, same calm — every value is a <code>--ui-*</code> token or a <code>color-mix()</code> of them.</p>
   ${codeBlock(`import '@2lab.ai/ui/tokens.css';   // the --ui-* tokens (or map your own onto them)\nimport '@2lab.ai/ui/ui-kit.css';\n\n// or as a string, e.g. for a shadow root or a server-rendered <style>\nimport { kitCss } from '@2lab.ai/ui/kit';`, 'kit-import')}
   <p class="desc">Classes: ${KIT_CLASSES.map((c) => `<code>.${esc(c)}</code>`).join(' · ')}. Modifiers are <code>is-*</code>; tones are <code>data-tone="run | wait | done | fail | rest"</code>.</p>
   ${blocks}`;

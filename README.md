@@ -36,6 +36,7 @@ Surfaces — the page-level pieces around the agent (0.6.0):
 | Stat Strip | `<ui-stat-strip>` | How the period went — a period segmented control, rolling figures, per-metric breakdown tooltips, a More disclosure |
 | Bar Chart | `<ui-bar-chart>` | How it moved over time — small single or stacked bars, axis ticks, keyboard and tooltip per bar, legend, empty state |
 | File Card | `<ui-file-card>` | What a file is — kind glyph or thumbnail, name, size and age as a tile, row or chip |
+| Media Grid | `<ui-media-grid>` | What pictures came with the message — a row of tiles (compact for a card's row), “+N” on the last for the rest, one picture whole in a wide box; each tile a button named by its action that opens it (`ui-open` with the index among all), lazy images, “No preview” for one that fails |
 | Artifact Viewer | `<ui-artifact-viewer>` | What the agent made — a strip or grid of files, a hover peek, and a lightbox with previous / next, preview and Download; a trusted page runs its scripts, a PDF opens in the browser’s viewer, `ui-before-view` / `ui-closed` for a host’s own body |
 | Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, Enter to send |
 
@@ -63,13 +64,16 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Disclosure | `<ui-disclosure>` | Summary row over a region that grows 0fr → 1fr and is inert while closed; a links row that stays in view while closed |
 | Log Scroller | `<ui-log-scroller>` | Newest-at-bottom scroll box: follows the latest, pages older items in without moving your place (`[data-anchor]` rows inside an item count too), “jump to latest” with an unread count; or as tall as its items while the page scrolls |
 | Elapsed | `<ui-elapsed>` | A live time — running for, stopwatch, how long ago, countdown — on one shared whole-second tick, text changed in place |
+| Meter | `<ui-meter>` | How much is left (or used) of a bounded thing — a bar or a battery with its fill, the percent or your own words, a tone from `low` / `high` / `optimum` (the native `<meter>`'s rule); a new value slides the fill in place; `role="meter"`, unknown is “?” |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
-`@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab`, `.ui-chip`,
-`.ui-status`, `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`,
-`.ui-section-head` with a `.ui-count` badge, and for page parts `.ui-input`, `.ui-switch`, `.ui-card`, `.ui-notice`, `.ui-row` — the row
-that is the page, `aria-current="page"`, keeps the hover fill). Korean prose (`lang="ko"`) breaks between words, never inside them, in every
-element and every kit class (`word-break: keep-all`).
+`@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab` — round, or
+`.is-extended` with a word that `.is-folded` folds away —, `.ui-chip`, `.ui-select-chip` (a native `<select>` read as a label-sized chip,
+alone or in a `<label>` with a leading word), `.ui-spinner` (the working ring; a still ring with a dot under reduced motion), `.ui-status`,
+`.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`, `.ui-section-head` with a
+`.ui-count` badge, and for page parts `.ui-input`, `.ui-switch`, `.ui-card`, `.ui-notice`, `.ui-row` — the row that is the page,
+`aria-current="page"`, keeps the hover fill). Korean prose (`lang="ko"`) breaks between words, never inside them, in every element and
+every kit class (`word-break: keep-all`).
 
 Server — `@2lab.ai/ui/server`, the one entry with no element in it: `authCardHtml(data)` renders the auth card as a declarative shadow
 root the element later hydrates in place, `authCardCss` is its sheet as data, with `tokensCss`, `kitCss`, `icon()` and the escapers. Nothing

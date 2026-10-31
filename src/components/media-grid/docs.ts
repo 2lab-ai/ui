@@ -182,11 +182,12 @@ export const doc: ComponentDoc = {
     {
       id: 'ko',
       title: 'Korean, and a picture that failed',
-      description: 'lang="ko": 이미지 열기 2/5, 외 1개, 미리보기 불가 — the third picture’s source is unreachable.',
+      description: 'lang="ko": 이미지 열기 2/5, 외 1개, 미리보기 불가 — the third picture’s source is not a picture.',
       height: 220,
       create: () => {
         const items = pictures('ko');
-        items[2] = { ...items[2], url: 'https://media.example.invalid/IMG_4821.jpg' };
+        // A source the page may load that is not a picture: the tile shows "No preview" once the image fails.
+        items[2] = { ...items[2], url: 'data:image/png;base64,AAAA' };
         return echoed(grid({ items }, { lang: 'ko' }), 'ko');
       },
     },

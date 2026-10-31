@@ -91,6 +91,7 @@ const BY_ELEMENT: Array<[string, string]> = [
   ['Composer, Agent Steering, Approval Card, Choice Form submit', 'tap; Deny and cancel close'],
   ['AI Answer, Conversation, Tool Call Card copy', 'subtle success'],
   ['Agent Inbox card, App Bar link, Auth Card provider, Settings Nav', 'navigate'],
+  ['File Card, Media Grid tile', 'tap — opening a file or a picture'],
   ['Deck Nav, Artifact Viewer previous / next, Log Scroller latest', 'subtle navigate, back when going back'],
   ['Two-press deletes (Goal Card, Knowledge Pages, Episode Log)', 'subtle tap to arm, strong close to confirm'],
   ['Agent Run stop', 'close'],
