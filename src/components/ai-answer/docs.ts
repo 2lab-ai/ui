@@ -132,7 +132,7 @@ export const doc: ComponentDoc = {
       name: 'data.error',
       type: 'string',
       description:
-        'Failure detail, e.g. `HTTP 404`. Without text it is the whole card; with text it takes the response time’s place.',
+        'Failure detail — the cause only, e.g. `HTTP 404`, not a sentence: it is shown as “Couldn’t get the answer (<error>)” / “답변을 불러오지 못했습니다 (<error>)”. Without text it is the whole card; with text it takes the response time’s place.',
     },
     {
       name: 'data.canRetry',

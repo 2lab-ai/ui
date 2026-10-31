@@ -600,7 +600,7 @@ export const doc: ComponentDoc = {
       name: 'data.turns[].responseMs · streaming · loading · error · canRetry',
       type: 'number · boolean · boolean · string · boolean',
       description:
-        'assistant: the response-time chip; more text coming (no Raw yet); the recorded answer is being fetched; it could not be had, with Try again (ui-retry with the turn id).',
+        'assistant: the response-time chip; more text coming (no Raw yet); the recorded answer is being fetched; it could not be had, with Try again (ui-retry with the turn id). error is the cause only (“HTTP 404”), not a sentence: it is shown as “Couldn’t get the answer (<error>)” / “답변을 불러오지 못했습니다 (<error>)”.',
     },
     {
       name: 'data.turns[].attachments · linkTitles',

@@ -256,6 +256,8 @@ describe('<ui-conversation> rendering', () => {
     const failed = answerOf(el, 'a3');
     failed.renderNow();
     expect(failed.shadowRoot?.querySelector('.ans-error')?.textContent).toContain('HTTP 404');
+    // G5-3: the documented shape — the element's sentence, the host's cause in brackets (Korean likewise).
+    expect(failed.shadowRoot?.querySelector('.ans-error')?.textContent).toBe('Couldn’t get the answer (HTTP 404)');
     expect(failed.shadowRoot?.querySelector('.ans-retry')).not.toBeNull();
   });
 

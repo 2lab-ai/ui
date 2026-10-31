@@ -66,7 +66,10 @@ export interface ConversationTurn {
   streaming?: boolean;
   /** assistant: the host is fetching the recorded answer. */
   loading?: boolean;
-  /** assistant: the answer could not be had (e.g. "HTTP 404"). */
+  /**
+   * assistant: the answer could not be had — the cause only (e.g. "HTTP 404"), not a sentence: it is shown as
+   * “Couldn’t get the answer (<error>)” / “답변을 불러오지 못했습니다 (<error>)”.
+   */
   error?: string;
   /** assistant: offer "Try again" next to the error (`ui-retry` with the turn id). */
   canRetry?: boolean;
