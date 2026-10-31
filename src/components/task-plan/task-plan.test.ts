@@ -3,11 +3,13 @@ import { type PlanStep, planCss } from '../../core/plan';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type TaskPlanData,
+  type TaskPlanMore,
   type TaskPlanToggle,
   taskEarlierSteps,
   taskFateCounts,
   taskFateSummary,
   taskStepFate,
+  taskWindow,
   type UiTaskPlan,
 } from './task-plan';
 
@@ -102,6 +104,25 @@ describe('pure helpers', () => {
     expect(out[0].steps?.[0].status).toBe('paused');
     expect(out[0].steps?.[0].fate).toBeUndefined();
     expect(taskEarlierSteps(undefined as never)).toEqual([]);
+  });
+
+  it('windows a plan: the earliest done leave first, then the latest pending; the running step stays', () => {
+    const s = (...st: string[]) => st.map((status) => ({ status }) as PlanStep);
+    // 3 done · running · 4 pending, max 4: the three done fold, then one pending off the end.
+    expect(taskWindow(s('done', 'done', 'done', 'running', 'pending', 'pending', 'pending', 'pending'), 4)).toEqual({
+      shown: [3, 4, 5, 6],
+      hidden: 4,
+    });
+    // Fits: nothing hidden. 0 / junk: the whole plan.
+    expect(taskWindow(s('done', 'running', 'pending'), 3)).toEqual({ shown: [0, 1, 2], hidden: 0 });
+    expect(taskWindow(s('done', 'running', 'pending'), 0)).toEqual({ shown: [0, 1, 2], hidden: 0 });
+    expect(taskWindow(s('done', 'running', 'pending'), Number.NaN)).toEqual({ shown: [0, 1, 2], hidden: 0 });
+    // Only pending to cut: the last ones go, the running step (last) stays.
+    expect(taskWindow(s('pending', 'pending', 'pending', 'running'), 2)).toEqual({ shown: [0, 3], hidden: 2 });
+    // Nothing done or pending to cut: paused / failed go from the end; a running step never goes.
+    expect(taskWindow(s('failed', 'paused', 'running', 'paused'), 2)).toEqual({ shown: [0, 2], hidden: 2 });
+    expect(taskWindow(s('running', 'running', 'running'), 1)).toEqual({ shown: [0, 1, 2], hidden: 0 });
+    expect(taskWindow(s('done', 'bogus' as never, 'running'), 1)).toEqual({ shown: [2], hidden: 2 });
   });
 
   it('counts fates and says them, leaving out zeros', () => {
@@ -341,6 +362,139 @@ describe('<ui-task-plan> rendering', () => {
   });
 });
 
+describe('window mode (max) — a card’s few rows and one “+N” button to the whole plan (D7 D-12)', () => {
+  const done = (i: number): PlanStep => ({
+    id: `d${i}`,
+    label: `Step ${i}`,
+    status: 'done',
+    startedAt: NOW - (i + 2) * 60_000,
+    endedAt: NOW - (i + 1) * 60_000,
+  });
+  const LONG: PlanStep[] = [
+    ...[0, 1, 2, 3, 4, 5].map(done),
+    { id: 'r', label: 'Now', status: 'running', startedAt: NOW - 30_000 },
+    { id: 'p1', label: 'Next', status: 'pending' },
+    { id: 'p2', label: 'Then', status: 'pending' },
+    { id: 'p3', label: 'Last', status: 'pending' },
+  ];
+
+  it('keeps at most max rows — the earliest done folded, the latest pending cut — with no lead fold and a “+N more” button', () => {
+    const el = mount({ title: '', steps: LONG }, { max: '4' });
+    expect(qa(el, '.tp-list > .pl-step').map((r) => text(r.querySelector('.pl-text')))).toEqual([
+      'Now',
+      'Next',
+      'Then',
+      'Last',
+    ]);
+    expect(q(el, '.tp-list')?.classList.contains('tp-window')).toBe(true);
+    expect(q(el, '.tp-list')?.getAttribute('aria-label')).toBe('Plan steps, 4 of 10');
+    expect(q(el, '.pl-earlier')).toBeNull();
+    expect(q(el, '.pl-fold')).toBeNull();
+    const btn = q<HTMLButtonElement>(el, '.tp-more-btn')!;
+    expect(text(btn)).toBe('+6 more');
+    expect(btn.dataset.key).toBe('tp-more');
+    expect(btn.type).toBe('button');
+    // The running row still ticks; the foot still counts the whole plan.
+    expect(text(q(el, '.tp-list > .pl-step[data-step="running"] > .pl-aside'))).toBe('30s');
+    expect(text(q(el, '.pl-foot-st'))).toBe('Running · 6/10');
+    // The button follows the list and comes before the foot.
+    const kids = Array.from(q(el, '.tp')!.children).map((c) => c.className);
+    expect(kids).toEqual(['pl-list tp-list tp-window', 'tp-more', 'pl-foot']);
+  });
+
+  it('data.max wins over the attribute; a plan that fits draws no “+N”; max off draws the lead fold again', () => {
+    const el = mount({ steps: LONG, max: 3 }, { max: '8' });
+    expect(qa(el, '.tp-list > .pl-step').length).toBe(3);
+    expect(text(q(el, '.tp-more-btn'))).toBe('+7 more');
+    el.data = { steps: LONG.slice(5), max: 5 };
+    el.renderNow();
+    expect(qa(el, '.tp-list > .pl-step').length).toBe(5);
+    expect(q(el, '.tp-more')).toBeNull();
+    expect(q(el, '.tp-list')?.getAttribute('aria-label')).toBe('Plan steps');
+    el.data = { steps: LONG };
+    el.removeAttribute('max');
+    el.renderNow();
+    expect(q(el, '.tp-more')).toBeNull();
+    expect(q(el, '.pl-earlier-btn[data-earlier="earlier-steps"]')).not.toBeNull();
+    expect(qa(el, '.tp-list > .pl-step').length).toBe(7);
+    // Junk caps mean the whole plan.
+    el.setAttribute('max', 'lots');
+    el.renderNow();
+    expect(qa(el, '.tp-list > .pl-step').length).toBe(7);
+    expect(q(el, '.tp-window')).toBeNull();
+  });
+
+  it('foot="none" draws no phase foot — in a window or not — and data.foot does the same', () => {
+    const el = mount({ title: '', steps: LONG }, { max: '3', foot: 'none' });
+    expect(q(el, '.pl-foot')).toBeNull();
+    expect(q(el, '.tp-more-btn')).not.toBeNull();
+    const full = mount({ ...BASE, foot: 'none' });
+    expect(q(full, '.pl-foot')).toBeNull();
+    expect(q(full, '.pl-earlier')).not.toBeNull();
+    full.data = BASE;
+    full.renderNow();
+    expect(q(full, '.pl-foot')).not.toBeNull();
+    // Only "none" turns it off.
+    expect(q(mount({ steps: STEPS }, { foot: 'yes' }), '.pl-foot')).not.toBeNull();
+  });
+
+  it('draws the host’s own “+N” words, escaped, and reports ui-more (not cancelable) with hidden and total', () => {
+    const el = mount({ title: '', steps: LONG, more: `+3 done · all 10 tasks → ${XSS}` }, { max: '4' });
+    const btn = q<HTMLButtonElement>(el, '.tp-more-btn')!;
+    expect(text(btn)).toBe(`+3 done · all 10 tasks → ${XSS}`);
+    expect(el.shadowRoot!.querySelector('img')).toBeNull();
+    const seen: Array<{ detail: TaskPlanMore; cancelable: boolean; bubbles: boolean; composed: boolean }> = [];
+    el.addEventListener('ui-more', (e) => {
+      const ev = e as CustomEvent<TaskPlanMore>;
+      seen.push({ detail: ev.detail, cancelable: ev.cancelable, bubbles: ev.bubbles, composed: ev.composed });
+    });
+    btn.focus();
+    btn.click();
+    expect(seen).toEqual([{ detail: { hidden: 6, total: 10 }, cancelable: false, bubbles: true, composed: true }]);
+    // Nothing changed here: the same rows, no fold opened, no ui-toggle.
+    expect(qa(el, '.tp-list > .pl-step').length).toBe(4);
+    // Focus survives new data (data-key).
+    el.data = {
+      title: '',
+      steps: LONG.map((s) => (s.id === 'p1' ? { ...s, status: 'running' as const } : s)),
+      more: ' ',
+    };
+    el.renderNow();
+    expect(el.shadowRoot!.activeElement).toBe(q(el, '.tp-more-btn'));
+    // Blank host words: the element's own.
+    expect(text(q(el, '.tp-more-btn'))).toBe('+6 more');
+  });
+
+  it('a window keeps the current step in view even past max, and the sr list name says the window', () => {
+    const el = mount(
+      { title: '', steps: [...[0, 1, 2].map(done), { id: 'r', label: 'Now', status: 'running' }] },
+      { max: '1' },
+    );
+    expect(qa(el, '.tp-list > .pl-step').map((r) => text(r.querySelector('.pl-text')))).toEqual(['Now']);
+    expect(q(el, '[aria-current="step"]')).not.toBeNull();
+    expect(q(el, '.tp-list')?.getAttribute('aria-label')).toBe('Plan steps, 1 of 4');
+    expect(text(q(el, '.tp-more-btn'))).toBe('+3 more');
+  });
+
+  it('says it in Korean: “+N개 더” and the window’s list name', () => {
+    const el = mount({ title: '', steps: LONG }, { max: '3', lang: 'ko' });
+    expect(text(q(el, '.tp-more-btn'))).toBe('+7개 더');
+    expect(q(el, '.tp-list')?.getAttribute('aria-label')).toBe('계획 단계, 전체 10개 중 3개');
+    el.data = { steps: LONG, more: '+6 완료 · 전체 task 10개 →' };
+    el.renderNow();
+    expect(text(q(el, '.tp-more-btn'))).toBe('+6 완료 · 전체 task 10개 →');
+  });
+
+  it('the “+N” button is a 44px target on coarse pointers, quiet otherwise, and still under reduced motion', () => {
+    const el = mount({ steps: LONG }, { max: '3' });
+    const css = el.shadowRoot?.querySelector('style')?.textContent ?? '';
+    expect(css).toMatch(/\(pointer: coarse\)[^{]*\{\s*\.tp-more-btn \{ min-height: 44px; \}/);
+    expect(css).toMatch(/prefers-reduced-motion: reduce\)[^}]*\.tp-more-btn \{ transition: none !important; \}/);
+    expect(css).toContain('.tp-more-btn:hover { background: var(--ib-pill); color: var(--text); }');
+    expect(css).not.toMatch(/\.tp-more-btn[^{]*\{[^}]*#[0-9a-f]{3,6}/i);
+  });
+});
+
 describe('escaping', () => {
   it('escapes every host / model string', () => {
     const el = mount({
@@ -467,6 +621,16 @@ describe('sound', () => {
       ['open', { emphasis: 'subtle', input: 'mouse' }],
       ['close', { emphasis: 'subtle', input: 'keyboard' }],
     ]);
+  });
+
+  it('the window’s “+N” is silent: the host’s surface that opens says it', async () => {
+    const el = mount({ steps: [...STEPS, { id: 'x', label: 'X', status: 'pending' }] }, { max: '2' });
+    const seen: TaskPlanMore[] = [];
+    el.addEventListener('ui-more', (e) => seen.push((e as CustomEvent<TaskPlanMore>).detail));
+    tap(q(el, '.tp-more-btn'));
+    await spy.settle();
+    expect(seen.length).toBe(1);
+    expect(spy.calls).toEqual([]);
   });
 
   it('nothing for data the app sets or in a data-ui-sound="off" region', async () => {

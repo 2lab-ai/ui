@@ -17,6 +17,7 @@ export * from './components/approval-card';
 export * from './components/artifact-viewer';
 export * from './components/auth-card';
 export * from './components/bar-chart';
+export * from './components/breadcrumbs';
 export * from './components/choice-form';
 export * from './components/compact-breakdown';
 export * from './components/composer';
