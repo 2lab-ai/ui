@@ -1,8 +1,12 @@
+import { fileKindIcon } from '../../core/files';
 import type { ComponentDoc } from '../../docs/types';
+import { icon } from '../../icons/icons';
 import { demoFiles, demoPhoto } from '../file-card/demo';
 import '../file-card/file-card';
+import '../hovercard/hovercard';
 import type { FileOpenDetail, UiFileCard } from '../file-card/file-card';
-import type { FileItem } from '../file-card/render';
+import { type FileItem, fileItemKind } from '../file-card/render';
+import type { HovercardDetail, UiHovercard } from '../hovercard/hovercard';
 import './artifact-viewer';
 import type {
   ArtifactActionDetail,
@@ -12,6 +16,60 @@ import type {
   ArtifactViewerData,
   UiArtifactViewer,
 } from './artifact-viewer';
+import { peekHtml } from './logic';
+import { peekPageCss } from './styles';
+
+/**
+ * The peek inside a hovercard of the page's own: kit rows for the files, `peekHtml` filled on ui-open (one file
+ * carries only a fetched `head`), `peekPageCss` in a page stylesheet, the kind on the wrapper.
+ */
+function ownPeek(): HTMLElement {
+  const all = demoFiles();
+  const items: FileItem[] = [
+    all[0],
+    { ...all[1], text: undefined, head: String(all[1].text).split('\n').slice(0, 8).join('\n') },
+    all[4],
+    all[7],
+  ];
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;width:100%;max-width:420px';
+  const style = document.createElement('style');
+  style.textContent = `${peekPageCss}
+.op-peek { width: 320px; overflow: hidden; border-radius: inherit; }
+.op-peek .md-doc h1, .op-peek .md-doc h2 { margin: 0 0 4px; font-size: 13px; }
+.op-peek .md-doc p, .op-peek .md-doc ul { margin: 0 0 6px; }`;
+  const list = document.createElement('div');
+  list.setAttribute('role', 'list');
+  items.forEach((it, i) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'ui-row op-row';
+    row.dataset.i = String(i);
+    row.innerHTML = `${icon(fileKindIcon(fileItemKind(it)))}<div><strong></strong><small></small></div>`;
+    (row.querySelector('strong') as HTMLElement).textContent = it.name;
+    (row.querySelector('small') as HTMLElement).textContent = it.head ? 'head fetched for the peek' : it.meta || '';
+    list.append(row);
+  });
+  const card = document.createElement('ui-hovercard') as UiHovercard;
+  card.setAttribute('for', '.op-row');
+  card.setAttribute('width', '320');
+  card.addEventListener('ui-open', (e) => {
+    const t = (e as CustomEvent<HovercardDetail>).detail.trigger as HTMLElement;
+    const it = items[Number(t.dataset.i)];
+    if (!it) {
+      e.preventDefault();
+      return;
+    }
+    const box = document.createElement('div');
+    box.className = 'op-peek';
+    box.setAttribute('data-kind', fileItemKind(it));
+    box.innerHTML = peekHtml(it, 'en');
+    card.replaceChildren(box);
+  });
+  card.addEventListener('ui-closed', () => card.replaceChildren());
+  wrap.append(style, list, card);
+  return wrap;
+}
 
 /**
  * One viewer over the page's own cards: two groups of <ui-file-card> (an answer's chips, the attachments' tiles)
@@ -284,6 +342,18 @@ export const doc: ComponentDoc = {
         'html: the page runs its own scripts — the viewer’s and the peek’s frames get sandbox="allow-scripts" (never same-origin: no cookies, no storage, no reach into your page); the note reads “Runs its own scripts”. Only for a page you trust — the chart or small app the model wrote.',
     },
     {
+      name: 'data.items[].head',
+      type: 'string',
+      description:
+        'The first lines of a markdown / text document for the peek alone (fetched with a Range request, say) when text is not in hand. The viewer’s body still wants text; without it, the card.',
+    },
+    {
+      name: 'peekHtml(item, lang, now?, broken?) · peekCss · peekPageCss',
+      type: 'export',
+      description:
+        'The peek’s inside as markup — image, document head (text, else head), a small copy of a page, the glyph, then name · kind · meta — for a hovercard of your own. Wrap it in an element with data-kind (fileItemKind(item)); style it with peekCss in a shadow root, or peekPageCss in the page (the tokens become --ui-*). Import from @2lab.ai/ui/artifact-viewer.',
+    },
+    {
       name: 'kind: "pdf"',
       type: 'body',
       description:
@@ -526,6 +596,14 @@ export const doc: ComponentDoc = {
             ],
           }),
         ).box,
+    },
+    {
+      id: 'own-peek',
+      title: 'The peek in your own hovercard',
+      description:
+        'peekHtml(item, lang) and peekPageCss: the same preview — the picture, a document head (text, or a head the page fetched), the page, the glyph — inside a <ui-hovercard> over rows of the page’s own. Rest on a row.',
+      height: 300,
+      create: () => ownPeek(),
     },
     {
       id: 'over-host',

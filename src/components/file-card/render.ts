@@ -45,6 +45,11 @@ export interface FileItem {
    * same-origin: no cookies, no storage, no reach into the page). Only for a page you trust, e.g. one the model wrote.
    */
   scripts?: boolean;
+  /**
+   * The first lines of a markdown / text document (fetched with a Range request, say) for the peek alone, when `text`
+   * is not in hand. The viewer's body still wants `text`; without it, the card.
+   */
+  head?: string;
   /** One extra quiet line ("from Build agent"). */
   meta?: string;
   /** File name for Download (default `name`). */

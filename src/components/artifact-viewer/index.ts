@@ -12,8 +12,10 @@ export {
   artifactLayout,
   extraActions,
   MAX_EXTRA_ACTIONS,
+  peekHtml,
   stepIndex,
   textHead,
   viewerActions,
   viewerBodyKind,
 } from './logic';
+export { peekCss, peekPageCss } from './styles';
