@@ -29,8 +29,8 @@ export interface TurnProgress {
 /**
  * One turn of the conversation. `id` is required and stable (it keys the node). Fields per role:
  * - user: `name`, `at`, `text`, `media`, `skills`
- * - assistant: `name`, `at`, `markdown`, `source`, `summary`, `responseMs`, `streaming`, `loading`, `error`,
- *   `canRetry`, `attachments`, `linkTitles`
+ * - assistant: `name`, `at`, `markdown`, `source`, `summary`, `responseMs`, `streaming`, `loading`, `deferred`,
+ *   `error`, `canRetry`, `attachments`, `linkTitles`
  * - system: `name`, `at`, `kind`, `label`, `text`, `facts`, `raw`, `media`, `progress`
  * - pending: `name` — the "writing the answer" row; always shown last.
  */
@@ -66,6 +66,12 @@ export interface ConversationTurn {
   streaming?: boolean;
   /** assistant: the host is fetching the recorded answer. */
   loading?: boolean;
+  /**
+   * assistant: the answer is recorded but not fetched yet. With no `markdown`, the turn's summary heads the answer
+   * and a “Load answer” button sends `ui-load-answer` with the turn id; Raw keeps its Summary view and has no Source
+   * until the text arrives. `loading` and `error` take precedence.
+   */
+  deferred?: boolean;
   /**
    * assistant: the answer could not be had — the cause only (e.g. "HTTP 404"), not a sentence: it is shown as
    * “Couldn’t get the answer (<error>)” / “답변을 불러오지 못했습니다 (<error>)”.
@@ -125,6 +131,11 @@ export interface ConversationData {
 export interface ConversationRetryDetail {
   id: string | null;
   what?: 'summary';
+}
+
+/** `ui-load-answer` detail (cancelable): the deferred turn whose answer to fetch (“Load answer” was pressed). */
+export interface ConversationLoadDetail {
+  id: string;
 }
 
 /** `ui-copy` detail (notification): what was copied from which turn. */
@@ -366,6 +377,7 @@ export function turnAnswerData(turn: ConversationTurn, animate: boolean): AiAnsw
   const data: AiAnswerData = { markdown, animate };
   if (turn.streaming) data.streaming = true;
   if (turn.loading) data.loading = true;
+  if (turn.deferred) data.deferred = true;
   if (turn.error) data.error = String(turn.error);
   if (turn.canRetry) data.canRetry = true;
   if (turn.linkTitles && typeof turn.linkTitles === 'object') data.linkTitles = turn.linkTitles;

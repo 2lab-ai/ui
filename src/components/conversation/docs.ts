@@ -364,7 +364,32 @@ function statesDemo(): HTMLElement {
       }, 900);
     } else partial.data = { turns: [ask, answer] };
   });
-  box.append(loading, empty, failed, partial);
+  // Recorded on the server, fetched when asked for: the summary stands in, Load answer brings the text.
+  let kept: ConversationTurn = {
+    id: 'a-2',
+    role: 'assistant',
+    at: BASE + 30_000,
+    responseMs: 30_000,
+    deferred: true,
+    summary: { title: 'Incident summary', text: 'Search down 14 minutes; certificate renewed.' },
+  };
+  const deferred = frame(make({ turns: [ask, kept] }, 260));
+  deferred.addEventListener('ui-load-answer', () => {
+    kept = { ...kept, loading: true };
+    deferred.data = { turns: [ask, kept] };
+    setTimeout(() => {
+      if (!deferred.isConnected) return;
+      kept = {
+        ...kept,
+        loading: undefined,
+        deferred: undefined,
+        markdown:
+          'The search service was down for **14 minutes** after a certificate expired. It was renewed by hand; renewal is now automatic.',
+      };
+      deferred.data = { turns: [ask, kept] };
+    }, 900);
+  });
+  box.append(loading, empty, failed, partial, deferred);
   return box;
 }
 
@@ -603,6 +628,12 @@ export const doc: ComponentDoc = {
         'assistant: the response-time chip; more text coming (no Raw yet); the recorded answer is being fetched; it could not be had, with Try again (ui-retry with the turn id). error is the cause only (“HTTP 404”), not a sentence: it is shown as “Couldn’t get the answer (<error>)” / “답변을 불러오지 못했습니다 (<error>)”.',
     },
     {
+      name: 'data.turns[].deferred',
+      type: 'boolean',
+      description:
+        'assistant: the answer is recorded but not fetched. With no markdown the summary heads it and “Load answer” / “답변 불러오기” sends ui-load-answer with the turn id; set loading, then markdown. Raw keeps its Summary view and has no Source until then. loading and error win over it.',
+    },
+    {
       name: 'data.turns[].attachments · linkTitles',
       type: 'boolean · Record<string, string>',
       description:
@@ -700,6 +731,12 @@ export const doc: ComponentDoc = {
         'Try again: a turn’s answer (its id) or the conversation itself (null); what: "summary" when Retry was pressed on the turn’s summary (Raw’s Summary view, summary.canRetry). Cancelable.',
     },
     {
+      name: 'ui-load-answer',
+      detail: '{ id: string }',
+      description:
+        'Load answer was pressed on a deferred turn: fetch its text and set it (loading meanwhile). Cancelable.',
+    },
+    {
       name: 'ui-copy',
       detail: "{ id: string, text: string, from: 'answer' | 'summary' | 'source' | 'raw' }",
       description:
@@ -726,7 +763,7 @@ export const doc: ComponentDoc = {
     'The progress row is role="progressbar" with aria-valuenow and a spoken aria-valuetext (“1:12 / ~2:30, 48%”); the bar itself is decoration.',
     'Status is never colour alone: errors carry an icon and words, system kinds an icon and a word. Focus survives a turn’s rebuild.',
     'Reduced motion: no press scale, no slide; regions fade only; the over-run sweep becomes a still bar.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again; loading older turns stays silent. Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again and Load answer; loading older turns stays silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-conversation style="height: 560px"></ui-conversation>
 <script type="module">
@@ -767,7 +804,7 @@ export const doc: ComponentDoc = {
       id: 'states',
       title: 'Loading, empty and errors',
       description:
-        'Skeleton turns for the first page; the empty text; a failed load as the whole box (Try again loads it); a bar above the turns, and an answer that failed with its own Try again.',
+        'Skeleton turns for the first page; the empty text; a failed load as the whole box (Try again loads it); a bar above the turns, and an answer that failed with its own Try again; a deferred answer — its summary stands in until Load answer (ui-load-answer) fetches it.',
       height: 600,
       create: statesDemo,
     },

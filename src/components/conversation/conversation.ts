@@ -10,6 +10,7 @@ import {
   type ConversationCopyDetail,
   type ConversationData,
   type ConversationLang,
+  type ConversationLoadDetail,
   type ConversationRetryDetail,
   type ConversationStrings,
   type ConversationTurn,
@@ -179,6 +180,7 @@ export class UiConversation extends UiElement<ConversationData> {
     this.root.addEventListener('transitionend', (e) => this.#onTransitionEnd(e as TransitionEvent));
     // A nested answer's Try again / Copy leave with the turn's id.
     this.root.addEventListener('ui-retry', (e) => this.#fromAnswer(e, 'retry'));
+    this.root.addEventListener('ui-load', (e) => this.#fromAnswer(e, 'load'));
     this.root.addEventListener('ui-copy', (e) => this.#fromAnswer(e, 'copy'));
     // The scroller's request for older turns leaves from this element (cancelable through).
     this.root.addEventListener('ui-load-older', (e) => this.#fromLog(e));
@@ -752,8 +754,8 @@ export class UiConversation extends UiElement<ConversationData> {
     if (box?.hasAttribute('data-open')) box.setAttribute('data-settled', '');
   }
 
-  /** A nested answer's Try again (cancelable) and Copy (a notification) leave with the turn's id. */
-  #fromAnswer(e: Event, kind: 'retry' | 'copy'): void {
+  /** A nested answer's Try again / Load answer (cancelable) and Copy (a notification) leave with the turn's id. */
+  #fromAnswer(e: Event, kind: 'retry' | 'load' | 'copy'): void {
     const a = e.target as Element | null;
     if (!a || a.tagName !== 'UI-AI-ANSWER') return;
     const id = a.closest<HTMLElement>('.cv-turn')?.dataset.item;
@@ -761,6 +763,10 @@ export class UiConversation extends UiElement<ConversationData> {
     e.stopPropagation();
     if (kind === 'retry') {
       if (!this.emit<ConversationRetryDetail>('ui-retry', { id })) e.preventDefault();
+      return;
+    }
+    if (kind === 'load') {
+      if (!this.emit<ConversationLoadDetail>('ui-load-answer', { id })) e.preventDefault();
       return;
     }
     const text = String((e as CustomEvent<{ text?: string }>).detail?.text ?? '');

@@ -643,6 +643,55 @@ describe('<ui-conversation> events', () => {
     expect((inner as Event | null)?.defaultPrevented).toBe(true);
   });
 
+  it('G5-2: a deferred turn shows its summary and Load answer; the press is ui-load-answer { id } (cancelable through); loading / error win', () => {
+    const kept: ConversationTurn = {
+      id: 'a7',
+      role: 'assistant',
+      deferred: true,
+      summary: { title: 'Pinned the clock', text: 'The test read the wall clock.' },
+    };
+    const el = mount({ turns: [kept] });
+    const ans = answerOf(el, 'a7');
+    ans.renderNow();
+    expect(ans.data?.deferred).toBe(true);
+    expect(ans.data?.title).toBe('Pinned the clock — The test read the wall clock.');
+    expect(ans.shadowRoot?.querySelector('.ans-deferred')?.textContent).toBe('Not loaded yet');
+    expect(ans.shadowRoot?.querySelector('.ans-empty')).toBeNull();
+    // Raw: the Summary view only — no Source until the text arrives.
+    click(q(el, '[data-act="raw"]'));
+    expect(qa(el, '.cv-tab').length).toBe(0);
+    expect(q(el, '.cv-raw-h')?.textContent).toBe('Summary');
+    const seen: unknown[] = [];
+    el.addEventListener('ui-load-answer', (e) => {
+      seen.push((e as CustomEvent).detail);
+      e.preventDefault();
+    });
+    let inner: Event | null = null;
+    ans.addEventListener('ui-load', (e) => {
+      inner = e;
+    });
+    click(ans.shadowRoot?.querySelector('.ans-load'));
+    expect(seen).toEqual([{ id: 'a7' }]);
+    expect((inner as Event | null)?.defaultPrevented).toBe(true);
+    // The host fetches: loading replaces the button; the text replaces both.
+    el.data = { turns: [{ ...kept, loading: true }] };
+    el.renderNow();
+    const loading = answerOf(el, 'a7');
+    loading.renderNow();
+    expect(loading.shadowRoot?.querySelector('.ans-load')).toBeNull();
+    expect(loading.shadowRoot?.querySelector('.ans-loading')).not.toBeNull();
+    el.data = { turns: [{ ...kept, deferred: undefined, markdown: 'Fixed.' }] };
+    el.renderNow();
+    const done = answerOf(el, 'a7');
+    done.renderNow();
+    expect(done.shadowRoot?.querySelector('.ans-body')?.textContent).toContain('Fixed.');
+    expect(turnAnswerData({ id: 'x', role: 'assistant', deferred: true }, false).deferred).toBe(true);
+    expect(turnAnswerData({ id: 'x', role: 'assistant' }, false).deferred).toBeUndefined();
+    expect(turnSignature({ id: 'x', role: 'assistant', deferred: true })).not.toBe(
+      turnSignature({ id: 'x', role: 'assistant' }),
+    );
+  });
+
   it('copies Raw text and the answer, reporting ui-copy with the turn id', async () => {
     vi.useFakeTimers();
     const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
@@ -944,6 +993,18 @@ describe('sound', () => {
     press(b.querySelector('.raw-retry'));
     await spy.settle();
     expect(spy.calls).toHaveLength(4);
+    // G5-2: Load answer on a deferred turn taps (the nested answer's cue, once); a prevented load is silent.
+    el.data = { turns: [{ id: 'a8', role: 'assistant', deferred: true }] };
+    el.renderNow();
+    const kept = answerOf(el, 'a8');
+    kept.renderNow();
+    press(kept.shadowRoot?.querySelector('.ans-load'));
+    await spy.settle();
+    expect(spy.calls.slice(4)).toEqual([['tap', { input: 'mouse' }]]);
+    el.addEventListener('ui-load-answer', (e) => e.preventDefault());
+    press(kept.shadowRoot?.querySelector('.ans-load'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(5);
   });
 
   it('nothing for a prevented retry, data the app sets, or a data-ui-sound="off" region', async () => {

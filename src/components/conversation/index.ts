@@ -3,6 +3,7 @@ export type {
   ConversationCopyDetail,
   ConversationData,
   ConversationLang,
+  ConversationLoadDetail,
   ConversationRetryDetail,
   ConversationStrings,
   ConversationTurn,
