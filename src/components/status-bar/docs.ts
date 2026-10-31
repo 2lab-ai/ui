@@ -92,9 +92,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.actions',
-      type: "Array<{ id, label, icon?, tone?: 'danger', primary?, disabled?: boolean | string, busy? }>",
+      type: "Array<{ id, label, icon?, tone?: 'danger' | 'quiet', primary?, disabled?: boolean | string, busy?, ariaLabel?, title?, pressed? }>",
       description:
-        'Buttons at the end of the row. `icon` is a glyph name from the icon set. `primary` = the surface’s one ink button. `tone: "danger"` takes two presses within 4 s and then shows busy until the next data. `disabled` as a string disables and says why (tooltip). `busy` = a request in flight (spinner, aria-busy).',
+        'Buttons at the end of the row. `icon` is a glyph name from the icon set. `primary` = the surface’s one ink button. `tone: "danger"` takes two presses within 4 s and then shows busy until the next data; `tone: "quiet"` is a borderless, muted button for a lesser action (Trash). `disabled` as a string disables and says why (tooltip). `busy` = a request in flight (spinner, aria-busy). `ariaLabel` names the action for what it does to the session (`Close — end the session`), `title` is its tooltip, `pressed` makes it a toggle (aria-pressed and the raised-chip look: ☆ Star / ★ Starred).',
     },
     {
       name: 'data.link',
@@ -129,6 +129,7 @@ export const doc: ComponentDoc = {
     'A polite live region says status changes (“Status: Done”) and the armed state (“Press again to confirm: Stop”) — never the ticking clock.',
     'The clock is one text node updated in place; data updates patch the row, so focus stays on the button it was on.',
     'The link’s accessible name starts with its visible label and says it opens a new tab.',
+    'An action’s accessible name is its label, or `ariaLabel` when the label alone would mislead (a bar’s Close beside a panel’s ✕); while armed, “Press again to confirm: …” wins. A toggle carries aria-pressed; its on state is the raised chip and the glyph in the wait tone, never colour alone.',
     'Buttons and the link are 44px tall on coarse pointers and narrow screens. Reduced motion: no press scale, the spinner stops.',
     "Sound (opt-in, @2lab.ai/ui/sound): an action taps once ui-action is not prevented; a danger action's arming press plays a subtle tap and its confirming press a tap; the link plays navigate. Silent until the page turns sound on.",
   ],
@@ -171,6 +172,48 @@ export const doc: ComponentDoc = {
             { id: 'answer', label: 'Answer', icon: 'arrow-right', primary: true },
           ],
         }),
+    },
+    {
+      id: 'named',
+      title: 'Named · toggled · quiet',
+      description:
+        'ariaLabel names an action when its label alone would mislead (this Close is the bar’s, beside a panel’s ✕), title is its tooltip, pressed is a toggle’s state (Starred, the raised chip — press it), tone: "quiet" keeps a secondary action low.',
+      height: 200,
+      create: () => {
+        const el = make({
+          ...running(),
+          actions: [
+            { id: 'star', label: 'Starred', icon: 'star', pressed: true, title: 'Press to remove the star' },
+            {
+              id: 'close',
+              label: 'Close',
+              icon: 'close',
+              tone: 'quiet',
+              ariaLabel: 'Close the status bar',
+              title: 'Close the status bar',
+            },
+            { id: 'stop', label: 'Stop', icon: 'stop', tone: 'danger' },
+          ],
+        }) as UiStatusBar;
+        el.addEventListener('ui-action', (e) => {
+          const { id } = (e as CustomEvent<StatusBarActionDetail>).detail;
+          if (id !== 'star' || !el.data?.actions) return;
+          el.data = {
+            ...el.data,
+            actions: el.data.actions.map((a) =>
+              a.id === 'star'
+                ? {
+                    ...a,
+                    pressed: !a.pressed,
+                    label: a.pressed ? 'Star' : 'Starred',
+                    title: a.pressed ? 'Press to star this run' : 'Press to remove the star',
+                  }
+                : a,
+            ),
+          };
+        });
+        return el;
+      },
     },
     {
       id: 'finished',

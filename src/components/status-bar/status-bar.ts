@@ -13,14 +13,26 @@ export interface StatusBarAction {
   label: string;
   /** A glyph from the icon set (`stop`, `trash`, `refresh` …). Unknown names draw nothing. */
   icon?: string;
-  /** `danger`: destructive — it takes two presses within 4 s (the first arms it: “Press again”). */
-  tone?: 'danger';
+  /**
+   * `danger`: destructive — it takes two presses within 4 s (the first arms it: “Press again”). `quiet`: a
+   * borderless, muted button for a lesser action (Trash, Archive) beside the others.
+   */
+  tone?: 'danger' | 'quiet';
   /** The surface’s one ink primary (danger + primary = the red fill). */
   primary?: boolean;
   /** `true` disables the action; a string disables it and says why (tooltip). */
   disabled?: boolean | string;
   /** A request for this action is in flight: spinner, aria-busy, not pressable. */
   busy?: boolean;
+  /**
+   * The accessible name when the label alone is not it — `Close — end the session`, so a bar’s Close is never taken
+   * for a panel’s ✕. While armed the “Press again” name wins.
+   */
+  ariaLabel?: string;
+  /** Tooltip: what the action does (`Keep this session at the top`). A `disabled` reason wins while disabled. */
+  title?: string;
+  /** A toggle’s state (Star / Starred): aria-pressed, and the pressed look — the raised neutral chip. */
+  pressed?: boolean;
 }
 
 /** A link at the end of the row (a thread, a log): opens in a new tab. */
@@ -351,17 +363,25 @@ export class UiStatusBar extends UiElement<StatusBarData> {
       const state = busy ? 'busy' : armed ? 'armed' : 'idle';
       const label = armed ? t.armed : String(a.label ?? '');
       const glyph = busy ? SPIN : armed ? icon('alert', { size: 14 }) : a.icon ? icon(a.icon, { size: 14 }) : '';
+      const own = typeof a.ariaLabel === 'string' && a.ariaLabel.trim() ? a.ariaLabel.trim() : undefined;
+      const tip = typeof a.title === 'string' && a.title.trim() ? a.title.trim() : undefined;
       out += `<button${attrs({
         type: 'button',
-        class: cls('sb-btn', a.primary && 'is-primary', a.tone === 'danger' && 'is-danger'),
+        class: cls(
+          'sb-btn',
+          a.primary && 'is-primary',
+          a.tone === 'danger' && 'is-danger',
+          a.tone === 'quiet' && 'is-quiet',
+        ),
         'data-id': a.id,
         'data-key': `sb-act:${a.id}`,
         'data-mk': `sb-act:${a.id}`,
         'data-armed': armed,
         disabled: busy || !!a.disabled,
         'aria-busy': busy ? 'true' : undefined,
-        'aria-label': armed ? t.armedLabel(String(a.label ?? '')) : undefined,
-        title: why || undefined,
+        'aria-label': armed ? t.armedLabel(String(a.label ?? '')) : own,
+        'aria-pressed': typeof a.pressed === 'boolean' ? String(a.pressed) : undefined,
+        title: why || tip,
       })}>${glyph ? `<span class="sb-bi" data-mk="i-${state}">${glyph}</span>` : ''}<span class="sb-bt" data-mk="t-${state}">${esc(label)}</span></button>`;
     }
     return out;

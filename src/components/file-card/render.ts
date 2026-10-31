@@ -40,6 +40,22 @@ export interface FileItem {
   thumb?: string;
   /** Inline content: markdown, text, code, or an HTML page (shown in a sandboxed frame, never in the DOM). */
   text?: string;
+  /**
+   * html: the page runs its own scripts — the viewer's and the peek's frames get `sandbox="allow-scripts"` (never
+   * same-origin: no cookies, no storage, no reach into the page). Only for a page you trust, e.g. one the model wrote.
+   */
+  scripts?: boolean;
+  /**
+   * pdf: the host vouches for the url (same origin, or a file store it trusts), so the viewer frames it as is in the
+   * browser's own PDF viewer — no sandbox, since a sandbox turns that viewer off. Without it a PDF is the calm card
+   * with Open and Download: an unvetted url never runs in an unsandboxed frame.
+   */
+  frame?: boolean;
+  /**
+   * The first lines of a markdown / text document (fetched with a Range request, say) for the peek alone, when `text`
+   * is not in hand. The viewer's body still wants `text`; without it, the card.
+   */
+  head?: string;
   /** One extra quiet line ("from Build agent"). */
   meta?: string;
   /** File name for Download (default `name`). */

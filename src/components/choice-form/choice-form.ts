@@ -18,6 +18,8 @@ import {
   choiceFormCanSubmit,
   choiceFormHero,
   choiceFormKey,
+  choiceFormLocked,
+  choiceFormLockReason,
   choiceFormNext,
   choiceFormNormalize,
   choiceFormOrder,
@@ -150,6 +152,11 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     return !!d.submitting || !!this.#sending;
   }
 
+  /** This person cannot answer (`canAnswer`): every control is held, nothing is sent. */
+  #locked(d: ChoiceFormData): boolean {
+    return choiceFormLocked(d.canAnswer);
+  }
+
   /** Which control spins: the one that sent; host-held `submitting` alone → Submit (one question on pick: its answer). */
   #spin(d: ChoiceFormData, qs: ChoiceFormQuestion[]): Sending | null {
     if (this.#sending) return this.#sending;
@@ -187,7 +194,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
   #onClick(e: Event): void {
     const el = (e.target as Element | null)?.closest?.('[data-act]') as HTMLElement | null;
     const d = this.data;
-    if (!el || !d || d.submitted) return;
+    if (!el || !d || d.submitted || this.#locked(d)) return;
     this.#sync(d);
     const act = el.dataset.act;
     const qid = str(el.dataset.q);
@@ -216,7 +223,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     const d = this.data;
     if (!d) return;
     const qs = this.#sync(d);
-    if (this.#busy(d) || d.submitted) return;
+    if (this.#busy(d) || this.#locked(d) || d.submitted) return;
     const qi = qs.findIndex((q) => q.id === qid);
     if (qi < 0 || !qs[qi].choices.some((c) => c.id === cid)) return;
     if (this.#pickSubmits(d, qs)) {
@@ -234,7 +241,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     if (!d) return;
     const qs = this.#sync(d);
     const qi = qs.findIndex((q) => q.id === qid);
-    if (qi < 0 || !qs[qi].allowCustom || this.#busy(d)) return;
+    if (qi < 0 || !qs[qi].allowCustom || this.#busy(d) || this.#locked(d)) return;
     const input = this.#inputOf(qid);
     if (input) this.#drafts.set(qid, input.value);
     const text = str(this.#drafts.get(qid)).trim();
@@ -305,7 +312,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     if (!d) return;
     const qs = this.#sync(d);
     const qi = qs.findIndex((q) => q.id === qid);
-    if (qi < 0 || this.#busy(d)) return;
+    if (qi < 0 || this.#busy(d) || this.#locked(d)) return;
     const a = this.#answers[qid];
     if (a && a.choiceId === undefined && a.custom !== undefined && !this.#drafts.get(qid))
       this.#drafts.set(qid, a.custom);
@@ -327,7 +334,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     const d = this.data;
     if (!d) return;
     const qs = this.#sync(d);
-    if (this.#busy(d)) return;
+    if (this.#busy(d) || this.#locked(d)) return;
     const had = Object.keys(this.#answers).length > 0;
     const changed = had || this.#editing.size > 0 || this.#drafts.size > 0;
     this.#answers = {};
@@ -347,7 +354,7 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
     const d = this.data;
     if (!d || d.submitted) return;
     const qs = this.#sync(d);
-    if (this.#busy(d)) return;
+    if (this.#busy(d) || this.#locked(d)) return;
     if (source === 'recommended') {
       if (this.#single(qs) || !choiceFormHero(qs, this.#answers).enabled) return;
       if (this.#send(choiceFormRecommendedAnswers(qs, this.#answers).answers, source, qs, { source }))
@@ -580,7 +587,10 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
 
   #form(d: ChoiceFormData, qs: ChoiceFormQuestion[], t: ChoiceFormStrings): string {
     const single = this.#single(qs);
-    const busy = this.#busy(d);
+    const sending = this.#busy(d);
+    const locked = this.#locked(d);
+    // Held controls: while sending, and while this person cannot answer (the form stays readable, nothing presses).
+    const busy = sending || locked;
     const spin = this.#spin(d, qs);
     const p = choiceFormProgress(qs, this.#answers);
     const current = this.#current(qs);
@@ -626,9 +636,14 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
 
     const err = str(d.error);
     const error =
-      err && !busy
+      err && !sending
         ? `<p class="cf-error" role="alert">${icon('alert', { size: 14, class: 'cf-error-icon' })}<span>${esc(err)}</span></p>`
         : '';
+    const lock = locked
+      ? `<p class="cf-lock" role="status" data-key="lock">${icon('lock', { size: 14, class: 'cf-lock-icon' })}<span>${esc(
+          choiceFormLockReason(d.canAnswer) || t.locked,
+        )}</span></p>`
+      : '';
     let row = '';
     if (!pickSubmits) {
       const need = single ? 0 : d.allowPartial ? (p.answered ? 0 : 1) : p.total - p.answered;
@@ -646,11 +661,11 @@ export class UiChoiceForm extends UiElement<ChoiceFormData> {
       )}${spinSubmit ? '' : `<kbd class="cf-kbd" aria-hidden="true">${esc(KBD_ENTER)}</kbd>`}</button>`;
       row = `<div class="cf-foot-row">${need ? `<span class="cf-hint" id="cf-hint">${esc(t.needMore(need))}</span>` : ''}<div class="cf-actions">${reset}${submit}</div></div>`;
     }
-    const foot = error || row ? `<div class="cf-foot">${error}${row}</div>` : '';
+    const foot = lock || error || row ? `<div class="cf-foot">${lock}${error}${row}</div>` : '';
 
     return `<div class="cf" data-mk="form" data-mode="${single ? 'single' : 'multi'}" role="group"${
       title ? ' aria-labelledby="cf-title"' : ''
-    }${busy ? ' aria-busy="true"' : ''}>${head}${hero}<div class="cf-list">${cards}</div>${foot}</div>`;
+    }${sending ? ' aria-busy="true"' : ''}${locked ? ' data-locked' : ''}>${head}${hero}<div class="cf-list">${cards}</div>${foot}</div>`;
   }
 
   #card(

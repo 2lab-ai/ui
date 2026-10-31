@@ -8,6 +8,7 @@ import {
   type GoalCardData,
   goalActions,
   goalAgo,
+  goalMetaHtml,
   goalProgress,
   goalStatus,
   objectiveOverflows,
@@ -108,6 +109,27 @@ describe('helpers', () => {
     expect(goalActions('complete')).toEqual(['delete']);
     expect(goalActions('failed')).toEqual(['delete']);
     expect(goalActions('evaluating')).toEqual(['complete', 'delete']);
+  });
+
+  it('keeps only the actions the host answers, in the card’s order', () => {
+    expect(goalActions('active', ['delete'])).toEqual(['delete']);
+    expect(goalActions('active', ['delete', 'complete'])).toEqual(['complete', 'delete']);
+    expect(goalActions('paused', ['pause', 'resume'])).toEqual(['resume']);
+    expect(goalActions('active', [])).toEqual([]);
+    expect(goalActions('complete', ['complete', 'pause'])).toEqual([]);
+    expect(goalActions('active', undefined)).toEqual(['complete', 'pause', 'delete']);
+    expect(goalActions('active', null)).toEqual(['complete', 'pause', 'delete']);
+  });
+
+  it('draws meta items as quiet label · value spans, escaped, skipping empty ones', () => {
+    const html = goalMetaHtml([{ label: 'Continues', value: '3/10' }, '$0.42', '', { label: '', value: '' }, 7]);
+    expect(html).toBe(
+      '<span class="gc-kv"><span class="gc-k">Continues</span> <span class="gc-v">3/10</span></span><span class="gc-dot" aria-hidden="true">·</span><span class="gc-kv">$0.42</span>',
+    );
+    expect(goalMetaHtml([{ label: '<b>', value: '<i>' }])).toContain('&lt;b&gt;</span> <span class="gc-v">&lt;i&gt;');
+    expect(goalMetaHtml([{ value: '2×' }])).toBe('<span class="gc-kv"><span class="gc-v">2×</span></span>');
+    expect(goalMetaHtml('x')).toBe('');
+    expect(goalMetaHtml(undefined)).toBe('');
   });
 
   it('normalises progress from a fraction or steps', () => {
@@ -287,6 +309,87 @@ describe('<ui-goal-card> rendering', () => {
     expect(q(empty, '.gc-input')).toBeNull();
   });
 
+  it('limits the actions to what the host answers; the add box stays with canEdit', () => {
+    const el = mount({ ...BASE, actions: ['delete'] });
+    expect(acts(el)).toEqual(['delete']);
+    expect(q(el, '.gc-input')).not.toBeNull();
+    expect(qa(el, '.gc-rm')).toHaveLength(2);
+    const paused = mount({ ...BASE, current: { ...BASE.current!, status: 'paused' }, actions: ['pause', 'resume'] });
+    expect(acts(paused)).toEqual(['resume']);
+    expect(qa(paused, '.gc-rm')).toHaveLength(0);
+    const none = mount({ ...BASE, actions: [] });
+    expect(q(none, '.gc-acts')).toBeNull();
+    expect(qa(none, '.gc-rm')).toHaveLength(0);
+    expect(q(none, '.gc-add-btn')).not.toBeNull();
+    const ro = mount({ ...BASE, actions: ['delete'], canEdit: false });
+    expect(qa(ro, '.gc-btn')).toHaveLength(0);
+    expect(q(ro, '.gc-input')).toBeNull();
+  });
+
+  it('disarms an armed action the host stops answering', () => {
+    vi.useFakeTimers({ now: NOW });
+    const el = mount(BASE);
+    press(el, '.gc-btn[data-act="delete"]');
+    expect(q(el, '[data-armed]')).not.toBeNull();
+    el.data = { ...BASE, actions: ['complete'] };
+    el.renderNow();
+    expect(q(el, '[data-armed]')).toBeNull();
+    expect(q(el, '.gc-live')?.textContent).toBe('');
+    el.data = BASE;
+    el.renderNow();
+    press(el, '.gc-q-row:nth-child(1) .gc-rm');
+    expect(q(el, '.gc-rm[data-armed]')).not.toBeNull();
+    el.data = { ...BASE, actions: ['complete'] };
+    el.renderNow();
+    expect(q(el, '.gc-rm')).toBeNull();
+    expect(q(el, '.gc-live')?.textContent).toBe('');
+  });
+
+  it('draws the current goal’s budget meta after the times and its note under them', () => {
+    const el = mount({
+      ...BASE,
+      current: {
+        ...BASE.current!,
+        meta: [{ label: 'Continues', value: '3/10' }, '$0.42'],
+        note: '  Left: the rollback runbook.\nAnd the checklist.  ',
+      },
+    });
+    const meta = q(el, '.gc-meta')!;
+    expect(meta.textContent).toBe('Started 2h ago·Updated 5m ago·Continues 3/10·$0.42');
+    expect(qa(el, '.gc-meta .gc-kv').map((k) => k.textContent)).toEqual(['Continues 3/10', '$0.42']);
+    expect(q(el, '.gc-meta .gc-v')?.textContent).toBe('3/10');
+    expect(q(el, '.gc-note')?.textContent).toBe('Left: the rollback runbook.\nAnd the checklist.');
+    expect(q(el, '.gc-note')?.nextElementSibling?.className).toBe('gc-acts');
+    // Meta alone makes the line; a blank note draws nothing.
+    const only = mount({ current: { id: 'g', objective: 'x', status: 'active', meta: ['$1'], note: '  ' } });
+    expect(q(only, '.gc-meta')?.textContent).toBe('$1');
+    expect(q(only, '.gc-note')).toBeNull();
+    expect(q(mount(BASE), '.gc-note')).toBeNull();
+  });
+
+  it('draws a past goal’s meta line and note', () => {
+    const el = mount({
+      ...BASE,
+      history: [
+        {
+          id: 'h1',
+          objective: 'Fix the flaky test',
+          status: 'complete',
+          endedAt: NOW - 3 * HOUR,
+          meta: ['2h 10m active', { label: 'Continued', value: '2×' }],
+          note: 'The retry loop masked a race.',
+        },
+        { id: 'h2', objective: 'Speed up search', status: 'failed' },
+      ],
+    });
+    const rows = qa(el, '.gc-h-row');
+    expect(rows[0].querySelector('.gc-h-meta')?.textContent).toBe('2h 10m active·Continued 2×');
+    expect(rows[0].querySelector('.gc-h-note')?.textContent).toBe('The retry loop masked a race.');
+    expect(rows[0].querySelector('.gc-h-obj')?.nextElementSibling?.className).toBe('gc-h-meta');
+    expect(rows[1].querySelector('.gc-h-meta')).toBeNull();
+    expect(rows[1].querySelector('.gc-h-note')).toBeNull();
+  });
+
   it('draws a raw unknown status as written, neutral', () => {
     const el = mount({ current: { id: 'g', objective: 'x', status: 'evaluating' } });
     const chip = q(el, '.gc-head .gc-chip')!;
@@ -303,14 +406,18 @@ describe('<ui-goal-card> escaping', () => {
   it('escapes every user and model string', () => {
     const el = mount({
       now: NOW,
-      current: { id: Q, objective: X, status: X, progress: 0.5 },
+      current: { id: Q, objective: X, status: X, progress: 0.5, meta: [X, { label: X, value: Q }], note: X },
       queue: [{ id: `${Q}q`, objective: X }],
-      history: [{ id: `${Q}h`, objective: X, status: Q }],
+      history: [{ id: `${Q}h`, objective: X, status: Q, meta: [{ label: Q, value: X }], note: Q }],
       error: X,
     });
     const root = el.shadowRoot!;
     expect(root.querySelector('img')).toBeNull();
     expect(root.querySelector('script')).toBeNull();
+    expect(qa(el, '.gc-meta .gc-kv').map((k) => k.textContent)).toEqual([X, `${X} ${Q}`]);
+    expect(q(el, '.gc-note')?.textContent).toBe(X);
+    expect(q(el, '.gc-h-meta')?.textContent).toBe(`${Q} ${X}`);
+    expect(q(el, '.gc-h-note')?.textContent).toBe(Q);
     expect(q(el, '.gc-obj')?.textContent).toBe(X);
     expect(q(el, '.gc-head .gc-chip')?.textContent).toBe(X);
     expect(q(el, '.gc-q-text')?.textContent).toBe(X);
@@ -830,6 +937,12 @@ describe('<ui-goal-card> lang="ko"', () => {
     expect(q(el, '.gc-btn[data-act="delete"]')?.textContent).toBe('삭제할까요?');
     expect(q(el, '.gc-live')?.textContent).toBe('한 번 더 누르면 목표를 삭제합니다 — 다음 목표가 시작됩니다');
     expect(q(mount({}, { lang: 'ko' }), '.gc-empty')?.textContent).toBe('아직 목표가 없습니다');
+    const budget = mount(
+      { ...BASE, actions: ['delete'], current: { ...BASE.current!, meta: [{ label: '이어하기', value: '3/10' }] } },
+      { lang: 'ko' },
+    );
+    expect(q(budget, '.gc-meta')?.textContent).toBe('2시간 전 시작·5분 전 갱신·이어하기 3/10');
+    expect(qa(budget, '.gc-acts .gc-btn').map((b) => b.textContent)).toEqual(['삭제']);
   });
 
   it('switches language when the attribute changes', () => {
@@ -863,6 +976,16 @@ describe('styles and docs', () => {
       expect(el).toBeInstanceOf(HTMLElement);
     }
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('the host-actions demo draws only Delete, with meta and notes', () => {
+    const el = doc.demos.find((d) => d.id === 'host-actions')!.create() as UiGoalCard;
+    document.body.append(el);
+    el.renderNow();
+    expect(acts(el)).toEqual(['delete']);
+    expect(q(el, '.gc-note')).not.toBeNull();
+    expect(qa(el, '.gc-meta .gc-kv').length).toBeGreaterThan(0);
+    expect(qa(el, '.gc-h-meta')).toHaveLength(2);
   });
 
   it('the demo host answers intents with new data', () => {

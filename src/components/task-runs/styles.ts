@@ -73,6 +73,11 @@ ${planCss}
 .tr-total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 8px 4px 0; padding: 9px 6px 2px; border-top: 1px solid var(--border); font-size: 12.5px; line-height: 18px; color: var(--ib-text-2); font-variant-numeric: tabular-nums; }
 .tr-total-k { font-weight: 600; color: var(--ib-text); }
 .tr-total-v { display: inline-flex; flex-wrap: wrap; gap: 0 6px; min-width: 0; }
+.tr-total-note { color: var(--ib-muted); }
+/* Extra totals rows (outside tasks, subagents apart): quieter, under the first, no rule of their own */
+.tr-total.tr-total-x { margin-top: 0; padding-top: 2px; border-top: 0; color: var(--ib-muted); }
+.tr-total-x .tr-total-k { font-weight: 500; color: var(--ib-text-2); }
+.tr-note { overflow-wrap: anywhere; }
 
 /* ── Empty ── */
 .tr-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 12px 16px; text-align: center; font-size: 12.5px; line-height: 1.45; color: var(--ib-muted); }

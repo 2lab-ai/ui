@@ -126,7 +126,13 @@ export const doc: ComponentDoc = {
       name: 'authCardHtml(data, { lang?, page?, theme? })',
       type: 'string',
       description:
-        'Server-side markup: the element with a declarative shadow root (styles + card) and the data as JSON.',
+        'Server-side markup: the element with a declarative shadow root (styles + card) and the data as JSON. Also exported from `@2lab.ai/ui/server` — no element in it, so a server imports it without a DOM, and a CommonJS server can `require` it (the `.cjs` build; types for node10 resolution via `typesVersions`).',
+    },
+    {
+      name: 'authCardCss',
+      type: 'string',
+      description:
+        'The card’s whole stylesheet as data (the shared base sheet, then the card’s own) — what the declarative root carries, for a host that renders the card another way. From `@2lab.ai/ui/auth-card` or `@2lab.ai/ui/server`.',
     },
   ],
   events: [
@@ -157,7 +163,8 @@ export const doc: ComponentDoc = {
     'Provider buttons are links with their words as the name; logos are decorative.',
     'While a sign-in is on its way the pressed button is aria-busy with “Redirecting…”, the others aria-disabled.',
     'The two sessions are a list with “Signed in now” / “New session” before each name — never colour alone.',
-    'Works without JavaScript when rendered with authCardHtml (declarative shadow DOM, real links and form).',
+    'Works without JavaScript when rendered with authCardHtml (declarative shadow DOM, real links and form). On upgrade the element keeps the server-drawn nodes and patches them (one entrance animation, not two); later renders patch in place too.',
+    'Korean prose (lang="ko") breaks between words, never inside them — the base sheet sets word-break: keep-all for every element.',
     'Sound (opt-in, @2lab.ai/ui/sound): a provider, the brand, Continue, Sign out and Cancel play navigate — also when the host cancels ui-provider / ui-navigate to take the sign-in or the route over; confirming a session switch plays tap once ui-confirm does. Silent until the page turns sound on.',
   ],
   usage: `<ui-auth-card page></ui-auth-card>
@@ -173,9 +180,10 @@ export const doc: ComponentDoc = {
   };
 </script>
 
-// Server: the same card, working before (and without) the script.
-import { authCardHtml } from '@2lab.ai/ui/auth-card';
-res.send(\`<!doctype html><link rel="stylesheet" href="/tokens.css">\${authCardHtml(data, { page: true })}
+// Server: the same card, working before (and without) the script. @2lab.ai/ui/server has no element in it
+// (no DOM needed) and ships a CommonJS build: const { authCardHtml } = require('@2lab.ai/ui/server').
+import { authCardHtml, tokensCss } from '@2lab.ai/ui/server';
+res.send(\`<!doctype html><style>\${tokensCss}</style>\${authCardHtml(data, { page: true })}
 <script type="module" src="/ui/auth-card.js"></script>\`);`,
   demos: [
     {
@@ -217,7 +225,7 @@ res.send(\`<!doctype html><link rel="stylesheet" href="/tokens.css">\${authCardH
       id: 'switch',
       title: 'Confirm a session switch',
       description:
-        'A one-time link would replace the session this browser has: both sessions, then Cancel · Continue as … (a real form).',
+        'A one-time link would replace the session this browser has: both sessions, then Cancel · Continue as … (a real form). The primary grows with its label and wraps; when the pair cannot share the row it takes a row of its own, above Cancel.',
       height: 520,
       frame: false,
       create: () =>
@@ -228,7 +236,7 @@ res.send(\`<!doctype html><link rel="stylesheet" href="/tokens.css">\${authCardH
             text: 'This link signs this browser in as someone else. Your current session ends.',
             confirm: {
               from: { name: 'Mina Park', meta: 'mina@example.com' },
-              to: { name: 'Jon Lee', meta: 'jon@example.com' },
+              to: { name: 'Jonathan Alexander Lee-Kim', meta: 'jonathan.lee-kim@example.com' },
               action: '/auth/switch',
               fields: { token: 'one-time-token' },
               cancelHref: '/app',
@@ -239,7 +247,8 @@ res.send(\`<!doctype html><link rel="stylesheet" href="/tokens.css">\${authCardH
     {
       id: 'error-ko',
       title: 'An error, in Korean',
-      description: 'lang="ko" — the alert line sits at the top of the card; the hint keeps its code span.',
+      description:
+        'lang="ko" — the alert line sits at the top of the card; the hint keeps its code span; Korean breaks between words, never inside them (word-break: keep-all).',
       height: 560,
       frame: false,
       create: () =>
@@ -265,7 +274,7 @@ res.send(\`<!doctype html><link rel="stylesheet" href="/tokens.css">\${authCardH
       id: 'server',
       title: 'Server-rendered',
       description:
-        'authCardHtml(data) → the element, a declarative shadow root and its data as JSON. A server page shows it before any script runs; here the element upgrades from the JSON it carries.',
+        'authCardHtml(data) → the element, a declarative shadow root and its data as JSON. A server page shows it before any script runs; the element then adopts that root and hydrates it in place (the card does not fade in a second time). Here the element upgrades from the JSON it carries.',
       height: 480,
       frame: false,
       create: () => {

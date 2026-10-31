@@ -296,6 +296,13 @@ export const doc: ComponentDoc = {
       description: 'The working answers in question order — what Submit would send now.',
     },
     {
+      name: 'data.canAnswer',
+      type: 'boolean | string',
+      default: 'true',
+      description:
+        '`false` locks the form — every control stays visible and focusable but none presses, nothing is sent — with a generic line; a string locks it and says why (“Only the session owner can answer”). Use it for a viewer, a non-owner or a sibling instance that already answered.',
+    },
+    {
       name: 'focus()',
       type: 'method',
       description: 'Lands on the open question’s tab stop (or Submit, or the summary).',
@@ -336,7 +343,7 @@ export const doc: ComponentDoc = {
     'After a pick focus moves to the next open question (else Submit); the fold is inert while closed, so hidden choices never take focus. Under reduced motion the scroll is instant and the fold is a short fade.',
     'Progress is text (“2 of 4 answered”), the dots are decorative; a polite live region says the new count after each pick, “Answers cleared” after Reset and “Answers submitted” once sent.',
     'Recommended is a word as well as a tint; the answered state is a check, the word in the chip and the number turning into a check — never colour alone.',
-    'Busy controls stay focusable (aria-disabled), so focus is not lost while sending; an error is a role="alert" line.',
+    'Busy controls stay focusable (aria-disabled), so focus is not lost while sending; an error is a role="alert" line. A locked form (canAnswer) holds every control the same way and says why in a role="status" line with a lock glyph.',
     'Disabled Submit is described by “Answer 2 more to submit”.',
     'Sound (opt-in, @2lab.ai/ui/sound): picking a choice or confirming an own answer plays select (back when the answer moves up the list), Submit taps, Reset plays a subtle navigate back, keystrokes in the own-answer box play type while typing sounds are on. Silent until the page turns sound on.',
   ],
@@ -386,11 +393,17 @@ export const doc: ComponentDoc = {
     },
     {
       id: 'states',
-      title: 'Submitting · error · submitted',
+      title: 'Submitting · error · locked · submitted',
       description:
-        'A host-held busy state, a failed send (the form stays usable — Submit again) and the read-only summary with an own answer and an unanswered question.',
-      height: 900,
-      create: () => stage(make(SENDING), host(make(FAILED)), make(DONE)),
+        'A host-held busy state, a failed send (the form stays usable — Submit again), a form this person cannot answer (canAnswer with a reason: readable, nothing presses) and the read-only summary with an own answer and an unanswered question.',
+      height: 1180,
+      create: () =>
+        stage(
+          make(SENDING),
+          host(make(FAILED)),
+          make({ ...SINGLE_CONFIRM, id: 'locked', canAnswer: 'Only the session owner can answer this.' }),
+          make(DONE),
+        ),
     },
     {
       id: 'ko',

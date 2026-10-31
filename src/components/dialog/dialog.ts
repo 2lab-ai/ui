@@ -21,6 +21,11 @@ export interface DialogCloseDetail {
   reason: DialogCloseReason;
 }
 
+/** `ui-closed` detail (notification, after the exit): what closed it — the person's reason, or `hide` for the host. */
+export interface DialogClosedDetail {
+  reason: DialogCloseReason | 'hide';
+}
+
 const SIZES: readonly DialogSize[] = ['sm', 'md', 'lg', 'xl', 'full'];
 
 /** The `size` attribute as a size (unknown or missing → `md`). */
@@ -51,17 +56,20 @@ function focusOnBody(): boolean {
  * `<ui-dialog>` — a modal dialog over a dimmed page: a native `<dialog>` opened with `showModal()` (focus trap,
  * inert page, top layer) whose panel rises in (opacity + translateY(8px) scale(.97), 240ms) and settles back out
  * in 180ms; on phones it is a bottom sheet. Escape, the scrim and the close button send a cancelable `ui-close`;
- * `show()` / `hide()` / `open` open and close without one.
+ * `show()` / `hide()` / `open` open and close without one. `ui-closed` follows every exit (a host that must wait for
+ * it — dropping an iframe, giving a scroll place back — listens there).
  */
 export class UiDialog extends UiElement {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['open', 'heading', 'label', 'size', 'sheet', 'hide-close', 'viewport', 'lang'];
+    return ['open', 'heading', 'label', 'size', 'size-phone', 'sheet', 'hide-close', 'viewport', 'lang'];
   }
 
   /** Asked to be open (the `open` attribute). False from the moment a close starts. */
   #want = false;
   #state: State = 'closed';
+  /** What the close under way was asked by (for `ui-closed`). */
+  #reason: DialogClosedDetail['reason'] = 'hide';
   #reflecting = false;
   #timer = 0;
   #closeAt = 0;
@@ -74,6 +82,9 @@ export class UiDialog extends UiElement {
   /** The visual viewport box while it is followed, and the stop for that. */
   #vv: ViewportBox | null = null;
   #vvStop: (() => void) | null = null;
+  /** `size-phone`: the phone media query, watched while connected with the attribute set. */
+  #mq: MediaQueryList | null = null;
+  readonly #onMq = () => this.requestRender();
 
   constructor() {
     super();
@@ -114,16 +125,19 @@ export class UiDialog extends UiElement {
       return;
     }
     if (name === 'viewport') this.#syncViewport();
+    if (name === 'size-phone') this.#syncMedia();
     this.requestRender();
   }
 
   override connectedCallback(): void {
     super.connectedCallback();
+    this.#syncMedia();
     this.renderNow();
     if (this.#want && this.#state === 'closed') this.#enter();
   }
 
   override disconnectedCallback(): void {
+    this.#syncMedia();
     // A removed dialog leaves the top layer by itself; settle the state so a re-insert opens it cleanly.
     clearTimeout(this.#timer);
     this.#timer = 0;
@@ -166,7 +180,7 @@ export class UiDialog extends UiElement {
       part: 'dialog',
       open: !!live?.open,
       'data-state': this.#state,
-      'data-size': dialogSize(this.getAttribute('size')),
+      'data-size': this.#size(),
       'data-sheet': this.getAttribute('sheet') === 'never' ? 'never' : 'auto',
       // A heading attribute or a slotted header names it; the label only when neither is there.
       'aria-labelledby': titled ? 'dg-title' : undefined,
@@ -185,6 +199,25 @@ export class UiDialog extends UiElement {
 
   #dlg(): HTMLDialogElement | null {
     return this.$<HTMLDialogElement>('dialog');
+  }
+
+  /** The size in force: `size-phone` under 640px (when set), else `size`. */
+  #size(): DialogSize {
+    const phone = this.getAttribute('size-phone');
+    return phone !== null && this.#mq?.matches ? dialogSize(phone) : dialogSize(this.getAttribute('size'));
+  }
+
+  /** Watch the phone breakpoint only while `size-phone` is set and the element is in the page. */
+  #syncMedia(): void {
+    const want = this.isConnected && this.hasAttribute('size-phone') && typeof matchMedia === 'function';
+    if (want === !!this.#mq) return;
+    if (want) {
+      this.#mq = matchMedia('(max-width: 639px)');
+      this.#mq.addEventListener('change', this.#onMq);
+      return;
+    }
+    this.#mq?.removeEventListener('change', this.#onMq);
+    this.#mq = null;
   }
 
   /** Header / footer rows (and the header's actions) show only when something is slotted into them. */
@@ -230,6 +263,7 @@ export class UiDialog extends UiElement {
    */
   #setOpen(v: boolean, user = false, e?: Event): void {
     this.#want = v;
+    if (!v && !user) this.#reason = 'hide';
     this.#reflect(v);
     if (!this.isConnected) return;
     const was = this.#dlg() ? this.#state : null;
@@ -306,6 +340,7 @@ export class UiDialog extends UiElement {
       if (dlg.open) dlg.close();
     }
     if (restore) this.#focusBack(back);
+    this.notify<DialogClosedDetail>('ui-closed', { reason: this.#reason });
   }
 
   #focusBack(el: Element | null): void {
@@ -331,7 +366,9 @@ export class UiDialog extends UiElement {
 
   #request(reason: DialogCloseReason, e?: Event): void {
     if (this.#state !== 'open') return;
-    if (this.emit<DialogCloseDetail>('ui-close', { reason })) this.#setOpen(false, true, e);
+    if (!this.emit<DialogCloseDetail>('ui-close', { reason })) return;
+    this.#reason = reason;
+    this.#setOpen(false, true, e);
   }
 
   // ── events ────────────────────────────────────────────────────────────────

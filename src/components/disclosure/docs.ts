@@ -27,6 +27,21 @@ function facts(rows: Array<[string, string]>): (box: HTMLElement) => void {
   };
 }
 
+/** G6-2: the links row — a nav slotted into `links`, in view while the region is closed. */
+function links(items: Array<[string, string]>, label = 'Session links'): HTMLElement {
+  const nav = document.createElement('nav');
+  nav.slot = 'links';
+  nav.setAttribute('aria-label', label);
+  nav.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px 12px';
+  for (const [t, href] of items) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.textContent = t;
+    nav.append(a);
+  }
+  return nav;
+}
+
 function text(t: string): (box: HTMLElement) => void {
   return (box) => {
     box.textContent = t;
@@ -145,7 +160,7 @@ export const doc: ComponentDoc = {
   group: 'Primitives',
   summary: 'Detail you open when you want it — the region grows in place and is out of the way while closed.',
   description:
-    'A summary row (chevron, text, optional quiet meta such as a count) over a region the host slots in. Opening turns the chevron on the press duration and grows the region from 0fr to 1fr with a fade on the expand duration — the same recipe as the board’s cards — so everything below rides along instead of jumping. While closed the region is inert: nothing inside takes focus or clicks. Toggling sends a cancelable ui-toggle; setting open from the host changes state without an event. It is also the recipe for an info summary — no separate element: the one-line summary (owner · workflow · tokens · cost · last activity) as `summary`, a quiet `meta`, and a kit `.ui-dl` fact grid as the region (see the Info summary demo).',
+    'A summary row (chevron, text, optional quiet meta such as a count) over a region the host slots in. Opening turns the chevron on the press duration and grows the region from 0fr to 1fr with a fade on the expand duration — the same recipe as the board’s cards — so everything below rides along instead of jumping. While closed the region is inert: nothing inside takes focus or clicks. Toggling sends a cancelable ui-toggle; setting open from the host changes state without an event. It is also the recipe for an info summary — no separate element: the one-line summary (owner · workflow · tokens · cost · last activity) as `summary`, a quiet `meta`, the links that must stay in view while closed (Issue · PR · Full conversation) in slot `links`, and a kit `.ui-dl` fact grid as the region (see the Info summary demo).',
   usedIn:
     'soma-work dashboard › 11 hand-rolled disclosures (K-06): stats 자세히, 세션 정보, panel sections, work-log groups, raw turn <details>, goal history, task plan toggles.',
   reference: { name: 'WAI-ARIA APG Disclosure', url: 'https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/' },
@@ -165,6 +180,12 @@ export const doc: ComponentDoc = {
       name: 'meta',
       type: 'string',
       description: 'Attribute (or data.meta): quiet text at the row end (a count, a time). Slot `meta`.',
+    },
+    {
+      name: 'slot links',
+      type: 'slot',
+      description:
+        'A row under the summary and outside the region: links (Issue · PR · Full conversation) that stay in view and reachable while closed. Drawn only while something is slotted (slotchange); a click on a slotted link does not toggle. ::part(links). Lined up with the summary text in plain, card and external-trigger layouts.',
     },
     { name: 'data.disabled', type: 'boolean', description: 'The row does not toggle (aria-disabled).' },
     {
@@ -233,6 +254,7 @@ export const doc: ComponentDoc = {
     'level="n" makes the row a heading of that level for page structure.',
     'Reduced motion: the region opens at once with a short fade; the chevron does not turn.',
     'trigger="external" with for=: the host’s button carries aria-expanded and aria-controls → this element; focus stays on it when the region opens.',
+    'Slot links sits between the row and the region, outside the inert region: its links keep their tab stops and clicks while closed.',
     'head-tabindex="-1": the row leaves the tab order for a roved list; Enter / Space on the focused row still toggle, and a click on slotted summary content toggles like a click on the row.',
     'Sound (opt-in, @2lab.ai/ui/sound): the row or the external trigger plays a subtle open / close unless ui-toggle is cancelled; toggle() / show() / hide() do the same only inside a click or key press; the open property and attribute are silent. Silent until the page turns sound on.',
   ],
@@ -242,6 +264,7 @@ export const doc: ComponentDoc = {
 
 <!-- The info summary recipe: one summary line, a quiet meta, a .ui-dl fact grid. -->
 <ui-disclosure variant="card" summary="Dana Kim · code-review · 12.3K tokens · $0.42 · 3m ago" meta="ctx 27%">
+  <nav slot="links" aria-label="Session links"><a href="/issues/412">Issue</a> <a href="/pulls/88">PR</a> <a href="/conversations/c1">Full conversation</a></nav>
   <dl class="ui-dl"><dt>Model</dt><dd>claude-opus-5-5[1m]</dd><dt>Cost</dt><dd>$0.42</dd>…</dl>
 </ui-disclosure>
 <script type="module">
@@ -296,10 +319,10 @@ export const doc: ComponentDoc = {
       id: 'info',
       title: 'Info summary',
       description:
-        'The recipe for an info summary: the whole record in one summary line, a quiet meta, and a two-column .ui-dl fact grid when opened.',
-      height: 380,
-      create: () =>
-        make(
+        'The recipe for an info summary: the whole record in one summary line, a quiet meta, the links that stay in view while closed in slot links, and a two-column .ui-dl fact grid when opened.',
+      height: 400,
+      create: () => {
+        const el = make(
           { summary: 'Dana Kim · code-review · 12.3K tokens · $0.42 · 3m ago', meta: 'ctx 27%' },
           facts([
             ['Agent', 'claude-opus-5-5[1m]'],
@@ -313,7 +336,16 @@ export const doc: ComponentDoc = {
             ['Last activity', '3m ago'],
           ]),
           { variant: 'card', level: '3' },
-        ),
+        );
+        el.prepend(
+          links([
+            ['Issue', '#issue-412'],
+            ['PR', '#pr-88'],
+            ['Full conversation', '#conversation'],
+          ]),
+        );
+        return el;
+      },
     },
     {
       id: 'guarded',
@@ -362,7 +394,7 @@ export const doc: ComponentDoc = {
     {
       id: 'ko',
       title: '한국어',
-      height: 300,
+      height: 400,
       create: () =>
         stack(
           make(
@@ -375,6 +407,28 @@ export const doc: ComponentDoc = {
             { lang: 'ko', open: '' },
           ),
           make({ summary: '목표 변경 기록', meta: '2' }, text('10:12 목표 설정 · 10:40 목표 수정'), { lang: 'ko' }),
+          (() => {
+            const el = make(
+              { summary: '박민아 · release-notes · 12.3K 토큰 · $0.42 · 3분 전', meta: 'ctx 27%' },
+              facts([
+                ['모델', 'claude-opus-5-5[1m]'],
+                ['툴 호출', '48회'],
+                ['비용', '$0.42'],
+              ]),
+              { lang: 'ko', variant: 'card' },
+            );
+            el.prepend(
+              links(
+                [
+                  ['이슈', '#issue'],
+                  ['PR', '#pr'],
+                  ['전체 대화', '#conversation'],
+                ],
+                '세션 링크',
+              ),
+            );
+            return el;
+          })(),
         ),
     },
   ],

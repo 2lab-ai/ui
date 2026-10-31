@@ -162,11 +162,16 @@ export class UiDeckNav extends UiElement<DeckNavData> {
     const i = this.#index;
     const wrap = this.hasAttribute('wrap');
     const behind = deckBehind(n);
-    const peek = this.hasAttribute('peek')
-      ? `<div class="dn-peek" part="peek" aria-hidden="true" data-behind="${behind}"><i class="dn-edge" data-mk="far"${
-          behind > 1 ? ' data-on' : ''
-        }></i><i class="dn-edge" data-mk="near" data-on></i></div>`
-      : '';
+    const peekAttr = this.getAttribute('peek');
+    const peek =
+      peekAttr !== null
+        ? `<div class="dn-peek" part="peek" aria-hidden="true" data-behind="${behind}"><i class="dn-edge" data-mk="far"${
+            behind > 1 ? ' data-on' : ''
+          }></i><i class="dn-edge" data-mk="near" data-on></i></div>`
+        : '';
+    // peek="only": the edges alone, fed by the same data — the controls live elsewhere (another <ui-deck-nav>, or the
+    // host's own header buttons driving prev() / next()).
+    if (peekAttr === 'only') return `<div class="dn is-peek-only">${peek}</div>`;
     const btn = (dir: 1 | -1) => {
       const to = deckStep(i, n, dir, wrap);
       const word = dir < 0 ? t.prev : t.next;

@@ -8,8 +8,10 @@
 npm run check       # biome
 npm run typecheck   # tsc --noEmit
 npm test            # vitest (happy-dom)
-npm run build:site  # lib build + d.ts + site build + site-dist/lib
+npm run build:site  # lib build (+ the server entry, ESM + CJS) + d.ts + site build + site-dist/lib
+npm run consumer-check  # pack → install → NodeNext and node10 typecheck, every element registers, require('@2lab.ai/ui/server')
 ```
+`npm run verify` runs all five.
 
 ## Component contract
 - Folder `src/components/<slug>/`:
@@ -38,6 +40,18 @@ npm run build:site  # lib build + d.ts + site build + site-dist/lib
   `emit` was not prevented and only when state changed; never from render, hover, timers, streams or data the app set
   (toasts are the one code-driven exception). Pick the cue by the job (see https://ui.2lab.ai/docs/sound), test it with
   `soundSpy()` from `src/sound/fixtures.ts`, and add one `Sound (opt-in …)` line to the docs' `a11y`.
+- Server entry (`src/server/index.ts` → `@2lab.ai/ui/server`): the one entry with no element in it. Nothing it reaches may
+  touch `HTMLElement`, `customElements`, `document` or `window` at load (its test runs under `// @vitest-environment node`).
+  Markup a server renders lives beside its element in `markup.ts` (auth-card) and is exported from both entries.
+  `vite.server.config.ts` builds it twice (`dist/server.js`, `dist/server.cjs`); `package.json` `exports["./server"]` carries
+  `types` / `import` / `require`, and `typesVersions` names its types for node10 consumers. `scripts/consumer/smoke.cjs`
+  requires it from the packed tarball.
+- Server-drawn markup (a declarative shadow root from `authCardHtml`) is hydrated in place by `UiElement`'s first render
+  (`this.declarative`; the nodes are morphed, never replaced) — a card already on screen enters once, not twice.
+- Korean: `word-break: keep-all` is in `baseCss` for `:host([lang="ko"])` / `:lang(ko)` and in the kit for its prose
+  classes — no per-component copy.
+- A per-width attribute (`size-phone` on the dialog) watches `matchMedia('(max-width: 639px)')` only while set and
+  connected, and re-renders on change; follow that shape rather than reading `innerWidth` in render.
 - Exemplar: `src/components/context-window/` (math helpers exported and unit-tested, two-press action, hover state kept
   outside markup, rolling number, en/ko).
 

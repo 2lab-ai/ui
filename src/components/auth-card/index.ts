@@ -12,6 +12,7 @@ export type {
   AuthStrings,
 } from './auth-card';
 export {
+  authCardCss,
   authCardHtml,
   authCardMarkup,
   authInitials,

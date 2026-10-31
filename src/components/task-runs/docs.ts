@@ -195,7 +195,25 @@ export const doc: ComponentDoc = {
       description:
         'An Open link (http/https/mailto only) or an Open button in the detail. Either sends a cancelable `ui-open` first.',
     },
-    { name: 'data.totals', type: 'boolean', default: 'true', description: '`false` hides the totals row.' },
+    {
+      name: 'data.runs[].approx / notes',
+      type: 'boolean / Array<{ label: string; value: string; approx?: boolean }>',
+      description:
+        '`approx` puts ≈ before the run’s time, tokens, tool calls and cost (its numbers are a share or an estimate — work shared with other tasks, a start the host inferred); `notes` are extra detail rows after the cost that say why (`Shared · 2 tasks ran together — a half each`).',
+    },
+    {
+      name: 'data.totals',
+      type: 'boolean | { runs?, tokens?, tools?, ms?, costUsd?, approx? }',
+      default: 'true',
+      description:
+        '`false` hides the totals row. An object draws the host’s own totals (over every run, shown or not) instead of summing the runs handed over; each field present is drawn.',
+    },
+    {
+      name: 'data.extraTotals / hidden',
+      type: 'Array<{ label, value, approx? }> / number',
+      description:
+        'More totals rows under the first (`Outside tasks · 3 tool calls · $0.02`, `+ subagents · 12 calls`); `hidden` is how many older runs were not handed over — the totals row says “12 of 15 shown”.',
+    },
     {
       name: 'data.title',
       type: 'string',
@@ -268,11 +286,32 @@ export const doc: ComponentDoc = {
     },
     {
       id: 'totals',
-      title: 'Finished runs and their totals',
+      title: 'Finished runs, host totals, a shared run',
       description:
-        'A finished upgrade: six runs (one failed, one paused) and the totals row — runs, tokens, tool calls, time and cost.',
-      height: 480,
-      create: () => make({ title: 'Weekly dependency upgrade', runs: finishedRuns(Date.now()) }),
+        'A finished upgrade: six of nine runs are shown (the three oldest stay with the host), so the totals are the host’s own, with “6 of 9 shown”, a row for the work outside any task and the subagents’ calls apart. W3 was shared with another task: ≈ on its numbers and a note that says so.',
+      height: 560,
+      create: () => {
+        const runs = finishedRuns(Date.now());
+        runs[2] = {
+          ...runs[2],
+          approx: true,
+          notes: [{ label: 'Shared', value: '2 tasks ran together — the numbers are this one’s half' }],
+        };
+        return make(
+          {
+            title: 'Weekly dependency upgrade',
+            runs,
+            totals: { runs: 9, tokens: 612_400, tools: 71, ms: 52 * M, costUsd: 2.31 },
+            hidden: 3,
+            extraTotals: [
+              { label: 'Outside tasks', value: '3 tool calls · $0.02' },
+              { label: '+ subagents', value: '12 tool calls · 48.1K tokens' },
+            ],
+          },
+          {},
+          ['W3'],
+        );
+      },
     },
     {
       id: 'empty',

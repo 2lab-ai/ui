@@ -47,6 +47,7 @@ export function cssMs(value: string | null | undefined): number {
  * 1fr with a fade, and while closed it is inert (nothing inside takes focus or clicks). Toggling sends a cancelable
  * `ui-toggle`; the `open` attribute / property set by the host changes state without an event. Once the region
  * has settled (open or closed) a `ui-toggled` notification follows, so a host can drop a closed region's nodes.
+ * Slot `links` is a row under the summary and outside the region — links that stay in view while closed.
  * `trigger="external"` draws no row: the host's own button (`for="<its id>"`) opens it.
  */
 export class UiDisclosure extends UiElement<DisclosureData> {
@@ -75,6 +76,10 @@ export class UiDisclosure extends UiElement<DisclosureData> {
     // content alike.
     this.addEventListener('click', (e) => this.#onClick(e));
     this.root.addEventListener('transitionend', (e) => this.#onTransitionEnd(e as TransitionEvent));
+    // The links row shows only while something is slotted into it.
+    this.root.addEventListener('slotchange', (e) => {
+      if ((e.target as HTMLSlotElement | null)?.name === 'links') this.requestRender();
+    });
   }
 
   override connectedCallback(): void {
@@ -184,7 +189,9 @@ export class UiDisclosure extends UiElement<DisclosureData> {
       : level >= 1 && level <= 6
         ? `<div class="dc-heading" role="heading" aria-level="${level}">${head}</div>`
         : head;
-    return `<div${attrs({ class: 'dc', 'data-open': this.#open, 'data-settled': this.#open && this.#settled })}>${wrapped}<div${attrs(
+    // Links (Issue · PR · Full conversation) under the row, outside the region: in view and reachable while closed.
+    const links = `<div${attrs({ class: 'dc-links', part: 'links', hidden: !this.hasLinks })}><slot name="links"></slot></div>`;
+    return `<div${attrs({ class: 'dc', 'data-open': this.#open, 'data-settled': this.#open && this.#settled })}>${wrapped}${links}<div${attrs(
       {
         class: 'dc-region',
         id: 'dc-region',
@@ -192,6 +199,11 @@ export class UiDisclosure extends UiElement<DisclosureData> {
         inert: !this.#open,
       },
     )}><div class="dc-inner"><div class="dc-body" part="body"><slot></slot></div></div></div></div>`;
+  }
+
+  /** Something is slotted into `links` (a child with `slot="links"`). */
+  get hasLinks(): boolean {
+    return Array.from(this.children).some((c) => c.getAttribute('slot') === 'links');
   }
 
   protected override updated(): void {

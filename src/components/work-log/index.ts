@@ -9,6 +9,7 @@ export type {
   WorkLogData,
   WorkLogLang,
   WorkLogStrings,
+  WorkMetaItem,
   WorkOpenDetail,
   WorkRetryDetail,
   WorkSystem,
@@ -30,5 +31,6 @@ export {
   toolSlotName,
   toolStatus,
   workLogStrings,
+  workMetaHtml,
 } from './logic';
 export { UiWorkLog, WORK_LOG_COPIED_MS } from './work-log';

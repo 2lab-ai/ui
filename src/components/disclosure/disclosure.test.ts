@@ -330,6 +330,65 @@ describe('<ui-disclosure>', () => {
     const el = mount({ summary: '자세히', meta: '3' }, { lang: 'ko' });
     expect(q(el, '.dc-summary')?.textContent).toBe('자세히');
   });
+
+  describe('G6-2: the links slot — a row under the summary that stays in view while closed', () => {
+    function withLinks(attrs: Record<string, string> = {}): { el: UiDisclosure; nav: HTMLElement } {
+      const el = mount({ summary: 'Mina Park · release-notes · 12.3K tokens · $0.42' }, attrs);
+      const nav = document.createElement('nav');
+      nav.slot = 'links';
+      nav.innerHTML = '<a href="#issue">Issue</a> <a href="#pr">PR</a>';
+      el.append(nav);
+      el.renderNow();
+      return { el, nav };
+    }
+
+    it('is hidden with nothing slotted; shows once a links child arrives (slotchange) and goes when it leaves', () => {
+      const el = mount({ summary: 'S' });
+      expect(q(el, '.dc-links')?.hidden).toBe(true);
+      expect(el.hasLinks).toBe(false);
+      const nav = document.createElement('nav');
+      nav.slot = 'links';
+      nav.textContent = 'Issue';
+      el.append(nav);
+      el.renderNow();
+      expect(el.hasLinks).toBe(true);
+      expect(q(el, '.dc-links')?.hidden).toBe(false);
+      nav.remove();
+      el.renderNow();
+      expect(q(el, '.dc-links')?.hidden).toBe(true);
+    });
+
+    it('sits between the row and the region, outside the inert region, so its links work while closed', () => {
+      const { el } = withLinks();
+      const links = q(el, '.dc-links')!;
+      expect(links.getAttribute('part')).toBe('links');
+      expect(links.previousElementSibling?.classList.contains('dc-head')).toBe(true);
+      expect(links.nextElementSibling?.classList.contains('dc-region')).toBe(true);
+      expect(links.closest('.dc-region')).toBeNull();
+      expect(q(el, '.dc-region')?.hasAttribute('inert')).toBe(true);
+      expect(links.querySelector('slot')?.getAttribute('name')).toBe('links');
+    });
+
+    it('a click on a slotted link does not toggle the region', () => {
+      const { el, nav } = withLinks();
+      const fired = vi.fn();
+      el.addEventListener('ui-toggle', fired);
+      nav
+        .querySelector('a')!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true }));
+      expect(fired).not.toHaveBeenCalled();
+      expect(el.open).toBe(false);
+    });
+
+    it('keeps the row with trigger="external" and variant="card" (padding rules exist)', () => {
+      const { el } = withLinks({ trigger: 'external', for: 'nope', variant: 'card' });
+      expect(q(el, '.dc-head')).toBeNull();
+      expect(q(el, '.dc-links')?.hidden).toBe(false);
+      expect(styles).toMatch(/:host\(\[variant="card"\]\) \.dc-links \{ padding/);
+      expect(styles).toMatch(/:host\(\[trigger="external"\]\) \.dc-links \{ padding/);
+      expect(styles).toMatch(/\.dc-links\[hidden\] \{ display: none; \}/);
+    });
+  });
 });
 
 describe('sound', () => {

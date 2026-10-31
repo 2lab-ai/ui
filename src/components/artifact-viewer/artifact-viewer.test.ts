@@ -5,6 +5,7 @@ import type { FileItem } from '../file-card/render';
 import type {
   ArtifactActionDetail,
   ArtifactCloseDetail,
+  ArtifactClosedDetail,
   ArtifactOpenDetail,
   ArtifactViewDetail,
   ArtifactViewerData,
@@ -29,7 +30,7 @@ import {
   viewerBodyKind,
   viewerStrings,
 } from './logic';
-import { styles } from './styles';
+import { peekCss, peekPageCss, styles } from './styles';
 import './artifact-viewer';
 import '../file-card/file-card';
 
@@ -57,7 +58,7 @@ function files(): FileItem[] {
     { id: 'code', name: 'retry.ts', size: 1_180, text: 'export const a = 1;\n', url: '/files/retry.ts' },
     { id: 'memo', name: 'memo.wav', size: 70_600, url: 'blob:https://app.example/1234' },
     { id: 'clip', name: 'demo.mp4', url: '/files/demo.mp4' },
-    { id: 'invoice', name: 'invoice.pdf', size: 318_464, url: '/files/invoice.pdf', downloadName: 'Invoice Oct.pdf' },
+    { id: 'bundle', name: 'bundle.zip', size: 318_464, url: '/files/bundle.zip', downloadName: 'Bundle Oct.zip' },
   ];
 }
 
@@ -197,8 +198,8 @@ describe('helpers', () => {
   });
 
   it('viewerBodyKind picks the body from the kind and the content it carries', () => {
-    const [shot, notes, page, code, memo, clip, invoice] = files();
-    expect([shot, notes, page, code, memo, clip, invoice].map((x) => viewerBodyKind(x))).toEqual([
+    const [shot, notes, page, code, memo, clip, bundle] = files();
+    expect([shot, notes, page, code, memo, clip, bundle].map((x) => viewerBodyKind(x))).toEqual([
       'image',
       'markdown',
       'html',
@@ -215,6 +216,34 @@ describe('helpers', () => {
     expect(viewerBodyKind({ id: '1', name: 'a.log', text: 'line' })).toBe('text');
     expect(viewerBodyKind({ id: '1', name: 'a.log' })).toBe('fallback');
     expect(viewerBodyKind({ id: '1', name: 'blob', text: 'raw' })).toBe('text');
+    // D4 G5-1: a PDF with a url the host vouches for (frame: true) is the browser's viewer; otherwise the card.
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: '/files/invoice.pdf', frame: true })).toBe('pdf');
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: '/files/invoice.pdf' })).toBe('fallback');
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: 'https://elsewhere.example/x.pdf', frame: false })).toBe(
+      'fallback',
+    );
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf' })).toBe('fallback');
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: 'javascript:alert(1)' })).toBe('fallback');
+  });
+
+  it('D4 G5-3: peekHtml reads a fetched head when text is not in hand; peekCss / peekPageCss ship the sheet', () => {
+    const md = peekHtml({ id: '1', name: 'notes.md', head: '# Head\n\nfirst lines' }, 'en');
+    expect(md).toContain('class="av-pk-doc md-doc"');
+    expect(md).toContain('<h1>Head</h1>');
+    const txt = peekHtml({ id: '2', name: 'run.log', head: 'line 1\nline 2' }, 'en', NOW);
+    expect(txt).toContain('<pre class="av-pk-pre">line 1\nline 2</pre>');
+    // text wins over head; neither: the glyph.
+    expect(peekHtml({ id: '3', name: 'a.txt', text: 'T', head: 'H' }, 'en')).toContain('>T</pre>');
+    expect(peekHtml({ id: '4', name: 'a.txt' }, 'en')).toContain('av-pk-glyph');
+    expect(peekHtml({ id: '5', name: XSS, head: XSS }, 'en')).not.toContain('<img');
+    expect(peekCss).toContain('[data-kind="markdown"]');
+    expect(peekCss).toContain('.av-pk-media');
+    expect(peekCss).toContain('var(--ib-card)');
+    expect(peekPageCss).toContain('var(--ui-ib-card)');
+    expect(peekPageCss).not.toMatch(/var\(--ib-/);
+    expect(peekPageCss).toContain('var(--fc-wash)'); // the sheet's own custom properties stay
+    expect(peekPageCss).toContain('var(--ui-mono)');
+    expect(styles.split('.av-pk-media {').length).toBe(2); // once in the shadow sheet
   });
 
   it('viewerStrings: English unless ko', () => {
@@ -331,6 +360,50 @@ describe('viewer', () => {
     expect(q(el, '.av-vh')?.dataset.kind).toBe('markdown');
     expect(q(el, '.av-vmeta')?.textContent).toBe('2.4 KB · 4m ago');
     expect(q(el, '.av-stage')?.dataset.body).toBe('markdown');
+  });
+
+  it('D4 G5-4: ui-closed follows every close after the exit — the person’s reason, host for close() / an emptied list, removed when the element leaves', () => {
+    const el = mount({ items: files() });
+    const closed = record<ArtifactClosedDetail>(el, 'ui-closed');
+    el.open(0);
+    el.close();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS - 1);
+    expect(closed).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(closed.map((c) => c.reason)).toEqual(['host']);
+    expect(closed[0].cancelable).toBe(false);
+    el.open(1);
+    key(native(el), 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed.map((c) => c.reason)).toEqual(['host', 'escape']);
+    // The person's close the host refuses: no close, no ui-closed.
+    el.open(1);
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-close', stop);
+    key(native(el), 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(el.index).toBe(1);
+    expect(closed).toHaveLength(2);
+    el.removeEventListener('ui-close', stop);
+    // The list emptied under it.
+    el.data = { items: [] };
+    el.renderNow();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed.map((c) => c.reason)).toEqual(['host', 'escape', 'host']);
+    // Removed from the page while open: at once, no exit to wait for.
+    el.data = { items: files() };
+    el.renderNow();
+    el.open(2);
+    el.remove();
+    expect(closed.map((c) => c.reason)).toEqual(['host', 'escape', 'host', 'removed']);
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed).toHaveLength(4);
+    // The inner dialog's own ui-closed never leaks out as the viewer's.
+    document.body.append(el);
+    el.open(0);
+    el.close();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed).toHaveLength(5);
   });
 
   it('preventDefault() on ui-open keeps the viewer closed', () => {
@@ -521,11 +594,11 @@ describe('viewer', () => {
     const el = mount({ items: files() });
     el.open(6);
     expect(q(el, '.av-stage')?.dataset.body).toBe('fallback');
-    expect(q(el, '.av-card .av-fname')?.textContent).toBe('invoice.pdf');
+    expect(q(el, '.av-card .av-fname')?.textContent).toBe('bundle.zip');
     expect(q(el, '.av-card .av-fnote')?.textContent).toBe('No preview');
     const dl = q<HTMLAnchorElement>(el, '.av-card a.av-act[data-act="download"]')!;
     expect(dl.classList.contains('is-primary')).toBe(true);
-    expect(dl.getAttribute('download')).toBe('Invoice Oct.pdf');
+    expect(dl.getAttribute('download')).toBe('Bundle Oct.zip');
     expect(q(el, '.av-vf .av-act')).toBeNull();
   });
 
@@ -639,6 +712,81 @@ describe('viewer', () => {
     expect(q(el, '.av-vid video')?.getAttribute('src')).toBe('/files/demo.mp4');
   });
 
+  it('D4 G5-2: ui-before-view comes before the body renders — a slot put in then is the first body; ui-view follows', () => {
+    const el = mount({ items: files() });
+    const order: string[] = [];
+    const preview = document.createElement('div');
+    preview.slot = 'preview';
+    let framesEverMade = 0;
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts)
+        for (const n of Array.from(m.addedNodes))
+          if (n.nodeType === 1 && ((n as Element).matches('iframe') || (n as Element).querySelector('iframe')))
+            framesEverMade++;
+    });
+    mo.observe(el.shadowRoot as ShadowRoot, { childList: true, subtree: true });
+    el.addEventListener('ui-before-view', (e) => {
+      const { id, index } = (e as CustomEvent<ArtifactViewDetail>).detail;
+      order.push(`before:${id}:${index}`);
+      preview.textContent = `host body for ${id}`;
+      if (!preview.isConnected) el.append(preview);
+    });
+    el.addEventListener('ui-view', (e) => order.push(`view:${(e as CustomEvent<ArtifactViewDetail>).detail.id}`));
+    el.open(1); // notes.md
+    expect(order).toEqual(['before:notes:1', 'view:notes']);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('host');
+    el.next(); // landing.html — would be a sandboxed frame without the hook
+    expect(order.slice(2)).toEqual(['before:page:2', 'view:page']);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('host');
+    expect(preview.textContent).toBe('host body for page');
+    // New data moves the shown file: the hook fires again before the body.
+    el.data = { items: [{ id: 'new', name: 'first.txt', text: 'x' }, ...files()] };
+    el.renderNow();
+    expect(order.slice(4)).toEqual(['before:page:3', 'view:page']);
+    expect(framesEverMade).toBe(0);
+    mo.disconnect();
+  });
+
+  it('D4 G5-1: a PDF is framed as is (the browser’s viewer, no sandbox); a page with scripts: true runs them in the viewer and the peek', () => {
+    const el = mount({
+      items: [
+        { id: 'inv', name: 'invoice.pdf', url: '/files/invoice.pdf', downloadName: 'Invoice Oct.pdf', frame: true },
+        { id: 'chart', name: 'chart.html', text: '<h1>Hi</h1><script>draw()</script>', scripts: true },
+        { id: 'page', name: 'landing.html', text: '<h1>Hi</h1>' },
+        { id: 'nourl', name: 'scan.pdf' },
+      ],
+    });
+    el.open(0);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('pdf');
+    const pdf = q<HTMLIFrameElement>(el, '.av-pdf iframe.av-frame')!;
+    expect(pdf.getAttribute('src')).toBe('/files/invoice.pdf');
+    expect(pdf.hasAttribute('sandbox')).toBe(false);
+    expect(pdf.getAttribute('title')).toBe('invoice.pdf');
+    expect(q(el, '.av-note')).toBeNull();
+    // The footer keeps Open / Download for it (the body is not the fallback card).
+    expect(qa(el, '.av-vf .av-act').map((a) => (a as HTMLElement).dataset.act)).toEqual(['open', 'download']);
+    el.next();
+    expect(q(el, '.av-stage')?.dataset.body).toBe('html');
+    const frame = q<HTMLIFrameElement>(el, '.av-html iframe.av-frame')!;
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(frame.getAttribute('srcdoc')).toBe('<h1>Hi</h1><script>draw()</script>');
+    expect(q(el, '.av-note')?.textContent).toBe('Runs its own scripts');
+    expect(qa(el, 'script')).toHaveLength(0);
+    el.next();
+    expect(q<HTMLIFrameElement>(el, '.av-html iframe.av-frame')?.getAttribute('sandbox')).toBe('');
+    expect(q(el, '.av-note')?.textContent).toBe('Scripts are off');
+    el.next();
+    expect(q(el, '.av-stage')?.dataset.body).toBe('fallback');
+    expect(q(el, '.av-card .av-fname')?.textContent).toBe('scan.pdf');
+    el.close();
+    const ko = mount(
+      { items: [{ id: 'chart', name: 'chart.html', text: '<h1>Hi</h1>', scripts: true }] },
+      { lang: 'ko' },
+    );
+    ko.open(0);
+    expect(q(ko, '.av-note')?.textContent).toBe('스크립트 켜짐');
+  });
+
   it('escapes names and text in every body; an HTML page is only an attribute', () => {
     const el = mount({
       items: [
@@ -713,7 +861,12 @@ describe('viewer', () => {
 });
 
 describe('extra actions (D2 G4-2)', () => {
-  const slack = { id: 'slack', label: 'Slack', icon: 'external' as const, href: 'https://x.slack.com/files/1' };
+  const slack = {
+    id: 'slack',
+    label: 'Slack',
+    icon: 'external' as const,
+    href: 'https://slack.example.invalid/files/1',
+  };
 
   it('extraActions keeps drawable ones: id + label, no built-in ids, first of each id, safe hrefs only, capped', () => {
     const item: FileItem = {
@@ -751,7 +904,7 @@ describe('extra actions (D2 G4-2)', () => {
     expect(acts.map((a) => a.dataset.act ?? a.dataset.x)).toEqual(['open', 'download', 'slack', BREAK]);
     const [, , link, btn] = acts;
     expect(link.tagName).toBe('A');
-    expect(link.getAttribute('href')).toBe('https://x.slack.com/files/1');
+    expect(link.getAttribute('href')).toBe('https://slack.example.invalid/files/1');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(link.getAttribute('aria-label')).toBe('Slack');
@@ -779,8 +932,8 @@ describe('extra actions (D2 G4-2)', () => {
     click(q(el, '.av-act[data-x="copy"]')!);
     el.removeEventListener('ui-action', stop);
     expect(seen).toEqual([
-      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
-      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
+      { action: 'slack', id: 'code', url: 'https://slack.example.invalid/files/1', extra: true, cancelable: true },
+      { action: 'slack', id: 'code', url: 'https://slack.example.invalid/files/1', extra: true, cancelable: true },
       { action: 'copy', id: 'code', url: '', extra: true, cancelable: true },
     ]);
     // The viewer stays open on its own actions.
@@ -997,6 +1150,23 @@ describe('peek', () => {
     expect(peek.querySelector('iframe')?.getAttribute('srcdoc')).toBe(PAGE_XSS);
     expect(peek.querySelector('iframe')?.getAttribute('sandbox')).toBe('');
     expect(qa(el, 'img, script')).toHaveLength(0);
+  });
+
+  it('D4 G5-3: the element’s own peek reads a fetched head too', () => {
+    const el = mount({ items: [{ id: 'x', name: 'notes.md', head: '# Only the head' }] });
+    pointer(tiles(el)[0], 'pointerover');
+    vi.advanceTimersByTime(PEEK_DELAY_MS);
+    expect(q(el, '.av-peek .av-pk-doc h1')?.textContent).toBe('Only the head');
+    expect(q(el, '.av-peek')?.getAttribute('data-kind')).toBe('markdown');
+  });
+
+  it('D4 G5-1: a page with scripts: true runs them in the peek too (sandbox="allow-scripts"), never same-origin', () => {
+    const el = mount({ items: [{ id: 'x', name: 'chart.html', text: '<h1>Hi</h1>', scripts: true }] });
+    pointer(tiles(el)[0], 'pointerover');
+    vi.advanceTimersByTime(PEEK_DELAY_MS);
+    const frame = q(el, '.av-peek')!.querySelector('iframe')!;
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(frame.getAttribute('srcdoc')).toBe('<h1>Hi</h1>');
   });
 });
 

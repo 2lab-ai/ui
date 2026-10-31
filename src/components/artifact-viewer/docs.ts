@@ -1,17 +1,76 @@
+import { fileKindIcon } from '../../core/files';
 import type { ComponentDoc } from '../../docs/types';
+import { icon } from '../../icons/icons';
 import { demoFiles, demoPhoto } from '../file-card/demo';
 import '../file-card/file-card';
+import '../hovercard/hovercard';
 import type { FileOpenDetail, UiFileCard } from '../file-card/file-card';
-import type { FileItem } from '../file-card/render';
+import { type FileItem, fileItemKind } from '../file-card/render';
+import type { HovercardDetail, UiHovercard } from '../hovercard/hovercard';
 import './artifact-viewer';
 import type {
   ArtifactActionDetail,
   ArtifactCloseDetail,
+  ArtifactClosedDetail,
   ArtifactOpenDetail,
   ArtifactViewDetail,
   ArtifactViewerData,
   UiArtifactViewer,
 } from './artifact-viewer';
+import { peekHtml } from './logic';
+import { peekPageCss } from './styles';
+
+/**
+ * The peek inside a hovercard of the page's own: kit rows for the files, `peekHtml` filled on ui-open (one file
+ * carries only a fetched `head`), `peekPageCss` in a page stylesheet, the kind on the wrapper.
+ */
+function ownPeek(): HTMLElement {
+  const all = demoFiles();
+  const items: FileItem[] = [
+    all[0],
+    { ...all[1], text: undefined, head: String(all[1].text).split('\n').slice(0, 8).join('\n') },
+    all[4],
+    all[7],
+  ];
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;width:100%;max-width:420px';
+  const style = document.createElement('style');
+  style.textContent = `${peekPageCss}
+.op-peek { width: 320px; overflow: hidden; border-radius: inherit; }
+.op-peek .md-doc h1, .op-peek .md-doc h2 { margin: 0 0 4px; font-size: 13px; }
+.op-peek .md-doc p, .op-peek .md-doc ul { margin: 0 0 6px; }`;
+  const list = document.createElement('div');
+  list.setAttribute('role', 'list');
+  items.forEach((it, i) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'ui-row op-row';
+    row.dataset.i = String(i);
+    row.innerHTML = `${icon(fileKindIcon(fileItemKind(it)))}<div><strong></strong><small></small></div>`;
+    (row.querySelector('strong') as HTMLElement).textContent = it.name;
+    (row.querySelector('small') as HTMLElement).textContent = it.head ? 'head fetched for the peek' : it.meta || '';
+    list.append(row);
+  });
+  const card = document.createElement('ui-hovercard') as UiHovercard;
+  card.setAttribute('for', '.op-row');
+  card.setAttribute('width', '320');
+  card.addEventListener('ui-open', (e) => {
+    const t = (e as CustomEvent<HovercardDetail>).detail.trigger as HTMLElement;
+    const it = items[Number(t.dataset.i)];
+    if (!it) {
+      e.preventDefault();
+      return;
+    }
+    const box = document.createElement('div');
+    box.className = 'op-peek';
+    box.setAttribute('data-kind', fileItemKind(it));
+    box.innerHTML = peekHtml(it, 'en');
+    card.replaceChildren(box);
+  });
+  card.addEventListener('ui-closed', () => card.replaceChildren());
+  wrap.append(style, list, card);
+  return wrap;
+}
 
 /**
  * One viewer over the page's own cards: two groups of <ui-file-card> (an answer's chips, the attachments' tiles)
@@ -73,6 +132,7 @@ const SAY_EN: Say = (name, d, items) => {
     return `ui-view → ${nameOf(items, v.id)} (${v.index + 1} / ${items.length})`;
   }
   if (name === 'ui-close') return `ui-close → ${(d as ArtifactCloseDetail).reason}`;
+  if (name === 'ui-closed') return `ui-closed → ${(d as ArtifactClosedDetail).reason} (after the exit)`;
   const a = d as ArtifactActionDetail;
   if (a.extra)
     return `ui-action → ${a.action} on ${nameOf(items, a.id)}${a.url ? ` (${a.url})` : ''} — the host's own action`;
@@ -86,6 +146,7 @@ const SAY_KO: Say = (name, d, items) => {
     return `보는 중: ${nameOf(items, v.id)} (${v.index + 1} / ${items.length})`;
   }
   if (name === 'ui-close') return '뷰어를 닫았어요';
+  if (name === 'ui-closed') return '뷰어가 사라졌어요 (퇴장 동작 뒤)';
   const a = d as ArtifactActionDetail;
   if (a.extra) return `${a.action}: ${nameOf(items, a.id)} — 호스트가 처리해요`;
   return `${a.action === 'download' ? '다운로드' : '새 탭에서 열기'}: ${a.url} — 데모라서 막았어요`;
@@ -101,7 +162,7 @@ function stage(el: UiArtifactViewer, say: Say = SAY_EN): { box: HTMLElement; lin
   const line = document.createElement('p');
   line.className = 'ui-status-line';
   line.setAttribute('role', 'status');
-  for (const name of ['ui-open', 'ui-view', 'ui-close', 'ui-action']) {
+  for (const name of ['ui-open', 'ui-view', 'ui-close', 'ui-closed', 'ui-action']) {
     el.addEventListener(name, (e) => {
       if (name === 'ui-action') e.preventDefault();
       line.textContent = say(name, (e as CustomEvent).detail, el.data?.items ?? []);
@@ -138,6 +199,22 @@ function withActions(): FileItem[] {
   });
   return files;
 }
+
+/** A page that draws its chart by script: nothing shows without one, so the viewer must run it. */
+const CHART_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;padding:28px 32px;font:15px/1.5 system-ui,sans-serif;color:#18181b;background:#fff}
+h1{margin:0 0 4px;font-size:20px}p{margin:0 0 20px;color:#555}
+.bars{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;align-items:end;height:200px}
+.bar{display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:4px;font-size:12px;color:#555;text-align:center}
+.bar i{display:block;margin-bottom:2px;border-radius:8px 8px 0 0;background:#2f63e0;transition:height .5s ease}
+.bar b{color:#18181b;font-weight:600}.bar small{font-size:11px}
+</style></head><body><h1>Weekly signups</h1><p id="note">This page draws its chart by script.</p><div class="bars" id="bars"></div>
+<script>
+const data=[["9/28",1204],["10/5",1318],["10/12",1290],["10/19",1452],["10/26",1511]];
+const max=Math.max(...data.map(d=>d[1]));const bars=document.getElementById('bars');
+for(const [w,n] of data){const b=document.createElement('div');b.className='bar';const i=document.createElement('i');i.style.height='0';const v=document.createElement('b');v.textContent=n.toLocaleString();const s=document.createElement('small');s.textContent=w;b.append(i,v,s);bars.append(b);requestAnimationFrame(()=>{i.style.height=(n/max*160)+'px'});}
+document.getElementById('note').textContent='Drawn by the page’s own script — '+data.length+' weeks, '+data.reduce((a,d)=>a+d[1],0).toLocaleString()+' signups.';
+</script></body></html>`;
 
 const SIGNUPS = `week,signups,activated,rate
 2026-09-28,1204,688,57%
@@ -202,7 +279,7 @@ export const doc: ComponentDoc = {
   summary:
     'What did the agent make? — every file a run left behind as a tile, a peek on hover, and the whole file one click away.',
   description:
-    'The files an agent made — screenshots, reports, pages, code, logs, recordings — as a scrolling strip of tiles, or a grid, chips or a list. Rest the pointer on a tile and a larger peek shows the picture, the head of the document or a small copy of the page. Click, Enter or Space opens the file in a large dialog: an image fits the panel and zooms to 1:1, markdown reads as a document, text and code keep their lines, an HTML page renders in a sandboxed frame with scripts off, audio and video play with native controls, and anything else gets a calm card with Download. ← / → step through the files without closing, Home / End jump, Esc closes and focus goes back to the tile. Open in new tab and Download are real links the host can take over. The component never fetches: text arrives inline, media by URL.',
+    'The files an agent made — screenshots, reports, pages, code, logs, recordings — as a scrolling strip of tiles, or a grid, chips or a list. Rest the pointer on a tile and a larger peek shows the picture, the head of the document or a small copy of the page. Click, Enter or Space opens the file in a large dialog: an image fits the panel and zooms to 1:1, markdown reads as a document, text and code keep their lines, an HTML page renders in a sandboxed frame with scripts off (on, for a page the host vouches for), a PDF opens in the browser’s own viewer, audio and video play with native controls, and anything else gets a calm card with Download. ← / → step through the files without closing, Home / End jump, Esc closes and focus goes back to the tile. Open in new tab and Download are real links the host can take over. The component never fetches: text arrives inline, media by URL.',
   usedIn: 'soma-work dashboard › artifact strip, hover peek and viewer (I-01…I-08)',
   reference: { name: 'WAI-ARIA APG Dialog (Modal)', url: 'https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/' },
   props: [
@@ -261,6 +338,31 @@ export const doc: ComponentDoc = {
       description:
         'Inline content: markdown (escaped, then marked up), text or code (as is, up to 1M characters), or an HTML page — the srcdoc of a sandbox="" frame, never put in the DOM.',
     },
+    {
+      name: 'data.items[].scripts',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'html: the page runs its own scripts — the viewer’s and the peek’s frames get sandbox="allow-scripts" (never same-origin: no cookies, no storage, no reach into your page); the note reads “Runs its own scripts”. Only for a page you trust — the chart or small app the model wrote.',
+    },
+    {
+      name: 'data.items[].head',
+      type: 'string',
+      description:
+        'The first lines of a markdown / text document for the peek alone (fetched with a Range request, say) when text is not in hand. The viewer’s body still wants text; without it, the card.',
+    },
+    {
+      name: 'peekHtml(item, lang, now?, broken?) · peekCss · peekPageCss',
+      type: 'export',
+      description:
+        'The peek’s inside as markup — image, document head (text, else head), a small copy of a page, the glyph, then name · kind · meta — for a hovercard of your own. Wrap it in an element with data-kind (fileItemKind(item)); style it with peekCss in a shadow root, or peekPageCss in the page (the tokens become --ui-*). Import from @2lab.ai/ui/artifact-viewer.',
+    },
+    {
+      name: 'kind: "pdf"',
+      type: 'body',
+      description:
+        'A PDF with a url and frame: true opens in the browser’s own viewer (the url framed as is — a sandbox would turn the viewer off, so frame says the host vouches for the url: same origin or a store it trusts); otherwise the calm card with Open and Download.',
+    },
     { name: 'data.items[].meta', type: 'string', description: 'One extra quiet line (“from Build agent”).' },
     { name: 'data.items[].downloadName', type: 'string', description: 'File name for Download. Default: name.' },
     {
@@ -311,14 +413,14 @@ export const doc: ComponentDoc = {
       name: 'slot="preview"',
       type: 'slot',
       description:
-        'Your own body for the shown file (a CSV table, a PDF viewer). While it is there it replaces the built-in body; swap its content on ui-view.',
+        'Your own body for the shown file (a CSV table, a chart). While it is there it replaces the built-in body; swap its content on ui-before-view (before the body renders) or ui-view.',
     },
     { name: 'index', type: 'number (read-only)', description: 'The file the viewer shows, -1 while it is closed.' },
     {
       name: 'open(index) · next() · prev() · close()',
       type: 'methods',
       description:
-        'Open at a file, step (held at the ends), close with the exit motion. They send ui-view for the shown file, never ui-open or ui-close.',
+        'Open at a file, step (held at the ends), close with the exit motion. They send ui-view for the shown file, never ui-open or ui-close; close() is followed by ui-closed (reason host).',
     },
     {
       name: 'open(items, index?, opener?)',
@@ -342,16 +444,28 @@ export const doc: ComponentDoc = {
         'A tile (or the peek) was activated by click, Enter or Space. Cancelable: preventDefault() keeps the viewer closed — open your own view instead.',
     },
     {
+      name: 'ui-before-view',
+      detail: '{ id: string; index: number }',
+      description:
+        'Notification, before the body for this file renders (on open, on a step, when new data moved the shown file): put or swap your slot="preview" child here and the viewer never draws its own body for it — no frame made and dropped, no flash.',
+    },
+    {
       name: 'ui-view',
       detail: '{ id: string; index: number }',
       description:
-        'Notification: the viewer now shows this file — on open, on a step (buttons, arrows, Home / End, next() / prev()), or when new data moved the shown file. Swap a slotted preview here.',
+        'Notification: the viewer now shows this file — on open, on a step (buttons, arrows, Home / End, next() / prev()), or when new data moved the shown file. Swap a slotted preview here (or, better, on ui-before-view).',
     },
     {
       name: 'ui-close',
       detail: "{ reason: 'escape' | 'scrim' | 'close-button' }",
       description:
         'The person asked to close the viewer. Cancelable: preventDefault() keeps it open (unsaved notes, say). close() sends nothing.',
+    },
+    {
+      name: 'ui-closed',
+      detail: "{ reason: 'escape' | 'scrim' | 'close-button' | 'host' | 'removed' }",
+      description:
+        'Notification, after the exit: the viewer is gone — for every close. The person’s reason; host for close(), data.index -1 or a list emptied under it; removed when the element left the page while open. Let go of what you held for it here (your preview, the list it paged).',
     },
     {
       name: 'ui-action',
@@ -416,7 +530,7 @@ export const doc: ComponentDoc = {
       id: 'strip',
       title: 'Strip',
       description:
-        'Eight files a run left behind, in one scrolling row. Rest the pointer on a tile for the peek; click one for the viewer, then ← / → through the rest — the picture zooms, the notes read as a document, the page renders with scripts off, the chime plays, the invoice gets a card with Download.',
+        'Eight files a run left behind, in one scrolling row. Rest the pointer on a tile for the peek; click one for the viewer, then ← / → through the rest — the picture zooms, the notes read as a document, the page renders with scripts off, the chime plays, the invoice opens in the browser’s PDF viewer.',
       height: 290,
       create: () => stage(make({ title: 'Files', items: demoFiles() })).box,
     },
@@ -447,7 +561,7 @@ export const doc: ComponentDoc = {
       id: 'actions',
       title: 'Events and host control',
       description:
-        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. Each file also carries the page’s own actions (items[].actions): Slack on every file, Copy on the log, and customer-call.m4a lives only in Slack, so its card leads with Open in Slack. The button opens the viewer through data.index; ui-close clears it.',
+        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. Each file also carries the page’s own actions (items[].actions): Slack on every file, Copy on the log, and customer-call.m4a lives only in Slack, so its card leads with Open in Slack. The button opens the viewer through data.index; ui-close clears it, and ui-closed follows the exit.',
       height: 330,
       create: () => {
         const el = make({ title: 'Files', items: withActions() });
@@ -469,6 +583,40 @@ export const doc: ComponentDoc = {
       },
     },
     {
+      id: 'scripts-pdf',
+      title: 'A page with its scripts, and a PDF',
+      description:
+        'items[].scripts: the model’s chart page runs its own script (sandbox="allow-scripts", never same-origin) in the viewer and the peek — the note says so. The PDF (frame: true — a url the host vouches for) is the browser’s own viewer; no slot, no body of the page’s own.',
+      height: 290,
+      create: () =>
+        stage(
+          make({
+            title: 'Final answer',
+            items: [
+              {
+                id: 'chart-page',
+                name: 'signups-chart.html',
+                size: 2_300,
+                time: Date.now() - 2 * MIN,
+                text: CHART_PAGE,
+                scripts: true,
+                meta: 'the model’s page',
+              },
+              // The demo's own file (same origin): the host vouches for it, so it is framed in the browser's viewer.
+              { ...(demoFiles().find((f) => f.id === 'invoice') as FileItem), frame: true },
+            ],
+          }),
+        ).box,
+    },
+    {
+      id: 'own-peek',
+      title: 'The peek in your own hovercard',
+      description:
+        'peekHtml(item, lang) and peekPageCss: the same preview — the picture, a document head (text, or a head the page fetched), the page, the glyph — inside a <ui-hovercard> over rows of the page’s own. Rest on a row.',
+      height: 300,
+      create: () => ownPeek(),
+    },
+    {
       id: 'over-host',
       title: 'Over your own cards',
       description:
@@ -480,7 +628,7 @@ export const doc: ComponentDoc = {
       id: 'host-preview',
       title: 'Your own preview',
       description:
-        'slot="preview" replaces the built-in body: this host draws each CSV as a table, swapping it on ui-view. The tiles, peek, steps and actions stay the viewer’s.',
+        'slot="preview" replaces the built-in body: this host draws each CSV as a table, swapping it on ui-before-view — before the viewer would draw a body of its own. The tiles, peek, steps and actions stay the viewer’s.',
       height: 290,
       create: () => {
         const items = csvFiles();
@@ -488,7 +636,7 @@ export const doc: ComponentDoc = {
         const preview = document.createElement('div');
         preview.slot = 'preview';
         el.append(preview);
-        el.addEventListener('ui-view', (e) => {
+        el.addEventListener('ui-before-view', (e) => {
           const { id } = (e as CustomEvent<ArtifactViewDetail>).detail;
           preview.replaceChildren(csvTable(items.find((f) => f.id === id)?.text ?? ''));
         });

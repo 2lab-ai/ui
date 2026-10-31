@@ -23,6 +23,12 @@ export const styles = `
 .dc-summary { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .dc-meta { flex: none; margin-left: auto; color: var(--ib-muted); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .dc-meta:empty { display: none; }
+/* Links under the row, outside the region: in view while closed, lined up with the summary text */
+.dc-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 0 8px 8px 28px; font-size: 12px; line-height: 1.4; color: var(--ib-text-2); }
+.dc-links[hidden] { display: none; }
+:host([variant="card"]) .dc-links { padding: 0 14px 12px 32px; }
+:host([trigger="external"]) .dc-links { padding: 0 0 8px; }
+.dc[data-open] .dc-links { padding-bottom: 4px; }
 .dc-region { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .dc[data-open] .dc-region { grid-template-rows: 1fr; }
 .dc-inner { min-height: 0; overflow: hidden; opacity: 0; visibility: hidden; transition: opacity var(--dur-expand) var(--ease-out), visibility 0s linear var(--dur-expand); }

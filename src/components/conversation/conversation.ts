@@ -10,18 +10,22 @@ import {
   type ConversationCopyDetail,
   type ConversationData,
   type ConversationLang,
+  type ConversationLoadDetail,
   type ConversationRetryDetail,
+  type ConversationSelectDetail,
   type ConversationStrings,
   type ConversationTurn,
   clampLinesOf,
   clampOverflows,
   clockText,
   conversationStrings,
+  hasSummaryView,
   initialOf,
   normalizeTurns,
   planTurns,
   progressState,
   summaryText,
+  summaryView,
   type TurnProgress,
   tookText,
   turnAnswerData,
@@ -61,7 +65,11 @@ interface Ctx {
   t: ConversationStrings;
   assistant: string;
   clamp: number;
+  /** `selectable`: a checkbox leads every turn. */
+  selectable: boolean;
 }
+
+const TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.2 8.3 2.6 2.6 5-5.6"/></svg>';
 
 const SKELETON = [
   ['34%', '88%', '62%'],
@@ -141,17 +149,20 @@ function paintProgress(el: HTMLElement, now: number, t: ConversationStrings): vo
  * turns the system put there, newest at the bottom, in a `<ui-log-scroller>` that follows new turns and never moves
  * what the reader is on. Turns are nodes keyed by id: a data change rebuilds only the turns whose data changed;
  * older turns are prepended without a jump; new ones are appended live. Answers render in a nested `<ui-ai-answer>`.
+ * `layout="page"`: as tall as the turns — the page scrolls (see `<ui-log-scroller layout="page">`).
  */
 export class UiConversation extends UiElement<ConversationData> {
   static override styles = [activityCss, styles];
   static get observedAttributes() {
-    return ['lang'];
+    return ['lang', 'selectable', 'layout'];
   }
 
   #log: UiLogScroller | null = null;
   #bar: HTMLElement | null = null;
   #state: HTMLElement | null = null;
-  #ctx: Ctx = { lang: 'en', t: conversationStrings('en'), assistant: '', clamp: 12 };
+  #ctx: Ctx = { lang: 'en', t: conversationStrings('en'), assistant: '', clamp: 12, selectable: false };
+  /** The selected turn ids (`selectable`); kept across data updates, cleared when the list is replaced whole. */
+  #selected = new Set<string>();
   /** The turns of the last data, by id (the writing row included). */
   #turns = new Map<string, ConversationTurn>();
   #ui = new Map<string, TurnUi>();
@@ -177,6 +188,7 @@ export class UiConversation extends UiElement<ConversationData> {
     this.root.addEventListener('transitionend', (e) => this.#onTransitionEnd(e as TransitionEvent));
     // A nested answer's Try again / Copy leave with the turn's id.
     this.root.addEventListener('ui-retry', (e) => this.#fromAnswer(e, 'retry'));
+    this.root.addEventListener('ui-load', (e) => this.#fromAnswer(e, 'load'));
     this.root.addEventListener('ui-copy', (e) => this.#fromAnswer(e, 'copy'));
     // The scroller's request for older turns leaves from this element (cancelable through).
     this.root.addEventListener('ui-load-older', (e) => this.#fromLog(e));
@@ -207,6 +219,33 @@ export class UiConversation extends UiElement<ConversationData> {
   /** Go to the newest turn (smooth unless reduced motion or `smooth: false`). */
   scrollToLatest(opts: { smooth?: boolean } = {}): void {
     this.#log?.scrollToLatest(opts);
+  }
+
+  /**
+   * The selected turns' ids in the order shown (`selectable`). Setting it replaces the selection — ids not shown
+   * are kept for the turns that may come (an older page) — and repaints the checkboxes in place; no `ui-select`.
+   */
+  get selectedIds(): string[] {
+    const out: string[] = [];
+    for (const [id, turn] of this.#turns) if (turn.role !== 'pending' && this.#selected.has(id)) out.push(id);
+    return out;
+  }
+
+  set selectedIds(ids: Iterable<string> | null | undefined) {
+    this.#selected = new Set(ids ? Array.from(ids, String) : []);
+    this.#paintSelection();
+  }
+
+  /** Select every turn shown (the writing row is never a turn). */
+  selectAll(): void {
+    for (const [id, turn] of this.#turns) if (turn.role !== 'pending') this.#selected.add(id);
+    this.#paintSelection();
+  }
+
+  /** Select none. */
+  clearSelection(): void {
+    this.#selected.clear();
+    this.#paintSelection();
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -255,7 +294,8 @@ export class UiConversation extends UiElement<ConversationData> {
     const lang = this.#lang;
     const t = conversationStrings(lang);
     const clamp = clampLinesOf(d.clampLines);
-    this.#ctx = { lang, t, assistant: String(d.assistantName || t.assistant), clamp };
+    const selectable = this.hasAttribute('selectable');
+    this.#ctx = { lang, t, assistant: String(d.assistantName || t.assistant), clamp, selectable };
     const now = Number(d.now);
     this.#skew = Number.isFinite(now) && now > 0 ? now - Date.now() : 0;
     const { regular, pending } = normalizeTurns(d.turns, d.pending);
@@ -263,7 +303,7 @@ export class UiConversation extends UiElement<ConversationData> {
     if (pending) this.#turns.set(pending.id, pending);
     this.#syncChrome(d, !regular.length && !pending);
 
-    const ctx = `${lang}\n${this.#ctx.assistant}\n${clamp}\n`;
+    const ctx = `${lang}\n${this.#ctx.assistant}\n${clamp}\n${selectable ? 's' : ''}\n`;
     const next = regular.map((x) => x.id);
     const wanted = new Set(next);
     // The writing row goes when it is off, keyed anew, or its key now names a turn.
@@ -287,6 +327,8 @@ export class UiConversation extends UiElement<ConversationData> {
       for (const k of current) this.#ui.delete(k);
       if (this.#pendingKey) this.#ui.delete(this.#pendingKey);
       this.#pendingKey = null;
+      // Another conversation (no turn in common): its ids are not these ids.
+      this.#selected.clear();
     } else for (const k of plan.remove) this.#drop(k);
 
     // Turns that stay: only one whose data changed is rebuilt (upserted in place).
@@ -344,6 +386,9 @@ export class UiConversation extends UiElement<ConversationData> {
     const { lang, t } = this.#ctx;
     if (lang === 'ko') setAttr(log, 'lang', 'ko');
     else log.removeAttribute('lang');
+    // layout="page": the scroller is as tall as the turns and the page scrolls.
+    if (this.getAttribute('layout') === 'page') setAttr(log, 'layout', 'page');
+    else log.removeAttribute('layout');
     const error = d.error ? String(d.error) : '';
     const retry =
       d.canRetry !== false
@@ -407,6 +452,7 @@ export class UiConversation extends UiElement<ConversationData> {
     node.className = 'cv-turn';
     node.dataset.item = turn.id;
     node.dataset.role = turn.role;
+    if (this.#ctx.selectable && turn.role !== 'pending' && this.#selected.has(turn.id)) node.dataset.selected = '';
     const time = turnTime(turn.at, this.#ctx.lang);
     node.setAttribute('aria-labelledby', time ? `${st.dom}-n ${st.dom}-t` : `${st.dom}-n`);
     if (turn.role === 'pending' || turn.streaming || turn.loading) node.setAttribute('aria-busy', 'true');
@@ -473,17 +519,18 @@ export class UiConversation extends UiElement<ConversationData> {
     const timeHtml = time
       ? `<time class="cv-time" id="${st.dom}-t" datetime="${escAttr(time.iso)}" title="${escAttr(time.full)}">${esc(time.short)}</time>`
       : '';
+    const pick = this.#pickHtml(turn, st, name);
     if (turn.role === 'user') {
       const av = `<div class="cv-av" aria-hidden="true">${esc(initialOf(name))}</div>`;
-      return `${av}<div class="cv-main"><div class="cv-head">${nameHtml}${timeHtml}</div>${this.#userBody(turn, st)}</div>`;
+      return `${pick}${av}<div class="cv-main"><div class="cv-head">${nameHtml}${timeHtml}</div>${this.#userBody(turn, st)}</div>`;
     }
     if (turn.role === 'system') {
       const av = `<div class="cv-av" aria-hidden="true">${icon('gear')}</div>`;
-      return `${av}<div class="cv-main">${this.#systemBody(turn, st, nameHtml + timeHtml)}</div>`;
+      return `${pick}${av}<div class="cv-main">${this.#systemBody(turn, st, nameHtml + timeHtml)}</div>`;
     }
     const av = `<div class="cv-av" aria-hidden="true">${icon('bot')}</div>`;
     if (turn.role === 'pending')
-      return `${av}<div class="cv-main"><div class="cv-head">${nameHtml}</div><div class="cv-answer"></div></div>`;
+      return `${pick}${av}<div class="cv-main"><div class="cv-head">${nameHtml}</div><div class="cv-answer"></div></div>`;
     const took = tookText(turn.responseMs, lang);
     const tookHtml = took
       ? `<span class="cv-took">${icon('clock')}<span class="cv-took-n" aria-hidden="true">${esc(took)}</span><span class="sr-only">${esc(
@@ -495,10 +542,32 @@ export class UiConversation extends UiElement<ConversationData> {
           `attachments-${turn.id}`,
         )}"></slot></div>`
       : '';
-    return `${av}<div class="cv-main"><div class="cv-head">${nameHtml}${timeHtml}${tookHtml}</div><div class="cv-answer"></div>${files}${this.#rawHtml(
+    return `${pick}${av}<div class="cv-main"><div class="cv-head">${nameHtml}${timeHtml}${tookHtml}</div><div class="cv-answer"></div>${files}${this.#rawHtml(
       turn,
       st,
     )}</div>`;
+  }
+
+  /** `selectable`: the checkbox that leads a turn (the writing row keeps the column, with nothing in it). */
+  #pickHtml(turn: ConversationTurn, st: TurnUi, name: string): string {
+    if (!this.#ctx.selectable) return '';
+    if (turn.role === 'pending') return '<span class="cv-pick" aria-hidden="true"></span>';
+    return `<label class="cv-pick"><input type="checkbox" class="cv-pick-in" data-key="${st.dom}:pick"${
+      this.#selected.has(turn.id) ? ' checked' : ''
+    } aria-label="${escAttr(this.#ctx.t.pick(name))}">${TICK}</label>`;
+  }
+
+  /** The checkboxes and the rows' selected mark follow `#selected`, in place. */
+  #paintSelection(): void {
+    const log = this.#log;
+    if (!log) return;
+    for (const node of log.items) {
+      const id = node.dataset.item ?? '';
+      const on = this.#selected.has(id) && node.dataset.role !== 'pending';
+      const box = node.querySelector<HTMLInputElement>(':scope > .cv-pick > .cv-pick-in');
+      if (box && box.checked !== on) box.checked = on;
+      if (node.hasAttribute('data-selected') !== on) node.toggleAttribute('data-selected', on);
+    }
   }
 
   #userBody(turn: ConversationTurn, st: TurnUi): string {
@@ -526,7 +595,8 @@ export class UiConversation extends UiElement<ConversationData> {
   #rawViews(turn: ConversationTurn): AnswerView[] {
     if (turn.streaming || turn.loading) return [];
     const views: AnswerView[] = [];
-    if (summaryText(turn.summary)) views.push('summary');
+    // The summary, its failure, or a Retry that asks for one (summary.canRetry).
+    if (hasSummaryView(turn.summary)) views.push('summary');
     if (turnSource(turn).trim()) views.push('source');
     return views;
   }
@@ -574,10 +644,15 @@ export class UiConversation extends UiElement<ConversationData> {
   }
 
   #rawViewInner(turn: ConversationTurn, st: TurnUi, from: RawFrom): string {
-    return rawViewHtml(
-      { state: 'ready', text: this.#rawText(turn, from) },
-      { lang: this.#ctx.lang, keyPrefix: `${st.dom}:${from}`, copied: this.#copied === `${turn.id}\n${from}` },
-    );
+    const view =
+      from === 'summary'
+        ? summaryView(turn.summary, this.#ctx.t.noSummary)
+        : { state: 'ready' as const, text: this.#rawText(turn, from) };
+    return rawViewHtml(view, {
+      lang: this.#ctx.lang,
+      keyPrefix: `${st.dom}:${from}`,
+      copied: this.#copied === `${turn.id}\n${from}`,
+    });
   }
 
   #systemBody(turn: ConversationTurn, st: TurnUi, who: string): string {
@@ -589,7 +664,7 @@ export class UiConversation extends UiElement<ConversationData> {
     const badge = kind || label ? sysBadgeHtml(kind, lang, label || undefined) : '';
     const line = String(turn.text ?? '') || (p?.done ? t.done : '');
     const lineHtml = line ? `<span class="cv-line">${esc(line)}</span>` : '';
-    const canOpen = this.#facts(turn).length > 0 || String(turn.raw ?? '') !== '';
+    const canOpen = this.#facts(turn).length > 0 || String(turn.raw ?? '') !== '' || !!turn.media;
     const open = canOpen && !!st.open;
     const row = canOpen
       ? `<button type="button" class="cv-sys" data-act="sys" data-key="${st.dom}:sys" aria-expanded="${open}" aria-controls="${st.dom}-sys">${who}${badge}${lineHtml}${icon(
@@ -612,6 +687,10 @@ export class UiConversation extends UiElement<ConversationData> {
 
   #systemDetail(turn: ConversationTurn, st: TurnUi): string {
     const facts = this.#facts(turn);
+    // The files the intercepted message carried: the host's media, first in the detail.
+    const media = turn.media
+      ? `<div class="cv-media" role="group" aria-label="${escAttr(this.#ctx.t.media)}"><slot name="${escAttr(`media-${turn.id}`)}"></slot></div>`
+      : '';
     const dl = facts.length
       ? `<dl class="cv-facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`
       : '';
@@ -619,7 +698,7 @@ export class UiConversation extends UiElement<ConversationData> {
       String(turn.raw ?? '') !== ''
         ? `<div class="cv-sysraw"><p class="cv-raw-h">${esc(this.#ctx.t.rawText)}</p>${this.#rawView(turn, st, 'raw')}</div>`
         : '';
-    return `<div class="cv-detail">${dl}${raw}</div>`;
+    return `<div class="cv-detail">${media}${dl}${raw}</div>`;
   }
 
   #progressHtml(turn: ConversationTurn, p: TurnProgress): string {
@@ -695,6 +774,12 @@ export class UiConversation extends UiElement<ConversationData> {
   // ── Interaction ──────────────────────────────────────────────────────────
 
   #onClick(e: Event): void {
+    // A turn's checkbox (selectable): its state has already flipped when the click is dispatched; Space clicks too.
+    const box = (e.target as Element | null)?.closest?.<HTMLInputElement>('.cv-pick-in');
+    if (box) {
+      if (box.getRootNode() === this.root) this.#pick(box, e);
+      return;
+    }
     const btn = (e.target as Element | null)?.closest?.<HTMLButtonElement>('button');
     // Only this element's own controls (a host's slotted button is the host's business).
     if (!btn || btn.getRootNode() !== this.root) return;
@@ -709,7 +794,27 @@ export class UiConversation extends UiElement<ConversationData> {
     else if (btn.dataset.act === 'raw' || btn.dataset.act === 'sys') this.#toggleDisc(node, id, btn.dataset.act);
     else if (btn.classList.contains('cv-tab')) this.#setView(node, id, btn.dataset.view as AnswerView);
     else if (btn.classList.contains('raw-copy')) void this.#copy(id, btn, e);
+    else if (btn.classList.contains('raw-retry')) this.#retrySummary(id, btn, e);
     else if (btn.classList.contains('skill-badge')) this.#toggleSkill(node, id, Number(btn.dataset.skill));
+  }
+
+  /** Retry on Raw's Summary view: the host summarises the turn again (`ui-retry` with what: 'summary'). */
+  #retrySummary(id: string, btn: HTMLElement, e: Event): void {
+    if (btn.closest<HTMLElement>('.cv-rawview')?.dataset.from !== 'summary') return;
+    if (this.emit<ConversationRetryDetail>('ui-retry', { id, what: 'summary' })) this.sound('tap', undefined, e);
+  }
+
+  /** A turn's checkbox: the selection changes, the row is marked, the host is told (`ui-select`). */
+  #pick(box: HTMLInputElement, e: Event): void {
+    const node = box.closest<HTMLElement>('.cv-turn');
+    const id = node?.dataset.item;
+    if (!node || id === undefined || !this.#turns.has(id)) return;
+    const on = box.checked;
+    if (on) this.#selected.add(id);
+    else this.#selected.delete(id);
+    node.toggleAttribute('data-selected', on);
+    this.notify<ConversationSelectDetail>('ui-select', { id, selected: on, ids: this.selectedIds });
+    this.sound('toggle', { direction: on ? 'forward' : 'back' }, e);
   }
 
   #onKey(e: KeyboardEvent): void {
@@ -733,8 +838,8 @@ export class UiConversation extends UiElement<ConversationData> {
     if (box?.hasAttribute('data-open')) box.setAttribute('data-settled', '');
   }
 
-  /** A nested answer's Try again (cancelable) and Copy (a notification) leave with the turn's id. */
-  #fromAnswer(e: Event, kind: 'retry' | 'copy'): void {
+  /** A nested answer's Try again / Load answer (cancelable) and Copy (a notification) leave with the turn's id. */
+  #fromAnswer(e: Event, kind: 'retry' | 'load' | 'copy'): void {
     const a = e.target as Element | null;
     if (!a || a.tagName !== 'UI-AI-ANSWER') return;
     const id = a.closest<HTMLElement>('.cv-turn')?.dataset.item;
@@ -742,6 +847,10 @@ export class UiConversation extends UiElement<ConversationData> {
     e.stopPropagation();
     if (kind === 'retry') {
       if (!this.emit<ConversationRetryDetail>('ui-retry', { id })) e.preventDefault();
+      return;
+    }
+    if (kind === 'load') {
+      if (!this.emit<ConversationLoadDetail>('ui-load-answer', { id })) e.preventDefault();
       return;
     }
     const text = String((e as CustomEvent<{ text?: string }>).detail?.text ?? '');
