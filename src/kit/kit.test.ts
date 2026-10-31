@@ -44,6 +44,8 @@ describe('ui-kit.css', () => {
       /\.ui-chip\.is-toned \{[^}]*color: color-mix\(in srgb, var\(--ui-tone, var\(--ui-ib-muted\)\) 70%, var\(--ui-ib-text\)\);/,
     );
     expect(kitCss).toContain('.ui-chip.is-sm { gap: 4px; height: 20px; padding: 0 7px; font-size: 11px; }');
+    // A small chip as a button still reaches 44px on touch (20 + 2 × 12).
+    expect(kitCss).toContain(':is(button.ui-chip, a.ui-chip).is-sm::after { inset: -12px 0; }');
   });
 
   it('tints status tones with color-mix in both text and pill', () => {
