@@ -18,6 +18,9 @@ export type GoalProgress = number | { done: number; total: number };
 /** Epoch milliseconds (an ISO string is accepted too). */
 export type GoalTime = number | string;
 
+/** One quiet fact on a goal: a word (`'evaluator: done'`) or a label · value pair (`{ label: 'Continues', value: '3/10' }`). */
+export type GoalMetaItem = string | { label: string; value: string };
+
 export interface GoalCurrent {
   id: string;
   /** The objective, as the person wrote it (newlines kept). */
@@ -26,6 +29,13 @@ export interface GoalCurrent {
   progress?: GoalProgress;
   startedAt?: GoalTime;
   updatedAt?: GoalTime;
+  /**
+   * Budget and bookkeeping that is not progress — the auto-continue count (`{ label: 'Continues', value: '3/10' }`),
+   * a cost — drawn as one quiet line after the times.
+   */
+  meta?: GoalMetaItem[];
+  /** A note under the goal: what the evaluator says is left, why it paused (newlines kept). */
+  note?: string;
 }
 
 export interface GoalQueued {
@@ -39,6 +49,10 @@ export interface GoalPast {
   objective: string;
   status: GoalStatus;
   endedAt?: GoalTime;
+  /** One quiet line per goal: active time, tokens, cost, how it closed (`['2h 10m', '$0.42', 'Continued 3×']`). */
+  meta?: GoalMetaItem[];
+  /** Why it ended the way it did (the evaluator's reason), under the meta line. */
+  note?: string;
 }
 
 /** The goal write in flight (one at a time). `pause` covers resume too. */
@@ -53,6 +67,13 @@ export interface GoalCardData {
   history?: GoalPast[];
   /** Default `true`. `false` = read-only: no actions, no add box. */
   canEdit?: boolean;
+  /**
+   * The goal actions the host answers (`ui-complete`, `ui-pause` / `ui-resume`, `ui-delete`). The card draws, of what
+   * the status allows, only these — a host whose goal route takes add and delete passes `['delete']`. `[]` draws no
+   * goal action; without `delete` the queued goals lose their remove too. Default: every action the status allows.
+   * The add box stays with `canEdit`.
+   */
+  actions?: GoalAction[];
   /** A goal write in flight: its button spins, every goal action waits. */
   busy?: GoalBusy | null;
   /** The goal `busy` is about (a queued goal's id for its remove button). Default: the current goal. */
@@ -241,13 +262,40 @@ export function goalStatus(status: unknown, lang: Lang = 'en'): GoalStatusInfo {
   };
 }
 
-/** The actions the current goal offers: active → complete, pause, delete; paused → complete, resume, delete. */
-export function goalActions(status: unknown): GoalAction[] {
+/**
+ * The actions the current goal offers: active → complete, pause, delete; paused → complete, resume, delete; ended →
+ * delete. `allowed` (the host's `actions`) keeps only the ones the host answers, in the card's order.
+ */
+export function goalActions(status: unknown, allowed?: readonly GoalAction[] | null): GoalAction[] {
   const s = goalStatus(status);
-  if (s.terminal) return ['delete'];
-  if (s.key === 'active') return ['complete', 'pause', 'delete'];
-  if (s.key === 'paused') return ['complete', 'resume', 'delete'];
-  return ['complete', 'delete'];
+  let all: GoalAction[];
+  if (s.terminal) all = ['delete'];
+  else if (s.key === 'active') all = ['complete', 'pause', 'delete'];
+  else if (s.key === 'paused') all = ['complete', 'resume', 'delete'];
+  else all = ['complete', 'delete'];
+  if (!Array.isArray(allowed)) return all;
+  return all.filter((a) => allowed.includes(a));
+}
+
+/** `meta` items → the quiet `label value` spans (strings as they are), for one · separated line. */
+export function goalMetaHtml(items: unknown, cls = 'gc-kv'): string {
+  if (!Array.isArray(items)) return '';
+  return items
+    .map((m) => {
+      if (typeof m === 'string') return m.trim() ? `<span class="${cls}">${esc(m)}</span>` : '';
+      if (m && typeof m === 'object') {
+        const { label, value } = m as { label?: unknown; value?: unknown };
+        const l = String(label ?? '').trim();
+        const v = String(value ?? '').trim();
+        if (!l && !v) return '';
+        return `<span class="${cls}">${l ? `<span class="gc-k">${esc(l)}</span>` : ''}${l && v ? ' ' : ''}${
+          v ? `<span class="gc-v">${esc(v)}</span>` : ''
+        }</span>`;
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('<span class="gc-dot" aria-hidden="true">·</span>');
 }
 
 export interface GoalProgressInfo {
@@ -416,6 +464,12 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     return Array.isArray(q) ? q.filter((g) => g && typeof g === 'object') : [];
   }
 
+  /** A queued goal's remove is a delete: it needs the host to answer `ui-delete`. */
+  #canRemove(): boolean {
+    const a = this.data?.actions;
+    return !Array.isArray(a) || a.includes('delete');
+  }
+
   // ── Render ──
 
   /**
@@ -450,8 +504,8 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     if (!a) return;
     const alive =
       a.act === 'remove'
-        ? this.#queue().some((q) => String(q.id) === a.id)
-        : !!cur && String(cur.id) === a.id && goalActions(cur.status).includes(a.act);
+        ? this.#canRemove() && this.#queue().some((q) => String(q.id) === a.id)
+        : !!cur && String(cur.id) === a.id && goalActions(cur.status, this.data?.actions).includes(a.act);
     if (!alive || !this.#edit() || this.data?.busy) this.#disarm(false);
   }
 
@@ -521,13 +575,15 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     const when: string[] = [];
     if (started) when.push(this.#when(started, 'started', now, t, lang));
     if (updated && (!started || updated - started >= 60_000)) when.push(this.#when(updated, 'updated', now, t, lang));
-    const meta = when.length
-      ? `<div class="gc-meta">${when.join('<span class="gc-dot" aria-hidden="true">·</span>')}</div>`
+    const facts = [...when, goalMetaHtml(cur.meta)].filter(Boolean);
+    const meta = facts.length
+      ? `<div class="gc-meta">${facts.join('<span class="gc-dot" aria-hidden="true">·</span>')}</div>`
       : '';
-    const actions = edit
-      ? `<div class="gc-acts">${goalActions(cur.status)
-          .map((a) => this.#actBtn(a, id, queued, t))
-          .join('')}</div>`
+    const note =
+      typeof cur.note === 'string' && cur.note.trim() ? `<p class="gc-note">${esc(cur.note.trim())}</p>` : '';
+    const offered = edit ? goalActions(cur.status, this.data?.actions) : [];
+    const actions = offered.length
+      ? `<div class="gc-acts">${offered.map((a) => this.#actBtn(a, id, queued, t)).join('')}</div>`
       : '';
     return `<div class="gc-cur" data-mk="${escAttr(`goal:${id}`)}"><p class="gc-obj" id="gc-obj"${open ? ' data-open' : ''}>${esc(
       cur.objective,
@@ -536,7 +592,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     }><span class="gc-more-t">${esc(open ? t.less : t.more)}</span>${icon('chevron-down', {
       size: 12,
       class: 'gc-more-i',
-    })}</button>${progress}${meta}${actions}</div>`;
+    })}</button>${progress}${meta}${note}${actions}</div>`;
   }
 
   #when(at: number, kind: WhenKind, now: number, t: Strings, lang: Lang): string {
@@ -575,7 +631,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
         const n = i + 1;
         const added = toMs(q.addedAt);
         let rm = '';
-        if (edit) {
+        if (edit && this.#canRemove()) {
           const a = this.#armed;
           const armed = !!a && a.act === 'remove' && a.id === id;
           const spinning =
@@ -618,10 +674,15 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     const items = hist
       .map((h) => {
         const ended = toMs(h.endedAt);
+        const meta = goalMetaHtml(h.meta);
+        const note =
+          typeof h.note === 'string' && h.note.trim() ? `<p class="gc-h-note">${esc(h.note.trim())}</p>` : '';
         return `<li class="gc-h-row" data-mk="${escAttr(`h:${String(h.id)}`)}"><div class="gc-h-top">${this.#chip(
           goalStatus(h.status, lang),
           true,
-        )}${ended ? this.#when(ended, 'ended', now, t, lang) : ''}</div><p class="gc-h-obj">${esc(h.objective)}</p></li>`;
+        )}${ended ? this.#when(ended, 'ended', now, t, lang) : ''}</div><p class="gc-h-obj">${esc(h.objective)}</p>${
+          meta ? `<div class="gc-h-meta">${meta}</div>` : ''
+        }${note}</li>`;
       })
       .join('');
     return `<div class="gc-hist"${open ? ' data-open' : ''}><button type="button" class="gc-hist-head" data-act="history" data-key="history" aria-expanded="${open}" aria-controls="gc-hist-region">${icon(

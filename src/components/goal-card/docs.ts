@@ -156,7 +156,7 @@ export const doc: ComponentDoc = {
   summary:
     'What the agent is working toward, how far it got, and what comes next — with the calls to finish, pause or drop it.',
   description:
-    'The current goal with its status (icon + word), progress and when it started; the objective folds to three lines with More / Less shown only when the text actually runs past them. Complete, Pause / Resume and Delete hand the decision to the host; Complete and Delete (and removing a queued goal) ask for a second press within 4 s. Below: the goals queued after it, an add box (Enter adds, Shift+Enter is a new line), and the goals that ended, collapsed. The card never writes anything itself — it sends cancelable events and draws the data it is given.',
+    'The current goal with its status (icon + word), progress and when it started; the objective folds to three lines with More / Less shown only when the text actually runs past them. Complete, Pause / Resume and Delete hand the decision to the host (`actions` limits them to what the host answers); Complete and Delete (and removing a queued goal) ask for a second press within 4 s. Below: the goals queued after it, an add box (Enter adds, Shift+Enter is a new line), and the goals that ended, collapsed. The card never writes anything itself — it sends cancelable events and draws the data it is given.',
   usedIn: 'soma-work dashboard › session panel › goal (`.panel-goal`, the goal editor)',
   reference: { name: 'WAI-ARIA APG Disclosure', url: 'https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/' },
   props: [
@@ -184,6 +184,18 @@ export const doc: ComponentDoc = {
       description: '“Started 2h ago · Updated 5m ago”. Updated is left out when it is within a minute of the start.',
     },
     {
+      name: 'data.current.meta',
+      type: 'Array<string | { label: string; value: string }>',
+      description:
+        'Budget and bookkeeping that is not progress — the auto-continue count `{ label: "Continues", value: "3/10" }`, a cost — one quiet line after the times (label, then the value in tabular figures).',
+    },
+    {
+      name: 'data.current.note',
+      type: 'string',
+      description:
+        'A note under the goal: what the evaluator says is left, why it paused. Quiet prose behind a hairline, newlines kept.',
+    },
+    {
       name: 'data.queue',
       type: 'Array<{ id, objective, addedAt? }>',
       description:
@@ -191,14 +203,22 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.history',
-      type: 'Array<{ id, objective, status, endedAt? }>',
-      description: 'Goals that ended, in the order given (newest first, usually). Collapsed under “Past goals”.',
+      type: 'Array<{ id, objective, status, endedAt?, meta?, note? }>',
+      description:
+        'Goals that ended, in the order given (newest first, usually). Collapsed under “Past goals”. `meta` is one quiet line per goal (active time, tokens, cost, how it closed — strings or label · value pairs); `note` the evaluator’s reason under it.',
     },
     {
       name: 'data.canEdit',
       type: 'boolean',
       default: 'true',
       description: '`false` = read-only: no actions, no add box. The fold and the history still open.',
+    },
+    {
+      name: 'data.actions',
+      type: "Array<'complete' | 'pause' | 'resume' | 'delete'>",
+      default: 'every action the status allows',
+      description:
+        'The goal actions the host answers. Of what the status allows, only these are drawn — a host whose route takes add and delete passes `["delete"]`; `[]` draws no goal action. Without `delete` the queued goals lose their remove too (it is a delete). The add box stays with `canEdit`. `goalActions(status, actions)` is the same rule as a function.',
     },
     {
       name: 'data.busy',
@@ -349,6 +369,50 @@ export const doc: ComponentDoc = {
       },
     },
     {
+      id: 'host-actions',
+      title: 'Only what the host answers, with budget meta and notes',
+      description:
+        'actions: ["delete"] — the host’s goal route takes add and delete, so Complete and Pause are not drawn (nothing is dead). The current goal carries a continue budget (meta) and the evaluator’s note of what is left; each past goal its own quiet line and reason.',
+      height: 600,
+      create: () => {
+        const d = activeData();
+        const now = Date.now();
+        return make({
+          ...d,
+          actions: ['delete'],
+          current: {
+            ...d.current!,
+            meta: [{ label: 'Continues', value: '3/10' }, '$0.42'],
+            note: 'Left: the rollback runbook for step 4 and the cut-over checklist in the wiki.',
+          },
+          history: [
+            {
+              id: 'g-flaky',
+              objective: 'Find and fix the flaky checkout test on CI.',
+              status: 'complete',
+              endedAt: now - 3 * HOUR,
+              meta: [
+                '2h 10m active',
+                '48.2K tokens',
+                '$0.31',
+                { label: 'Continued', value: '2×' },
+                'closed by the evaluator',
+              ],
+              note: 'The retry loop in checkout.spec.ts masked a race; the fix landed with a regression test.',
+            },
+            {
+              id: 'g-cache',
+              objective: 'Cut cold-start time of the search API below 300 ms.',
+              status: 'failed',
+              endedAt: now - DAY - 2 * HOUR,
+              meta: ['6h 02m active', '$1.90', { label: 'Continued', value: '10/10' }],
+              note: 'Budget spent at 410 ms: the index warm-up alone takes 350 ms on the small instance.',
+            },
+          ],
+        });
+      },
+    },
+    {
       id: 'empty-readonly',
       title: 'Empty, and read-only',
       description:
@@ -374,6 +438,8 @@ export const doc: ComponentDoc = {
               progress: { done: 1, total: 4 },
               startedAt: now - 47 * MIN,
               updatedAt: now - 3 * MIN,
+              meta: [{ label: '이어하기', value: '3/10' }],
+              note: '남은 것: 4단계의 되돌리기 절차와 위키의 전환 체크리스트.',
             },
             queue: [
               { id: 'k-2', objective: 'v2 마이그레이션 가이드 작성 — 엔드포인트마다 예시 하나씩.' },
@@ -385,6 +451,8 @@ export const doc: ComponentDoc = {
                 objective: 'CI에서 가끔 실패하는 결제 테스트 원인 찾아 고치기.',
                 status: 'complete',
                 endedAt: now - 2 * HOUR,
+                meta: ['소요 2시간 10분', '48.2K 토큰', '$0.31', { label: '이어하기', value: '2회' }, '평가 모델 완료'],
+                note: 'checkout.spec.ts의 재시도 루프가 경쟁 상태를 가리고 있었음. 회귀 테스트와 함께 수정.',
               },
             ],
           },

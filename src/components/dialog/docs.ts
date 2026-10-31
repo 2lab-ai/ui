@@ -153,6 +153,12 @@ export const doc: ComponentDoc = {
         'Attribute. Panel width 400 · 560 · 720 · 960 px (never wider than the viewport less 32px); full = viewport less 16px each side, and edge to edge under 640px whatever sheet says (no rounding, safe areas inside).',
     },
     {
+      name: 'size-phone',
+      type: "'sm' | 'md' | 'lg' | 'xl' | 'full'",
+      description:
+        'Attribute. The size under 640px, when the one for wider screens is not the one you want there — size="lg" size-phone="full" is the 720px panel on a desktop and an edge-to-edge sheet on a phone (a full-height composer, a viewer). Follows the viewport live.',
+    },
+    {
       name: 'sheet',
       type: "'auto' | 'never'",
       default: "'auto'",
@@ -189,7 +195,8 @@ export const doc: ComponentDoc = {
     {
       name: 'hide()',
       type: '() => void',
-      description: 'Close with the exit motion (no event). Focus returns to where it was.',
+      description:
+        'Close with the exit motion (no ui-close; ui-closed once the exit is over). Focus returns to where it was.',
     },
     {
       name: '--ui-vv-h / --ui-vv-top',
@@ -218,6 +225,12 @@ export const doc: ComponentDoc = {
       detail: "{ reason: 'escape' | 'scrim' | 'close-button' }",
       description:
         'The person asked to close. Cancelable: preventDefault() keeps it open; otherwise it closes. Not sent for show() / hide() / open.',
+    },
+    {
+      name: 'ui-closed',
+      detail: "{ reason: 'escape' | 'scrim' | 'close-button' | 'hide' }",
+      description:
+        'Notification, after the exit has played (180ms; 120ms under reduced motion) — for every close: the person’s (their reason) and the host’s hide() / open = false (hide). Drop an iframe or give a scroll place back here. Not sent for a close that was cancelled, nor when the dialog reopens before its exit is over.',
     },
   ],
   keyboard: [
@@ -284,13 +297,13 @@ export const doc: ComponentDoc = {
       id: 'new-task',
       title: 'New task',
       description:
-        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. A bottom sheet under 640px that follows the visual viewport, so Start stays above the soft keyboard.',
+        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. size="lg" size-phone="full": a 720px panel on a desktop; under 640px an edge-to-edge sheet that follows the visual viewport, so Start stays above the soft keyboard.',
       height: 200,
       create: () => {
         const { box, line } = stage();
         const open = trigger('New task');
         const el = dialog(
-          { heading: 'New task' },
+          { heading: 'New task', size: 'lg', 'size-phone': 'full' },
           `<textarea autofocus rows="5" aria-label="Task" placeholder="Fix the flaky upload test in web/upload.spec.ts — it times out on CI about one run in five." style="${FIELD}"></textarea>
 <span slot="footer" style="${HINT}"><kbd class="ui-kbd">⌘</kbd><kbd class="ui-kbd">↵</kbd> to start</span>
 <button type="button" class="ui-btn is-primary" slot="footer" data-act="start" disabled>Start</button>`,

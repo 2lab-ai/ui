@@ -118,6 +118,12 @@ label .kp-sub { margin-left: 4px; }
 .kp-gw::after { border: 1px solid transparent; }
 .kp-gw > textarea { resize: none; overflow: hidden; }
 .kp-cur > textarea, .kp-cur::after { min-height: 168px; max-height: none; padding: 10px 12px; font-family: var(--mono); font-size: 12.5px; line-height: 20px; }
+/* Source mode: one mono box over the whole page; the form ↔ source link sits at the end of the meta row */
+.kp-src > textarea, .kp-src::after { min-height: 240px; max-height: none; padding: 10px 12px; font-family: var(--mono); font-size: 12.5px; line-height: 20px; tab-size: 2; }
+.kp-src-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; min-height: 24px; padding: 0 6px; }
+.kp-src-toggle > svg { color: var(--ib-muted); }
+.kp-src-toggle[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.kp-src-note { margin-top: -8px; }
 .kp-preview { min-height: 168px; padding: 10px 12px; border: 1px solid var(--ib-card-border); border-radius: 8px; background: var(--ib-card); }
 .kp-preview:focus-visible { outline-offset: 0; }
 .kp-doc { font-size: 13.5px; line-height: 1.6; }
@@ -215,11 +221,24 @@ label .kp-sub { margin-left: 4px; }
   .kp-input:hover:not(:focus):not([readonly]), .kp-q:hover:not(:focus) { border-color: var(--ib-muted); }
 }
 
+/* layout="page": as tall as its content — the page scrolls, the list column sticks to the top (--kp-sticky-top for a
+   fixed app bar), the footer to the bottom; the list scrolls inside once it is taller than the viewport */
+:host([layout="page"]) .ui-root, :host([layout="page"]) .kp, :host([layout="page"]) .kp-grid { height: auto; min-height: 0; }
+:host([layout="page"]) .kp { overflow: visible; }
+:host([layout="page"]) .kp-grid { align-items: start; }
+:host([layout="page"]) .kp-list { position: sticky; top: var(--kp-sticky-top, 0px); max-height: calc(100dvh - var(--kp-sticky-top, 0px));
+  border-radius: 11px 0 0 11px; }
+:host([layout="page"]) .kp-detail { min-height: 360px; }
+:host([layout="page"]) :is(.kp-edit, .kp-read) { overflow: visible; }
+:host([layout="page"]) .kp-foot { border-radius: 0 0 11px; }
+
 /* Narrow: one column at a time, with a way back */
 @container kp (max-width: 639px) {
   .kp-grid { grid-template-columns: minmax(0, 1fr); }
   .kp[data-view="list"] .kp-detail, .kp[data-view="detail"] .kp-list { display: none; }
   .kp-list { border-right: 0; }
+  :host([layout="page"]) .kp-list { border-radius: 11px 11px 0 0; }
+  :host([layout="page"]) .kp-foot { border-radius: 0 0 11px 11px; }
   .kp-back { display: inline-flex; }
   .kp-edit, .kp-read { padding: 10px 14px 16px; }
   .kp-foot { padding: 8px 14px; }

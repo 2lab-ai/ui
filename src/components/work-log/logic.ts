@@ -75,6 +75,9 @@ export interface WorkEntry {
   hasRaw?: boolean;
 }
 
+/** One item of a group's meta line: a string as it is, or a quiet label with its value (`{ label: 'Tools', value: '12' }`). */
+export type WorkMetaItem = string | { label: string; value?: string };
+
 export interface WorkGroup {
   /** Stable key (`data-item` in the log). */
   id: string;
@@ -87,6 +90,16 @@ export interface WorkGroup {
   count?: number;
   /** Set → controlled (the host owns it); unset → newest group open, others closed, then the reader's choice. */
   open?: boolean;
+  /**
+   * The task's ledger, one quiet `·` separated line under the title: how it ended, its time, `{ label: 'Tools',
+   * value: '12' }`. Strings are shown as they are.
+   */
+  meta?: WorkMetaItem[];
+  /**
+   * No head: the entries stand in line between the task groups (the instruction that starts a turn, the response
+   * that ends it), always shown, never folded. `open`, `title`, `count` and `meta` are not drawn.
+   */
+  headless?: boolean;
   /** Oldest first. */
   entries?: WorkEntry[];
 }
@@ -296,22 +309,46 @@ export function normGroups(groups: unknown): WorkGroup[] {
 
 /**
  * Which groups are open: the host's `open` when set, else the reader's last choice, else only the newest (last)
- * group.
+ * group with a head. A headless group is always open.
  */
 export function openGroups(
   groups: WorkGroup[],
   chosen: ReadonlyMap<string, boolean> = new Map(),
 ): Map<string, boolean> {
   const out = new Map<string, boolean>();
-  const newest = groups.length ? groups[groups.length - 1].id : null;
+  const headed = groups.filter((g) => !g.headless);
+  const newest = headed.length ? headed[headed.length - 1].id : null;
   for (const g of groups) {
-    const open = typeof g.open === 'boolean' ? g.open : (chosen.get(g.id) ?? g.id === newest);
+    const open = g.headless ? true : typeof g.open === 'boolean' ? g.open : (chosen.get(g.id) ?? g.id === newest);
     out.set(g.id, open);
   }
   return out;
 }
 
-/** The group head's content: chevron · ref · title · count · time. */
+/** The meta items → `·` separated quiet spans (a label in its own span); nothing for an empty list. */
+export function workMetaHtml(items: unknown): string {
+  if (!Array.isArray(items)) return '';
+  const parts = items
+    .map((m) => {
+      if (typeof m === 'string') return m.trim() ? `<span class="wl-g-kv">${esc(m)}</span>` : '';
+      if (m && typeof m === 'object') {
+        const { label, value } = m as { label?: unknown; value?: unknown };
+        const l = String(label ?? '').trim();
+        const v = String(value ?? '').trim();
+        if (!l && !v) return '';
+        return `<span class="wl-g-kv">${l ? `<span class="wl-g-k">${esc(l)}</span>` : ''}${l && v ? ' ' : ''}${
+          v ? `<span class="wl-g-v">${esc(v)}</span>` : ''
+        }</span>`;
+      }
+      return '';
+    })
+    .filter(Boolean);
+  return parts.length
+    ? `<span class="wl-g-meta">${parts.join('<span class="wl-g-dot" aria-hidden="true">·</span>')}</span>`
+    : '';
+}
+
+/** The group head's content: chevron · ref · title · count · time, then the meta line when given. */
 export function groupHeadHtml(g: WorkGroup, lang?: WorkLogLang): string {
   const t = workLogStrings(lang);
   const ref = g.ref === undefined || g.ref === null ? g.id : String(g.ref);
@@ -322,7 +359,7 @@ export function groupHeadHtml(g: WorkGroup, lang?: WorkLogLang): string {
     ref ? `<span class="wl-g-ref">${esc(ref)}</span>` : ''
   }<span${attrs({ class: 'wl-g-title', 'data-empty': !title })}>${esc(title || t.untitled)}</span><span class="wl-g-count" aria-hidden="true">${count}</span><span class="sr-only">${esc(
     t.entries(count),
-  )}</span>${timeHtml(g.at, false, 'wl-g-time')}`;
+  )}</span>${timeHtml(g.at, false, 'wl-g-time')}${workMetaHtml(g.meta)}`;
 }
 
 /** What the agent row says: status word, time text, tools text. */

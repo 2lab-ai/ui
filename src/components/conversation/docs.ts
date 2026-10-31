@@ -1,10 +1,12 @@
 import type { ComponentDoc } from '../../docs/types';
 import '../app-bar/app-bar';
+import '../dialog/dialog';
 import '../elapsed/elapsed';
 import { icon } from '../../icons/icons';
+import type { UiDialog } from '../dialog/dialog';
 import './conversation';
 import type { UiConversation } from './conversation';
-import type { ConversationData, ConversationTurn } from './logic';
+import type { ConversationData, ConversationSelectDetail, ConversationTurn } from './logic';
 
 const MIN = 60_000;
 const BASE = new Date(2026, 9, 30, 9, 12, 0).getTime();
@@ -217,7 +219,7 @@ function liveDemo(): UiConversation {
 function systemDemo(): UiConversation {
   const now = Date.now();
   const at = (ago: number) => now - ago;
-  return make(
+  const el = make(
     {
       turns: [
         {
@@ -253,6 +255,16 @@ function systemDemo(): UiConversation {
         },
         { id: 's-4', role: 'system', at: at(12 * MIN), kind: 'background', text: 'Indexing 1,284 files' },
         {
+          id: 's-7',
+          role: 'system',
+          at: at(9 * MIN),
+          kind: 'compact',
+          label: 'Held',
+          text: 'A message arrived during compaction — delivered after it',
+          facts: [['From', 'Mina Park']],
+          media: true,
+        },
+        {
           id: 's-5',
           role: 'system',
           at: at(200_000),
@@ -276,6 +288,19 @@ function systemDemo(): UiConversation {
     },
     440,
   );
+  // The files the held message carried: the host's chips in slot media-<id>, shown in the open detail.
+  const files = document.createElement('div');
+  files.slot = 'media-s-7';
+  files.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+  for (const name of ['screenshot-2.png', 'error.log']) {
+    const chip = document.createElement('span');
+    chip.textContent = name;
+    chip.style.cssText =
+      'display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid var(--ui-ib-card-border);border-radius:8px;background:var(--ui-ib-card);color:var(--ui-ib-text);font-size:12px';
+    files.append(chip);
+  }
+  el.append(files);
+  return el;
 }
 
 /** First load, empty, a failed load, and a failed answer with Try again. */
@@ -310,12 +335,22 @@ function statesDemo(): HTMLElement {
     at: BASE + 30_000,
     error: 'HTTP 404',
     canRetry: true,
-    summary: { title: 'Incident summary' },
+    summary: { error: 'Summary failed (HTTP 500)', canRetry: true },
   };
   const partial = frame(make({ turns: [ask, answer], error: 'HTTP 500' }, 260));
   partial.addEventListener('ui-retry', (e) => {
-    const id = (e as CustomEvent<{ id: string | null }>).detail.id;
-    if (id === 'a-1') {
+    const { id, what } = (e as CustomEvent<{ id: string | null; what?: 'summary' }>).detail;
+    if (id === 'a-1' && what === 'summary') {
+      // Summarise again: the host answers with the summary.
+      setTimeout(() => {
+        if (!partial.isConnected) return;
+        answer = {
+          ...answer,
+          summary: { title: 'Incident summary', text: 'Search down 14 minutes; certificate renewed.' },
+        };
+        partial.data = { turns: [ask, answer] };
+      }, 700);
+    } else if (id === 'a-1') {
       answer = { ...answer, error: undefined, canRetry: undefined, loading: true };
       partial.data = { turns: [ask, answer] };
       setTimeout(() => {
@@ -331,8 +366,60 @@ function statesDemo(): HTMLElement {
       }, 900);
     } else partial.data = { turns: [ask, answer] };
   });
-  box.append(loading, empty, failed, partial);
+  // Recorded on the server, fetched when asked for: the summary stands in, Load answer brings the text.
+  let kept: ConversationTurn = {
+    id: 'a-2',
+    role: 'assistant',
+    at: BASE + 30_000,
+    responseMs: 30_000,
+    deferred: true,
+    summary: { title: 'Incident summary', text: 'Search down 14 minutes; certificate renewed.' },
+  };
+  const deferred = frame(make({ turns: [ask, kept] }, 260));
+  deferred.addEventListener('ui-load-answer', () => {
+    kept = { ...kept, loading: true };
+    deferred.data = { turns: [ask, kept] };
+    setTimeout(() => {
+      if (!deferred.isConnected) return;
+      kept = {
+        ...kept,
+        loading: undefined,
+        deferred: undefined,
+        markdown:
+          'The search service was down for **14 minutes** after a certificate expired. It was renewed by hand; renewal is now automatic.',
+      };
+      deferred.data = { turns: [ask, kept] };
+    }, 900);
+  });
+  box.append(loading, empty, failed, partial, deferred);
   return box;
+}
+
+/** layout="page" inside a scrolling stage that stands in for the page: older pages by the button or on scrolling up. */
+function pageDemo(): HTMLElement {
+  let turns = firstPage();
+  let pages = 2;
+  const el = make({ turns, hasMore: true, clampLines: 6 }, 0);
+  el.setAttribute('layout', 'page');
+  el.style.height = 'auto';
+  slotted(el);
+  el.addEventListener('ui-load-older', () => {
+    setTimeout(() => {
+      if (!el.isConnected) return;
+      pages--;
+      turns = [...olderPage(1 - pages), ...turns];
+      el.data = { turns, hasMore: pages > 0, clampLines: 6 };
+    }, 700);
+  });
+  const stage = document.createElement('div');
+  stage.style.cssText =
+    'height:520px;overflow:auto;overscroll-behavior:contain;padding:0 0 24px;border:1px solid var(--ui-ib-card-border);border-radius:12px';
+  const note = document.createElement('p');
+  note.style.cssText = 'margin:0 0 8px;padding:10px 12px 0;font-size:12.5px;color:var(--ui-ib-muted)';
+  note.textContent = 'This box stands in for the page — scroll it.';
+  stage.append(note, el);
+  requestAnimationFrame(() => el.scrollToLatest({ smooth: false }));
+  return stage;
 }
 
 function koreanDemo(): UiConversation {
@@ -382,7 +469,9 @@ function koreanDemo(): UiConversation {
 /**
  * An archive page built from parts: <ui-app-bar> on top, the conversations as kit `.ui-row` buttons (with
  * <ui-elapsed> times) on the left, the open one in <ui-conversation>. Narrow, it is the list, then the
- * conversation with a back button. No new element: this is the page the old standalone viewer becomes.
+ * conversation with a back button. No new element: this is the page the old standalone viewer becomes. Export turns
+ * on `selectable` (every turn checked), counts `ui-select`, and hands the chosen ids to a Markdown export; one
+ * answer is `deferred` — Load answer fetches it.
  */
 function archiveDemo(): HTMLElement {
   const now = Date.now();
@@ -406,8 +495,8 @@ function archiveDemo(): HTMLElement {
           role: 'assistant',
           at: now - 3 * 60 * MIN,
           responseMs: 9 * MIN,
-          markdown:
-            'The test waits for the **redirect**, not for the session cookie. On a slow runner the cookie lands after the check.\n\n- Wait for `GET /me` to return 200 instead of the URL change.\n- I ran it 200 times with the fix: 0 failures.',
+          // Recorded on the server; fetched on Load answer (ui-load-answer).
+          deferred: true,
           summary: { title: 'Found the race', text: 'The check ran before the session cookie was set.' },
         },
       ] as ConversationTurn[],
@@ -453,12 +542,15 @@ function archiveDemo(): HTMLElement {
 .ca-side h2 { margin: 2px 4px 2px; font-size: 13px; font-weight: 650; letter-spacing: -0.006em; }
 .ca-side ul { margin: 0; padding: 0; list-style: none; }
 .ca-side .ui-row + .ui-row { border-top: 0; }
-.ca-side .ui-row[aria-current="true"] { background: var(--ui-ib-pill); }
 .ca-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 14px 16px 16px; gap: 10px; }
 .ca-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ca-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ca-back { display: none; }
 .ca-main ui-conversation { flex: 1; min-height: 0; }
+.ca-sel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; padding: 6px 8px; border: 1px solid var(--ui-ib-card-border); border-radius: 10px; background: var(--ui-ib-card); font-size: 12.5px; }
+.ca-sel[hidden] { display: none; }
+.ca-sel .ca-count { flex: 1 1 auto; min-width: 0; color: var(--ui-ib-text-2); font-variant-numeric: tabular-nums; }
+.ca-export pre { max-height: 50vh; margin: 0; padding: 12px 14px; overflow: auto; border: 1px solid var(--ui-ib-card-border); border-radius: 10px; background: var(--ui-ib-col); font: 12px/1.55 var(--ui-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 @container ca (max-width: 560px) {
   .ca-body { grid-template-columns: minmax(0, 1fr); }
   .ca-side { border-right: 0; padding-right: 14px; }
@@ -485,21 +577,113 @@ function archiveDemo(): HTMLElement {
   const ul = side.querySelector('ul') as HTMLUListElement;
   const main = document.createElement('section');
   main.className = 'ca-main';
-  main.innerHTML = `<div class="ca-head"><button type="button" class="ui-icon-btn ca-back" aria-label="All conversations">${icon('chevron-left')}</button><h2></h2><button type="button" class="ui-btn is-sm" disabled title="Turn selection and export are not in <ui-conversation> yet">${icon('download', { size: 14 })}Export</button></div>`;
+  main.innerHTML = `<div class="ca-head"><button type="button" class="ui-icon-btn ca-back" aria-label="All conversations">${icon('chevron-left')}</button><h2></h2><button type="button" class="ui-btn is-sm ca-export-btn">${icon('download', { size: 14 })}Export</button></div><div class="ca-sel" hidden><span class="ca-count" role="status"></span><button type="button" class="ui-btn is-sm is-quiet" data-act="all">Select all</button><button type="button" class="ui-btn is-sm is-quiet" data-act="none">Clear</button><button type="button" class="ui-btn is-sm is-quiet" data-act="cancel">Cancel</button><button type="button" class="ui-btn is-sm is-primary" data-act="export">Export .md</button></div>`;
   const title = main.querySelector('h2') as HTMLElement;
   const chat = document.createElement('ui-conversation');
+  const sel = main.querySelector('.ca-sel') as HTMLElement;
+  const count = sel.querySelector('.ca-count') as HTMLElement;
+  const exportBtn = main.querySelector('.ca-export-btn') as HTMLButtonElement;
   main.append(chat);
   body.append(side, main);
   page.append(style, bar, body);
+  let current = list[0];
+  const show = (turns: ConversationTurn[]) => {
+    chat.data = { turns, startText: 'Start of conversation', emptyText: 'This conversation has no turns.' };
+  };
+  const recount = () => {
+    const n = chat.selectedIds.length;
+    const all = current.turns.length;
+    count.textContent = `${n} of ${all} selected`;
+    (sel.querySelector('[data-act="export"]') as HTMLButtonElement).disabled = n === 0;
+  };
   const open = (id: string, focus = false) => {
-    const c = list.find((x) => x.id === id) ?? list[0];
+    current = list.find((x) => x.id === id) ?? list[0];
     for (const b of Array.from(ul.querySelectorAll('button')))
-      b.setAttribute('aria-current', String(b.dataset.id === c.id));
-    title.textContent = c.title;
-    chat.data = { turns: c.turns, startText: 'Start of conversation', emptyText: 'This conversation has no turns.' };
+      b.setAttribute('aria-current', String(b.dataset.id === current.id));
+    title.textContent = current.title;
+    show(current.turns);
+    // A new list clears the selection: start a selection in progress again with everything checked.
+    if (chat.hasAttribute('selectable')) {
+      chat.selectAll();
+      recount();
+    }
     page.dataset.view = 'detail';
     if (focus) (main.querySelector('.ca-back') as HTMLElement | null)?.focus();
   };
+  // The deferred answer: the host fetches it on Load answer (loading meanwhile).
+  const FULL =
+    'The test waits for the **redirect**, not for the session cookie. On a slow runner the cookie lands after the check.\n\n- Wait for `GET /me` to return 200 instead of the URL change.\n- I ran it 200 times with the fix: 0 failures.';
+  chat.addEventListener('ui-load-answer', (e) => {
+    const { id } = (e as CustomEvent<{ id: string }>).detail;
+    const c = current;
+    const patch = (p: Partial<ConversationTurn>) => {
+      c.turns = c.turns.map((t) => (t.id === id ? { ...t, ...p } : t));
+      if (current === c) show(c.turns);
+    };
+    patch({ loading: true });
+    setTimeout(() => {
+      if (!chat.isConnected) return;
+      patch({ loading: undefined, deferred: undefined, markdown: FULL });
+    }, 800);
+  });
+  // Export: selection on, everything checked; the chosen turns become a Markdown file shown in a dialog.
+  const stopSelecting = () => {
+    chat.removeAttribute('selectable');
+    chat.clearSelection();
+    sel.hidden = true;
+    exportBtn.hidden = false;
+    exportBtn.focus();
+  };
+  exportBtn.addEventListener('click', () => {
+    chat.setAttribute('selectable', '');
+    chat.selectAll();
+    recount();
+    sel.hidden = false;
+    exportBtn.hidden = true;
+    (sel.querySelector('[data-act="export"]') as HTMLElement).focus();
+  });
+  chat.addEventListener('ui-select', (e) => {
+    const { ids } = (e as CustomEvent<ConversationSelectDetail>).detail;
+    recount();
+    void ids;
+  });
+  sel.addEventListener('click', (e) => {
+    const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
+    if (act === 'all') chat.selectAll();
+    else if (act === 'none') chat.clearSelection();
+    else if (act === 'cancel') {
+      stopSelecting();
+      return;
+    } else if (act === 'export') {
+      const ids = new Set(chat.selectedIds);
+      const md = current.turns
+        .filter((t) => ids.has(t.id))
+        .map((t) =>
+          t.role === 'user'
+            ? `## ${t.name ?? 'User'}\n\n${t.text ?? ''}`
+            : t.role === 'assistant'
+              ? `## Assistant\n\n${t.markdown ?? (t.summary ? `_${[t.summary.title, t.summary.text].filter(Boolean).join(' — ')}_` : '')}`
+              : `> ${t.text ?? ''}`,
+        )
+        .join('\n\n');
+      const dlg = document.createElement('ui-dialog') as UiDialog;
+      dlg.setAttribute('size', 'lg');
+      dlg.setAttribute('heading', `conversation-${current.id}.md · ${ids.size} turn${ids.size === 1 ? '' : 's'}`);
+      dlg.className = 'ca-export';
+      const pre = document.createElement('pre');
+      pre.textContent = `# ${current.title}\n\n${md}\n`;
+      const foot = document.createElement('div');
+      foot.slot = 'footer';
+      foot.innerHTML = `<button type="button" class="ui-btn is-primary">Done</button>`;
+      foot.querySelector('button')?.addEventListener('click', () => dlg.hide());
+      dlg.append(pre, foot);
+      dlg.addEventListener('ui-close', () => setTimeout(() => dlg.remove(), 240));
+      page.append(dlg);
+      dlg.show();
+      return;
+    }
+    recount();
+  });
   for (const c of list) {
     const li = document.createElement('li');
     const b = document.createElement('button');
@@ -556,19 +740,25 @@ export const doc: ComponentDoc = {
       name: 'data.turns[].text · media · skills',
       type: 'string · boolean · { name, text?, tokens? }[]',
       description:
-        'user: the instruction as typed (plain text, folded to data.clampLines with Show more when it overflows); media in slot "media-<id>" above the words; skill chips that open their text.',
+        'user: the instruction as typed (plain text, folded to data.clampLines with Show more when it overflows); media in slot "media-<id>" above the words; skill chips that open their text. A system turn takes media too: the files an intercepted message carried, in the same slot at the head of its open detail.',
     },
     {
       name: 'data.turns[].markdown · source · summary',
-      type: 'string · string · { title?, text? }',
+      type: 'string · string · { title?, text?, canRetry?, error? }',
       description:
-        'assistant: the answer (markdown, rendered safely by <ui-ai-answer>); Raw shows the summary and the source as written (source defaults to markdown). The summary heads an answer that is empty or failed.',
+        'assistant: the answer (markdown, rendered safely by <ui-ai-answer>); Raw shows the summary and the source as written (source defaults to markdown). The summary heads an answer that is empty or failed. summary.canRetry puts Retry in Raw’s Summary view (ui-retry with what: "summary"); summary.error says why there is none yet, shown there instead of the text.',
     },
     {
       name: 'data.turns[].responseMs · streaming · loading · error · canRetry',
       type: 'number · boolean · boolean · string · boolean',
       description:
-        'assistant: the response-time chip; more text coming (no Raw yet); the recorded answer is being fetched; it could not be had, with Try again (ui-retry with the turn id).',
+        'assistant: the response-time chip; more text coming (no Raw yet); the recorded answer is being fetched; it could not be had, with Try again (ui-retry with the turn id). error is the cause only (“HTTP 404”), not a sentence: it is shown as “Couldn’t get the answer (<error>)” / “답변을 불러오지 못했습니다 (<error>)”.',
+    },
+    {
+      name: 'data.turns[].deferred',
+      type: 'boolean',
+      description:
+        'assistant: the answer is recorded but not fetched. With no markdown the summary heads it and “Load answer” / “답변 불러오기” sends ui-load-answer with the turn id; set loading, then markdown. Raw keeps its Summary view and has no Source until then. loading and error win over it.',
     },
     {
       name: 'data.turns[].attachments · linkTitles',
@@ -580,7 +770,7 @@ export const doc: ComponentDoc = {
       name: 'data.turns[].kind · label · facts · raw',
       type: 'string · string · [label, value][] · string',
       description:
-        'system: compact · restart · retry · goal · cron · background (or any word, shown as is) as an icon + word badge, or `label` instead; the row opens to the facts and the raw text (Copy).',
+        'system: compact · restart · retry · goal · cron · background (or any word, shown as is) as an icon + word badge, or `label` instead; the row opens to the media (slot "media-<id>"), the facts and the raw text (Copy).',
     },
     {
       name: 'data.turns[].progress',
@@ -642,6 +832,24 @@ export const doc: ComponentDoc = {
       description: 'Attribute. Strings in English or Korean (passed to the scroller and answers).',
     },
     {
+      name: 'layout',
+      type: '"page"',
+      description:
+        'Attribute. Default: the element fills the box it is given and the turns scroll inside — size it (e.g. `height: 560px`, or `flex: 1; min-height: 0` in a column). layout="page": as tall as the turns and the page scrolls; older pages come by the Load older button, or once the reader scrolls up to the top; no latest pill — scrollToLatest() scrolls the newest turn into view. For an archive page with an app bar above and nothing else to scroll.',
+    },
+    {
+      name: 'selectable',
+      type: 'boolean',
+      description:
+        'Attribute. A checkbox leads every turn (not the writing row), named “Select the turn by <name>” / “<name>의 대화 선택”; a checked turn is marked. The selection is kept across data updates (a new turn, an older page) and cleared when the list is replaced whole (another conversation). Nothing is selected until the person or the host does it.',
+    },
+    {
+      name: 'selectedIds · selectAll() · clearSelection()',
+      type: 'string[] · method · method',
+      description:
+        'The selected turns’ ids in the order shown — set it to replace the selection (ids not shown are kept for turns that may come); select every turn shown; select none. Host changes repaint in place and send no ui-select.',
+    },
+    {
       name: 'turnElement(id) · scrollToLatest({ smooth? })',
       type: 'method',
       description: 'The node of a turn (to measure or scroll to it); jump to the newest turn.',
@@ -663,8 +871,21 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-retry',
-      detail: '{ id: string | null }',
-      description: 'Try again: a turn’s answer (its id) or the conversation itself (null). Cancelable.',
+      detail: '{ id: string | null; what?: "summary" }',
+      description:
+        'Try again: a turn’s answer (its id) or the conversation itself (null); what: "summary" when Retry was pressed on the turn’s summary (Raw’s Summary view, summary.canRetry). Cancelable.',
+    },
+    {
+      name: 'ui-select',
+      detail: '{ id: string; selected: boolean; ids: string[] }',
+      description:
+        'Notification (selectable): the person checked or unchecked a turn; ids is the whole selection in the order shown — count it, hand it to an export.',
+    },
+    {
+      name: 'ui-load-answer',
+      detail: '{ id: string }',
+      description:
+        'Load answer was pressed on a deferred turn: fetch its text and set it (loading meanwhile). Cancelable.',
     },
     {
       name: 'ui-copy',
@@ -685,6 +906,7 @@ export const doc: ComponentDoc = {
     ['Enter / Space on Raw or a system row', 'Open or close it.'],
     ['Escape inside an open Raw or system row', 'Close it; focus returns to its toggle.'],
     ['Enter / Space on the latest pill', 'Jump to the newest turn.'],
+    ['Space on a turn’s checkbox (selectable)', 'Select or unselect the turn.'],
   ],
   a11y: [
     'The list is role="log" with an accessible name: new turns are announced politely; a turn that is still being written is aria-busy, so it is read once it is done.',
@@ -692,8 +914,9 @@ export const doc: ComponentDoc = {
     'Show more, Raw and system rows are buttons with aria-expanded / aria-controls; a closed region is inert, so nothing hidden takes focus.',
     'The progress row is role="progressbar" with aria-valuenow and a spoken aria-valuetext (“1:12 / ~2:30, 48%”); the bar itself is decoration.',
     'Status is never colour alone: errors carry an icon and words, system kinds an icon and a word. Focus survives a turn’s rebuild.',
+    'selectable: each turn’s checkbox is a native input named for its author (“Select the turn by Mina Park”); the checked state is the input’s, the row’s mark is decoration.',
     'Reduced motion: no press scale, no slide; regions fade only; the over-run sweep becomes a still bar.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again; loading older turns stays silent. Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again and Load answer, a toggle for a turn’s checkbox; loading older turns stays silent. Silent until the page turns sound on.',
   ],
   usage: `<ui-conversation style="height: 560px"></ui-conversation>
 <script type="module">
@@ -734,7 +957,7 @@ export const doc: ComponentDoc = {
       id: 'states',
       title: 'Loading, empty and errors',
       description:
-        'Skeleton turns for the first page; the empty text; a failed load as the whole box (Try again loads it); a bar above the turns, and an answer that failed with its own Try again.',
+        'Skeleton turns for the first page; the empty text; a failed load as the whole box (Try again loads it); a bar above the turns, and an answer that failed with its own Try again; a deferred answer — its summary stands in until Load answer (ui-load-answer) fetches it.',
       height: 600,
       create: statesDemo,
     },
@@ -742,10 +965,18 @@ export const doc: ComponentDoc = {
       id: 'archive',
       title: 'Archive page',
       description:
-        'A conversation archive built from parts — no new element: <ui-app-bar>, the conversations as kit .ui-row buttons with <ui-elapsed> times, the open one in <ui-conversation>. Narrow, it is the list, then the conversation with a back button. Not covered yet (the old viewer had them): choosing turns to export as Markdown, and loading a turn’s raw output only when Raw opens.',
+        'A conversation archive built from parts — no new element: <ui-app-bar>, the conversations as kit .ui-row buttons with <ui-elapsed> times, the open one in <ui-conversation>. Narrow, it is the list, then the conversation with a back button. Export turns on selectable with every turn checked (selectAll), counts ui-select, and hands the chosen ids to a Markdown export; the answer in “Flaky sign-in test” is deferred — Load answer fetches it.',
       height: 640,
       frame: false,
       create: archiveDemo,
+    },
+    {
+      id: 'page',
+      title: 'layout="page" — as tall as the turns',
+      description:
+        'The element does not scroll; the page does (this box stands in for it). Two older pages load from the button, or once you scroll up to the top — never on their own at load. No latest pill: the page’s scroll is yours.',
+      height: 560,
+      create: pageDemo,
     },
     {
       id: 'ko',

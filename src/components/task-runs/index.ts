@@ -1,5 +1,6 @@
 export type {
   TaskRun,
+  TaskRunNote,
   TaskRunOpen,
   TaskRunRevision,
   TaskRunStatus,
@@ -8,6 +9,7 @@ export type {
   TaskRunTokens,
   TaskRunTool,
   TaskRunTotals,
+  TaskRunTotalsGiven,
 } from './task-runs';
 export {
   taskRunMs,

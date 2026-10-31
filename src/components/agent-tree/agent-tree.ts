@@ -353,7 +353,7 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
       kidsHtml += '</ul>';
     }
     const id = escAttr(it.id);
-    return `<li class="at-item is-${n.status}${ctx.fresh.has(it.id) ? ' is-new' : ''}" role="treeitem" data-key="n:${id}" data-id="${id}" aria-level="${
+    return `<li class="at-item is-${n.status}${ctx.fresh.has(it.id) ? ' is-new' : ''}" role="treeitem" data-key="n:${id}" data-id="${id}" data-anchor aria-level="${
       it.depth + 1
     }" aria-setsize="${size}" aria-posinset="${it.index + 1}"${kids ? ` aria-expanded="${open}"` : ''} aria-selected="${
       ctx.selected === it.id

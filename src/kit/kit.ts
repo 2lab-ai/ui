@@ -145,6 +145,8 @@ ${TONES.map(([k, dot]) => `.ui-row[data-tone="${k}"] { --ui-tone: ${dot}; }`).jo
 :is(a, button).ui-row { width: 100%; border: 0; border-radius: 8px; background: transparent; font: inherit; text-align: left; cursor: pointer; transition: background-color ${COLOR_T}, ${PRESS_T}; }
 :is(a, button).ui-row:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: -2px; }
 :is(a, button).ui-row:active:not(:focus-visible) { transform: scale(0.99); }
+/* The row that is the page (aria-current="page" / "true"): the hover fill, kept. */
+.ui-row[aria-current]:not([aria-current="false"]) { background: ${T('ib-pill')}; }
 
 @media (hover: hover) and (pointer: fine) {
   .ui-input:hover:not(:disabled):not(:focus) { border-color: ${T('ib-muted')}; }
@@ -331,6 +333,9 @@ ${TONES.map(([k, , text]) => `.ui-status-line[data-tone="${k}"] { color: ${toneT
 }
 ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${toneTint(dot)}; color: ${toneText(text)}; }`).join('\n')}
 .ui-count[data-pop] { animation: ui-count-pop ${T('dur-move')} ${T('ease-out')} both; }
+
+/* ── Korean: prose breaks between words, never inside them (the page's or the element's lang="ko") ── */
+:is(.ui-notice, .ui-card, .ui-row, .ui-dl, .ui-empty, .ui-status-line, .ui-section-head, .ui-input, .ui-btn, .ui-chip, .ui-status):lang(ko) { word-break: keep-all; }
 
 /* ── Focus, press ── */
 :is(.ui-btn, .ui-icon-btn, .ui-fab, .ui-chip):focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }

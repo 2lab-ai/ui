@@ -555,6 +555,7 @@ export const doc: ComponentDoc = {
   ],
   a11y: [
     'role=tree with nested role=group; every agent is a treeitem with aria-level, aria-setsize / aria-posinset, aria-expanded on branches and aria-selected.',
+    'Each row carries data-anchor: as the one item of a <ui-log-scroller>, a page of older agents that grows the tree above the reader does not move the rows they see.',
     'Each item’s name says it in one sentence: name, role, status, the reason (or what it is doing), the cost — for a branch “… for this branch with its sub-agents (own …)” — and, folded, how many it hides and “needs you / failed / running below”. The ticking time is its description (aria-describedby), not its name.',
     'Status is a word and an icon, never colour alone. The bar’s “needs you” / “failed” are buttons that show, select and focus the next such agent.',
     'A polite live region outside the re-rendered markup says the counts (agents, running, needs you, failed) when they change — not every cent.',

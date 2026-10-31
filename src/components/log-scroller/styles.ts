@@ -45,6 +45,11 @@ export const styles = `
 .ls-jump:active:not(:focus-visible) { transform: scale(0.97); }
 .ls-jump-n { color: var(--ib-text); font-weight: 600; }
 ::slotted([data-ls-enter]) { animation: ls-in 360ms var(--ease-out) both; }
+/* layout="page": as tall as its items — the page scrolls (the browser's scroll anchoring keeps the reader's place when
+   an older page goes in above); no latest pill. */
+:host([layout="page"]), :host([layout="page"]) .ui-root { display: block; }
+:host([layout="page"]) .ls-vp { overflow: visible; overflow-anchor: auto; overscroll-behavior: auto; scrollbar-gutter: auto; }
+:host([layout="page"]) .ls-jump { display: none; }
 @media (hover: hover) and (pointer: fine) {
   .ls-older:not([aria-busy="true"]):hover { border-color: var(--ib-muted); color: var(--ib-text); }
   .ls-jump:hover { border-color: var(--ib-muted); }

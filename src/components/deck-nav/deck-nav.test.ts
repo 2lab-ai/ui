@@ -138,6 +138,26 @@ describe('<ui-deck-nav> rendering', () => {
     two.renderNow();
     expect(q(two, '.dn-peek')).toBeNull();
   });
+
+  it('peek="only" draws the edges alone — no controls, no tab stops — from the same data (D3 G6-3)', () => {
+    const el = mount({ index: 0, count: 3, titles: ['a', 'b', 'c'] }, { peek: 'only' });
+    expect(q(el, '.dn-peek')).not.toBeNull();
+    expect(q(el, '.dn-nav')).toBeNull();
+    expect(qa(el, 'button')).toHaveLength(0);
+    expect(q(el, '.dn')?.classList.contains('is-peek-only')).toBe(true);
+    expect(qa(el, '.dn-edge[data-on]')).toHaveLength(2);
+    el.data = { index: 0, count: 2 };
+    el.renderNow();
+    expect(qa(el, '.dn-edge[data-on]')).toHaveLength(1);
+    el.data = { index: 0, count: 1 };
+    el.renderNow();
+    expect(el.hasAttribute('data-single')).toBe(true);
+    el.setAttribute('peek', '');
+    el.data = { index: 0, count: 3 };
+    el.renderNow();
+    expect(q(el, '.dn-nav')).not.toBeNull();
+    expect(q(el, '[part="nav"]')).not.toBeNull();
+  });
 });
 
 describe('<ui-deck-nav> events', () => {

@@ -1,5 +1,55 @@
 import { mdDocCss } from '../../core/markdown';
-import { fileCardStyles } from '../file-card/styles';
+import { fileCardStyles, fileKindCss } from '../file-card/styles';
+
+/**
+ * The peek card's inside (`peekHtml`): the media box, a document head with a fade, a scaled page frame, the glyph,
+ * then the name and meta. Needs the kind tints (`[data-kind]` on the wrapper) and reads the component tokens.
+ */
+const peekRules = `
+.av-pk-media { position: relative; display: grid; place-items: center; height: 192px; overflow: hidden; background: var(--ib-col); }
+.av-pk-media[data-doc] { place-items: stretch; background: var(--ib-card); }
+.av-pk-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.av-pk-doc, .av-pk-pre {
+  margin: 0; padding: 12px 14px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(black 62%, transparent); mask-image: linear-gradient(black 62%, transparent);
+}
+.av-pk-doc { font-size: 11.5px; line-height: 1.5; }
+.av-pk-doc.md-doc h1, .av-pk-doc.md-doc h2, .av-pk-doc.md-doc h3 { margin: 0 0 4px; font-size: 13px; }
+.av-pk-doc.md-doc pre { padding: 6px 8px; }
+.av-pk-pre { font: 11px/1.5 var(--mono); color: var(--ib-text); white-space: pre; tab-size: 2; }
+.av-pk-frame { position: absolute; inset: 0; overflow: hidden; background: var(--ib-card); }
+.av-pk-frame iframe {
+  display: block; width: 1067px; height: 640px; border: 0; transform: scale(0.3); transform-origin: 0 0; pointer-events: none;
+}
+.av-pk-glyph { display: grid; place-items: center; }
+.av-pk-foot {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 9px 12px 10px;
+  border-top: 1px solid var(--ib-card-border);
+}
+.av-pk-name {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 12.5px; font-weight: 600;
+}
+.av-pk-meta { flex: none; font-size: 11.5px; color: var(--ib-muted); font-variant-numeric: tabular-nums; }
+.av-pk-glyph .av-big {
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px;
+  background: var(--fc-wash); color: var(--fc-ink);
+}
+.av-pk-glyph .av-big svg { display: block; }
+`;
+
+/** The peek sheet on its own: the kind tints, then the rules (the viewer's shadow sheet carries both already). */
+export const peekCss = `${fileKindCss}${peekRules}`;
+
+/**
+ * `peekCss` for a page's light DOM (a `<ui-hovercard>` of your own): the component tokens become the page's
+ * `--ui-*` (loaded by `@2lab.ai/ui/tokens.css`); the kind tints stay. Add `.md-doc` styles of your own for a
+ * markdown head.
+ */
+export const peekPageCss = peekCss.replace(
+  /var\(--(?=(?:ib-|st-|dur-|ease-|accent\b|border-focus|font\b|mono\b|text\b|text-))/g,
+  'var(--ui-',
+);
 
 /**
  * The strip / grid / chips of file cards, the hover peek (the `.mp-pop` recipe: origin-aware, raised shadow) and
@@ -57,31 +107,7 @@ ${mdDocCss}
   opacity: 1; visibility: visible; pointer-events: auto; transform: none;
   transition: opacity 160ms var(--ease-out), transform 220ms var(--ease-out), visibility 0s;
 }
-.av-pk-media { position: relative; display: grid; place-items: center; height: 192px; overflow: hidden; background: var(--ib-col); }
-.av-pk-media[data-doc] { place-items: stretch; background: var(--ib-card); }
-.av-pk-img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.av-pk-doc, .av-pk-pre {
-  margin: 0; padding: 12px 14px; overflow: hidden;
-  -webkit-mask-image: linear-gradient(black 62%, transparent); mask-image: linear-gradient(black 62%, transparent);
-}
-.av-pk-doc { font-size: 11.5px; line-height: 1.5; }
-.av-pk-doc.md-doc h1, .av-pk-doc.md-doc h2, .av-pk-doc.md-doc h3 { margin: 0 0 4px; font-size: 13px; }
-.av-pk-doc.md-doc pre { padding: 6px 8px; }
-.av-pk-pre { font: 11px/1.5 var(--mono); color: var(--ib-text); white-space: pre; tab-size: 2; }
-.av-pk-frame { position: absolute; inset: 0; overflow: hidden; background: var(--ib-card); }
-.av-pk-frame iframe {
-  display: block; width: 1067px; height: 640px; border: 0; transform: scale(0.3); transform-origin: 0 0; pointer-events: none;
-}
-.av-pk-glyph { display: grid; place-items: center; }
-.av-pk-foot {
-  display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 9px 12px 10px;
-  border-top: 1px solid var(--ib-card-border);
-}
-.av-pk-name {
-  flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font-size: 12.5px; font-weight: 600;
-}
-.av-pk-meta { flex: none; font-size: 11.5px; color: var(--ib-muted); font-variant-numeric: tabular-nums; }
+${peekRules}
 
 /* ── viewer (slotted into <ui-dialog>) ───────────────────────────────── */
 ui-dialog::part(panel) { height: min(860px, calc(100dvh - 48px)); }
@@ -129,8 +155,9 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
   margin: 0; padding: 18px 22px 28px; color: var(--ib-text); font: 12.5px/1.6 var(--mono); tab-size: 2;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-/* html: sandboxed, scripts off; the page sits on white in both themes */
-.av-html { display: flex; flex-direction: column; background: var(--ib-col); }
+/* html: sandboxed (scripts off unless the file vouches), pdf: the browser's viewer; both sit on the column tint */
+.av-html, .av-pdf { display: flex; flex-direction: column; background: var(--ib-col); }
+.av-pdf .av-frame { margin-top: 16px; }
 .av-note {
   display: flex; flex: none; align-items: center; gap: 6px; margin: 0; padding: 8px 16px;
   font-size: 12px; line-height: 16px; color: var(--ib-muted);
@@ -150,7 +177,6 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
   background: var(--fc-wash); color: var(--fc-ink);
 }
 .av-big svg { display: block; }
-.av-pk-glyph .av-big { width: 56px; height: 56px; border-radius: 14px; }
 .av-fname { max-width: 100%; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ib-text); overflow-wrap: anywhere; text-align: center; }
 /* fallback: a calm card with the actions */
 .av-fallback { display: flex; overflow: auto; background: var(--ib-col); }

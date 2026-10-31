@@ -45,6 +45,14 @@ export interface KnowledgePage {
   /** Echoed in `ui-save` / `ui-delete` so the host can refuse a write over a newer version. */
   revision?: string | number;
   updatedAt?: KnowledgeTime;
+  /**
+   * The page as the store holds it — the whole markdown file. With it the editor offers “Edit as source”: one
+   * textarea over this text, with the same draft, guard and conflict handling as the form; `ui-save` then carries
+   * `source` instead of changed fields.
+   */
+  source?: string;
+  /** The form cannot hold this page (markdown its fields do not model): it opens as source and offers no form. */
+  sourceOnly?: boolean;
 }
 
 export interface KnowledgePageGroup {
@@ -82,6 +90,8 @@ export interface KnowledgeDraft {
   aliases: string | readonly string[];
   current: string;
   history: readonly KnowledgeHistoryEntry[];
+  /** A source draft: the whole markdown. When it is a string only it is compared (against `page.source`). */
+  source?: string | null;
 }
 
 export interface KnowledgeSelectDetail {
@@ -105,6 +115,11 @@ export interface KnowledgeSaveDetail {
   revision?: string | number;
   /** “Overwrite” after a conflict: write even though the page changed since `revision`. */
   overwrite?: boolean;
+  /**
+   * The page was edited as source: the whole markdown (trailing whitespace trimmed) — write it as it is. The
+   * fields above are then the page's loaded values, not read from the source.
+   */
+  source?: string;
 }
 export interface KnowledgeDeleteDetail {
   id: string;
@@ -193,6 +208,11 @@ const STRINGS = {
     conflictKeep: 'Your draft is still here. Reload drops it; Overwrite saves it over the newer version.',
     loading: 'Loading page…',
     readOnly: 'Read only',
+    source: 'Source',
+    sourceHint: 'The whole page · markdown',
+    editSource: 'Edit as source',
+    editForm: 'Back to the form',
+    sourceOnly: 'This page holds markdown the form cannot show, so it is edited as source.',
     ago: (ms: number, now: number) => fmtAgo(ms, now),
     locale: 'en-US',
   },
@@ -253,6 +273,11 @@ const STRINGS = {
     conflictKeep: '작성하던 내용은 그대로 있습니다. 다시 불러오면 버려지고, 덮어쓰면 최신 내용 위에 저장됩니다.',
     loading: '페이지를 불러오는 중…',
     readOnly: '읽기 전용',
+    source: '원문',
+    sourceHint: '페이지 전체 · markdown',
+    editSource: '원문(markdown)으로 편집',
+    editForm: '폼으로 돌아가기',
+    sourceOnly: '폼에 담을 수 없는 markdown이 있어 원문으로 편집합니다.',
     ago: (ms: number, now: number) => agoKo(ms, now),
     locale: 'ko-KR',
   },
@@ -369,10 +394,12 @@ const normKey = (n: Norm): string => JSON.stringify([n.title, n.aliases, n.curre
  * is a new page: dirty as soon as anything is typed.
  */
 export function isDirty(
-  page: Pick<KnowledgePage, 'title' | 'aliases' | 'current' | 'history'> | null | undefined,
+  page: Pick<KnowledgePage, 'title' | 'aliases' | 'current' | 'history' | 'source'> | null | undefined,
   draft: KnowledgeDraft | null | undefined,
 ): boolean {
   if (!draft) return false;
+  // A source draft holds the whole page: only that text counts (trailing whitespace ignored).
+  if (typeof draft.source === 'string') return draft.source.trimEnd() !== String(page?.source ?? '').trimEnd();
   return normKey(norm(page)) !== normKey(norm(draft));
 }
 
@@ -419,15 +446,26 @@ interface Draft {
   group: string;
   current: string;
   history: HistRow[];
+  /** Source mode: the whole markdown being edited (`null` = the form). */
+  source: string | null;
 }
-type Pending = { kind: 'select'; id: string } | { kind: 'new' } | { kind: 'close' };
+type Pending =
+  | { kind: 'select'; id: string }
+  | { kind: 'new' }
+  | { kind: 'close' }
+  | { kind: 'mode'; id: string; source: boolean };
 
 const pub = (d: Draft): KnowledgeDraft => ({
   title: d.title,
   aliases: d.aliases,
   current: d.current,
   history: d.history,
+  source: d.source,
 });
+
+/** What a draft would save, as one comparable string (a source draft: its text; a form draft: its cleaned fields). */
+const draftKey = (d: Draft): string =>
+  d.source !== null ? JSON.stringify(['src', d.source.trimEnd()]) : normKey(norm(pub(d)));
 
 function clonePage(p: KnowledgePage): KnowledgePage {
   return {
@@ -444,14 +482,16 @@ function clonePage(p: KnowledgePage): KnowledgePage {
 function samePage(a: KnowledgePage | null, b: KnowledgePage): boolean {
   if (!a) return false;
   if (a.revision != null || b.revision != null) return String(a.revision ?? '') === String(b.revision ?? '');
-  return normKey(norm(a)) === normKey(norm(b));
+  return normKey(norm(a)) === normKey(norm(b)) && String(a.source ?? '') === String(b.source ?? '');
 }
 
 /**
  * `<ui-knowledge-pages>` — a master-detail editor for knowledge pages: a searchable, grouped page list and an
- * editor (title, aliases, markdown Current with a preview, dated History). Save and a two-press Delete leave as
- * cancelable `ui-*` events; the host loads pages (`ui-select`) and writes them. Unsaved changes are never lost
- * to a re-render: drafts live in the element, keyed by page id, and switching away asks first.
+ * editor (title, aliases, markdown Current with a preview, dated History — or the page's whole source, for a page
+ * that carries one). Save and a two-press Delete leave as cancelable `ui-*` events; the host loads pages
+ * (`ui-select`) and writes them. Unsaved changes are never lost to a re-render: drafts live in the element, keyed by
+ * page id, and switching away asks first. `layout="page"` makes it as tall as its content (the page scrolls, the
+ * list sticks to the top) instead of filling a host-sized box.
  */
 export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
   static override styles = [styles];
@@ -470,6 +510,8 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
   #sent: { id: string | null; key: string } | null = null;
   /** Pages whose `ui-delete` went out: their draft goes once they leave `pages`. */
   #deleted = new Set<string>();
+  /** Pages the person switched to source mode (a `sourceOnly` page is in it whatever this says). */
+  #srcOn = new Set<string>();
   #q = '';
   #preview = false;
   #view: 'list' | 'detail' = 'list';
@@ -581,7 +623,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     // A new page the host created from our `ui-save`: its draft is done.
     const s = this.#sent;
     if (moved && s && s.id === null && answer) {
-      if (this.#newDraft && normKey(norm(pub(this.#newDraft))) === s.key) this.#newDraft = null;
+      if (this.#newDraft && draftKey(this.#newDraft) === s.key) this.#newDraft = null;
       this.#sent = null;
     }
     // A newer version of a page that has a draft: rebase unless the draft holds changes the page does not.
@@ -589,7 +631,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
       const dr = this.#drafts.get(pid);
       if (dr && !samePage(dr.base, page)) {
         const sent = this.#sent;
-        const answered = !!sent && sent.id === pid && answer && sent.key === normKey(norm(pub(dr)));
+        const answered = !!sent && sent.id === pid && answer && sent.key === draftKey(dr);
         if (answered || !isDirty(dr.base, pub(dr)) || !isDirty(page, pub(dr))) this.#drafts.delete(pid);
         if (answered) this.#sent = null;
       }
@@ -633,9 +675,21 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
 
   // ── drafts ──
 
+  /** Source mode is on for this page: it can only be edited as source, or the person switched to it (and it has one). */
+  #srcMode(page: KnowledgePage | null): boolean {
+    if (!page || typeof page.source !== 'string') return false;
+    return page.sourceOnly === true || this.#srcOn.has(String(page.id));
+  }
+
+  /** The page's source can be edited as such, and the person may switch (not a `sourceOnly` page). */
+  #canToggleSource(page: KnowledgePage | null): boolean {
+    return !!page && typeof page.source === 'string' && page.sourceOnly !== true;
+  }
+
   #fromPage(page: KnowledgePage | null): Draft {
     return {
       base: page ? clonePage(page) : null,
+      source: this.#srcMode(page) ? String(page?.source ?? '') : null,
       title: String(page?.title ?? ''),
       aliases: parseAliases(page?.aliases).join(', '),
       group: page ? String(page.group ?? '') : (this.#groups()[0]?.id ?? ''),
@@ -853,14 +907,14 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     return this.#groups().find((g) => String(g.id) === String(id))?.label ?? '';
   }
 
-  #metaHtml(t: Strings, page: KnowledgePage | null, ro: boolean): string {
+  #metaHtml(t: Strings, page: KnowledgePage | null, ro: boolean, end = ''): string {
     if (!page) return `<div class="kp-meta"><span class="kp-chip is-new">${esc(t.newPage)}</span></div>`;
     const sum = this.#pages().find((p) => p.id === String(page.id));
     const group = this.#groupLabel(page.group ?? sum?.group);
     const ago = this.#agoHtml(page.updatedAt ?? sum?.updatedAt, this.#now());
     return `<div class="kp-meta">${group ? `<span class="kp-chip">${esc(group)}</span>` : ''}${
       ago ? `<span class="kp-upd">${esc(t.updated)} ${ago}</span>` : ''
-    }${ro ? `<span class="kp-ro">${icon('lock', { size: 12 })}<span>${esc(t.readOnly)}</span></span>` : ''}</div>`;
+    }${ro ? `<span class="kp-ro">${icon('lock', { size: 12 })}<span>${esc(t.readOnly)}</span></span>` : ''}${end}</div>`;
   }
 
   #readHtml(t: Strings, page: KnowledgePage): string {
@@ -886,8 +940,9 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     if (!vals) return '';
     const { dr, v } = vals;
     const isNew = !page;
+    const srcMode = v.source !== null;
     const dirty = !!dr && isDirty(page, pub(dr));
-    const titleOk = v.title.trim() !== '';
+    const titleOk = srcMode || v.title.trim() !== '';
     const saving = !!d.saving;
     const canSave = dirty && titleOk && !saving;
     const lock = saving ? ' readonly aria-readonly="true"' : '';
@@ -956,8 +1011,18 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
           saving ? ' aria-disabled="true"' : ''
         }>${icon('trash', { size: 14 })}<span>${esc(armed ? t.armed : t.del)}</span></button>`;
 
-    // Alerts sit above the scrolling editor: a refused save is seen wherever the editor was scrolled to.
-    return `${alerts ? `<div class="kp-alerts">${alerts}</div>` : ''}<div class="kp-edit" data-mk="${escAttr(isNew ? 'new' : `p|${String(page?.id)}`)}">${this.#metaHtml(t, page, false)}<div class="kp-field"><label class="kp-label" for="kp-title">${esc(
+    // The mode link (form ↔ source) sits at the end of the meta row; a sourceOnly page says why there is no form.
+    const toggle = this.#canToggleSource(page)
+      ? `<button type="button" class="kp-link kp-src-toggle" data-act="src" data-key="src" aria-pressed="${srcMode}"${
+          saving ? ' aria-disabled="true"' : ''
+        }>${icon('file-code', { size: 13 })}<span>${esc(srcMode ? t.editForm : t.editSource)}</span></button>`
+      : '';
+    const srcNote =
+      page?.sourceOnly === true && srcMode ? `<p class="kp-hint kp-src-note">${esc(t.sourceOnly)}</p>` : '';
+    const sourceHtml = `<section class="kp-sec kp-sec-src" aria-labelledby="kp-src-l"><div class="kp-sec-head"><h3 class="kp-label" id="kp-src-l">${esc(
+      t.source,
+    )}</h3><span class="kp-sub">${esc(t.sourceHint)}</span></div><div class="kp-gw kp-src" data-v="${escAttr(v.source ?? '')}"><textarea id="kp-source" class="kp-input" data-f="source" data-key="f|source" aria-labelledby="kp-src-l" rows="12" spellcheck="false"${lock}></textarea></div></section>`;
+    const formHtml = `<div class="kp-field"><label class="kp-label" for="kp-title">${esc(
       t.title,
     )}</label><input type="text" id="kp-title" class="kp-input kp-title" data-f="title" data-key="f|title" placeholder="${escAttr(
       t.titlePh,
@@ -991,7 +1056,11 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
       rows
         ? `<ol class="kp-hist" aria-labelledby="kp-his-l">${rows}</ol>`
         : `<p class="kp-muted kp-h-none">${esc(t.noEntries)}</p>`
-    }</section></div><div class="kp-foot"><span class="kp-state" role="status">${state}</span><span class="sr-only" aria-live="polite">${
+    }</section>`;
+    // Alerts sit above the scrolling editor: a refused save is seen wherever the editor was scrolled to.
+    return `${alerts ? `<div class="kp-alerts">${alerts}</div>` : ''}<div class="kp-edit" data-mk="${escAttr(isNew ? 'new' : `p|${String(page?.id)}`)}"${
+      srcMode ? ' data-source' : ''
+    }>${this.#metaHtml(t, page, false, toggle)}${srcNote}${srcMode ? sourceHtml : formHtml}</div><div class="kp-foot"><span class="kp-state" role="status">${state}</span><span class="sr-only" aria-live="polite">${
       armed ? esc(t.armedSr(pageTitle)) : ''
     }</span><span class="kp-acts">${side}<button type="button" class="kp-btn is-primary kp-save" data-act="save" data-key="save" title="${escAttr(
       t.saveTip(key),
@@ -1011,6 +1080,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     set(this.$<HTMLInputElement>('[data-f="title"]'), v.title);
     set(this.$<HTMLInputElement>('[data-f="aliases"]'), v.aliases);
     set(this.$<HTMLTextAreaElement>('[data-f="current"]'), v.current);
+    set(this.$<HTMLTextAreaElement>('[data-f="source"]'), v.source ?? '');
     const g = this.$<HTMLSelectElement>('[data-f="group"]');
     if (g) {
       set(g, v.group);
@@ -1099,6 +1169,10 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
       case 'current':
         dr.current = el.value;
         break;
+      case 'source':
+        if (dr.source === null) return;
+        dr.source = el.value;
+        break;
       case 'hdate':
       case 'htext': {
         const row = dr.history.find((h) => h.key === el.dataset.h);
@@ -1153,6 +1227,9 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
       case 'mode':
         this.#preview = b.dataset.mode === 'preview';
         this.requestRender();
+        break;
+      case 'src':
+        this.#toggleSource(e);
         break;
       case 'h-add':
         this.#addEntry();
@@ -1288,6 +1365,10 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
 
   /** Carry out a switch (the guard is answered or was not needed). False when the host prevented it. */
   #run(a: Pending, e: Event): boolean {
+    if (a.kind === 'mode') {
+      this.#setSource(a.id, a.source, e);
+      return true;
+    }
     if (a.kind === 'select') {
       const detail: KnowledgeSelectDetail = { id: a.id };
       if (!this.emit('ui-select', detail)) return false;
@@ -1344,6 +1425,37 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     this.requestRender();
   }
 
+  /** Form ↔ source — unless the open editor holds unsaved changes: then ask first (a mode switch drops the draft). */
+  #toggleSource(e: Event): void {
+    const d = this.data;
+    if (!d || d.readOnly || d.saving || this.#creating) return;
+    const page = this.#pageFor(this.#sel);
+    if (!this.#canToggleSource(page)) return;
+    const id = String(page?.id);
+    const source = !this.#srcMode(page);
+    if (this.#openDirty()) {
+      this.#pending = { kind: 'mode', id, source };
+      this.#disarm(false);
+      this.#want('guard-keep');
+      this.requestRender();
+      return;
+    }
+    this.#setSource(id, source, e);
+  }
+
+  #setSource(id: string, source: boolean, e: Event): void {
+    if (source) this.#srcOn.add(id);
+    else this.#srcOn.delete(id);
+    this.#drafts.delete(id);
+    this.#preview = false;
+    this.#tried = false;
+    this.#pending = null;
+    this.#disarm(false);
+    this.sound('select', { direction: source ? 'forward' : 'back' }, e);
+    this.#want('src', false);
+    this.requestRender();
+  }
+
   #addEntry(): void {
     if (this.data?.saving) return;
     const dr = this.#draft();
@@ -1375,8 +1487,9 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     if (!isNew && !page) return;
     const dr = isNew ? this.#newDraft : this.#drafts.get(String(page?.id));
     if (!dr || !isDirty(page, pub(dr))) return;
-    const n = norm(pub(dr));
-    if (!n.title) {
+    // A source draft saves the whole text; the fields it carries are the page's own, as loaded.
+    const n = norm(dr.source !== null ? page : pub(dr));
+    if (dr.source === null && !n.title) {
       this.#tried = true;
       this.#want('f|title');
       this.requestRender();
@@ -1390,6 +1503,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
       current: n.current,
       history: n.history,
     };
+    if (dr.source !== null) detail.source = dr.source.trimEnd();
     const group = isNew ? dr.group : page?.group;
     if (group != null && group !== '') detail.group = String(group);
     const rev = dr.base?.revision;
@@ -1397,7 +1511,7 @@ export class UiKnowledgePages extends UiElement<KnowledgePagesData> {
     if (overwrite) detail.overwrite = true;
     this.#disarm(false);
     if (this.emit('ui-save', detail)) {
-      this.#sent = { id: detail.id, key: normKey(n) };
+      this.#sent = { id: detail.id, key: draftKey(dr) };
       this.sound('tap', undefined, e);
     }
     this.requestRender();

@@ -106,7 +106,7 @@ function cutAfterLines(text: string, n: number): number {
 export class UiToolCallCard extends UiElement<ToolCallData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang'];
+    return ['lang', 'head-tabindex'];
   }
 
   #open = false;
@@ -137,8 +137,27 @@ export class UiToolCallCard extends UiElement<ToolCallData> {
     this.root.addEventListener('click', (e) => this.#click(e));
   }
 
-  attributeChangedCallback(): void {
+  attributeChangedCallback(name: string): void {
+    // head-tabindex lands on the header at once: a list roving its rows sets it in the same tick it moves focus.
+    if (name === 'head-tabindex' && this.data) {
+      const head = this.$<HTMLButtonElement>('.tc-head');
+      if (head) {
+        const tab = this.#headTabindex(this.data);
+        if (tab === null) head.removeAttribute('tabindex');
+        else if (head.getAttribute('tabindex') !== tab) head.setAttribute('tabindex', tab);
+      }
+    }
     this.requestRender();
+  }
+
+  /**
+   * The header's tabindex: a list that roves its rows sets head-tabindex ("-1" / "0") and wins; else data.focusable
+   * false → "-1"; else none (a stop of its own).
+   */
+  #headTabindex(d: ToolCallData): string | null {
+    const attr = this.getAttribute('head-tabindex');
+    if (attr !== null && /^-?\d+$/.test(attr.trim())) return attr.trim();
+    return d.focusable === false ? '-1' : null;
   }
 
   override disconnectedCallback(): void {
@@ -228,9 +247,9 @@ export class UiToolCallCard extends UiElement<ToolCallData> {
     // Markup carries the state on screen now; updated() moves it to `open` after a layout, so the change animates.
     const shown = this.#shownOpen;
     const summary = d.summary === undefined || d.summary === null ? '' : String(d.summary);
-    const head = `<button type="button" class="tc-head" data-act="toggle" data-key="head" aria-expanded="${shown}" aria-controls="tc-body"${
-      d.focusable === false ? ' tabindex="-1"' : ''
-    }><span class="tc-icon" aria-hidden="true">${callIconSvg(d)}</span><span class="tc-main"><code class="tc-name">${esc(
+    const headTab = this.#headTabindex(d);
+    const tab = headTab === null ? '' : ` tabindex="${headTab}"`;
+    const head = `<button type="button" class="tc-head" data-act="toggle" data-key="head" aria-expanded="${shown}" aria-controls="tc-body"${tab}><span class="tc-icon" aria-hidden="true">${callIconSvg(d)}</span><span class="tc-main"><code class="tc-name">${esc(
       d.name,
     )}</code>${summary ? `<span class="tc-summary" title="${escAttr(summary)}">${esc(summary)}</span>` : ''}</span>${this.#statusHtml(
       d,

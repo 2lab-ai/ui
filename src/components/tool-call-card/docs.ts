@@ -269,6 +269,12 @@ export const doc: ComponentDoc = {
       description: 'false → the header button is tabindex=-1 (the host runs a roving focus and calls el.focus()).',
     },
     {
+      name: 'head-tabindex',
+      type: 'number',
+      description:
+        'Attribute. The header button’s tabindex — "-1" for a card in a list that owns the tab stop and the arrow keys (a <ui-work-log> sets it on the cards slotted into it). Wins over data.focusable. el.focus() focuses the header either way.',
+    },
+    {
       name: 'data.id',
       type: 'string',
       description: 'Host key, echoed as detail.id in every event; the group keys its cards by it.',

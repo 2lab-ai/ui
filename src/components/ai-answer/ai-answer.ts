@@ -16,9 +16,17 @@ export interface AiAnswerData {
   streaming?: boolean;
   /** The host is fetching a recorded answer (no text yet). */
   loading?: boolean;
+  /**
+   * The answer is recorded but not fetched yet: with no text, the card says so and offers “Load answer” (emits
+   * `ui-load`, cancelable). Set `loading` once you fetch it, then the text. `error` and `loading` take precedence.
+   */
+  deferred?: boolean;
   /** Optional heading above the card (e.g. the question or the turn’s summary title). */
   title?: string;
-  /** Failure detail (e.g. `HTTP 404`). Without text it replaces the answer; with text it shows in the footer. */
+  /**
+   * Failure detail — the cause only (e.g. `HTTP 404`), not a sentence: it is shown as “Couldn’t get the answer (<error>)” /
+   * “답변을 불러오지 못했습니다 (<error>)”. Without text it replaces the answer; with text it shows in the footer.
+   */
   error?: string;
   /** Show “Try again” next to an error (emits `ui-retry`). Default false. */
   canRetry?: boolean;
@@ -71,6 +79,8 @@ const STRINGS = {
     writing: 'Writing the answer',
     loading: 'Loading…',
     empty: 'No answer text was recorded',
+    deferred: 'Not loaded yet',
+    load: 'Load answer',
     failed: 'Couldn’t get the answer',
     retry: 'Try again',
     under: 'Responded in under 1s',
@@ -92,6 +102,8 @@ const STRINGS = {
     writing: '응답 작성 중',
     loading: '불러오는 중…',
     empty: '기록된 답변 내용이 없습니다',
+    deferred: '아직 불러오지 않았습니다',
+    load: '답변 불러오기',
     failed: '답변을 불러오지 못했습니다',
     retry: '다시 시도',
     under: '응답 1초 미만',
@@ -353,6 +365,7 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
       }
       if (t?.closest?.('.ans-copy')) this.#copy(e);
       else if (t?.closest?.('.ans-retry') && this.emit('ui-retry', {})) this.sound('tap', undefined, e);
+      else if (t?.closest?.('.ans-load') && this.emit('ui-load', {})) this.sound('tap', undefined, e);
     });
   }
 
@@ -413,7 +426,11 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
         ? `<div class="ans-state">${failed}${retry}</div>`
         : d.loading
           ? `<p class="ans-state ans-loading">${esc(t.loading)}</p>`
-          : `<p class="ans-state ans-empty">${esc(t.empty)}</p>`;
+          : d.deferred
+            ? `<div class="ans-state"><span class="ans-deferred">${esc(t.deferred)}</span><button type="button" class="ans-btn ans-load" data-key="load">${esc(
+                t.load,
+              )}</button></div>`
+            : `<p class="ans-state ans-empty">${esc(t.empty)}</p>`;
       return `<section class="ans-card" aria-label="${escAttr(t.label(0))}"${d.loading && !error ? ' aria-busy="true"' : ''}>${title}${state}</section>`;
     }
 

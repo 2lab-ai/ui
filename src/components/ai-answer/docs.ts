@@ -80,6 +80,17 @@ function streaming(): UiAiAnswer {
 }
 
 /** “Try again” loads, then shows the answer. */
+function deferred(): UiAiAnswer {
+  const el = make({ markdown: '', deferred: true, title: 'Why did the run stop?' });
+  el.addEventListener('ui-load', () => {
+    el.data = { markdown: '', loading: true, title: 'Why did the run stop?' };
+    setTimeout(() => {
+      if (el.isConnected) el.data = { markdown: PLAIN, responseMs: 8_400, title: 'Why did the run stop?' };
+    }, 900);
+  });
+  return el;
+}
+
 function failed(): UiAiAnswer {
   const el = make({ markdown: '', error: 'HTTP 404', canRetry: true });
   el.addEventListener('ui-retry', () => {
@@ -127,12 +138,19 @@ export const doc: ComponentDoc = {
       default: 'false',
       description: 'Fetching a recorded answer (shown only while there is no text).',
     },
+    {
+      name: 'data.deferred',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'The answer is recorded but not fetched: with no text the card says “Not loaded yet” / “아직 불러오지 않았습니다” and offers “Load answer” (ui-load). Set loading when you fetch, then the text. error and loading win over it.',
+    },
     { name: 'data.title', type: 'string', description: 'Optional heading above the card (the question, a summary).' },
     {
       name: 'data.error',
       type: 'string',
       description:
-        'Failure detail, e.g. `HTTP 404`. Without text it is the whole card; with text it takes the response time’s place.',
+        'Failure detail — the cause only, e.g. `HTTP 404`, not a sentence: it is shown as “Couldn’t get the answer (<error>)” / “답변을 불러오지 못했습니다 (<error>)”. Without text it is the whole card; with text it takes the response time’s place.',
     },
     {
       name: 'data.canRetry',
@@ -186,6 +204,12 @@ export const doc: ComponentDoc = {
         'A link card or chip was activated. `index` is 0-based into `links` (the card shows index + 1). Default: the link opens in a new tab; preventDefault() keeps the page.',
     },
     { name: 'ui-retry', detail: '{}', description: '“Try again” pressed (only rendered with `canRetry`).' },
+    {
+      name: 'ui-load',
+      detail: '{}',
+      description:
+        '“Load answer” pressed (only rendered with `deferred` and no text). Cancelable: fetch the answer, then set the text.',
+    },
   ],
   keyboard: [
     ['Tab', 'Link cards → chips in the text → Copy (→ Try again)'],
@@ -200,7 +224,7 @@ export const doc: ComponentDoc = {
     'While streaming or loading the card is aria-busy; the pulsing dot is aria-hidden.',
     'Reduced motion: no entry fade or pop, the sweep and pulse stop (the writing text turns static), the row jumps instead of gliding.',
     'Coarse pointers: buttons are 44px, chips are never truncated and get a 10px-taller hit area.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again, a navigate when the user follows a link. Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again and Load answer, a navigate when the user follows a link. Silent until the page turns sound on.',
   ],
   usage: `<ui-ai-answer lang="en"></ui-ai-answer>
 <script type="module">
@@ -264,6 +288,15 @@ export const doc: ComponentDoc = {
       height: 220,
       frame: false,
       create: failed,
+    },
+    {
+      id: 'deferred',
+      title: 'Deferred',
+      description:
+        'deferred: the answer is on the server until asked for — its title stands in. Load answer (ui-load) → loading → the answer.',
+      height: 220,
+      frame: false,
+      create: deferred,
     },
     {
       id: 'empty',

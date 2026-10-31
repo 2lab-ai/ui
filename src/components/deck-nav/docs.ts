@@ -112,9 +112,14 @@ export const doc: ComponentDoc = {
     { name: 'wrap', type: 'boolean', description: 'Attribute. Past the last card comes the first (and back).' },
     {
       name: 'peek',
-      type: 'boolean',
+      type: "boolean | 'only'",
       description:
-        'Attribute. Draws up to two card tops under the controls (count − 1, at most 2), decorative. Put the element right above the front card so the tops meet it.',
+        'Attribute. Draws up to two card tops under the controls (count − 1, at most 2), decorative. Put the element right above the front card so the tops meet it. `peek="only"` draws the edges alone — no controls, no tab stops — for a deck whose nav sits elsewhere (another <ui-deck-nav> in the header row, or the host’s own buttons calling prev() / next()); both read the same data. The controls can also be hidden with `::part(nav)`.',
+    },
+    {
+      name: '::part(nav) / ::part(peek)',
+      type: 'CSS parts',
+      description: 'The controls and the peek edges, for a host that places or hides one of them.',
     },
     { name: 'index', type: 'number (read-only)', description: 'The index shown now.' },
     {
@@ -176,6 +181,30 @@ export const doc: ComponentDoc = {
         'peek draws the tops of the cards waiting behind (two at most). Page through: the host swaps the front card.',
       height: 280,
       create: () => deck(CARDS.length, { peek: '' }, 0),
+    },
+    {
+      id: 'peek-only',
+      title: 'peek="only" — edges apart from the controls',
+      description:
+        'The dashboard’s layout: the card tops sit above the whole panel header at full width, the controls inside the header row. Two elements, one index: the header’s nav pages, the peek-only one follows the same data.',
+      height: 260,
+      create: () => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;width:100%;max-width:520px';
+        const edges = nav({ index: 1, count: CARDS.length, titles: TITLES }, { peek: 'only' });
+        const row = header({
+          attrs: {},
+          titles: TITLES,
+        });
+        const navEl = row.querySelector('ui-deck-nav') as UiDeckNav;
+        navEl.addEventListener('ui-page', (e) => {
+          const { index } = (e as CustomEvent<DeckNavPage>).detail;
+          edges.data = { ...edges.data!, index };
+        });
+        row.style.borderRadius = '0 0 12px 12px';
+        wrap.append(edges, row);
+        return wrap;
+      },
     },
     {
       id: 'two',

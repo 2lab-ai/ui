@@ -26,6 +26,7 @@ const en = {
   noAnswer: 'No answer',
   failed: 'Could not send the answers.',
   cleared: 'Answers cleared',
+  locked: 'You cannot answer this one.',
 };
 
 export type ChoiceFormStrings = typeof en;
@@ -57,6 +58,7 @@ const ko: ChoiceFormStrings = {
   noAnswer: '답 없음',
   failed: '답을 보내지 못했습니다.',
   cleared: '답을 모두 지움',
+  locked: '이 질문에는 답할 수 없습니다.',
 };
 
 export const CHOICE_FORM_STRINGS: Record<ChoiceFormLang, ChoiceFormStrings> = { en, ko };

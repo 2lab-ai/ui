@@ -6,6 +6,7 @@ import {
   type AuthConfirmDetail,
   type AuthNavigateDetail,
   type AuthProviderDetail,
+  authCardCss,
   authCardHtml,
   authCardMarkup,
   authInitials,
@@ -389,6 +390,29 @@ describe('server-side markup', () => {
     expect(qa(el, 'a.ac-provider')).toHaveLength(2);
   });
 
+  it('hydrates in place: a re-render keeps the card node (no second entrance), only what changed moves', () => {
+    const el = mount(SIGN_IN);
+    const card = q(el, '.ac-card')!;
+    const google = q(el, 'a.ac-provider[data-id="google"]')!;
+    el.data = { ...SIGN_IN, error: 'Sign-in was cancelled.' };
+    el.renderNow();
+    expect(q(el, '.ac-card')).toBe(card);
+    expect(q(el, 'a.ac-provider[data-id="google"]')).toBe(google);
+    expect(q(el, '.ac-error')?.textContent).toContain('Sign-in was cancelled.');
+    el.setAttribute('lang', 'ko');
+    el.renderNow();
+    expect(q(el, '.ac-card')).toBe(card);
+    expect(q(el, '.ac-divider span')?.textContent).toBe('또는');
+    // A held card (aria-busy) is released by the next render, in place.
+    click(google);
+    expect(google.getAttribute('aria-busy')).toBe('true');
+    el.data = { ...SIGN_IN };
+    el.renderNow();
+    expect(q(el, 'a.ac-provider[data-id="google"]')).toBe(google);
+    expect(google.hasAttribute('aria-busy')).toBe(false);
+    expect(el.busy).toBe(false);
+  });
+
   it('survives a broken state script', () => {
     const box = document.createElement('div');
     box.innerHTML = '<ui-auth-card><script type="application/json">{nope</script></ui-auth-card>';
@@ -408,6 +432,23 @@ describe('styles', () => {
     expect(styles).toContain('min-height: 44px');
     const known = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared), 'ac-width']);
     for (const m of styles.matchAll(/var\(--([a-z0-9-]+)/g)) expect(known.has(m[1]), m[1]).toBe(true);
+  });
+
+  it('lets the confirm primary grow and wrap, stacking it above Cancel when the pair cannot share the row (D5 G4-3)', () => {
+    expect(styles).toContain('.ac-actions { display: flex; flex-wrap: wrap-reverse; gap: 10px; }');
+    expect(styles).toContain('.ac-actions .ac-btn.is-primary { flex: 2 1 auto; white-space: normal; }');
+    expect(styles).toContain(
+      '.ac-actions .ac-btn.is-primary .ac-label { overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }',
+    );
+    expect(styles).toMatch(/\.ac-actions \.ac-btn \{[^}]*padding: 10px 16px/);
+  });
+
+  it('keeps Korean prose whole: keep-all on the card and in the sheet the server ships (D5 G4-4)', () => {
+    expect(styles).toContain(
+      ':host([lang="ko"]) :is(.ac-title, .ac-text, .ac-hint, .ac-fine, .ac-error, .ac-label) { word-break: keep-all; }',
+    );
+    expect(authCardCss).toContain(':host([lang="ko"]), :host(:lang(ko)) { word-break: keep-all; }');
+    expect(authCardHtml({ title: '로그인' }, { lang: 'ko' })).toContain('word-break: keep-all');
   });
 
   it('never moves on hover', () => {

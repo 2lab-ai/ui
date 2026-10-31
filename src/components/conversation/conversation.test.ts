@@ -9,6 +9,7 @@ import {
   clampLinesOf,
   clampOverflows,
   clockText,
+  hasSummaryView,
   initialOf,
   normalizeTurns,
   PENDING_KEY,
@@ -16,6 +17,7 @@ import {
   progressState,
   summaryLine,
   summaryText,
+  summaryView,
   tookText,
   turnAnswerData,
   turnSignature,
@@ -254,6 +256,8 @@ describe('<ui-conversation> rendering', () => {
     const failed = answerOf(el, 'a3');
     failed.renderNow();
     expect(failed.shadowRoot?.querySelector('.ans-error')?.textContent).toContain('HTTP 404');
+    // G5-3: the documented shape — the element's sentence, the host's cause in brackets (Korean likewise).
+    expect(failed.shadowRoot?.querySelector('.ans-error')?.textContent).toBe('Couldn’t get the answer (HTTP 404)');
     expect(failed.shadowRoot?.querySelector('.ans-retry')).not.toBeNull();
   });
 
@@ -277,6 +281,36 @@ describe('<ui-conversation> rendering', () => {
     expect(s2.querySelector('.sys-badge')?.textContent).toBe('deploy');
     expect(s2.querySelector('button')).toBeNull();
     expect(s2.querySelector('div.cv-sys')).not.toBeNull();
+  });
+
+  it('G1-2: a system turn with media opens to the slot media-<id>, first in its detail', () => {
+    const el = mount({
+      turns: [
+        { id: 's3', role: 'system', kind: 'compact', text: 'Held during compaction', media: true },
+        { ...SYS, media: true },
+      ],
+    });
+    // Media alone makes the row openable.
+    const s3 = node(el, 's3');
+    const row = s3.querySelector('button.cv-sys') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(s3.querySelector('.cv-media')).toBeNull();
+    click(row);
+    const media = s3.querySelector('.cv-detail .cv-media') as HTMLElement;
+    expect(media.getAttribute('role')).toBe('group');
+    expect(media.getAttribute('aria-label')).toBe('Attached media');
+    expect(media.querySelector('slot')?.getAttribute('name')).toBe('media-s3');
+    // With facts and raw text too: media first, then the facts, then the raw text.
+    const s1 = node(el, 's1');
+    click(s1.querySelector('button.cv-sys'));
+    const kids = Array.from(s1.querySelector('.cv-detail')!.children).map((c) => c.className);
+    expect(kids).toEqual(['cv-media', 'cv-facts', 'cv-sysraw']);
+    expect(s1.querySelector('.cv-media slot')?.getAttribute('name')).toBe('media-s1');
+    // A system turn without media draws no media box.
+    el.data = { turns: [SYS] };
+    el.renderNow();
+    click(node(el, 's1').querySelector('button.cv-sys'));
+    expect(node(el, 's1').querySelector('.cv-media')).toBeNull();
   });
 
   it('keeps the writing row last and drops it when the answer is done', () => {
@@ -510,6 +544,75 @@ describe('<ui-conversation> keyed updates', () => {
 });
 
 describe('<ui-conversation> events', () => {
+  it('G1-3: summaryView / hasSummaryView — the text, the failure, or the quiet line, Retry with canRetry', () => {
+    expect(hasSummaryView(undefined)).toBe(false);
+    expect(hasSummaryView({})).toBe(false);
+    expect(hasSummaryView({ title: 'T' })).toBe(true);
+    expect(hasSummaryView({ error: 'HTTP 500' })).toBe(true);
+    expect(hasSummaryView({ canRetry: true })).toBe(true);
+    expect(summaryView({ title: 'T', text: 'x', canRetry: true }, 'none')).toEqual({
+      state: 'ready',
+      text: 'T\n\nx',
+      canRetry: true,
+    });
+    expect(summaryView({ title: 'T' }, 'none')).toEqual({ state: 'ready', text: 'T', canRetry: false });
+    expect(summaryView({ error: 'HTTP 500', canRetry: true }, 'none')).toEqual({
+      state: 'error',
+      note: 'HTTP 500',
+      canRetry: true,
+    });
+    expect(summaryView({ canRetry: true }, 'none')).toEqual({ state: 'missing', note: 'none', canRetry: true });
+    expect(summaryView(undefined, 'none')).toEqual({ state: 'missing', note: 'none', canRetry: false });
+  });
+
+  it('G1-3: Retry on Raw’s Summary view sends ui-retry { id, what: "summary" }; the failed and missing summary states', () => {
+    const el = mount({
+      turns: [
+        { ...BOT, source: 'src', summary: { ...BOT.summary, canRetry: true } },
+        { id: 'a2', role: 'assistant', markdown: 'Done', summary: { error: 'HTTP 500', canRetry: true } },
+        { id: 'a3', role: 'assistant', markdown: 'Done', summary: { canRetry: true } },
+        { id: 'a4', role: 'assistant', markdown: 'Done', summary: {} },
+      ],
+    });
+    const seen: unknown[] = [];
+    el.addEventListener('ui-retry', (e) => seen.push((e as CustomEvent).detail));
+    // A summary with text: Copy and Retry in the bar.
+    const a1 = node(el, 'a1');
+    click(a1.querySelector('[data-act="raw"]'));
+    click(a1.querySelector('.cv-tab[data-view="summary"]'));
+    const view = a1.querySelector('.cv-rawview[data-from="summary"]') as HTMLElement;
+    expect(view.querySelector('.raw-text')?.textContent).toBe('Pinned the clock\n\nThe test read the wall clock.');
+    expect(view.querySelector('.raw-copy')).not.toBeNull();
+    click(view.querySelector('.raw-retry'));
+    expect(seen).toEqual([{ id: 'a1', what: 'summary' }]);
+    // The source view has no Retry (nothing to summarise again there).
+    click(a1.querySelector('.cv-tab[data-view="source"]'));
+    expect(a1.querySelector('.cv-rawview[data-from="source"] .raw-retry')).toBeNull();
+    // A failed summary: the error line with the alert mark and Retry.
+    const a2 = node(el, 'a2');
+    click(a2.querySelector('[data-act="raw"]'));
+    click(a2.querySelector('.cv-tab[data-view="summary"]'));
+    const failed = a2.querySelector('.cv-rawview[data-from="summary"] .raw') as HTMLElement;
+    expect(failed.dataset.state).toBe('error');
+    expect(failed.textContent).toContain('HTTP 500');
+    expect(failed.querySelector('.raw-line-icon')?.getAttribute('data-icon')).toBe('alert');
+    click(failed.querySelector('.raw-retry'));
+    expect(seen.at(-1)).toEqual({ id: 'a2', what: 'summary' });
+    // No summary yet, but one can be asked for: the quiet line and Retry.
+    const a3 = node(el, 'a3');
+    click(a3.querySelector('[data-act="raw"]'));
+    click(a3.querySelector('.cv-tab[data-view="summary"]'));
+    const missing = a3.querySelector('.cv-rawview[data-from="summary"] .raw') as HTMLElement;
+    expect(missing.dataset.state).toBe('missing');
+    expect(missing.textContent).toContain('No summary yet');
+    expect(missing.querySelector('.raw-retry')).not.toBeNull();
+    // An empty summary object: no Summary view at all.
+    const a4 = node(el, 'a4');
+    click(a4.querySelector('[data-act="raw"]'));
+    expect(a4.querySelector('.cv-tab')).toBeNull();
+    expect(a4.querySelector('.cv-rawview')?.getAttribute('data-from')).toBe('source');
+  });
+
   it('sends ui-retry with id null from the error bar and the error box', () => {
     const el = mount({ turns: [USER], error: 'HTTP 500' });
     const seen: Array<CustomEvent> = [];
@@ -538,6 +641,55 @@ describe('<ui-conversation> events', () => {
     click(ans.shadowRoot?.querySelector('.ans-retry'));
     expect(seen).toEqual([{ id: 'a9' }]);
     expect((inner as Event | null)?.defaultPrevented).toBe(true);
+  });
+
+  it('G5-2: a deferred turn shows its summary and Load answer; the press is ui-load-answer { id } (cancelable through); loading / error win', () => {
+    const kept: ConversationTurn = {
+      id: 'a7',
+      role: 'assistant',
+      deferred: true,
+      summary: { title: 'Pinned the clock', text: 'The test read the wall clock.' },
+    };
+    const el = mount({ turns: [kept] });
+    const ans = answerOf(el, 'a7');
+    ans.renderNow();
+    expect(ans.data?.deferred).toBe(true);
+    expect(ans.data?.title).toBe('Pinned the clock — The test read the wall clock.');
+    expect(ans.shadowRoot?.querySelector('.ans-deferred')?.textContent).toBe('Not loaded yet');
+    expect(ans.shadowRoot?.querySelector('.ans-empty')).toBeNull();
+    // Raw: the Summary view only — no Source until the text arrives.
+    click(q(el, '[data-act="raw"]'));
+    expect(qa(el, '.cv-tab').length).toBe(0);
+    expect(q(el, '.cv-raw-h')?.textContent).toBe('Summary');
+    const seen: unknown[] = [];
+    el.addEventListener('ui-load-answer', (e) => {
+      seen.push((e as CustomEvent).detail);
+      e.preventDefault();
+    });
+    let inner: Event | null = null;
+    ans.addEventListener('ui-load', (e) => {
+      inner = e;
+    });
+    click(ans.shadowRoot?.querySelector('.ans-load'));
+    expect(seen).toEqual([{ id: 'a7' }]);
+    expect((inner as Event | null)?.defaultPrevented).toBe(true);
+    // The host fetches: loading replaces the button; the text replaces both.
+    el.data = { turns: [{ ...kept, loading: true }] };
+    el.renderNow();
+    const loading = answerOf(el, 'a7');
+    loading.renderNow();
+    expect(loading.shadowRoot?.querySelector('.ans-load')).toBeNull();
+    expect(loading.shadowRoot?.querySelector('.ans-loading')).not.toBeNull();
+    el.data = { turns: [{ ...kept, deferred: undefined, markdown: 'Fixed.' }] };
+    el.renderNow();
+    const done = answerOf(el, 'a7');
+    done.renderNow();
+    expect(done.shadowRoot?.querySelector('.ans-body')?.textContent).toContain('Fixed.');
+    expect(turnAnswerData({ id: 'x', role: 'assistant', deferred: true }, false).deferred).toBe(true);
+    expect(turnAnswerData({ id: 'x', role: 'assistant' }, false).deferred).toBeUndefined();
+    expect(turnSignature({ id: 'x', role: 'assistant', deferred: true })).not.toBe(
+      turnSignature({ id: 'x', role: 'assistant' }),
+    );
   });
 
   it('copies Raw text and the answer, reporting ui-copy with the turn id', async () => {
@@ -656,9 +808,18 @@ describe('<ui-conversation> keyboard', () => {
 describe('<ui-conversation> lang="ko"', () => {
   it('speaks Korean everywhere it speaks', () => {
     const el = mount(
-      { turns: [{ ...USER, name: '' }, BOT, SYS, { id: 'a3', role: 'assistant', responseMs: 65_000, markdown: 'x' }] },
+      {
+        turns: [
+          { ...USER, name: '' },
+          BOT,
+          { ...SYS, media: true },
+          { id: 'a3', role: 'assistant', responseMs: 65_000, markdown: 'x' },
+        ],
+      },
       { lang: 'ko' },
     );
+    click(node(el, 's1').querySelector('button.cv-sys'));
+    expect(node(el, 's1').querySelector('.cv-detail .cv-media')?.getAttribute('aria-label')).toBe('첨부한 미디어');
     expect(node(el, 'u1').querySelector('.cv-name')?.textContent).toBe('사용자');
     expect(node(el, 'a1').querySelector('.cv-name')?.textContent).toBe('어시스턴트');
     expect(node(el, 's1').querySelector('.cv-name')?.textContent).toBe('시스템');
@@ -673,6 +834,13 @@ describe('<ui-conversation> lang="ko"', () => {
     expect(logOf(el).data?.startText).toBe('대화의 시작');
     click(node(el, 'a1').querySelector('[data-act="raw"]'));
     expect(Array.from(node(el, 'a1').querySelectorAll('.cv-tab')).map((b) => b.textContent)).toEqual(['요약', '원문']);
+    el.data = { turns: [{ ...BOT, summary: { canRetry: true } }] };
+    el.renderNow();
+    click(node(el, 'a1').querySelector('[data-act="raw"]'));
+    click(node(el, 'a1').querySelector('.cv-tab[data-view="summary"]'));
+    expect(node(el, 'a1').querySelector('.cv-rawview[data-from="summary"] .raw')?.textContent).toContain(
+      '아직 요약이 없습니다',
+    );
   });
 
   it('switches language in place', () => {
@@ -781,6 +949,99 @@ describe('docs', () => {
   });
 });
 
+describe('<ui-conversation> layout="page" (D5 G5-5)', () => {
+  it('hands the attribute to its scroller and takes it back', () => {
+    const el = mount({ turns: [USER, BOT] }, { layout: 'page' });
+    const log = q<UiLogScroller>(el, 'ui-log-scroller')!;
+    expect(log.getAttribute('layout')).toBe('page');
+    el.removeAttribute('layout');
+    el.renderNow();
+    expect(log.getAttribute('layout')).toBeNull();
+    el.setAttribute('layout', 'page');
+    el.renderNow();
+    expect(log.getAttribute('layout')).toBe('page');
+  });
+});
+
+describe('<ui-conversation> selectable (D5 G5-1)', () => {
+  it('a checkbox leads every turn but the writing row; checking marks the row, fills selectedIds and sends ui-select', () => {
+    const el = mount({ turns: [USER, BOT, SYS], pending: true }, { selectable: '' });
+    const boxes = qa(el, '.cv-turn > .cv-pick > .cv-pick-in') as HTMLInputElement[];
+    expect(boxes.length).toBe(3);
+    expect(boxes[0].getAttribute('aria-label')).toBe('Select the turn by dana');
+    expect(boxes[1].getAttribute('aria-label')).toBe('Select the turn by Assistant');
+    // The writing row keeps the column with nothing in it.
+    expect(node(el, PENDING_KEY).querySelector('.cv-pick-in')).toBeNull();
+    expect(node(el, PENDING_KEY).querySelector('.cv-pick')).not.toBeNull();
+    expect(el.selectedIds).toEqual([]);
+    const seen: unknown[] = [];
+    el.addEventListener('ui-select', (e) => seen.push((e as CustomEvent).detail));
+    boxes[1].click();
+    expect(boxes[1].checked).toBe(true);
+    expect(node(el, 'a1').hasAttribute('data-selected')).toBe(true);
+    expect(el.selectedIds).toEqual(['a1']);
+    boxes[0].click();
+    expect(el.selectedIds).toEqual(['u1', 'a1']); // the order shown, not the order picked
+    boxes[1].click();
+    expect(node(el, 'a1').hasAttribute('data-selected')).toBe(false);
+    expect(seen).toEqual([
+      { id: 'a1', selected: true, ids: ['a1'] },
+      { id: 'u1', selected: true, ids: ['u1', 'a1'] },
+      { id: 'a1', selected: false, ids: ['u1'] },
+    ]);
+  });
+
+  it('selectAll / clearSelection / selectedIds paint in place without ui-select; the selection survives a rebuild and a new turn, goes with another conversation', () => {
+    const el = mount({ turns: [USER, BOT], pending: true }, { selectable: '' });
+    const seen: unknown[] = [];
+    el.addEventListener('ui-select', (e) => seen.push((e as CustomEvent).detail));
+    el.selectAll();
+    expect(el.selectedIds).toEqual(['u1', 'a1']);
+    expect(qa(el, '.cv-pick-in').every((b) => (b as HTMLInputElement).checked)).toBe(true);
+    expect(qa(el, '.cv-turn[data-selected]').length).toBe(2);
+    // The turn is rebuilt (its data changed): the box stays checked.
+    el.data = { turns: [USER, { ...BOT, markdown: 'Fixed — and **tested**.' }, SYS] };
+    el.renderNow();
+    expect((node(el, 'a1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    expect(node(el, 'a1').hasAttribute('data-selected')).toBe(true);
+    expect((node(el, 's1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(false);
+    expect(el.selectedIds).toEqual(['u1', 'a1']);
+    el.selectedIds = ['s1', 'ghost'];
+    expect(el.selectedIds).toEqual(['s1']);
+    expect((node(el, 'u1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(false);
+    expect((node(el, 's1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    // An id kept for a turn that may come: the older page shows it checked.
+    el.data = { turns: [{ id: 'ghost', role: 'user', text: 'earlier' }, USER, BOT, SYS] };
+    el.renderNow();
+    expect((node(el, 'ghost').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    expect(el.selectedIds).toEqual(['ghost', 's1']);
+    el.clearSelection();
+    expect(el.selectedIds).toEqual([]);
+    expect(qa(el, '.cv-turn[data-selected]').length).toBe(0);
+    el.selectAll();
+    // Another conversation (no id in common) starts unselected.
+    el.data = { turns: [{ id: 'x1', role: 'user', text: 'other' }] };
+    el.renderNow();
+    expect(el.selectedIds).toEqual([]);
+    expect((node(el, 'x1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  it('the attribute off: no checkboxes; on again: the selection is still there; Korean names the box', () => {
+    const el = mount({ turns: [USER, BOT] }, { selectable: '' });
+    el.selectedIds = ['a1'];
+    el.removeAttribute('selectable');
+    el.renderNow();
+    expect(qa(el, '.cv-pick').length).toBe(0);
+    expect(node(el, 'u1').style.gridTemplateColumns).toBe('');
+    el.setAttribute('selectable', '');
+    el.renderNow();
+    expect((node(el, 'a1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    const ko = mount({ turns: [{ ...USER, name: '박민아' }] }, { selectable: '', lang: 'ko' });
+    expect(q(ko, '.cv-pick-in')?.getAttribute('aria-label')).toBe('박민아의 대화 선택');
+  });
+});
+
 describe('sound', () => {
   let spy: SoundSpy;
   beforeEach(() => {
@@ -812,6 +1073,48 @@ describe('sound', () => {
     press(ans.shadowRoot?.querySelector('.ans-retry'));
     await spy.settle();
     expect(spy.calls.slice(2)).toEqual([['tap', { input: 'mouse' }]]);
+    // G1-3: Retry on the summary → tap; prevented → silent.
+    el.data = { turns: [{ ...BOT, summary: { error: 'x', canRetry: true } }] };
+    el.renderNow();
+    const b = node(el, 'a1');
+    click(b.querySelector('[data-act="raw"]'));
+    click(b.querySelector('.cv-tab[data-view="summary"]'));
+    press(b.querySelector('.raw-retry'));
+    await spy.settle();
+    expect(spy.calls.slice(3)).toEqual([['tap', { input: 'mouse' }]]);
+    el.addEventListener('ui-retry', (e) => e.preventDefault());
+    press(b.querySelector('.raw-retry'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(4);
+    // G5-2: Load answer on a deferred turn taps (the nested answer's cue, once); a prevented load is silent.
+    el.data = { turns: [{ id: 'a8', role: 'assistant', deferred: true }] };
+    el.renderNow();
+    const kept = answerOf(el, 'a8');
+    kept.renderNow();
+    press(kept.shadowRoot?.querySelector('.ans-load'));
+    await spy.settle();
+    expect(spy.calls.slice(4)).toEqual([['tap', { input: 'mouse' }]]);
+    el.addEventListener('ui-load-answer', (e) => e.preventDefault());
+    press(kept.shadowRoot?.querySelector('.ans-load'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(5);
+  });
+
+  it('G5-1: a turn’s checkbox toggles forward and back; selectAll is the host’s and silent', async () => {
+    const el = mount({ turns: [USER, BOT] }, { selectable: '' });
+    const box = node(el, 'u1').querySelector('.cv-pick-in') as HTMLInputElement;
+    press(box);
+    await spy.settle();
+    expect(box.checked).toBe(true);
+    expect(spy.calls).toEqual([['toggle', { direction: 'forward', input: 'mouse' }]]);
+    press(box, 0); // Space on the box is a click with detail 0
+    await spy.settle();
+    expect(box.checked).toBe(false);
+    expect(spy.calls.at(-1)).toEqual(['toggle', { direction: 'back', input: 'keyboard' }]);
+    el.selectAll();
+    el.clearSelection();
+    await spy.settle();
+    expect(spy.calls).toHaveLength(2);
   });
 
   it('nothing for a prevented retry, data the app sets, or a data-ui-sound="off" region', async () => {

@@ -5,7 +5,13 @@ import { morphInto } from '../../core/morph';
 import { positionFixed, watchViewport } from '../../core/popover';
 import { icon } from '../../icons/icons';
 import '../dialog/dialog';
-import { DIALOG_EXIT_MS, type DialogCloseDetail, type DialogCloseReason, type UiDialog } from '../dialog/dialog';
+import {
+  DIALOG_EXIT_MS,
+  type DialogCloseDetail,
+  type DialogClosedDetail,
+  type DialogCloseReason,
+  type UiDialog,
+} from '../dialog/dialog';
 import {
   type FileCardVariant,
   type FileItem,
@@ -62,7 +68,10 @@ export interface ArtifactOpenDetail {
   id: string;
   index: number;
 }
-/** `ui-view` (notification): the viewer now shows this item (open, previous, next). */
+/**
+ * `ui-view` (notification): the viewer now shows this item (open, previous, next). `ui-before-view` (notification,
+ * same detail) comes first, before the body for the item renders — put a `slot="preview"` child in then.
+ */
 export interface ArtifactViewDetail {
   id: string;
   index: number;
@@ -70,6 +79,13 @@ export interface ArtifactViewDetail {
 /** `ui-close` (cancelable): the person asked to close the viewer. */
 export interface ArtifactCloseDetail {
   reason: DialogCloseReason;
+}
+/**
+ * `ui-closed` (notification): the viewer is gone, after its exit — for every close: the person's reason, `host`
+ * for close() / `index: -1` / a list emptied under it, `removed` when the element left the page while open.
+ */
+export interface ArtifactClosedDetail {
+  reason: DialogCloseReason | 'host' | 'removed';
 }
 /**
  * `ui-action` (cancelable): Open in new tab / Download, or one of the file's extra `actions` (its `id`);
@@ -130,6 +146,8 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
   #graceTimer: ReturnType<typeof setTimeout> | undefined;
   #clearTimer: ReturnType<typeof setTimeout> | undefined;
   #emptyTimer: ReturnType<typeof setTimeout> | undefined;
+  /** A close is under way and its `ui-closed` has not gone out. */
+  #pendingClosed = false;
   #unwatch: (() => void) | null = null;
   #ro: ResizeObserver | null = null;
 
@@ -150,6 +168,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     r.addEventListener('pointerover', (e) => this.#onOver(e as PointerEvent));
     r.addEventListener('pointerout', (e) => this.#onOut(e as PointerEvent));
     r.addEventListener('ui-close', (e) => this.#onInnerClose(e as CustomEvent<DialogCloseDetail>));
+    r.addEventListener('ui-closed', (e) => this.#onInnerClosed(e as CustomEvent<DialogClosedDetail>));
     r.addEventListener('slotchange', (e) => {
       if ((e.target as Element | null)?.getAttribute?.('name') === 'preview' && this.#index >= 0) this.#syncViewer();
     });
@@ -206,7 +225,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     this.#show(Math.trunc(Number(index)) || 0, opener ?? null);
   }
 
-  /** Close the viewer with its exit motion (no event). */
+  /** Close the viewer with its exit motion (no `ui-close`; `ui-closed` once the exit is over). */
   close(): void {
     if (this.#index < 0) return;
     this.#dialog.hide();
@@ -243,6 +262,11 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     // re-insert (a move in the page) would reopen it on a viewer that has closed.
     this.close();
     clearTimeout(this.#emptyTimer); // close() may have armed it; a removed viewer has nothing to empty
+    // No exit plays for a removed dialog: the host hears the close now.
+    if (this.#pendingClosed) {
+      this.#pendingClosed = false;
+      this.notify<ArtifactClosedDetail>('ui-closed', { reason: 'removed' });
+    }
   }
 
   get #lang(): string {
@@ -313,6 +337,8 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     }
     this.#index = i;
     this.#shownId = id;
+    // The body renders right after this (updated → #syncViewer): the host's slot can go in first.
+    this.notify<ArtifactViewDetail>('ui-before-view', { id, index: i });
     this.notify<ArtifactViewDetail>('ui-view', { id, index: i });
   }
 
@@ -461,6 +487,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       this.#shownId = String(item.id);
       this.#zoomed = false;
       this.#live = '';
+      this.notify<ArtifactViewDetail>('ui-before-view', { id: String(item.id), index: i });
     }
     this.#syncDialogAttrs();
     this.#syncViewer();
@@ -489,6 +516,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     this.#zoomed = false;
     this.#live = `${fileDisplayName(item, this.#lang)} — ${i + 1} / ${items.length}`;
     this.#pauseMedia();
+    this.notify<ArtifactViewDetail>('ui-before-view', { id: String(item.id), index: i });
     this.#syncViewer();
     const body = this.#dialog.querySelector('.av-body');
     if (body) body.scrollTop = 0;
@@ -499,8 +527,9 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     this.notify<ArtifactViewDetail>('ui-view', { id: String(item.id), index: i });
   }
 
-  /** The viewer is closing: stop media now, drop the content once the exit has played. */
+  /** The viewer is closing: stop media now, drop the content once the exit has played, then say so (`ui-closed`). */
   #closed(): void {
+    this.#pendingClosed = true;
     this.#index = -1;
     this.#shownId = null;
     this.#zoomed = false;
@@ -602,6 +631,16 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       return;
     }
     this.#closed();
+  }
+
+  /** The inner dialog's exit is over: the viewer's own `ui-closed`, with the reason as the viewer names it. */
+  #onInnerClosed(e: CustomEvent<DialogClosedDetail>): void {
+    if (e.target !== this.#dialog) return;
+    e.stopPropagation();
+    if (!this.#pendingClosed) return;
+    this.#pendingClosed = false;
+    const r = e.detail?.reason ?? 'hide';
+    this.notify<ArtifactClosedDetail>('ui-closed', { reason: r === 'hide' ? 'host' : r });
   }
 
   #onError(e: Event): void {

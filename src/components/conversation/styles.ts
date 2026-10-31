@@ -8,6 +8,8 @@ export const styles = `
 :host { display: flex; flex-direction: column; min-height: 0; }
 .ui-root { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
 .cv-log { flex: 1 1 auto; min-height: 0; }
+/* layout="page": as tall as the turns — the page scrolls (the scroller is told the same). */
+:host([layout="page"]), :host([layout="page"]) .ui-root, :host([layout="page"]) .cv-log { display: block; }
 
 /* Error bar above the turns; the error box (no turns) and the empty state sit in the scroller's state slot. */
 .cv-errbar {
@@ -58,6 +60,24 @@ export const styles = `
   color: var(--ib-text-2); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .cv-took svg { width: 11px; height: 11px; color: var(--ib-muted); }
+
+/* selectable: a 16px checkbox leads every turn (ink when on, as the kit's switch); the writing row keeps the column. */
+:host([selectable]) .cv-turn { grid-template-columns: 18px 24px minmax(0, 1fr); }
+.cv-pick { position: relative; display: grid; place-items: center; width: 18px; height: 24px; margin: 0; }
+.cv-pick::before { content: ""; position: absolute; inset: -10px -8px -10px -6px; }
+.cv-pick-in {
+  appearance: none; -webkit-appearance: none; width: 16px; height: 16px; margin: 0; border-radius: 5px; background: var(--ib-card);
+  box-shadow: inset 0 0 0 1px var(--ib-card-border); cursor: pointer;
+  transition: background-color var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+.cv-pick-in:checked { background: var(--ib-text); box-shadow: inset 0 0 0 1px var(--ib-text); }
+.cv-pick-in:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+.cv-pick svg {
+  position: absolute; width: 16px; height: 16px; fill: none; stroke: var(--ib-card); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  opacity: 0; transform: scale(0.8); pointer-events: none; transition: opacity var(--dur-press) ease, transform var(--dur-press) var(--ease-out);
+}
+.cv-pick-in:checked + svg { opacity: 1; transform: none; }
+.cv-turn[data-selected] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-text) 22%, transparent); }
 
 /* User turn: media above the words, the words clamped, skill chips. */
 .cv-media { min-width: 0; margin: 4px 0 6px; }
@@ -119,6 +139,9 @@ export const styles = `
 .cv-facts dt { color: var(--ib-muted); font-weight: 500; }
 .cv-facts dd { margin: 0; color: var(--ib-text); font-variant-numeric: tabular-nums; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cv-facts + .cv-sysraw { margin-top: 12px; }
+/* A system turn's media (the files an intercepted message carried) heads its detail */
+.cv-detail .cv-media { margin: 0; }
+.cv-detail .cv-media + :is(.cv-facts, .cv-sysraw) { margin-top: 12px; }
 
 /* Progress of a long operation: verb, bar, elapsed / estimate, percent — ticking in place. */
 .cv-prog { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 22px; color: var(--ib-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -149,6 +172,7 @@ export const styles = `
 }
 button.cv-sys:active { background: var(--ib-pill); }
 @media (hover: hover) and (pointer: fine) {
+  .cv-pick-in:not(:checked):hover { box-shadow: inset 0 0 0 1px var(--ib-muted); }
   .cv-more:hover, .cv-disc:hover { background: var(--ib-pill); color: var(--ib-text); }
   button.cv-sys:hover { background: color-mix(in srgb, var(--ib-pill) 60%, transparent); }
   button.cv-sys:hover .cv-line { color: var(--ib-text); }
@@ -161,7 +185,8 @@ button.cv-sys:active { background: var(--ib-pill); }
 }
 @media (prefers-reduced-motion: reduce) {
   .cv-more:active, .cv-disc:active, .cv-tab:active, .cv-btn:active { transform: none; }
-  .cv-region, .cv-chev, .cv-bar > i { transition: none !important; }
+  .cv-region, .cv-chev, .cv-bar > i, .cv-pick-in, .cv-pick svg { transition: none !important; }
+  .cv-pick svg { transform: none; }
   .cv-region-in { transition: opacity 120ms ease, visibility 0s linear 120ms !important; }
   .cv-dbox[data-open] > .cv-region > .cv-region-in { transition: opacity 120ms ease, visibility 0s !important; }
   .cv-bar[data-indet] > i { animation: none; background: color-mix(in srgb, var(--accent) 45%, transparent); }

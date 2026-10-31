@@ -47,6 +47,12 @@ export const styles = `
 .sb-btn.is-danger { color: var(--st-fail-text); border-color: color-mix(in srgb, var(--st-fail) 40%, var(--ib-card-border)); }
 .sb-btn.is-danger.is-primary { background: var(--st-fail); border-color: var(--st-fail); color: var(--ib-card); }
 .sb-btn.is-danger:not(.is-primary)[data-armed] { background: ${tint('var(--st-fail)')}; border-color: var(--st-fail); color: ${toneText('var(--st-fail-text)')}; }
+/* Quiet: borderless and muted, for a lesser action beside the others; the danger word keeps its colour */
+.sb-btn.is-quiet { border-color: transparent; background: transparent; color: var(--ib-text-2); }
+.sb-btn.is-quiet.is-danger { color: var(--st-fail-text); }
+/* Pressed (a toggle that is on — Starred): the raised neutral chip, never a colour alone */
+.sb-btn[aria-pressed="true"]:not(.is-primary) { background: var(--ib-seg-on); border-color: var(--ib-card-border); color: var(--ib-text); box-shadow: var(--ib-shadow); }
+.sb-btn[aria-pressed="true"] .sb-bi { color: var(--st-wait); }
 .sb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .sb-btn[aria-busy="true"] { cursor: progress; }
 .sb-btn:active:not(:disabled):not(:focus-visible) { transform: scale(0.97); }
@@ -66,6 +72,8 @@ export const styles = `
   .sb-btn:hover:not(:disabled) { border-color: var(--ib-muted); }
   .sb-btn.is-primary:hover:not(:disabled) { border-color: var(--ib-text); opacity: 0.88; }
   .sb-btn.is-danger:hover:not(:disabled) { border-color: var(--st-fail); background: ${tint('var(--st-fail)')}; }
+  .sb-btn.is-quiet:hover:not(:disabled) { border-color: transparent; background: var(--ib-pill); color: var(--ib-text); }
+  .sb-btn.is-quiet.is-danger:hover:not(:disabled) { background: ${tint('var(--st-fail)')}; color: var(--st-fail-text); }
   .sb-btn.is-danger.is-primary:hover:not(:disabled) { background: var(--st-fail); opacity: 0.88; }
   .sb-link:hover { text-decoration: underline; }
 }

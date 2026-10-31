@@ -127,6 +127,12 @@ export const doc: ComponentDoc = {
     },
     { name: 'lang', type: '"en" | "ko"', default: '"en"', description: 'Attribute. Strings in English or Korean.' },
     {
+      name: 'layout',
+      type: '"page"',
+      description:
+        'Attribute. Default: the box scrolls inside the height you give it. layout="page": as tall as its items and the page scrolls — the browser’s own scroll anchoring keeps the reader’s place when an older page goes in above; older pages come by the Load older button, or on their own once the reader scrolls up to within a window height of the top row (never on load: a page does not page in its whole history); no latest pill — scrollToLatest() scrolls the newest item into view.',
+    },
+    {
       name: 'appendItems(nodes, { unread?, animate? })',
       type: 'method',
       description:
@@ -169,7 +175,14 @@ export const doc: ComponentDoc = {
       name: '[data-anchor]',
       type: 'attribute on item descendants',
       description:
-        'Finer place-keeping inside large items (entries inside a group): the reader’s row is found among these first.',
+        'Finer place-keeping inside large items (entries inside a group): the reader’s row is found among these first. Also read inside an element item’s open shadow root (an agent tree marks its rows so), so a page that grows the one item above the reader does not move them. Anchors under an inert ancestor (the clipped rows of a folded group) are skipped: they are laid out but not in view.',
+    },
+    {
+      name: 'anchorsFor',
+      type: '(item: HTMLElement) => Element[] | null',
+      default: 'null',
+      description:
+        'Property. Names the rows inside an item whose place is kept — for an element item that draws its rows itself and grows above the reader (older agents paged into one <ui-agent-tree>). Returning nothing falls back to [data-anchor]. anchorsIn(item, hook) is the exported lookup.',
     },
   ],
   events: [
@@ -265,6 +278,30 @@ export const doc: ComponentDoc = {
         for (const el of [a, b]) el.style.border = '1px solid var(--ui-ib-card-border)';
         box.append(a, b);
         return box;
+      },
+    },
+    {
+      id: 'page',
+      title: 'layout="page" — as tall as its items',
+      description:
+        'The box does not scroll; the page does (this box stands in for it). Older pages load from the button, or once you scroll up to the top row — never on their own at load. No latest pill: the page’s scroll is yours.',
+      height: 460,
+      create: () => {
+        const el = make({ hasMore: true, label: 'Run log' }, 0);
+        el.setAttribute('layout', 'page');
+        el.style.height = 'auto';
+        el.appendItems(range(0, 14));
+        pageOlder(el, 2, 10);
+        const stage = document.createElement('div');
+        stage.style.cssText =
+          'height:420px;overflow:auto;overscroll-behavior:contain;padding:0 0 24px;border:1px solid var(--ui-ib-card-border);border-radius:12px';
+        const note = document.createElement('p');
+        note.style.cssText = 'margin:0 0 8px;padding:10px 12px 0;font-size:12.5px;color:var(--ui-ib-muted)';
+        note.textContent = 'This box stands in for the page — scroll it.';
+        stage.append(note, el);
+        // The page lands at the newest item, as a chat page would.
+        requestAnimationFrame(() => el.scrollToLatest({ smooth: false }));
+        return stage;
       },
     },
     {
