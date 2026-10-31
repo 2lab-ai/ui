@@ -346,6 +346,25 @@ describe('<ui-ai-answer>', () => {
     expect(q(partial, '.ans-foot .ans-retry')).not.toBeNull();
   });
 
+  it('deferred: “Not loaded yet” with Load answer (ui-load, cancelable); loading and error come first; Korean strings', () => {
+    const el = mount({ markdown: '', deferred: true, title: 'Why?' });
+    expect(q(el, '.ans-title')?.textContent).toBe('Why?');
+    expect(q(el, '.ans-deferred')?.textContent).toBe('Not loaded yet');
+    expect(q(el, '.ans-load')?.textContent).toBe('Load answer');
+    expect(q(el, '.ans-empty')).toBeNull();
+    const fired = vi.fn((e: Event) => e.preventDefault());
+    el.addEventListener('ui-load', fired);
+    q(el, '.ans-load')!.click();
+    expect(fired).toHaveBeenCalledTimes(1);
+    expect(q(mount({ markdown: '', deferred: true, loading: true }), '.ans-load')).toBeNull();
+    expect(q(mount({ markdown: '', deferred: true, error: 'HTTP 404' }), '.ans-load')).toBeNull();
+    // Text in hand: deferred means nothing.
+    expect(q(mount({ markdown: 'Done.', deferred: true }), '.ans-load')).toBeNull();
+    const ko = mount({ markdown: '', deferred: true }, { lang: 'ko' });
+    expect(q(ko, '.ans-deferred')?.textContent).toBe('아직 불러오지 않았습니다');
+    expect(q(ko, '.ans-load')?.textContent).toBe('답변 불러오기');
+  });
+
   it('Copy emits ui-copy {text}, writes the clipboard and says Copied (then reverts)', async () => {
     const writeText = vi.fn(() => Promise.resolve());
     vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as unknown as Clipboard);
