@@ -205,7 +205,7 @@ export const doc: ComponentDoc = {
     'Labelled by its heading (aria-labelledby) or the label attribute (aria-label).',
     'On open, focus goes to the first [autofocus] element in your content, else the panel; after the close it returns to the opener — unless the person has moved on into the page (docked).',
     'The resize handle is role="separator" (aria-orientation vertical) with aria-valuenow / min / max, focusable, named “Resize panel” / “패널 크기 조절”.',
-    'A mode switch while open keeps focus (and the caret) where it was and puts every scroll place in the panel back.',
+    'A mode switch while open keeps focus (and the caret) where it was and puts every scroll place in the panel back — and back again on the frames after and at the morph’s end, while the sheet’s box settles (the browser clamps or anchors a box in it one layout later), unless you scroll, press a key or touch inside meanwhile: then your place wins. A box inside a slotted element’s shadow root is put back once and then left to that element (a log scroller keeps its own place on resize).',
     'Reduced motion: nothing slides — the panel and scrim fade in 120ms.',
     'Sound (opt-in, @2lab.ai/ui/sound): Escape, the scrim or the close button plays close unless ui-close is cancelled; show() / hide() / toggle() / open play open / close only while the browser reports a recent click or key press (its user activation — a timer that fires seconds after a click can still sound; wrap such regions in data-ui-sound="off"), never when it starts open. A mode switch and resizing are silent. Silent until the page turns sound on.',
   ],

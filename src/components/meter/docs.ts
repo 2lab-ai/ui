@@ -53,7 +53,7 @@ export const doc: ComponentDoc = {
     {
       name: 'low / high',
       type: 'number',
-      description: 'Below low is the low region, from high up the high region. Without one there is no such region.',
+      description: 'Under low is the low region, at or over high the high region. Without one there is no such region.',
     },
     {
       name: 'optimum',
@@ -61,7 +61,12 @@ export const doc: ComponentDoc = {
       default: 'max',
       description: 'Which end is good: max — more is better (what is left); min — less is better (what is used).',
     },
-    { name: 'label', type: 'string', description: 'The accessible name (“Remaining usage”).' },
+    {
+      name: 'label',
+      type: 'string',
+      description:
+        'The accessible name (“Remaining usage”). Give one: without it the meter is named by its words alone.',
+    },
     {
       name: 'text',
       type: 'string',
@@ -86,6 +91,7 @@ export const doc: ComponentDoc = {
   keyboard: [],
   a11y: [
     'role="meter" with aria-valuemin 0, aria-valuemax 100, aria-valuenow the percent and aria-valuetext the words shown (or yours); give it a label.',
+    'The zones are the native <meter>’s: under low is the low region, at or over high the high region, between them the middle. Give it a label — without one the meter is named by its words alone (“72%”, or your text), which says the amount but not what of.',
     'An unknown reading is role="img" named “<label>: Unknown” — a meter with no value would be a lie.',
     'The tone is never the only signal: the percent (or your words) is always there for the eye and the reader.',
     'The fill moves on --dur-move; under reduced motion it jumps. No loops, no blinking at low.',

@@ -90,6 +90,13 @@ function json(v: unknown): string {
   }
 }
 
+/** An element that carries `head-tabindex` to its own header (the kit's tool call card, or one that observes it). */
+function takesHeadTabindex(el: Element): boolean {
+  if (el.localName === 'ui-tool-call-card') return true;
+  const observed = (el.constructor as { observedAttributes?: unknown }).observedAttributes;
+  return Array.isArray(observed) && observed.includes('head-tabindex');
+}
+
 /**
  * `<ui-work-log>` — what an agent did, grouped by task: a group head (ref · title · count · time, a quiet meta line;
  * the newest group open) over entry rows — instructions, progress, responses, notices, errors, system turns, tool
@@ -124,6 +131,11 @@ export class UiWorkLog extends UiElement<WorkLogData> {
   #scrollerSig = '';
   /** `data-key` of the row (or `t:<entry id>` of the slotted card) the reader last focused: the log's one tab stop. */
   #current: string | null = null;
+  /**
+   * The host's elements in the tool slots that were told their place (`head-tabindex`), with the `tabindex` a plain
+   * one had before the log set its own (null: none; a card carries head-tabindex itself and is not touched).
+   */
+  #told = new Map<HTMLElement, { tab: string | null } | null>();
   #slotListening = false;
   /** A ui-load-older went out (not prevented) and no page came back yet. */
   #olderPending = false;
@@ -599,12 +611,32 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     return out;
   }
 
-  /** One stop: our rows take tabindex 0 / -1; a slotted card is told through head-tabindex (its header follows). */
+  /**
+   * One stop: our rows take tabindex 0 / -1; a slotted card is told through head-tabindex (its header follows), any
+   * other slotted element through its own tabindex too (else it would stay a Tab stop of its own). What was written
+   * on an element goes when it leaves the slot (removed, re-slotted, its entry gone): the set is compared each time.
+   */
   #syncRoving(): void {
     const navs = this.#navs();
     const cur = navs.find((n) => this.#navKey(n) === this.#current) ?? navs[navs.length - 1];
     for (const n of this.$$<HTMLElement>('[data-nav]')) syncAttr(n, 'tabindex', n === cur ? '0' : '-1');
-    for (const c of this.#slottedNavs()) syncAttr(c, 'head-tabindex', c === cur ? '0' : '-1');
+    const slotted = this.#slottedNavs();
+    for (const [el, own] of this.#told) {
+      if (slotted.includes(el)) continue;
+      el.removeAttribute('head-tabindex');
+      if (own) syncAttr(el, 'tabindex', own.tab);
+      this.#told.delete(el);
+    }
+    for (const c of slotted) {
+      const tab = c === cur ? '0' : '-1';
+      let own = this.#told.get(c);
+      if (own === undefined) {
+        own = takesHeadTabindex(c) ? null : { tab: c.getAttribute('tabindex') };
+        this.#told.set(c, own);
+      }
+      syncAttr(c, 'head-tabindex', tab);
+      if (own) syncAttr(c, 'tabindex', tab);
+    }
   }
 
   #onKey(e: KeyboardEvent): void {
