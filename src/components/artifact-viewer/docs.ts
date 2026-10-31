@@ -339,7 +339,7 @@ export const doc: ComponentDoc = {
       name: 'slot="preview"',
       type: 'slot',
       description:
-        'Your own body for the shown file (a CSV table, a PDF viewer). While it is there it replaces the built-in body; swap its content on ui-view.',
+        'Your own body for the shown file (a CSV table, a chart). While it is there it replaces the built-in body; swap its content on ui-before-view (before the body renders) or ui-view.',
     },
     { name: 'index', type: 'number (read-only)', description: 'The file the viewer shows, -1 while it is closed.' },
     {
@@ -370,10 +370,16 @@ export const doc: ComponentDoc = {
         'A tile (or the peek) was activated by click, Enter or Space. Cancelable: preventDefault() keeps the viewer closed — open your own view instead.',
     },
     {
+      name: 'ui-before-view',
+      detail: '{ id: string; index: number }',
+      description:
+        'Notification, before the body for this file renders (on open, on a step, when new data moved the shown file): put or swap your slot="preview" child here and the viewer never draws its own body for it — no frame made and dropped, no flash.',
+    },
+    {
       name: 'ui-view',
       detail: '{ id: string; index: number }',
       description:
-        'Notification: the viewer now shows this file — on open, on a step (buttons, arrows, Home / End, next() / prev()), or when new data moved the shown file. Swap a slotted preview here.',
+        'Notification: the viewer now shows this file — on open, on a step (buttons, arrows, Home / End, next() / prev()), or when new data moved the shown file. Swap a slotted preview here (or, better, on ui-before-view).',
     },
     {
       name: 'ui-close',
@@ -533,7 +539,7 @@ export const doc: ComponentDoc = {
       id: 'host-preview',
       title: 'Your own preview',
       description:
-        'slot="preview" replaces the built-in body: this host draws each CSV as a table, swapping it on ui-view. The tiles, peek, steps and actions stay the viewer’s.',
+        'slot="preview" replaces the built-in body: this host draws each CSV as a table, swapping it on ui-before-view — before the viewer would draw a body of its own. The tiles, peek, steps and actions stay the viewer’s.',
       height: 290,
       create: () => {
         const items = csvFiles();
@@ -541,7 +547,7 @@ export const doc: ComponentDoc = {
         const preview = document.createElement('div');
         preview.slot = 'preview';
         el.append(preview);
-        el.addEventListener('ui-view', (e) => {
+        el.addEventListener('ui-before-view', (e) => {
           const { id } = (e as CustomEvent<ArtifactViewDetail>).detail;
           preview.replaceChildren(csvTable(items.find((f) => f.id === id)?.text ?? ''));
         });

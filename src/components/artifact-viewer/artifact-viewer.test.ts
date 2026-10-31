@@ -643,6 +643,41 @@ describe('viewer', () => {
     expect(q(el, '.av-vid video')?.getAttribute('src')).toBe('/files/demo.mp4');
   });
 
+  it('D4 G5-2: ui-before-view comes before the body renders — a slot put in then is the first body; ui-view follows', () => {
+    const el = mount({ items: files() });
+    const order: string[] = [];
+    const preview = document.createElement('div');
+    preview.slot = 'preview';
+    let framesEverMade = 0;
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts)
+        for (const n of Array.from(m.addedNodes))
+          if (n.nodeType === 1 && ((n as Element).matches('iframe') || (n as Element).querySelector('iframe')))
+            framesEverMade++;
+    });
+    mo.observe(el.shadowRoot as ShadowRoot, { childList: true, subtree: true });
+    el.addEventListener('ui-before-view', (e) => {
+      const { id, index } = (e as CustomEvent<ArtifactViewDetail>).detail;
+      order.push(`before:${id}:${index}`);
+      preview.textContent = `host body for ${id}`;
+      if (!preview.isConnected) el.append(preview);
+    });
+    el.addEventListener('ui-view', (e) => order.push(`view:${(e as CustomEvent<ArtifactViewDetail>).detail.id}`));
+    el.open(1); // notes.md
+    expect(order).toEqual(['before:notes:1', 'view:notes']);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('host');
+    el.next(); // landing.html — would be a sandboxed frame without the hook
+    expect(order.slice(2)).toEqual(['before:page:2', 'view:page']);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('host');
+    expect(preview.textContent).toBe('host body for page');
+    // New data moves the shown file: the hook fires again before the body.
+    el.data = { items: [{ id: 'new', name: 'first.txt', text: 'x' }, ...files()] };
+    el.renderNow();
+    expect(order.slice(4)).toEqual(['before:page:3', 'view:page']);
+    expect(framesEverMade).toBe(0);
+    mo.disconnect();
+  });
+
   it('D4 G5-1: a PDF is framed as is (the browser’s viewer, no sandbox); a page with scripts: true runs them in the viewer and the peek', () => {
     const el = mount({
       items: [
