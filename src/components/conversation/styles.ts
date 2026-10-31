@@ -8,6 +8,8 @@ export const styles = `
 :host { display: flex; flex-direction: column; min-height: 0; }
 .ui-root { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
 .cv-log { flex: 1 1 auto; min-height: 0; }
+/* layout="page": as tall as the turns — the page scrolls (the scroller is told the same). */
+:host([layout="page"]), :host([layout="page"]) .ui-root, :host([layout="page"]) .cv-log { display: block; }
 
 /* Error bar above the turns; the error box (no turns) and the empty state sit in the scroller's state slot. */
 .cv-errbar {

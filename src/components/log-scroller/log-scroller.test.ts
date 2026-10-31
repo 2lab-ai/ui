@@ -626,3 +626,66 @@ describe('sound', () => {
     expect(spy.calls).toEqual([]);
   });
 });
+
+describe('layout="page" (D5 G5-5)', () => {
+  const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
+  function page(data: LogScrollerData): { el: UiLogScroller; seen: Array<string | null> } {
+    const el = document.createElement('ui-log-scroller') as UiLogScroller;
+    el.setAttribute('layout', 'page');
+    document.body.append(el);
+    el.data = data;
+    el.renderNow();
+    layout(el);
+    const seen: Array<string | null> = [];
+    el.addEventListener('ui-load-older', (e) => {
+      seen.push((e as CustomEvent<{ oldest: string | null }>).detail.oldest);
+      e.preventDefault();
+    });
+    return { el, seen };
+  }
+  const scrollWindow = (y: number) => {
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: y });
+    window.dispatchEvent(new Event('scroll'));
+  };
+
+  it('never fills itself: a short list with older pages waits for the button or a scroll up to the top row', async () => {
+    scrollWindow(0);
+    const { el, seen } = page({ hasMore: true });
+    el.appendItems(rows(el, 0, 3));
+    await frame();
+    expect(seen).toEqual([]); // a box that "cannot scroll" would have paged in
+    q(el, '.ls-older')!.click();
+    expect(seen).toEqual(['k0']);
+    // The reader scrolls the page down (a landing), then up with the top row within a window height: one more.
+    const top = q(el, '.ls-top')!;
+    top.getBoundingClientRect = () => ({ top: -200, bottom: -160, height: 40 }) as DOMRect;
+    scrollWindow(900);
+    expect(seen).toEqual(['k0']);
+    scrollWindow(600);
+    expect(seen).toEqual(['k0', 'k0']);
+    // Far above the view (more than a window height): not yet.
+    top.getBoundingClientRect = () => ({ top: -5000, bottom: -4960, height: 40 }) as DOMRect;
+    scrollWindow(300);
+    expect(seen).toEqual(['k0', 'k0']);
+    // The page that came back arms nothing by itself; no pill either, whatever is appended.
+    el.prependItems(rows(el, -2, 2), { hasMore: true });
+    el.appendItems(rows(el, 10, 4));
+    expect(q(el, '.ls-jump')?.hasAttribute('data-show')).toBe(false);
+    expect(el.pinned).toBe(true);
+    el.remove();
+    scrollWindow(100);
+    expect(seen).toEqual(['k0', 'k0']); // let go of the window once removed
+  });
+
+  it('scrollToLatest scrolls the newest item into view (the page scrolls, not the box); the attribute can go', () => {
+    const { el } = page({});
+    el.appendItems(rows(el, 0, 2));
+    const into = vi.fn();
+    el.items[1].scrollIntoView = into;
+    el.scrollToLatest({ smooth: false });
+    expect(into).toHaveBeenCalledWith({ block: 'end', behavior: 'auto' });
+    el.removeAttribute('layout');
+    el.renderNow();
+    expect(el.getAttribute('layout')).toBeNull();
+  });
+});

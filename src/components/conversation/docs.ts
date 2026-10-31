@@ -395,6 +395,33 @@ function statesDemo(): HTMLElement {
   return box;
 }
 
+/** layout="page" inside a scrolling stage that stands in for the page: older pages by the button or on scrolling up. */
+function pageDemo(): HTMLElement {
+  let turns = firstPage();
+  let pages = 2;
+  const el = make({ turns, hasMore: true, clampLines: 6 }, 0);
+  el.setAttribute('layout', 'page');
+  el.style.height = 'auto';
+  slotted(el);
+  el.addEventListener('ui-load-older', () => {
+    setTimeout(() => {
+      if (!el.isConnected) return;
+      pages--;
+      turns = [...olderPage(1 - pages), ...turns];
+      el.data = { turns, hasMore: pages > 0, clampLines: 6 };
+    }, 700);
+  });
+  const stage = document.createElement('div');
+  stage.style.cssText =
+    'height:520px;overflow:auto;overscroll-behavior:contain;padding:0 0 24px;border:1px solid var(--ui-ib-card-border);border-radius:12px';
+  const note = document.createElement('p');
+  note.style.cssText = 'margin:0 0 8px;padding:10px 12px 0;font-size:12.5px;color:var(--ui-ib-muted)';
+  note.textContent = 'This box stands in for the page — scroll it.';
+  stage.append(note, el);
+  requestAnimationFrame(() => el.scrollToLatest({ smooth: false }));
+  return stage;
+}
+
 function koreanDemo(): UiConversation {
   const t0 = BASE;
   return make(
@@ -805,6 +832,12 @@ export const doc: ComponentDoc = {
       description: 'Attribute. Strings in English or Korean (passed to the scroller and answers).',
     },
     {
+      name: 'layout',
+      type: '"page"',
+      description:
+        'Attribute. Default: the element fills the box it is given and the turns scroll inside — size it (e.g. `height: 560px`, or `flex: 1; min-height: 0` in a column). layout="page": as tall as the turns and the page scrolls; older pages come by the Load older button, or once the reader scrolls up to the top; no latest pill — scrollToLatest() scrolls the newest turn into view. For an archive page with an app bar above and nothing else to scroll.',
+    },
+    {
       name: 'selectable',
       type: 'boolean',
       description:
@@ -936,6 +969,14 @@ export const doc: ComponentDoc = {
       height: 640,
       frame: false,
       create: archiveDemo,
+    },
+    {
+      id: 'page',
+      title: 'layout="page" — as tall as the turns',
+      description:
+        'The element does not scroll; the page does (this box stands in for it). Two older pages load from the button, or once you scroll up to the top — never on their own at load. No latest pill: the page’s scroll is yours.',
+      height: 560,
+      create: pageDemo,
     },
     {
       id: 'ko',
