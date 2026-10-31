@@ -153,6 +153,12 @@ export const doc: ComponentDoc = {
         'Attribute. Panel width 400 · 560 · 720 · 960 px (never wider than the viewport less 32px); full = viewport less 16px each side, and edge to edge under 640px whatever sheet says (no rounding, safe areas inside).',
     },
     {
+      name: 'size-phone',
+      type: "'sm' | 'md' | 'lg' | 'xl' | 'full'",
+      description:
+        'Attribute. The size under 640px, when the one for wider screens is not the one you want there — size="lg" size-phone="full" is the 720px panel on a desktop and an edge-to-edge sheet on a phone (a full-height composer, a viewer). Follows the viewport live.',
+    },
+    {
       name: 'sheet',
       type: "'auto' | 'never'",
       default: "'auto'",
@@ -291,13 +297,13 @@ export const doc: ComponentDoc = {
       id: 'new-task',
       title: 'New task',
       description:
-        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. A bottom sheet under 640px that follows the visual viewport, so Start stays above the soft keyboard.',
+        'The composer: focus lands in the [autofocus] textarea; ⌘/Ctrl + Enter starts. size="lg" size-phone="full": a 720px panel on a desktop; under 640px an edge-to-edge sheet that follows the visual viewport, so Start stays above the soft keyboard.',
       height: 200,
       create: () => {
         const { box, line } = stage();
         const open = trigger('New task');
         const el = dialog(
-          { heading: 'New task' },
+          { heading: 'New task', size: 'lg', 'size-phone': 'full' },
           `<textarea autofocus rows="5" aria-label="Task" placeholder="Fix the flaky upload test in web/upload.spec.ts — it times out on CI about one run in five." style="${FIELD}"></textarea>
 <span slot="footer" style="${HINT}"><kbd class="ui-kbd">⌘</kbd><kbd class="ui-kbd">↵</kbd> to start</span>
 <button type="button" class="ui-btn is-primary" slot="footer" data-act="start" disabled>Start</button>`,
