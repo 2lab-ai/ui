@@ -154,6 +154,32 @@ describe('ui-kit.css', () => {
     expect(rm.slice(0, rm.indexOf('\n}\n'))).toContain('.ui-select-chip, .ui-fab { transition-duration: 0.01ms; }');
   });
 
+  it('extended FAB: a 56px pill with a word that folds away to the round button, no movement under reduced motion (H-10)', () => {
+    const ext = /\.ui-fab\.is-extended \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(ext).toContain('display: inline-flex');
+    expect(ext).toContain('border-radius: 999px');
+    expect(ext).toContain('padding: 0 20px 0 17px');
+    expect(ext).toContain('font-size: 15px; font-weight: 600');
+    expect(ext).toContain(
+      'transition: padding var(--ui-dur-expand) var(--ui-ease-out), gap var(--ui-dur-expand) var(--ui-ease-out)',
+    );
+    // The word rides max-width + opacity; folded, it is gone and the padding closes to the 56px circle (17 + 22 + 17).
+    expect(kitCss).toMatch(
+      /\.ui-fab\.is-extended > span \{[^}]*max-width: 10em; overflow: hidden;[^}]*transition: max-width var\(--ui-dur-expand\) var\(--ui-ease-out\), opacity var\(--ui-dur-fade\) var\(--ui-ease-out\)/,
+    );
+    expect(kitCss).toContain('.ui-fab.is-extended.is-folded { gap: 0; padding: 0 17px; }');
+    expect(kitCss).toContain('.ui-fab.is-extended.is-folded > span { max-width: 0; opacity: 0; }');
+    // The base FAB keeps its corner, safe areas, press scale and focus ring; the extended one inherits them.
+    const fab = /\.ui-fab \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(fab).toContain('right: max(20px, env(safe-area-inset-right))');
+    expect(fab).toContain('height: 56px');
+    expect(kitCss).toContain('.ui-fab:active:not(:disabled):not(:focus-visible) { transform: scale(0.95); }');
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(rm.slice(0, rm.indexOf('\n}\n'))).toContain(
+      '.ui-fab.is-extended, .ui-fab.is-extended > span { transition: none; }',
+    );
+  });
+
   it('parses as CSS in the DOM', () => {
     const style = document.createElement('style');
     style.textContent = kitCss;
