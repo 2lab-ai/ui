@@ -1,5 +1,6 @@
 // Runtime smoke test against the installed package: each of the 42 element subpaths registers its element(s); the icon
-// set and the kit load and return their strings.
+// set and the kit load and return their strings; the server entry loads (as ESM here — smoke.cjs requires it) and
+// defines no element.
 import { Window } from 'happy-dom';
 
 const w = new Window();
@@ -124,7 +125,19 @@ if (!root.soundSettings().enabled || root.soundSettings().player !== cuelumeSoun
   console.error('register: @2lab.ai/ui/sound did not share its setting with the root, or unlock claimed audio');
   process.exit(1);
 }
+// The server entry beside the elements: the same auth card markup, and nothing defined by it.
+const server = await import('@2lab.ai/ui/server');
+const { authCardHtml } = await import('@2lab.ai/ui/auth-card');
+const authData = { title: 'Sign in', providers: [{ id: 'sso', label: 'Continue', href: '/auth/sso' }] };
+if (
+  server.UiAuthCard !== undefined ||
+  server.authCardHtml(authData) !== authCardHtml(authData) ||
+  !server.authCardCss.includes('.ac-card')
+) {
+  console.error('register: @2lab.ai/ui/server did not load, renders differently from auth-card, or defines an element');
+  process.exit(1);
+}
 const tags = new Set([...slugs.map((s) => `ui-${s}`), ...Object.values(extra).flat()]).size;
 console.log(
-  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window>, <ui-compact-breakdown>, <ui-agent-tree> and <ui-file-card> rendered; icons, kit and sound load`,
+  `register: ${tags} elements defined from ${slugs.length} subpaths; <ui-context-window>, <ui-compact-breakdown>, <ui-agent-tree> and <ui-file-card> rendered; icons, kit, sound and server load`,
 );

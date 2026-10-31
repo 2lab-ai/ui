@@ -3,7 +3,8 @@
  * Import a single component with `@2lab.ai/ui/<slug>` to register only that one; the icon set is
  * `@2lab.ai/ui/icons`, the light-DOM CSS kit `@2lab.ai/ui/ui-kit.css` (or `kitCss` from `@2lab.ai/ui/kit`). Interface
  * sounds: the policy (`setSound`, `bindSound` …) is exported here and from `@2lab.ai/ui/sound`; the Cuelume player is
- * `@2lab.ai/ui/sound-cuelume` (import it only when the user turns sound on).
+ * `@2lab.ai/ui/sound-cuelume` (import it only when the user turns sound on). A server renders the auth card from
+ * `@2lab.ai/ui/server` — no element in it, so it loads without a DOM, as ESM or CommonJS.
  */
 export * from './components/agent-inbox';
 export * from './components/agent-queue';

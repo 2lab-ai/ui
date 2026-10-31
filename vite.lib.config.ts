@@ -46,6 +46,8 @@ const COMPONENTS = [
   'elapsed',
 ];
 /**
+ * `@2lab.ai/ui/server` is not here: vite.server.config.ts builds it (ESM + CommonJS, self-contained) into the same
+ * dist/ right after this build.
  * Non-element entries: the icon set, the CSS kit (as a string; copy-assets also writes dist/ui-kit.css) and the sound
  * policy. `sound-cuelume` is its own entry so Cuelume (bundled from the devDependency) loads only when a page asks.
  */
