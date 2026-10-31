@@ -125,6 +125,44 @@ describe('<ui-dialog>', () => {
     expect(closed).toEqual(['hide', 'escape', 'close-button', 'hide']);
   });
 
+  it('D4 G6-1: size-phone is the size under 640px, followed live; size elsewhere; nothing without matchMedia', () => {
+    let matches = false;
+    const listeners = new Set<() => void>();
+    const mql = {
+      get matches() {
+        return matches;
+      },
+      addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
+    };
+    const mm = vi.fn(() => mql as unknown as MediaQueryList);
+    vi.stubGlobal('matchMedia', mm);
+    const el = mount({ size: 'lg', 'size-phone': 'full' });
+    expect(mm).toHaveBeenCalledWith('(max-width: 639px)');
+    expect(dlg(el).dataset.size).toBe('lg');
+    matches = true;
+    for (const fn of listeners) fn();
+    el.renderNow();
+    expect(dlg(el).dataset.size).toBe('full');
+    el.setAttribute('size-phone', 'sm');
+    el.renderNow();
+    expect(dlg(el).dataset.size).toBe('sm');
+    el.removeAttribute('size-phone');
+    el.renderNow();
+    expect(dlg(el).dataset.size).toBe('lg');
+    expect(listeners.size).toBe(0);
+    el.setAttribute('size-phone', 'full');
+    expect(listeners.size).toBe(1);
+    el.remove();
+    expect(listeners.size).toBe(0);
+    document.body.append(el);
+    expect(listeners.size).toBe(1);
+    expect(dlg(el).dataset.size).toBe('full');
+    vi.stubGlobal('matchMedia', undefined);
+    const plain = mount({ size: 'md', 'size-phone': 'full' });
+    expect(dlg(plain).dataset.size).toBe('md');
+  });
+
   it('the open attribute and property open and close it', () => {
     const el = mount();
     el.setAttribute('open', '');
