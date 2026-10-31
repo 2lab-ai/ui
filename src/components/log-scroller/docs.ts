@@ -169,7 +169,7 @@ export const doc: ComponentDoc = {
       name: '[data-anchor]',
       type: 'attribute on item descendants',
       description:
-        'Finer place-keeping inside large items (entries inside a group): the reader’s row is found among these first. Also read inside an element item’s open shadow root (an agent tree marks its rows so), so a page that grows the one item above the reader does not move them.',
+        'Finer place-keeping inside large items (entries inside a group): the reader’s row is found among these first. Also read inside an element item’s open shadow root (an agent tree marks its rows so), so a page that grows the one item above the reader does not move them. Anchors under an inert ancestor (the clipped rows of a folded group) are skipped: they are laid out but not in view.',
     },
     {
       name: 'anchorsFor',

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
-import type { UiLogScroller } from '../log-scroller/log-scroller';
+import { anchorHidden, type UiLogScroller } from '../log-scroller/log-scroller';
 import { doc } from './docs';
 import {
   agentStatus,
@@ -275,6 +275,22 @@ describe('<ui-work-log> rendering', () => {
     expect(badge.textContent).toBe('Compacted');
     expect(badge.querySelector('svg')).not.toBeNull();
     expect(e.querySelector('.wl-sys-line')?.textContent).toBe('Context compacted');
+  });
+
+  it('G2-1: a folded group’s entries sit under an inert region, so the scroller does not hold the reader’s place on them', () => {
+    const el = mount({ groups: groups() });
+    const g1 = group(el, 'g1')!;
+    const g2 = group(el, 'g2')!;
+    expect(g1.hasAttribute('data-open')).toBe(false);
+    expect(g2.hasAttribute('data-open')).toBe(true);
+    const folded = Array.from(g1.querySelectorAll<HTMLElement>('[data-anchor]'));
+    const open = Array.from(g2.querySelectorAll<HTMLElement>('[data-anchor]'));
+    expect(folded.length).toBeGreaterThan(0);
+    expect(folded.every((e) => anchorHidden(e, g1))).toBe(true);
+    expect(open.every((e) => !anchorHidden(e, g2))).toBe(true);
+    // Opening the group makes its entries anchors again.
+    key(el, 'g:g1').click();
+    expect(folded.every((e) => !anchorHidden(e, g1))).toBe(true);
   });
 
   it('tool entry: a named slot with a plain line (status icon + word, name, summary) as fallback', () => {

@@ -108,6 +108,20 @@ interface Anchor {
 export type LogAnchorsHook = (item: HTMLElement) => Iterable<Element> | null | undefined;
 
 /**
+ * `el` sits under an `inert` ancestor inside `item` — a folded group's rows: laid out (the region is a clipped 0fr
+ * row, so they have a height) but not in view. Holding the reader's place on one of them moves the view when an
+ * older page adds rows to that folded group. Read through shadow hosts.
+ */
+export function anchorHidden(el: Element, item: Element): boolean {
+  let n: Node | null = el === item ? null : el.parentNode;
+  while (n && n !== item) {
+    if (n.nodeType === 1 && (n as Element).hasAttribute('inert')) return true;
+    n = n.nodeType === 11 ? (n as ShadowRoot).host : n.parentNode;
+  }
+  return false;
+}
+
+/**
  * The finer anchors of an item, in order: the host's `anchorsFor` hook first, then the item's own `[data-anchor]`
  * descendants, then `[data-anchor]` rows inside its open shadow root (an element as an item — an agent tree whose
  * rows live in its shadow). Empty when the item itself is the anchor.
@@ -600,6 +614,8 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
       // or `data-anchor` rows inside an element item's shadow root.
       const fine = anchorsIn(item, this.anchorsFor);
       for (const el of fine.length ? fine : [item]) {
+        // Rows inside a folded (inert) region are laid out but clipped: never the reader's place.
+        if (anchorHidden(el, item)) continue;
         const rr = el.getBoundingClientRect();
         if (!rr.height || rr.bottom <= top) continue;
         if (rr.top >= bottom) break;
