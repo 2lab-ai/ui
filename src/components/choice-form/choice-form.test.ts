@@ -11,6 +11,8 @@ import {
   choiceFormCanSubmit,
   choiceFormHero,
   choiceFormKey,
+  choiceFormLocked,
+  choiceFormLockReason,
   choiceFormNext,
   choiceFormNormalize,
   choiceFormOrder,
@@ -631,6 +633,64 @@ describe('<ui-choice-form> submitting', () => {
     expect(qa(fresh, '.cf-sum-row')[2].querySelector('dd')?.textContent).toContain('uploads_v2');
     expect(qa(fresh, '.cf-sum-row')[2].querySelector('.cf-tag')?.textContent).toBe('Custom');
     expect(q(fresh, '.cf-done')?.classList.contains('is-enter')).toBe(false);
+  });
+
+  it('canAnswer locks the form: a lock line (the reason or a generic one), every control held, nothing sent', () => {
+    const el = mount(form({ canAnswer: 'Only the session owner can answer.' }));
+    const submits = events(el, 'ui-submit');
+    const changes = events(el, 'ui-change');
+    expect(q(el, '.cf')?.hasAttribute('data-locked')).toBe(true);
+    expect(q(el, '.cf')?.getAttribute('aria-busy')).toBeNull();
+    const lock = q(el, '.cf-lock')!;
+    expect(lock.getAttribute('role')).toBe('status');
+    expect(lock.textContent).toBe('Only the session owner can answer.');
+    expect(lock.querySelector('svg')?.getAttribute('data-icon')).toBe('lock');
+    expect(qa(el, '.cf-choice').every((b) => b.getAttribute('aria-disabled') === 'true')).toBe(true);
+    expect(q(el, '.cf-hero')?.getAttribute('aria-disabled')).toBe('true');
+    expect(q(el, '.cf-submit')?.getAttribute('aria-disabled')).toBe('true');
+    expect(q(el, '.cf-reset')?.getAttribute('aria-disabled')).toBe('true');
+    expect(qa(el, '.cf-input').every((i) => i.hasAttribute('readonly'))).toBe(true);
+    expect(qa(el, '.cf-confirm').every((b) => b.getAttribute('aria-disabled') === 'true')).toBe(true);
+    choice(el, 'store', 'pg').click();
+    key(choice(el, 'store', 'sqlite'), '1');
+    key(card(el, 'store'), 'Enter', { metaKey: true });
+    (q(el, '.cf-hero') as HTMLElement).click();
+    (q(el, '.cf-confirm') as HTMLElement).click();
+    el.renderNow();
+    expect(el.answers).toHaveLength(0);
+    expect(submits).toHaveLength(0);
+    expect(changes).toHaveLength(0);
+    expect(q(el, '.cf-invalid')).toBeNull();
+    // `false` locks with the generic line; the host unlocking frees the same form.
+    el.data = form({ canAnswer: false });
+    el.renderNow();
+    expect(q(el, '.cf-lock')?.textContent).toBe('You cannot answer this one.');
+    el.data = form({ canAnswer: true });
+    el.renderNow();
+    expect(q(el, '.cf-lock')).toBeNull();
+    expect(q(el, '.cf')?.hasAttribute('data-locked')).toBe(false);
+    choice(el, 'store', 'pg').click();
+    expect(el.answers).toHaveLength(1);
+    expect(changes).toHaveLength(1);
+  });
+
+  it('a locked one-question form does not submit on pick; the reason is escaped; Korean has its own line', () => {
+    const el = mount(single({ canAnswer: XSS }));
+    const submits = events(el, 'ui-submit');
+    expect(el.shadowRoot?.querySelector('img')).toBeNull();
+    expect(q(el, '.cf-lock')?.textContent).toBe(XSS);
+    choice(el, 'tests', 'full').click();
+    key(choice(el, 'tests', 'full'), '2');
+    expect(submits).toHaveLength(0);
+    expect(q(el, '.cf-choice[aria-busy="true"]')).toBeNull();
+    const ko = mount(form({ canAnswer: false }), { lang: 'ko' });
+    expect(q(ko, '.cf-lock')?.textContent).toBe('이 질문에는 답할 수 없습니다.');
+    expect(choiceFormLocked(false)).toBe(true);
+    expect(choiceFormLocked('why')).toBe(true);
+    expect(choiceFormLocked(true)).toBe(false);
+    expect(choiceFormLocked(undefined)).toBe(false);
+    expect(choiceFormLockReason(' why ')).toBe('why');
+    expect(choiceFormLockReason(false)).toBe('');
   });
 
   it('error: an alert line, and the form stays usable', () => {

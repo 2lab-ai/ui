@@ -18,6 +18,8 @@ export {
   choiceFormCanSubmit,
   choiceFormHero,
   choiceFormKey,
+  choiceFormLocked,
+  choiceFormLockReason,
   choiceFormNext,
   choiceFormNormalize,
   choiceFormOrder,

@@ -50,6 +50,12 @@ export interface ChoiceFormData {
   allowPartial?: boolean;
   /** One question only: a pick sends `ui-submit` at once. Default true with one question; ignored with more. */
   submitOnPick?: boolean;
+  /**
+   * Whether this person may answer. `false` locks the form (every control stays visible, none pressable) with a
+   * generic line; a string locks it and says why (“Only the session owner can answer”, “Answered in another tab”).
+   * Default: answerable.
+   */
+  canAnswer?: boolean | string;
 }
 
 /** One answer as it leaves the element (`ui-submit`, `ui-change`, the `answers` getter). */
@@ -290,4 +296,14 @@ export function choiceFormKey(d: Pick<ChoiceFormData, 'id' | 'questions'> | unde
   if (!d) return '';
   const qs = choiceFormQuestions(d.questions).map((q) => q.id);
   return JSON.stringify([str(d.id), qs]);
+}
+
+/** The form is locked: `canAnswer` is `false` or a reason string. */
+export function choiceFormLocked(canAnswer: unknown): boolean {
+  return canAnswer === false || typeof canAnswer === 'string';
+}
+
+/** Why the form is locked ('' when it just is, or is not). */
+export function choiceFormLockReason(canAnswer: unknown): string {
+  return typeof canAnswer === 'string' ? canAnswer.trim() : '';
 }
