@@ -11,6 +11,7 @@ export const ORDER = [
   'ai-answer',
   'tool-call-card',
   'file-card',
+  'media-grid',
   'artifact-viewer',
   'conversation',
   'work-log',
@@ -44,6 +45,7 @@ export const ORDER = [
   'disclosure',
   'log-scroller',
   'elapsed',
+  'meter',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });

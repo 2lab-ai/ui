@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import tokens from '../core/tokens.json';
 import { KIT_CLASSES, kitCss } from './kit';
 
-const KNOWN = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared), 'tone']);
+// The kit's own knobs beside the tokens: `--ui-tone` (a tone's colour) and `--ui-select-max` (a select chip's cap).
+const KNOWN = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared), 'tone', 'select-max']);
 
 describe('ui-kit.css', () => {
   it('defines every class it lists', () => {
@@ -105,6 +106,109 @@ describe('ui-kit.css', () => {
   it('keeps Korean words whole in the prose classes under lang="ko" (D5 G4-4)', () => {
     expect(kitCss).toMatch(
       /:is\(\.ui-notice, \.ui-card, \.ui-row, \.ui-dl,[^)]*\):lang\(ko\) \{ word-break: keep-all; \}/,
+    );
+  });
+
+  it('select chip: the trigger shape, sized to its selected option, a token chevron, a word form, a focus ring (A-11, H-02)', () => {
+    expect(KIT_CLASSES).toContain('ui-select-chip');
+    const chip = /\.ui-select-chip \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    // The model picker's trigger: the neutral well, 8px, 30px, 13px / 500.
+    expect(chip).toContain('min-height: 30px');
+    expect(chip).toContain('border-radius: 8px');
+    expect(chip).toContain('background-color: var(--ui-ib-seg)');
+    expect(chip).toContain('font-size: 13px; font-weight: 500');
+    const select = /select\.ui-select-chip, \.ui-select-chip > select \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(select).toContain('appearance: none');
+    expect(select).toContain('field-sizing: content');
+    expect(select).toContain('max-width: var(--ui-select-max, 220px)');
+    expect(select).toContain('text-overflow: ellipsis');
+    // The chevron is two token-coloured triangles, never a data URI.
+    expect(select).toContain('var(--ui-ib-muted) 50%');
+    expect(select).not.toContain('url(');
+    // The word form: a quiet leading word, the select inside loses its own box.
+    expect(kitCss).toMatch(
+      /\.ui-select-chip > span \{[^}]*font-size: 11\.5px; font-weight: 600; color: var\(--ui-ib-muted\)/,
+    );
+    expect(kitCss).toMatch(/\.ui-select-chip > select \{[^}]*border: 0;[^}]*background-color: transparent/);
+    expect(kitCss).toContain(
+      '.ui-select-chip:has(> select:focus-visible), select.ui-select-chip:focus-visible { outline: 2px solid var(--ui-border-focus); outline-offset: 2px; }',
+    );
+    expect(kitCss).toContain('.ui-select-chip > select:focus-visible { outline: none; }');
+    expect(kitCss).toMatch(/\.ui-select-chip:has\(> select:disabled\) \{ opacity: 0\.5; cursor: not-allowed; \}/);
+    // The dropdown list on the page surface (dark theme too).
+    expect(kitCss).toContain(
+      ':is(select.ui-select-chip, .ui-select-chip > select) > option { background: var(--ui-surface); color: var(--ui-text); }',
+    );
+    // Hover: the well, colour only, fine pointers; 44px and 16px type on touch; keep-all in Korean.
+    const hover = kitCss.slice(kitCss.indexOf('@media (hover: hover)'));
+    expect(hover.slice(0, hover.indexOf('\n}\n'))).toContain(
+      'select.ui-select-chip:hover:not(:disabled), .ui-select-chip:hover:has(> select:not(:disabled)) { background-color: color-mix(in srgb, var(--ui-ib-text) 6%, var(--ui-ib-card)); }',
+    );
+    const coarse = kitCss.slice(kitCss.indexOf('@media (pointer: coarse), (max-width: 639px)'));
+    expect(coarse.slice(0, coarse.indexOf('\n}\n'))).toContain('.ui-select-chip { min-height: 44px; }');
+    expect(kitCss).toMatch(
+      /@media \(pointer: coarse\) \{\s*select\.ui-select-chip, \.ui-select-chip > select \{ font-size: 16px; \}/,
+    );
+    expect(kitCss).toMatch(/:is\([^)]*\.ui-select-chip[^)]*\):lang\(ko\) \{ word-break: keep-all; \}/);
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(rm.slice(0, rm.indexOf('\n}\n'))).toContain('.ui-select-chip, .ui-fab { transition-duration: 0.01ms; }');
+  });
+
+  it('extended FAB: a 56px pill with a word that folds away to the round button, no movement under reduced motion (H-10)', () => {
+    const ext = /\.ui-fab\.is-extended \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(ext).toContain('display: inline-flex');
+    expect(ext).toContain('border-radius: 999px');
+    expect(ext).toContain('padding: 0 20px 0 17px');
+    expect(ext).toContain('font-size: 15px; font-weight: 600');
+    expect(ext).toContain(
+      'transition: padding var(--ui-dur-expand) var(--ui-ease-out), gap var(--ui-dur-expand) var(--ui-ease-out)',
+    );
+    // The word rides max-width + opacity; folded, it is gone and the padding closes to the 56px circle (17 + 22 + 17).
+    expect(kitCss).toMatch(
+      /\.ui-fab\.is-extended > span \{[^}]*max-width: 10em; overflow: hidden;[^}]*transition: max-width var\(--ui-dur-expand\) var\(--ui-ease-out\), opacity var\(--ui-dur-fade\) var\(--ui-ease-out\)/,
+    );
+    expect(kitCss).toContain('.ui-fab.is-extended.is-folded { gap: 0; padding: 0 17px; }');
+    expect(kitCss).toContain('.ui-fab.is-extended.is-folded > span { max-width: 0; opacity: 0; }');
+    // The base FAB keeps its corner, safe areas, press scale and focus ring; the extended one inherits them.
+    const fab = /\.ui-fab \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(fab).toContain('right: max(20px, env(safe-area-inset-right))');
+    expect(fab).toContain('height: 56px');
+    expect(kitCss).toContain('.ui-fab:active:not(:disabled):not(:focus-visible) { transform: scale(0.95); }');
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(rm.slice(0, rm.indexOf('\n}\n'))).toContain(
+      '.ui-fab.is-extended, .ui-fab.is-extended > span { transition: none; }',
+    );
+  });
+
+  it('spinner: a 0.9s linear ring in the run tone, sizes and tones, the status dot swapped, a still ring + dot under reduced motion (K-01)', () => {
+    expect(KIT_CLASSES).toContain('ui-spinner');
+    const spin = /\.ui-spinner \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(spin).toContain('--ui-tone: var(--ui-st-run)');
+    expect(spin).toContain('width: 14px; height: 14px; border-radius: 50%');
+    // The track is the tone at 25%, the arc the tone itself — one rule for both themes.
+    expect(spin).toContain('border: 2px solid color-mix(in srgb, var(--ui-tone) 25%, transparent)');
+    expect(spin).toContain('border-top-color: var(--ui-tone); border-right-color: var(--ui-tone)');
+    expect(spin).toContain('animation: ui-spin 0.9s linear infinite');
+    expect(kitCss).toContain('@keyframes ui-spin { to { transform: rotate(360deg); } }');
+    expect(kitCss).toMatch(/\.ui-spinner\.is-sm \{ width: 11px; height: 11px; border-width: 1\.8px/);
+    expect(kitCss).toMatch(/\.ui-spinner\.is-lg \{ width: 20px; height: 20px; border-width: 2\.5px/);
+    expect(kitCss).toContain('.ui-spinner.is-current { --ui-tone: currentColor; }');
+    for (const t of ['run', 'wait', 'done', 'fail'])
+      expect(kitCss).toContain(`.ui-spinner[data-tone="${t}"] { --ui-tone: var(--ui-st-${t}); }`);
+    // Inside a status it takes the status tone and stands where the dot was.
+    expect(kitCss).toContain('.ui-status > .ui-spinner { --ui-tone: inherit; }');
+    expect(kitCss).toContain('.ui-status:has(> .ui-spinner)::before { content: none; }');
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    const block = rm.slice(0, rm.indexOf('\n}\n'));
+    expect(block).toContain(
+      '.ui-spinner { animation: none; border-color: color-mix(in srgb, var(--ui-tone) 25%, transparent); }',
+    );
+    expect(block).toMatch(
+      /\.ui-spinner::after \{ content: '';[^}]*width: 4px; height: 4px; margin: auto; border-radius: 50%; background: var\(--ui-tone\)/,
+    );
+    // Still rings only there: outside reduced motion no ::after is drawn.
+    expect(kitCss.slice(0, kitCss.indexOf('@media (prefers-reduced-motion: reduce)'))).not.toContain(
+      '.ui-spinner::after',
     );
   });
 

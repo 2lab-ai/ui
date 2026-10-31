@@ -12,6 +12,8 @@ export const KIT_CLASSES = [
   'ui-icon-btn',
   'ui-fab',
   'ui-chip',
+  'ui-select-chip',
+  'ui-spinner',
   'ui-status',
   'ui-kbd',
   'ui-dl',
@@ -210,6 +212,18 @@ export const kitCss = `/* @2lab.ai/ui kit — light-DOM classes. Reads the --ui-
 }
 .ui-fab > svg { width: 22px; height: 22px; }
 .ui-fab.is-inline { position: static; }
+/* Extended: the glyph with a word beside it (<button class="ui-fab is-extended"><svg/><span>New task</span></button>), a
+   56px pill in the thumb zone. .is-folded folds the word away on --dur-expand and it is the round button again — toggle it
+   from a passive scroll listener while the page scrolls down; the name stays (aria-label, or the folded word). */
+.ui-fab.is-extended {
+  display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 56px; padding: 0 20px 0 17px; border-radius: 999px;
+  font-size: 15px; font-weight: 600; line-height: 1; white-space: nowrap;
+  transition: padding ${T('dur-expand')} ${T('ease-out')}, gap ${T('dur-expand')} ${T('ease-out')}, opacity ${COLOR_T}, ${PRESS_T};
+}
+.ui-fab.is-extended > svg { flex: none; }
+.ui-fab.is-extended > span { display: inline-block; max-width: 10em; overflow: hidden; opacity: 1; transition: max-width ${T('dur-expand')} ${T('ease-out')}, opacity ${T('dur-fade')} ${T('ease-out')}; }
+.ui-fab.is-extended.is-folded { gap: 0; padding: 0 17px; }
+.ui-fab.is-extended.is-folded > span { max-width: 0; opacity: 0; }
 
 /* ── Chip — a pill label or a toggle; "on" is the raised neutral chip ── */
 .ui-chip {
@@ -225,6 +239,53 @@ button.ui-chip, a.ui-chip { cursor: pointer; -webkit-tap-highlight-color: transp
 }
 .ui-chip.is-quiet { background: transparent; }
 .ui-chip:disabled, .ui-chip[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Select chip: a native <select> read as a label (the model picker's trigger shape) — as wide as its selected
+   option (field-sizing: content; older engines take the widest option, capped by --ui-select-max), an ellipsis past
+   the cap, the chevron from tokens. On the <select> itself, or on a <label> with a leading word: <label class=
+   "ui-select-chip"><span>Model</span><select>…</select></label>. Mark it data-ui-sound="select" for the cue. ── */
+.ui-select-chip {
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; max-width: 100%; min-width: 0; min-height: 30px;
+  margin: 0; padding: 0 9px 0 10px; border: 1px solid ${T('ib-card-border')}; border-radius: 8px; background-color: ${T('ib-seg')};
+  color: ${T('ib-text')}; font: inherit; font-size: 13px; font-weight: 500; line-height: 1.2; white-space: nowrap; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: background-color ${COLOR_T}, border-color ${COLOR_T}, opacity ${COLOR_T};
+}
+.ui-select-chip > span { flex: none; font-size: 11.5px; font-weight: 600; color: ${T('ib-muted')}; }
+select.ui-select-chip, .ui-select-chip > select {
+  appearance: none; -webkit-appearance: none; min-width: 0; max-width: var(--ui-select-max, 220px); field-sizing: content;
+  overflow: hidden; text-overflow: ellipsis; color: inherit; font: inherit; font-weight: 500; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, ${T('ib-muted')} 50%), linear-gradient(135deg, ${T('ib-muted')} 50%, transparent 50%);
+  background-size: 4px 4px; background-repeat: no-repeat;
+}
+select.ui-select-chip { display: inline-block; padding-right: 26px; background-position: calc(100% - 14px) 52%, calc(100% - 10px) 52%; }
+.ui-select-chip > select {
+  flex: 0 1 auto; min-height: 0; height: 100%; margin: 0; padding: 0 18px 0 0; border: 0; border-radius: 0; background-color: transparent;
+  background-position: calc(100% - 6px) 52%, calc(100% - 2px) 52%;
+}
+/* The ring moves to the chip only where :has can draw it there; elsewhere the select keeps its own. */
+@supports selector(:has(a)) { .ui-select-chip > select:focus-visible { outline: none; } }
+.ui-select-chip:has(> select:focus-visible), select.ui-select-chip:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
+select.ui-select-chip:disabled, .ui-select-chip:has(> select:disabled) { opacity: 0.5; cursor: not-allowed; }
+.ui-select-chip > select:disabled { cursor: not-allowed; }
+/* The list itself (the dropdown) on the page's surface, so it reads in the dark theme too. */
+:is(select.ui-select-chip, .ui-select-chip > select) > option { background: ${T('surface')}; color: ${T('text')}; }
+
+/* ── Spinner: the working ring — 0.9s linear, the arc in the run tone over a quiet track (data-tone recolours it,
+   .is-current takes the text colour, .is-sm / .is-lg). Decorative (aria-hidden) beside the word that says what runs;
+   in a .ui-status it replaces the dot. Rings on one page share a phase when the page sets
+   style="animation-delay: -<now % 900>ms" as it inserts one. ── */
+.ui-spinner {
+  --ui-tone: ${T('st-run')};
+  position: relative; display: inline-block; flex: none; box-sizing: border-box; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--ui-tone) 25%, transparent); border-top-color: var(--ui-tone); border-right-color: var(--ui-tone);
+  vertical-align: -2px; animation: ui-spin 0.9s linear infinite;
+}
+.ui-spinner.is-sm { width: 11px; height: 11px; border-width: 1.8px; vertical-align: -1px; }
+.ui-spinner.is-lg { width: 20px; height: 20px; border-width: 2.5px; vertical-align: -4px; }
+.ui-spinner.is-current { --ui-tone: currentColor; }
+${TONES.map(([k, dot]) => `.ui-spinner[data-tone="${k}"] { --ui-tone: ${dot}; }`).join('\n')}
+.ui-status > .ui-spinner { --ui-tone: inherit; }
+.ui-status:has(> .ui-spinner)::before { content: none; }
 
 /* ── Status: tone dot + word (st-* tones, idle = hollow); a leading <svg> replaces the dot; .is-pill adds the tint; [data-live] pulses ── */
 .ui-status {
@@ -335,7 +396,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
 .ui-count[data-pop] { animation: ui-count-pop ${T('dur-move')} ${T('ease-out')} both; }
 
 /* ── Korean: prose breaks between words, never inside them (the page's or the element's lang="ko") ── */
-:is(.ui-notice, .ui-card, .ui-row, .ui-dl, .ui-empty, .ui-status-line, .ui-section-head, .ui-input, .ui-btn, .ui-chip, .ui-status):lang(ko) { word-break: keep-all; }
+:is(.ui-notice, .ui-card, .ui-row, .ui-dl, .ui-empty, .ui-status-line, .ui-section-head, .ui-input, .ui-btn, .ui-chip, .ui-select-chip, .ui-status):lang(ko) { word-break: keep-all; }
 
 /* ── Focus, press ── */
 :is(.ui-btn, .ui-icon-btn, .ui-fab, .ui-chip):focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
@@ -354,6 +415,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-icon-btn.is-bordered:hover:not(:disabled):not([aria-disabled="true"]) { border-color: ${T('ib-muted')}; }
   .ui-fab:hover { opacity: 0.9; }
   :is(button.ui-chip, a.ui-chip):hover:not(:disabled):not([aria-disabled="true"]) { border-color: ${T('ib-muted')}; }
+  select.ui-select-chip:hover:not(:disabled), .ui-select-chip:hover:has(> select:not(:disabled)) { background-color: color-mix(in srgb, ${T('ib-text')} 6%, ${T('ib-card')}); }
 }
 /* ── 44px targets on touch and narrow screens ── */
 @media (pointer: coarse), (max-width: 639px) {
@@ -361,11 +423,19 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-icon-btn, .ui-icon-btn.is-sm, .ui-icon-btn.is-bordered { width: 44px; height: 44px; }
   :is(button.ui-chip, a.ui-chip) { position: relative; }
   :is(button.ui-chip, a.ui-chip)::after { content: ''; position: absolute; inset: -10px 0; }
+  .ui-select-chip { min-height: 44px; }
+}
+@media (pointer: coarse) {
+  select.ui-select-chip, .ui-select-chip > select { font-size: 16px; }
 }
 /* ── Reduced motion: nothing moves; overlays of meaning (opacity) stay short ── */
 @media (prefers-reduced-motion: reduce) {
-  .ui-btn, .ui-icon-btn, .ui-chip, .ui-fab { transition-duration: 0.01ms; }
+  .ui-btn, .ui-icon-btn, .ui-chip, .ui-select-chip, .ui-fab { transition-duration: 0.01ms; }
   .ui-fab { animation: ui-fade-in 120ms ease both; }
+  .ui-fab.is-extended, .ui-fab.is-extended > span { transition: none; }
+  /* The ring stands still as a track with a dot in the middle: still "working", nothing turns. */
+  .ui-spinner { animation: none; border-color: color-mix(in srgb, var(--ui-tone) 25%, transparent); }
+  .ui-spinner::after { content: ''; position: absolute; inset: 0; width: 4px; height: 4px; margin: auto; border-radius: 50%; background: var(--ui-tone); }
   .ui-skeleton, .ui-status[data-live]::before { animation: none; }
   .ui-status[data-live] > svg { animation: none; }
   .ui-expand { transition: none; }
@@ -374,6 +444,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-count[data-pop] { animation: ui-fade-in 120ms ease both; }
 }
 @keyframes ui-fab-in { from { opacity: 0; transform: scale(0.95); } }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
 @keyframes ui-fade-in { from { opacity: 0; } }
 @keyframes ui-count-pop { from { opacity: 0; transform: scale(0.9); } }
 @keyframes ui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }

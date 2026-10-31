@@ -1,6 +1,6 @@
 {
   "name": "@2lab.ai/ui",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Composer, Conversation, Work Log, Choice Form, Goal Card, Task Plan, Task Runs, Status Bar, Deck Nav; page parts Setting Row, Settings Nav, Knowledge Pages, Episode Log, Auth Card; primitives Segmented, Tabs, Menu, Tooltip, Hovercard, Dialog, Drawer, Disclosure, Log Scroller, Elapsed; an icon set, a light-DOM CSS kit, opt-in interface sounds (Cuelume) and a server entry (ESM + CommonJS) that renders the auth card without a DOM.",
   "type": "module",
   "license": "UNLICENSED",
@@ -192,6 +192,14 @@
     "./elapsed": {
       "types": "./dist/components/elapsed/index.d.ts",
       "import": "./dist/elapsed.js"
+    },
+    "./media-grid": {
+      "types": "./dist/components/media-grid/index.d.ts",
+      "import": "./dist/media-grid.js"
+    },
+    "./meter": {
+      "types": "./dist/components/meter/index.d.ts",
+      "import": "./dist/meter.js"
     },
     "./icons": {
       "types": "./dist/icons/index.d.ts",

@@ -69,14 +69,27 @@ const SPECIMENS: KitSpecimen[] = [
   {
     title: 'Floating action button',
     cls: 'ui-fab',
-    desc: 'Ink, 56px, raised; enters from opacity 0 and scale(.95) in 240ms — no rings, no loops. Fixed to the corner (safe-area aware); .is-inline places it in flow.',
-    html: `<div class="kit-row"><button class="ui-fab is-inline" aria-label="New task">${I('plus')}</button></div>`,
+    desc: 'Ink, 56px, raised; enters from opacity 0 and scale(.95) in 240ms — no rings, no loops. Fixed to the corner (safe-area aware); .is-inline places it in flow. .is-extended puts a word beside the glyph (a 56px pill); .is-folded folds the word away on --dur-expand so it is the round button again — toggle it while the page scrolls down. Mark it data-ui-sound for the cue.',
+    html: `<div class="kit-row"><button class="ui-fab is-inline" aria-label="New task" data-ui-sound>${I('plus')}</button><button class="ui-fab is-inline is-extended" aria-label="New task" data-ui-sound>${I('plus')}<span>New task</span></button><button class="ui-btn is-sm is-quiet" data-kit-fold aria-pressed="false">Fold</button></div>`,
   },
   {
     title: 'Chip',
     cls: 'ui-chip',
     desc: 'A pill label, or a toggle when it is a button: “on” is the raised neutral chip, never an accent fill.',
     html: `<div class="kit-row"><span class="ui-chip">${I('file-code', 12)}report.html</span><span class="ui-chip">${I('file-image', 12)}chart.png</span><button class="ui-chip" aria-pressed="true">Mine</button><button class="ui-chip" aria-pressed="false">All</button><span class="ui-chip is-quiet">+3</span></div>`,
+  },
+  {
+    title: 'Select chip',
+    cls: 'ui-select-chip',
+    desc: 'A native <select> read as a label — the model picker’s trigger shape: as wide as its selected option (field-sizing: content; older engines take the widest option, capped by --ui-select-max), an ellipsis past the cap, a token chevron, the list on the page surface. On the <select> itself, or on a <label> with a leading word. The list, the keys and the picker stay the browser’s; mark it data-ui-sound="select" for the cue.',
+    html: `<div class="kit-row"><select class="ui-select-chip" aria-label="User" data-ui-sound="select"><option>All users</option><option selected>Daisy Park</option><option>Zhuge Liang-with-a-very-long-display-name</option></select><label class="ui-select-chip"><span>Model</span><select data-ui-sound="select"><option>claude-sonnet-4-5</option><option selected>claude-opus-5-5</option><option>claude-haiku-4-5</option></select></label><label class="ui-select-chip"><span>Effort</span><select data-ui-sound="select"><option>Low</option><option selected>Medium</option><option>High</option></select></label><label class="ui-select-chip"><span>Channel</span><select disabled><option selected>#ops</option></select></label></div>`,
+  },
+  {
+    title: 'Spinner',
+    cls: 'ui-spinner',
+    desc: 'The working ring: 0.9s linear, the arc in the run tone over a quiet track. Decorative (aria-hidden) beside the word that says what runs; data-tone recolours it, .is-current takes the text colour (inside an ink button), .is-sm / .is-lg. In a .ui-status it stands where the dot was. Under reduced motion it stands still, a track with a dot in the middle.',
+    html: `<div class="kit-row"><span class="ui-spinner" aria-hidden="true"></span><span class="ui-spinner is-sm" aria-hidden="true"></span><span class="ui-spinner is-lg" aria-hidden="true"></span><span class="ui-spinner" data-tone="wait" aria-hidden="true"></span><span class="kit-say"><span class="ui-spinner is-sm is-current" aria-hidden="true"></span>Thinking…</span></div>
+<div class="kit-row"><span class="ui-status" data-tone="run"><span class="ui-spinner is-sm" aria-hidden="true"></span>Running</span><span class="ui-status is-pill" data-tone="run"><span class="ui-spinner is-sm" aria-hidden="true"></span>Compacting</span><button class="ui-btn is-primary" aria-busy="true"><span class="ui-spinner is-current" aria-hidden="true"></span>Starting…</button><button class="ui-btn" aria-busy="true"><span class="ui-spinner" aria-hidden="true"></span>Saving</button></div>`,
   },
   {
     title: 'Status',
@@ -178,14 +191,23 @@ export function kitPage(codeBlock: CodeBlock): string {
   ${codeBlock(s.html.replace(/<svg[\s\S]*?<\/svg>/g, iconCall), `kit-${i}`)}`,
   ).join('');
   return `<div class="crumb">Foundations</div><h1>UI kit <span class="chip">ui-kit.css</span></h1>
-  <p class="lede">Light-DOM classes for the parts of a host page that are not components: buttons, chips, status words, keys, facts, skeletons, empty states, avatars, fields and switches, cards, notices and list rows. Same tokens, same motion, same calm — every value is a <code>--ui-*</code> token or a <code>color-mix()</code> of them.</p>
+  <p class="lede">Light-DOM classes for the parts of a host page that are not components: buttons and the floating one, chips and select chips, the working ring, status words, keys, facts, skeletons, empty states, avatars, fields and switches, cards, notices and list rows. Same tokens, same motion, same calm — every value is a <code>--ui-*</code> token or a <code>color-mix()</code> of them.</p>
   ${codeBlock(`import '@2lab.ai/ui/tokens.css';   // the --ui-* tokens (or map your own onto them)\nimport '@2lab.ai/ui/ui-kit.css';\n\n// or as a string, e.g. for a shadow root or a server-rendered <style>\nimport { kitCss } from '@2lab.ai/ui/kit';`, 'kit-import')}
   <p class="desc">Classes: ${KIT_CLASSES.map((c) => `<code>.${esc(c)}</code>`).join(' · ')}. Modifiers are <code>is-*</code>; tones are <code>data-tone="run | wait | done | fail | rest"</code>.</p>
   ${blocks}`;
 }
 
-/** Wire the kit page's live bits (the expand demo). */
+/** Wire the kit page's live bits (the expand demo, the FAB fold). */
 export function wireKit(root: ParentNode): void {
+  for (const b of Array.from(root.querySelectorAll<HTMLElement>('[data-kit-fold]'))) {
+    b.addEventListener('click', () => {
+      const fab = b.closest('.kit-row')?.querySelector('.ui-fab.is-extended');
+      const folded = !fab?.classList.contains('is-folded');
+      fab?.classList.toggle('is-folded', folded);
+      b.setAttribute('aria-pressed', String(folded));
+      b.textContent = folded ? 'Unfold' : 'Fold';
+    });
+  }
   for (const b of Array.from(root.querySelectorAll<HTMLElement>('[data-kit-expand]'))) {
     b.addEventListener('click', () => {
       const open = b.getAttribute('aria-expanded') !== 'true';
