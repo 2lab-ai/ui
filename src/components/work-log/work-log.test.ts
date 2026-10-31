@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { anchorHidden, type UiLogScroller } from '../log-scroller/log-scroller';
+import '../tool-call-card/tool-call-card';
+import type { UiToolCallCard } from '../tool-call-card/tool-call-card';
 import { doc } from './docs';
 import {
   agentStatus,
@@ -718,6 +720,83 @@ describe('<ui-work-log> group disclosure and keyboard', () => {
     h1.focus();
     press(h1, 'ArrowLeft');
     expect(h1.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('G2-3: a slotted tool card is on the roving path — one stop across rows and cards, arrows land on its header', () => {
+    const el = mount({ groups: groups() });
+    const card = document.createElement('ui-tool-call-card') as UiToolCallCard;
+    card.slot = 'tool-e3';
+    card.data = { name: 'Read', status: 'success', summary: 'src/router.ts' };
+    el.append(card);
+    card.renderNow();
+    el.renderNow();
+    const stops = () => qa(el, '[data-nav]').filter((n) => n.getAttribute('tabindex') === '0');
+    // e3 is g2's first entry (g2 is open). The newest row is the one stop; the card is told to stay out of the tab order.
+    expect(stops().map((n) => n.dataset.key)).toEqual(['e:e8']);
+    expect(card.getAttribute('head-tabindex')).toBe('-1');
+    expect(card.shadowRoot!.querySelector('.tc-head')?.getAttribute('tabindex')).toBe('-1');
+    // Focus inside the card is counted on its header (happy-dom cannot answer activeElement across the slot).
+    let headFocus = 0;
+    card.shadowRoot!.querySelector('.tc-head')!.addEventListener('focus', () => headFocus++);
+    // ↓ from g2's head lands on the card's header; the card is now the stop, our rows all at -1.
+    const h2 = key(el, 'g:g2');
+    h2.focus();
+    press(h2, 'ArrowDown');
+    expect(headFocus).toBe(1);
+    expect(card.getAttribute('head-tabindex')).toBe('0');
+    expect(card.shadowRoot!.querySelector('.tc-head')?.getAttribute('tabindex')).toBe('0');
+    expect(stops()).toHaveLength(0);
+    // ↓ from the card continues to the next row; ↑ comes back to it.
+    press(card, 'ArrowDown');
+    expect(el.shadowRoot!.activeElement).toBe(key(el, 'a:e5'));
+    expect(card.getAttribute('head-tabindex')).toBe('-1');
+    expect(stops().map((n) => n.dataset.key)).toEqual(['a:e5']);
+    press(key(el, 'a:e5'), 'ArrowUp');
+    expect(headFocus).toBe(2);
+    expect(card.getAttribute('head-tabindex')).toBe('0');
+    // A key the card used itself (defaultPrevented) is left alone.
+    const used = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true, cancelable: true });
+    used.preventDefault();
+    card.dispatchEvent(used);
+    expect(card.getAttribute('head-tabindex')).toBe('0');
+    // Home / End span rows and cards alike.
+    press(card, 'End');
+    expect(el.shadowRoot!.activeElement).toBe(key(el, 'e:e8'));
+    press(key(el, 'e:e8'), 'Home');
+    expect(el.shadowRoot!.activeElement).toBe(key(el, 'g:g1'));
+    // Folding g2 takes the card off the path: ↓ from g2's head skips it, and it stays out of the tab order.
+    h2.focus();
+    press(h2, 'ArrowLeft');
+    expect(h2.getAttribute('aria-expanded')).toBe('false');
+    press(h2, 'ArrowDown');
+    expect(headFocus).toBe(2);
+    expect(card.getAttribute('head-tabindex')).toBe('-1');
+  });
+
+  it('G2-3: a card that arrives later joins on slotchange; any focusable element in the slot is a row too', async () => {
+    const el = mount({ groups: groups() });
+    const stops = () => qa(el, '[data-nav]').filter((n) => n.getAttribute('tabindex') === '0');
+    expect(stops()).toHaveLength(1);
+    // A plain div without tabindex cannot take focus; a button can.
+    const btn = document.createElement('button');
+    btn.slot = 'tool-e3';
+    btn.textContent = 'card';
+    el.append(btn);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(btn.getAttribute('head-tabindex')).toBe('-1');
+    let focused = 0;
+    btn.addEventListener('focus', () => focused++);
+    const h2 = key(el, 'g:g2');
+    h2.focus();
+    press(h2, 'ArrowDown');
+    expect(focused).toBe(1);
+    expect(btn.getAttribute('head-tabindex')).toBe('0');
+    expect(stops()).toHaveLength(0);
+    // It leaves with its element.
+    btn.remove();
+    await new Promise((r) => setTimeout(r, 0));
+    press(h2, 'ArrowDown');
+    expect(el.shadowRoot!.activeElement).toBe(key(el, 'a:e5'));
   });
 
   it('closing a group with focus inside moves focus to its head', () => {
