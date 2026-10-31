@@ -62,7 +62,10 @@ export interface ArtifactOpenDetail {
   id: string;
   index: number;
 }
-/** `ui-view` (notification): the viewer now shows this item (open, previous, next). */
+/**
+ * `ui-view` (notification): the viewer now shows this item (open, previous, next). `ui-before-view` (notification,
+ * same detail) comes first, before the body for the item renders — put a `slot="preview"` child in then.
+ */
 export interface ArtifactViewDetail {
   id: string;
   index: number;
@@ -313,6 +316,8 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     }
     this.#index = i;
     this.#shownId = id;
+    // The body renders right after this (updated → #syncViewer): the host's slot can go in first.
+    this.notify<ArtifactViewDetail>('ui-before-view', { id, index: i });
     this.notify<ArtifactViewDetail>('ui-view', { id, index: i });
   }
 
@@ -461,6 +466,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       this.#shownId = String(item.id);
       this.#zoomed = false;
       this.#live = '';
+      this.notify<ArtifactViewDetail>('ui-before-view', { id: String(item.id), index: i });
     }
     this.#syncDialogAttrs();
     this.#syncViewer();
@@ -489,6 +495,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     this.#zoomed = false;
     this.#live = `${fileDisplayName(item, this.#lang)} — ${i + 1} / ${items.length}`;
     this.#pauseMedia();
+    this.notify<ArtifactViewDetail>('ui-before-view', { id: String(item.id), index: i });
     this.#syncViewer();
     const body = this.#dialog.querySelector('.av-body');
     if (body) body.scrollTop = 0;
