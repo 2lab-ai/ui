@@ -431,6 +431,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-icon-btn, .ui-icon-btn.is-sm, .ui-icon-btn.is-bordered { width: 44px; height: 44px; }
   :is(button.ui-chip, a.ui-chip) { position: relative; }
   :is(button.ui-chip, a.ui-chip)::after { content: ''; position: absolute; inset: -10px 0; }
+  :is(button.ui-chip, a.ui-chip).is-sm::after { inset: -12px 0; }
   .ui-select-chip { min-height: 44px; }
 }
 @media (pointer: coarse) {
