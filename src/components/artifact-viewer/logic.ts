@@ -72,6 +72,8 @@ const VIEW_CHARS = 1_000_000;
 /** A markdown document longer than this is shown as plain text (escaping is linear; marking up is not free). */
 export const MARKDOWN_VIEW_CHARS = 256_000;
 
+const EMPTY: ReadonlySet<string> = new Set();
+
 /** The last markdown body built, so re-syncing the open viewer with the same document never re-renders it. */
 let mdMemo: { text: string; html: string } | undefined;
 function markdownBody(text: string): string {
@@ -219,26 +221,34 @@ const frameAttrs = (item: FileItem): string => {
 };
 
 const hasText = (item: FileItem): boolean => typeof item.text === 'string' && item.text.length > 0;
+/** What the peek reads of a document: the text, else the head the host fetched for it. */
+const peekText = (item: FileItem): string =>
+  hasText(item) ? String(item.text) : typeof item.head === 'string' ? item.head : '';
 
 /** The sandbox an HTML page's frame gets: nothing, or scripts alone when the host vouches for the page. */
 const sandboxOf = (item: FileItem): string => (item.scripts ? 'allow-scripts' : '');
 
-/** The peek card's inside: a larger preview, then "name · kind · meta". */
-export function peekHtml(item: FileItem, lang: string, now: number, broken: ReadonlySet<string>): string {
+/**
+ * The peek card's inside: a larger preview (an image, a markdown or text head — `text`, else `head` — a small copy
+ * of an HTML page, or the kind's glyph), then "name · kind · meta". Styled by `peekCss` inside a `[data-kind]`
+ * wrapper (`fileItemKind(item)`); a page's own hovercard uses `peekPageCss`. `broken`: image sources that failed.
+ */
+export function peekHtml(item: FileItem, lang: string, now = Date.now(), broken: ReadonlySet<string> = EMPTY): string {
   const kind = fileItemKind(item);
   const name = fileDisplayName(item, lang);
   const meta = [fileItemKindLabel(item, lang), fileMeta(item, now, lang)].filter(Boolean).join(' · ');
+  const text = peekText(item);
   let media = '';
   let doc = false;
   if (kind === 'image') {
     const src = mediaSrc(item) || fileThumbSrc(item);
     if (src && !broken.has(src)) media = `<img class="av-pk-img" src="${safeSrc(src)}" alt="" decoding="async">`;
-  } else if (kind === 'markdown' && hasText(item)) {
+  } else if (kind === 'markdown' && text) {
     doc = true;
-    media = `<div class="av-pk-doc md-doc">${markdownHtml(String(item.text).slice(0, PEEK_CHARS))}</div>`;
-  } else if ((kind === 'text' || kind === 'code' || kind === 'file') && hasText(item)) {
+    media = `<div class="av-pk-doc md-doc">${markdownHtml(text.slice(0, PEEK_CHARS))}</div>`;
+  } else if ((kind === 'text' || kind === 'code' || kind === 'file') && text) {
     doc = true;
-    media = `<pre class="av-pk-pre">${esc(textHead(item.text))}</pre>`;
+    media = `<pre class="av-pk-pre">${esc(textHead(text))}</pre>`;
   } else if (kind === 'html') {
     const src = frameAttrs(item);
     if (src)

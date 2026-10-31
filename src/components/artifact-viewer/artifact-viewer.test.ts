@@ -29,7 +29,7 @@ import {
   viewerBodyKind,
   viewerStrings,
 } from './logic';
-import { styles } from './styles';
+import { peekCss, peekPageCss, styles } from './styles';
 import './artifact-viewer';
 import '../file-card/file-card';
 
@@ -219,6 +219,26 @@ describe('helpers', () => {
     expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: '/files/invoice.pdf' })).toBe('pdf');
     expect(viewerBodyKind({ id: '1', name: 'invoice.pdf' })).toBe('fallback');
     expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: 'javascript:alert(1)' })).toBe('fallback');
+  });
+
+  it('D4 G5-3: peekHtml reads a fetched head when text is not in hand; peekCss / peekPageCss ship the sheet', () => {
+    const md = peekHtml({ id: '1', name: 'notes.md', head: '# Head\n\nfirst lines' }, 'en');
+    expect(md).toContain('class="av-pk-doc md-doc"');
+    expect(md).toContain('<h1>Head</h1>');
+    const txt = peekHtml({ id: '2', name: 'run.log', head: 'line 1\nline 2' }, 'en', NOW);
+    expect(txt).toContain('<pre class="av-pk-pre">line 1\nline 2</pre>');
+    // text wins over head; neither: the glyph.
+    expect(peekHtml({ id: '3', name: 'a.txt', text: 'T', head: 'H' }, 'en')).toContain('>T</pre>');
+    expect(peekHtml({ id: '4', name: 'a.txt' }, 'en')).toContain('av-pk-glyph');
+    expect(peekHtml({ id: '5', name: XSS, head: XSS }, 'en')).not.toContain('<img');
+    expect(peekCss).toContain('[data-kind="markdown"]');
+    expect(peekCss).toContain('.av-pk-media');
+    expect(peekCss).toContain('var(--ib-card)');
+    expect(peekPageCss).toContain('var(--ui-ib-card)');
+    expect(peekPageCss).not.toMatch(/var\(--ib-/);
+    expect(peekPageCss).toContain('var(--fc-wash)'); // the sheet's own custom properties stay
+    expect(peekPageCss).toContain('var(--ui-mono)');
+    expect(styles.split('.av-pk-media {').length).toBe(2); // once in the shadow sheet
   });
 
   it('viewerStrings: English unless ko', () => {
@@ -1076,6 +1096,14 @@ describe('peek', () => {
     expect(peek.querySelector('iframe')?.getAttribute('srcdoc')).toBe(PAGE_XSS);
     expect(peek.querySelector('iframe')?.getAttribute('sandbox')).toBe('');
     expect(qa(el, 'img, script')).toHaveLength(0);
+  });
+
+  it('D4 G5-3: the element’s own peek reads a fetched head too', () => {
+    const el = mount({ items: [{ id: 'x', name: 'notes.md', head: '# Only the head' }] });
+    pointer(tiles(el)[0], 'pointerover');
+    vi.advanceTimersByTime(PEEK_DELAY_MS);
+    expect(q(el, '.av-peek .av-pk-doc h1')?.textContent).toBe('Only the head');
+    expect(q(el, '.av-peek')?.getAttribute('data-kind')).toBe('markdown');
   });
 
   it('D4 G5-1: a page with scripts: true runs them in the peek too (sandbox="allow-scripts"), never same-origin', () => {
