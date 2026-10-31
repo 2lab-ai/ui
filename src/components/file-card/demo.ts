@@ -153,6 +153,38 @@ export function demoTone(): string {
   return url;
 }
 
+/** A one-page PDF ("Invoice 2026-10") as an object URL ('' without Blob / URL.createObjectURL). */
+export function demoPdf(): string {
+  const hit = cache.get('pdf');
+  if (hit !== undefined) return hit;
+  let url = '';
+  try {
+    const text =
+      'BT /F1 24 Tf 72 720 Td (Invoice 2026-10) Tj 0 -36 Td /F1 13 Tf (212 invoices, 1,284 line items. Totals match the ledger to the cent.) Tj ET';
+    const objs = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+      `<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
+    ];
+    let pdf = '%PDF-1.4\n';
+    const offsets: number[] = [];
+    objs.forEach((o, i) => {
+      offsets.push(pdf.length);
+      pdf += `${i + 1} 0 obj\n${o}\nendobj\n`;
+    });
+    const xref = pdf.length;
+    pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
+    pdf += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+  } catch {
+    url = '';
+  }
+  cache.set('pdf', url);
+  return url;
+}
+
 const MIN = 60_000;
 
 const NOTES_EN = `# Release notes — 2.14
@@ -299,7 +331,8 @@ export function demoFiles(lang: 'en' | 'ko' = 'en'): FileItem[] {
       name: 'invoice-2026-10.pdf',
       size: 318_464,
       time: now - 3 * 60 * MIN,
-      url: '/files/invoice-2026-10.pdf',
+      url: demoPdf(),
+      downloadName: 'invoice-2026-10.pdf',
       meta: ko ? '청구 에이전트가 만듦' : 'from Billing agent',
     },
   ];

@@ -139,6 +139,21 @@ function withActions(): FileItem[] {
   return files;
 }
 
+/** A page that draws its chart by script: nothing shows without one, so the viewer must run it. */
+const CHART_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;padding:28px 32px;font:15px/1.5 system-ui,sans-serif;color:#18181b;background:#fff}
+h1{margin:0 0 4px;font-size:20px}p{margin:0 0 20px;color:#555}
+.bars{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;align-items:end;height:200px}
+.bar{display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:6px;font-size:12px;color:#555;text-align:center}
+.bar i{display:block;border-radius:8px 8px 0 0;background:#2f63e0;transition:height .5s ease}
+</style></head><body><h1>Weekly signups</h1><p id="note">This page draws its chart by script.</p><div class="bars" id="bars"></div>
+<script>
+const data=[["9/28",1204],["10/5",1318],["10/12",1290],["10/19",1452],["10/26",1511]];
+const max=Math.max(...data.map(d=>d[1]));const bars=document.getElementById('bars');
+for(const [w,n] of data){const b=document.createElement('div');b.className='bar';const i=document.createElement('i');i.style.height='0';b.append(i,n.toLocaleString(),w);bars.append(b);requestAnimationFrame(()=>{i.style.height=(n/max*160)+'px'});}
+document.getElementById('note').textContent='Drawn by the page’s own script — '+data.length+' weeks, '+data.reduce((a,d)=>a+d[1],0).toLocaleString()+' signups.';
+</script></body></html>`;
+
 const SIGNUPS = `week,signups,activated,rate
 2026-09-28,1204,688,57%
 2026-10-05,1318,779,59%
@@ -202,7 +217,7 @@ export const doc: ComponentDoc = {
   summary:
     'What did the agent make? — every file a run left behind as a tile, a peek on hover, and the whole file one click away.',
   description:
-    'The files an agent made — screenshots, reports, pages, code, logs, recordings — as a scrolling strip of tiles, or a grid, chips or a list. Rest the pointer on a tile and a larger peek shows the picture, the head of the document or a small copy of the page. Click, Enter or Space opens the file in a large dialog: an image fits the panel and zooms to 1:1, markdown reads as a document, text and code keep their lines, an HTML page renders in a sandboxed frame with scripts off, audio and video play with native controls, and anything else gets a calm card with Download. ← / → step through the files without closing, Home / End jump, Esc closes and focus goes back to the tile. Open in new tab and Download are real links the host can take over. The component never fetches: text arrives inline, media by URL.',
+    'The files an agent made — screenshots, reports, pages, code, logs, recordings — as a scrolling strip of tiles, or a grid, chips or a list. Rest the pointer on a tile and a larger peek shows the picture, the head of the document or a small copy of the page. Click, Enter or Space opens the file in a large dialog: an image fits the panel and zooms to 1:1, markdown reads as a document, text and code keep their lines, an HTML page renders in a sandboxed frame with scripts off (on, for a page the host vouches for), a PDF opens in the browser’s own viewer, audio and video play with native controls, and anything else gets a calm card with Download. ← / → step through the files without closing, Home / End jump, Esc closes and focus goes back to the tile. Open in new tab and Download are real links the host can take over. The component never fetches: text arrives inline, media by URL.',
   usedIn: 'soma-work dashboard › artifact strip, hover peek and viewer (I-01…I-08)',
   reference: { name: 'WAI-ARIA APG Dialog (Modal)', url: 'https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/' },
   props: [
@@ -260,6 +275,19 @@ export const doc: ComponentDoc = {
       type: 'string',
       description:
         'Inline content: markdown (escaped, then marked up), text or code (as is, up to 1M characters), or an HTML page — the srcdoc of a sandbox="" frame, never put in the DOM.',
+    },
+    {
+      name: 'data.items[].scripts',
+      type: 'boolean',
+      default: 'false',
+      description:
+        'html: the page runs its own scripts — the viewer’s and the peek’s frames get sandbox="allow-scripts" (never same-origin: no cookies, no storage, no reach into your page); the note reads “Runs its own scripts”. Only for a page you trust — the chart or small app the model wrote.',
+    },
+    {
+      name: 'kind: "pdf"',
+      type: 'body',
+      description:
+        'A PDF with a url opens in the browser’s own viewer (the url framed as is — a sandbox would turn the viewer off); without a url, the calm card.',
     },
     { name: 'data.items[].meta', type: 'string', description: 'One extra quiet line (“from Build agent”).' },
     { name: 'data.items[].downloadName', type: 'string', description: 'File name for Download. Default: name.' },
@@ -416,7 +444,7 @@ export const doc: ComponentDoc = {
       id: 'strip',
       title: 'Strip',
       description:
-        'Eight files a run left behind, in one scrolling row. Rest the pointer on a tile for the peek; click one for the viewer, then ← / → through the rest — the picture zooms, the notes read as a document, the page renders with scripts off, the chime plays, the invoice gets a card with Download.',
+        'Eight files a run left behind, in one scrolling row. Rest the pointer on a tile for the peek; click one for the viewer, then ← / → through the rest — the picture zooms, the notes read as a document, the page renders with scripts off, the chime plays, the invoice opens in the browser’s PDF viewer.',
       height: 290,
       create: () => stage(make({ title: 'Files', items: demoFiles() })).box,
     },
@@ -467,6 +495,31 @@ export const doc: ComponentDoc = {
         box.prepend(open);
         return box;
       },
+    },
+    {
+      id: 'scripts-pdf',
+      title: 'A page with its scripts, and a PDF',
+      description:
+        'items[].scripts: the model’s chart page runs its own script (sandbox="allow-scripts", never same-origin) in the viewer and the peek — the note says so. The PDF is the browser’s own viewer; no slot, no body of the page’s own.',
+      height: 290,
+      create: () =>
+        stage(
+          make({
+            title: 'Final answer',
+            items: [
+              {
+                id: 'chart-page',
+                name: 'signups-chart.html',
+                size: 2_300,
+                time: Date.now() - 2 * MIN,
+                text: CHART_PAGE,
+                scripts: true,
+                meta: 'the model’s page',
+              },
+              demoFiles().find((f) => f.id === 'invoice') as FileItem,
+            ],
+          }),
+        ).box,
     },
     {
       id: 'over-host',

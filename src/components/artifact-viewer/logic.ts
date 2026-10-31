@@ -35,6 +35,7 @@ export const STRINGS = {
     download: 'Download',
     zoom: 'Zoom',
     scriptsOff: 'Scripts are off',
+    scriptsOn: 'Runs its own scripts',
     noPreview: 'No preview',
     pos: (i: number, n: number) => `File ${i} of ${n}`,
   },
@@ -47,6 +48,7 @@ export const STRINGS = {
     download: '다운로드',
     zoom: '확대',
     scriptsOff: '스크립트 꺼짐',
+    scriptsOn: '스크립트 켜짐',
     noPreview: '미리보기 없음',
     pos: (i: number, n: number) => `${n}개 중 ${i}번째`,
   },
@@ -218,6 +220,9 @@ const frameAttrs = (item: FileItem): string => {
 
 const hasText = (item: FileItem): boolean => typeof item.text === 'string' && item.text.length > 0;
 
+/** The sandbox an HTML page's frame gets: nothing, or scripts alone when the host vouches for the page. */
+const sandboxOf = (item: FileItem): string => (item.scripts ? 'allow-scripts' : '');
+
 /** The peek card's inside: a larger preview, then "name · kind · meta". */
 export function peekHtml(item: FileItem, lang: string, now: number, broken: ReadonlySet<string>): string {
   const kind = fileItemKind(item);
@@ -237,7 +242,7 @@ export function peekHtml(item: FileItem, lang: string, now: number, broken: Read
   } else if (kind === 'html') {
     const src = frameAttrs(item);
     if (src)
-      media = `<div class="av-pk-frame"><iframe sandbox="" tabindex="-1" loading="lazy" referrerpolicy="no-referrer" title=""${src}></iframe></div>`;
+      media = `<div class="av-pk-frame"><iframe sandbox="${sandboxOf(item)}" tabindex="-1" loading="lazy" referrerpolicy="no-referrer" title=""${src}></iframe></div>`;
   }
   if (!media) {
     media = `<span class="av-pk-glyph"><span class="av-big">${icon(fileKindIcon(kind), { size: 28 })}</span></span>`;
@@ -256,7 +261,7 @@ export interface ViewerBodyOptions {
 }
 
 /** What the body shows for an item: a preview kind, or `fallback` (the calm card with the actions). */
-export type ViewerBodyKind = 'image' | 'markdown' | 'text' | 'html' | 'audio' | 'video' | 'fallback';
+export type ViewerBodyKind = 'image' | 'markdown' | 'text' | 'html' | 'pdf' | 'audio' | 'video' | 'fallback';
 
 /** The body an item gets, from its kind and the content it carries. */
 export function viewerBodyKind(item: FileItem, broken: ReadonlySet<string> = new Set()): ViewerBodyKind {
@@ -266,6 +271,7 @@ export function viewerBodyKind(item: FileItem, broken: ReadonlySet<string> = new
   if (kind === 'markdown')
     return hasText(item) ? (String(item.text).length > MARKDOWN_VIEW_CHARS ? 'text' : 'markdown') : 'fallback';
   if (kind === 'html') return frameAttrs(item) ? 'html' : 'fallback';
+  if (kind === 'pdf') return src ? 'pdf' : 'fallback';
   if (kind === 'audio') return src ? 'audio' : 'fallback';
   if (kind === 'video') return src ? 'video' : 'fallback';
   if (kind === 'text' || kind === 'code' || kind === 'file') return hasText(item) ? 'text' : 'fallback';
@@ -290,8 +296,13 @@ export function viewerBodyHtml(item: FileItem, o: ViewerBodyOptions): string {
       return `<div class="av-body av-text"><pre class="av-pre"><code>${esc(String(item.text).slice(0, VIEW_CHARS))}</code></pre></div>`;
     case 'html':
       return `<div class="av-body av-html"><p class="av-note">${icon('info', { size: 14 })}<span>${esc(
-        t.scriptsOff,
-      )}</span></p><iframe class="av-frame" sandbox="" referrerpolicy="no-referrer" title="${escAttr(name)}"${frameAttrs(item)}></iframe></div>`;
+        item.scripts ? t.scriptsOn : t.scriptsOff,
+      )}</span></p><iframe class="av-frame" sandbox="${sandboxOf(item)}" referrerpolicy="no-referrer" title="${escAttr(name)}"${frameAttrs(item)}></iframe></div>`;
+    // The browser's own PDF viewer, framed as is: a sandbox would turn it off (it is a plugin).
+    case 'pdf':
+      return `<div class="av-body av-pdf"><iframe class="av-frame" referrerpolicy="no-referrer" title="${escAttr(name)}" src="${safeSrc(
+        src,
+      )}"></iframe></div>`;
     case 'audio':
       return `<div class="av-body av-media av-audio"><span class="av-big">${icon(fileKindIcon(kind), {
         size: 32,

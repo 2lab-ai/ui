@@ -40,6 +40,11 @@ export interface FileItem {
   thumb?: string;
   /** Inline content: markdown, text, code, or an HTML page (shown in a sandboxed frame, never in the DOM). */
   text?: string;
+  /**
+   * html: the page runs its own scripts — the viewer's and the peek's frames get `sandbox="allow-scripts"` (never
+   * same-origin: no cookies, no storage, no reach into the page). Only for a page you trust, e.g. one the model wrote.
+   */
+  scripts?: boolean;
   /** One extra quiet line ("from Build agent"). */
   meta?: string;
   /** File name for Download (default `name`). */

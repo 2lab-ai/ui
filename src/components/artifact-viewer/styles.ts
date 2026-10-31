@@ -129,8 +129,9 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
   margin: 0; padding: 18px 22px 28px; color: var(--ib-text); font: 12.5px/1.6 var(--mono); tab-size: 2;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-/* html: sandboxed, scripts off; the page sits on white in both themes */
-.av-html { display: flex; flex-direction: column; background: var(--ib-col); }
+/* html: sandboxed (scripts off unless the file vouches), pdf: the browser's viewer; both sit on the column tint */
+.av-html, .av-pdf { display: flex; flex-direction: column; background: var(--ib-col); }
+.av-pdf .av-frame { margin-top: 16px; }
 .av-note {
   display: flex; flex: none; align-items: center; gap: 6px; margin: 0; padding: 8px 16px;
   font-size: 12px; line-height: 16px; color: var(--ib-muted);
