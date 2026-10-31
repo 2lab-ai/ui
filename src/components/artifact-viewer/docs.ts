@@ -11,6 +11,7 @@ import './artifact-viewer';
 import type {
   ArtifactActionDetail,
   ArtifactCloseDetail,
+  ArtifactClosedDetail,
   ArtifactOpenDetail,
   ArtifactViewDetail,
   ArtifactViewerData,
@@ -131,6 +132,7 @@ const SAY_EN: Say = (name, d, items) => {
     return `ui-view → ${nameOf(items, v.id)} (${v.index + 1} / ${items.length})`;
   }
   if (name === 'ui-close') return `ui-close → ${(d as ArtifactCloseDetail).reason}`;
+  if (name === 'ui-closed') return `ui-closed → ${(d as ArtifactClosedDetail).reason} (after the exit)`;
   const a = d as ArtifactActionDetail;
   if (a.extra)
     return `ui-action → ${a.action} on ${nameOf(items, a.id)}${a.url ? ` (${a.url})` : ''} — the host's own action`;
@@ -144,6 +146,7 @@ const SAY_KO: Say = (name, d, items) => {
     return `보는 중: ${nameOf(items, v.id)} (${v.index + 1} / ${items.length})`;
   }
   if (name === 'ui-close') return '뷰어를 닫았어요';
+  if (name === 'ui-closed') return '뷰어가 사라졌어요 (퇴장 동작 뒤)';
   const a = d as ArtifactActionDetail;
   if (a.extra) return `${a.action}: ${nameOf(items, a.id)} — 호스트가 처리해요`;
   return `${a.action === 'download' ? '다운로드' : '새 탭에서 열기'}: ${a.url} — 데모라서 막았어요`;
@@ -159,7 +162,7 @@ function stage(el: UiArtifactViewer, say: Say = SAY_EN): { box: HTMLElement; lin
   const line = document.createElement('p');
   line.className = 'ui-status-line';
   line.setAttribute('role', 'status');
-  for (const name of ['ui-open', 'ui-view', 'ui-close', 'ui-action']) {
+  for (const name of ['ui-open', 'ui-view', 'ui-close', 'ui-closed', 'ui-action']) {
     el.addEventListener(name, (e) => {
       if (name === 'ui-action') e.preventDefault();
       line.textContent = say(name, (e as CustomEvent).detail, el.data?.items ?? []);
@@ -416,7 +419,7 @@ export const doc: ComponentDoc = {
       name: 'open(index) · next() · prev() · close()',
       type: 'methods',
       description:
-        'Open at a file, step (held at the ends), close with the exit motion. They send ui-view for the shown file, never ui-open or ui-close.',
+        'Open at a file, step (held at the ends), close with the exit motion. They send ui-view for the shown file, never ui-open or ui-close; close() is followed by ui-closed (reason host).',
     },
     {
       name: 'open(items, index?, opener?)',
@@ -456,6 +459,12 @@ export const doc: ComponentDoc = {
       detail: "{ reason: 'escape' | 'scrim' | 'close-button' }",
       description:
         'The person asked to close the viewer. Cancelable: preventDefault() keeps it open (unsaved notes, say). close() sends nothing.',
+    },
+    {
+      name: 'ui-closed',
+      detail: "{ reason: 'escape' | 'scrim' | 'close-button' | 'host' | 'removed' }",
+      description:
+        'Notification, after the exit: the viewer is gone — for every close. The person’s reason; host for close(), data.index -1 or a list emptied under it; removed when the element left the page while open. Let go of what you held for it here (your preview, the list it paged).',
     },
     {
       name: 'ui-action',
@@ -551,7 +560,7 @@ export const doc: ComponentDoc = {
       id: 'actions',
       title: 'Events and host control',
       description:
-        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. Each file also carries the page’s own actions (items[].actions): Slack on every file, Copy on the log, and customer-call.m4a lives only in Slack, so its card leads with Open in Slack. The button opens the viewer through data.index; ui-close clears it.',
+        'Every event lands on the line below. Open in new tab and Download are prevented (ui-action) and echoed instead — nothing leaves the page. Each file also carries the page’s own actions (items[].actions): Slack on every file, Copy on the log, and customer-call.m4a lives only in Slack, so its card leads with Open in Slack. The button opens the viewer through data.index; ui-close clears it, and ui-closed follows the exit.',
       height: 330,
       create: () => {
         const el = make({ title: 'Files', items: withActions() });

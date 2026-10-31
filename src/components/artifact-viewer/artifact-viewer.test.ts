@@ -5,6 +5,7 @@ import type { FileItem } from '../file-card/render';
 import type {
   ArtifactActionDetail,
   ArtifactCloseDetail,
+  ArtifactClosedDetail,
   ArtifactOpenDetail,
   ArtifactViewDetail,
   ArtifactViewerData,
@@ -355,6 +356,50 @@ describe('viewer', () => {
     expect(q(el, '.av-vh')?.dataset.kind).toBe('markdown');
     expect(q(el, '.av-vmeta')?.textContent).toBe('2.4 KB · 4m ago');
     expect(q(el, '.av-stage')?.dataset.body).toBe('markdown');
+  });
+
+  it('D4 G5-4: ui-closed follows every close after the exit — the person’s reason, host for close() / an emptied list, removed when the element leaves', () => {
+    const el = mount({ items: files() });
+    const closed = record<ArtifactClosedDetail>(el, 'ui-closed');
+    el.open(0);
+    el.close();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS - 1);
+    expect(closed).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(closed.map((c) => c.reason)).toEqual(['host']);
+    expect(closed[0].cancelable).toBe(false);
+    el.open(1);
+    key(native(el), 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed.map((c) => c.reason)).toEqual(['host', 'escape']);
+    // The person's close the host refuses: no close, no ui-closed.
+    el.open(1);
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-close', stop);
+    key(native(el), 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(el.index).toBe(1);
+    expect(closed).toHaveLength(2);
+    el.removeEventListener('ui-close', stop);
+    // The list emptied under it.
+    el.data = { items: [] };
+    el.renderNow();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed.map((c) => c.reason)).toEqual(['host', 'escape', 'host']);
+    // Removed from the page while open: at once, no exit to wait for.
+    el.data = { items: files() };
+    el.renderNow();
+    el.open(2);
+    el.remove();
+    expect(closed.map((c) => c.reason)).toEqual(['host', 'escape', 'host', 'removed']);
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed).toHaveLength(4);
+    // The inner dialog's own ui-closed never leaks out as the viewer's.
+    document.body.append(el);
+    el.open(0);
+    el.close();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    expect(closed).toHaveLength(5);
   });
 
   it('preventDefault() on ui-open keeps the viewer closed', () => {
