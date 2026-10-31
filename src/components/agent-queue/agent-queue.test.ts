@@ -226,6 +226,13 @@ describe('units and time text', () => {
     expect(timeText('back', NOW, NOW, ko)).toBe('곧 복귀');
     expect(timeText('in', NOW + D + 5 * H, NOW, ko)).toBe('1일 5시간 후');
     expect(timeText('since', NOW - 11 * M, NOW, en)).toBe('11m ago');
+    // The since phrase in Korean too (0.15.2): the cron lane's 'ago' was '1d 0h 전' on a Korean board.
+    expect(timeText('since', NOW - 11 * M, NOW, ko)).toBe('11분 전');
+    expect(timeText('since', NOW - 30 * S, NOW, ko)).toBe('방금 전');
+    expect(timeText('since', NOW - (3 * H + 5 * M), NOW, ko)).toBe('3시간 5분 전');
+    expect(timeText('since', NOW - D, NOW, ko)).toBe('1일 0시간 전');
+    for (const ms of [30 * S, 11 * M, 3 * H, D + 6 * H])
+      expect(timeText('since', NOW - ms, NOW, ko)).not.toMatch(/[A-Za-z]/);
     expect(timeText('fetched', NOW - 12 * S, NOW, ko)).toBe('12초 전 갱신');
   });
 });
