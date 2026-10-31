@@ -2,6 +2,7 @@ export type { FileAction, FileCardVariant, FileItem } from '../file-card/render'
 export type {
   ArtifactActionDetail,
   ArtifactCloseDetail,
+  ArtifactClosedDetail,
   ArtifactOpenDetail,
   ArtifactViewDetail,
   ArtifactViewerData,
