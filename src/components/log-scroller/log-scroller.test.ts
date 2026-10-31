@@ -15,11 +15,14 @@ const ITEM_H = 40;
 const VIEW_H = 200;
 const TOP_H = 40;
 
-/** A fake layout: items stacked ITEM_H apart under a TOP_H top row, a VIEW_H box that scrolls. */
+/** A row's height in the fake layout: ITEM_H unless the test grew it (`data-h`). */
+const rowH = (r: Element) => Number((r as HTMLElement).dataset.h) || ITEM_H;
+
+/** A fake layout: items stacked ITEM_H apart (or their own `data-h`) under a TOP_H top row, a VIEW_H box that scrolls. */
 function layout(el: UiLogScroller): HTMLElement {
   const vp = el.shadowRoot!.querySelector<HTMLElement>('.ls-vp')!;
   let top = 0;
-  const height = () => TOP_H + el.items.length * ITEM_H;
+  const height = () => el.items.reduce((h, r) => h + rowH(r), TOP_H);
   Object.defineProperty(vp, 'scrollHeight', { configurable: true, get: height });
   Object.defineProperty(vp, 'clientHeight', { configurable: true, get: () => VIEW_H });
   Object.defineProperty(vp, 'scrollTop', {
@@ -44,9 +47,11 @@ function row(el: UiLogScroller, key: string): HTMLElement {
   r.textContent = `Row ${key}`;
   r.getBoundingClientRect = () => {
     const vp = el.shadowRoot!.querySelector<HTMLElement>('.ls-vp')!;
-    const i = el.items.indexOf(r);
-    const t = TOP_H + i * ITEM_H - vp.scrollTop;
-    return { top: t, bottom: t + ITEM_H, height: ITEM_H, left: 0, right: 300, width: 300 } as DOMRect;
+    const items = el.items;
+    const i = items.indexOf(r);
+    const t = items.slice(0, i).reduce((h, x) => h + rowH(x), TOP_H) - vp.scrollTop;
+    const h = rowH(r);
+    return { top: t, bottom: t + h, height: h, left: 0, right: 300, width: 300 } as DOMRect;
   };
   r.getClientRects = () => [r.getBoundingClientRect()] as unknown as DOMRectList;
   return r;
@@ -78,6 +83,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe('log-scroller helpers', () => {
@@ -432,6 +438,97 @@ describe('G2-1: anchors inside a folded (inert) region are not the reader’s pl
     el.prependItems(rows(el, -10, 10), { hasMore: true });
     expect(k6.getBoundingClientRect().top).toBe(before);
     expect(vp.scrollTop).toBe(TOP_H + 5 * ITEM_H + 20 + 10 * ITEM_H);
+  });
+});
+
+describe('P3-1: the Load older button holds the reader’s place for the page it asks for', () => {
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
+  /** The host's answer: a group already shown takes older entries (k1 grows by 80px), then ten older groups go in above. */
+  const answer = (el: UiLogScroller, prepend = true) => {
+    el.addEventListener('ui-load-older', () => {
+      el.itemFor('k1')!.dataset.h = String(ITEM_H + 80);
+      if (prepend) el.prependItems(rows(el, -10, 10), { hasMore: true });
+    });
+  };
+  const press = (btn: HTMLElement) => {
+    btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+    btn.click();
+  };
+
+  it('pressed with the pointer: the rows the reader sees stay where they were (±1px) through the growth and the page', async () => {
+    const { el, vp } = mount({ hasMore: true });
+    el.appendItems(rows(el, 0, 20));
+    scrollTo(vp, 240); // six rows down: the sentinel is not due, the button is the way
+    await frame(); // the scroll's own capture
+    const seen = el.itemFor('k6')!;
+    const before = seen.getBoundingClientRect().top;
+    expect(before).toBe(40);
+    answer(el);
+    press(q(el, '.ls-older')!);
+    expect(el.items[0].dataset.item).toBe('k-10');
+    expect(Math.abs(seen.getBoundingClientRect().top - before)).toBeLessThan(1);
+    expect(vp.scrollTop).toBe(240 + 80 + 10 * ITEM_H);
+    expect(el.pinned).toBe(false);
+    expect(el.unread).toBe(0);
+  });
+
+  it('pressed with a key, before the scroll’s own capture ran: the request captures the place itself', () => {
+    const { el, vp } = mount({ hasMore: true });
+    el.appendItems(rows(el, 0, 20));
+    scrollTo(vp, 240); // no frame in between: nothing is held yet
+    const seen = el.itemFor('k6')!;
+    const before = seen.getBoundingClientRect().top;
+    answer(el);
+    const btn = q(el, '.ls-older')!;
+    btn.focus();
+    btn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }));
+    btn.click();
+    expect(Math.abs(seen.getBoundingClientRect().top - before)).toBeLessThan(1);
+    expect(vp.scrollTop).toBe(240 + 80 + 10 * ITEM_H);
+  });
+
+  it('a page that only grows what is shown: the box’s resize puts the rows back', async () => {
+    const ros: Array<() => void> = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          ros.push(cb);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const { el, vp } = mount({ hasMore: true });
+    expect(ros).toHaveLength(1);
+    el.appendItems(rows(el, 0, 20));
+    scrollTo(vp, 240);
+    await frame();
+    const seen = el.itemFor('k6')!;
+    const before = seen.getBoundingClientRect().top;
+    answer(el, false);
+    press(q(el, '.ls-older')!);
+    // The list grew under the reader; the observer fires after the layout.
+    expect(seen.getBoundingClientRect().top).toBe(before + 80);
+    for (const cb of ros) cb();
+    expect(Math.abs(seen.getBoundingClientRect().top - before)).toBeLessThan(1);
+    expect(vp.scrollTop).toBe(240 + 80);
+  });
+
+  it('contrast: a press on a row (not the button) is the reader’s own hand — the growth before a page is theirs', async () => {
+    const { el, vp } = mount({ hasMore: true });
+    el.appendItems(rows(el, 0, 20));
+    scrollTo(vp, 240);
+    await frame();
+    const seen = el.itemFor('k6')!;
+    const before = seen.getBoundingClientRect().top;
+    // A press in the list (happy-dom does not carry a slotted row's event through the shadow tree: the list stands in).
+    q(el, '.ls-list')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+    el.itemFor('k1')!.dataset.h = String(ITEM_H + 80);
+    el.prependItems(rows(el, -10, 10), { hasMore: true });
+    // The page itself never moves the rows; the growth the reader caused is kept as they left it.
+    expect(seen.getBoundingClientRect().top).toBe(before + 80);
   });
 });
 
