@@ -799,6 +799,60 @@ describe('<ui-work-log> group disclosure and keyboard', () => {
     expect(el.shadowRoot!.activeElement).toBe(key(el, 'a:e5'));
   });
 
+  it('P3-5: what the log wrote on a slotted element goes when it leaves the slot; a plain element is not an extra Tab stop', async () => {
+    const el = mount({ groups: groups() });
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    const stops = () => qa(el, '[data-nav]').filter((n) => n.getAttribute('tabindex') === '0');
+    // A plain button in a tool slot: on the path, and its own tabindex follows the roving (no second Tab stop).
+    const btn = document.createElement('button');
+    btn.slot = 'tool-e3';
+    btn.textContent = 'card';
+    el.append(btn);
+    await tick();
+    expect(btn.getAttribute('head-tabindex')).toBe('-1');
+    expect(btn.getAttribute('tabindex')).toBe('-1');
+    const h2 = key(el, 'g:g2');
+    h2.focus();
+    press(h2, 'ArrowDown');
+    expect(btn.getAttribute('head-tabindex')).toBe('0');
+    expect(btn.getAttribute('tabindex')).toBe('0');
+    expect(stops()).toHaveLength(0);
+    // Removed: both go.
+    btn.remove();
+    await tick();
+    expect(btn.hasAttribute('head-tabindex')).toBe(false);
+    expect(btn.hasAttribute('tabindex')).toBe(false);
+    // One with a tabindex of its own gets it back when it is re-slotted away (the head is the stop again first).
+    h2.focus();
+    const link = document.createElement('a');
+    link.href = '#';
+    link.setAttribute('tabindex', '3');
+    link.slot = 'tool-e3';
+    el.append(link);
+    await tick();
+    expect(link.getAttribute('head-tabindex')).toBe('-1');
+    expect(link.getAttribute('tabindex')).toBe('-1');
+    link.slot = 'elsewhere';
+    await tick();
+    expect(link.hasAttribute('head-tabindex')).toBe(false);
+    expect(link.getAttribute('tabindex')).toBe('3');
+    // A card carries head-tabindex itself: its own tabindex is never touched, and head-tabindex goes when its entry leaves the data.
+    const card = document.createElement('ui-tool-call-card') as UiToolCallCard;
+    card.slot = 'tool-e3';
+    card.data = { name: 'Read', status: 'success', summary: 'src/router.ts' };
+    el.append(card);
+    await tick();
+    expect(card.getAttribute('head-tabindex')).toBe('-1');
+    expect(card.hasAttribute('tabindex')).toBe(false);
+    el.data = {
+      groups: groups().map((g) => (g.id === 'g2' ? { ...g, entries: g.entries!.filter((e) => e.id !== 'e3') } : g)),
+    };
+    el.renderNow();
+    expect(entry(el, 'e3')).toBeUndefined();
+    expect(card.hasAttribute('head-tabindex')).toBe(false);
+    expect(card.hasAttribute('tabindex')).toBe(false);
+  });
+
   it('closing a group with focus inside moves focus to its head', () => {
     const el = mount({ groups: groups() });
     key(el, 'e:e6').focus();

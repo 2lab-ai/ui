@@ -462,7 +462,7 @@ export const doc: ComponentDoc = {
     'The list is the scroller’s role="log" (polite); opened raw outputs are aria-live="off" so a long output is never read out.',
     'Group heads are buttons inside headings with aria-expanded and aria-controls; a folded group’s body is inert. Focus inside a group that folds moves to its head. A headless group has no head: its entries are always shown and on the arrow path.',
     'Openable rows are role="button" with aria-expanded / aria-controls; child agents are buttons named “Open <name> — <status>, <n> tools”.',
-    'A <ui-tool-call-card> slotted into a tool entry is on the same roving path as the rows: the log sets head-tabindex on it (its header follows), so one Tab stop covers rows and cards alike.',
+    'A <ui-tool-call-card> slotted into a tool entry is on the same roving path as the rows: the log sets head-tabindex on it (its header follows), so one Tab stop covers rows and cards alike. Any other element in a tool slot has its tabindex set the same way (it is not a Tab stop of its own); what the log wrote goes when the element leaves the slot.',
     'Status is always an icon plus a word (Done, Failed, Running …), never colour alone; times are <time datetime>.',
     'Reduced motion: groups open without the height glide or chevron turn; spinners stand still.',
     'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the user opens or folds a group or a row, a soft success when a copy lands, a tap for Retry, a navigate for Open on a child agent. Silent until the page turns sound on.',
