@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import './log-scroller';
-import { type LogScrollerData, logAtBottom, logJumpText, logPageDue, type UiLogScroller } from './log-scroller';
+import {
+  anchorsIn,
+  type LogScrollerData,
+  logAtBottom,
+  logJumpText,
+  logPageDue,
+  type UiLogScroller,
+} from './log-scroller';
 
 const ITEM_H = 40;
 const VIEW_H = 200;
@@ -362,6 +369,147 @@ describe('<ui-log-scroller>', () => {
     el.prependItems([], { hasMore: false });
     expect(q(el, '.ls-start')?.textContent).toBe('기록의 시작');
     expect(q(el, '.ls-vp')?.getAttribute('aria-label')).toBe('기록');
+  });
+});
+
+describe('G1-1: anchors inside an element item (rows in its shadow root, or named by anchorsFor)', () => {
+  const ROW_H = 30;
+  /** A ResizeObserver the test fires by hand (happy-dom has none). */
+  class FakeRO {
+    static cbs: Array<() => void> = [];
+    constructor(cb: () => void) {
+      FakeRO.cbs.push(cb);
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    static fire() {
+      for (const cb of FakeRO.cbs) cb();
+    }
+  }
+  beforeEach(() => {
+    FakeRO.cbs = [];
+    vi.stubGlobal('ResizeObserver', FakeRO);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** One item — a "tree" that draws its rows in its own shadow root — as the whole list. */
+  function mountTree(n: number, opts: { anchor?: boolean; hook?: boolean } = {}) {
+    const el = document.createElement('ui-log-scroller') as UiLogScroller;
+    document.body.append(el);
+    el.renderNow();
+    const vp = el.shadowRoot!.querySelector<HTMLElement>('.ls-vp')!;
+    const tree = document.createElement('div');
+    tree.dataset.item = 'tree';
+    const list = document.createElement('ul');
+    tree.attachShadow({ mode: 'open' }).append(list);
+    const rows: HTMLElement[] = [];
+    const addRow = (key: string, atStart: boolean) => {
+      const li = document.createElement('li');
+      li.textContent = key;
+      if (opts.anchor) li.setAttribute('data-anchor', '');
+      li.getBoundingClientRect = () => {
+        const t = TOP_H + rows.indexOf(li) * ROW_H - vp.scrollTop;
+        return { top: t, bottom: t + ROW_H, height: ROW_H, left: 0, right: 300, width: 300 } as DOMRect;
+      };
+      li.getClientRects = () => [li.getBoundingClientRect()] as unknown as DOMRectList;
+      if (atStart) {
+        rows.unshift(li);
+        list.prepend(li);
+      } else {
+        rows.push(li);
+        list.append(li);
+      }
+      return li;
+    };
+    for (let i = 0; i < n; i++) addRow(`r${i}`, false);
+    tree.getBoundingClientRect = () => {
+      const t = TOP_H - vp.scrollTop;
+      const h = rows.length * ROW_H;
+      return { top: t, bottom: t + h, height: h, left: 0, right: 300, width: 300 } as DOMRect;
+    };
+    tree.getClientRects = () => [tree.getBoundingClientRect()] as unknown as DOMRectList;
+    let top = 0;
+    const height = () => TOP_H + rows.length * ROW_H;
+    Object.defineProperty(vp, 'scrollHeight', { configurable: true, get: height });
+    Object.defineProperty(vp, 'clientHeight', { configurable: true, get: () => VIEW_H });
+    Object.defineProperty(vp, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (v: number) => {
+        top = Math.max(0, Math.min(Number(v) || 0, Math.max(0, height() - VIEW_H)));
+      },
+    });
+    vp.getBoundingClientRect = () =>
+      ({ top: 0, bottom: VIEW_H, left: 0, right: 300, height: VIEW_H, width: 300 }) as DOMRect;
+    if (opts.hook) el.anchorsFor = (item) => (item === tree ? rows : null);
+    el.appendItems(tree);
+    return { el, vp, tree, rows, pageOlder: (k: number) => Array.from({ length: k }, (_, i) => addRow(`o${i}`, true)) };
+  }
+
+  it('anchorsIn: the hook first, then light [data-anchor], then [data-anchor] in the open shadow root, else nothing', () => {
+    const item = document.createElement('div');
+    const sr = item.attachShadow({ mode: 'open' });
+    sr.innerHTML = '<p data-anchor>s1</p><p data-anchor>s2</p>';
+    expect(anchorsIn(item)).toHaveLength(2);
+    expect(anchorsIn(item)[0].textContent).toBe('s1');
+    item.innerHTML = '<span data-anchor>l1</span>';
+    expect(anchorsIn(item).map((n) => n.textContent)).toEqual(['l1']);
+    const own = document.createElement('i');
+    expect(anchorsIn(item, () => [own])).toEqual([own]);
+    // Nothing from the hook (null, empty, a throw): the attribute lookup.
+    expect(anchorsIn(item, () => null).map((n) => n.textContent)).toEqual(['l1']);
+    expect(anchorsIn(item, () => []).map((n) => n.textContent)).toEqual(['l1']);
+    expect(
+      anchorsIn(item, () => {
+        throw new Error('no');
+      }).map((n) => n.textContent),
+    ).toEqual(['l1']);
+    expect(anchorsIn(document.createElement('div'))).toEqual([]);
+  });
+
+  it('the element exposes anchorsFor (null by default)', () => {
+    const el = document.createElement('ui-log-scroller') as UiLogScroller;
+    expect(el.anchorsFor).toBeNull();
+  });
+
+  it('a page of older rows paged into the one item above the reader: rows marked data-anchor in its shadow stay put', async () => {
+    const { el, vp, rows, pageOlder } = mountTree(20, { anchor: true });
+    scrollTo(vp, 300);
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(el.pinned).toBe(false);
+    const seen = rows[9];
+    const before = seen.getBoundingClientRect().top;
+    expect(before).toBe(10);
+    pageOlder(5);
+    FakeRO.fire();
+    expect(seen.getBoundingClientRect().top).toBe(before);
+    expect(vp.scrollTop).toBe(300 + 5 * ROW_H);
+  });
+
+  it('…or the rows a host names with anchorsFor', async () => {
+    const { el, vp, rows, pageOlder } = mountTree(20, { hook: true });
+    scrollTo(vp, 300);
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(el.pinned).toBe(false);
+    const seen = rows[9];
+    const before = seen.getBoundingClientRect().top;
+    pageOlder(5);
+    FakeRO.fire();
+    expect(seen.getBoundingClientRect().top).toBe(before);
+    expect(vp.scrollTop).toBe(300 + 5 * ROW_H);
+  });
+
+  it('contrast: a plain element item is held by its own top edge, so growing it moves the rows (the gap)', async () => {
+    const { vp, rows, pageOlder } = mountTree(20);
+    scrollTo(vp, 300);
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    const seen = rows[9];
+    const before = seen.getBoundingClientRect().top;
+    pageOlder(5);
+    FakeRO.fire();
+    expect(seen.getBoundingClientRect().top).toBe(before + 5 * ROW_H);
+    expect(vp.scrollTop).toBe(300);
   });
 });
 

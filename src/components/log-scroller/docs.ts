@@ -169,7 +169,14 @@ export const doc: ComponentDoc = {
       name: '[data-anchor]',
       type: 'attribute on item descendants',
       description:
-        'Finer place-keeping inside large items (entries inside a group): the reader’s row is found among these first.',
+        'Finer place-keeping inside large items (entries inside a group): the reader’s row is found among these first. Also read inside an element item’s open shadow root (an agent tree marks its rows so), so a page that grows the one item above the reader does not move them.',
+    },
+    {
+      name: 'anchorsFor',
+      type: '(item: HTMLElement) => Element[] | null',
+      default: 'null',
+      description:
+        'Property. Names the rows inside an item whose place is kept — for an element item that draws its rows itself and grows above the reader (older agents paged into one <ui-agent-tree>). Returning nothing falls back to [data-anchor]. anchorsIn(item, hook) is the exported lookup.',
     },
   ],
   events: [
