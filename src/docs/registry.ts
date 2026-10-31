@@ -37,6 +37,7 @@ export const ORDER = [
   'auth-card',
   'segmented',
   'tabs',
+  'breadcrumbs',
   'menu',
   'tooltip',
   'hovercard',

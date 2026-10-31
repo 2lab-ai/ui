@@ -15,7 +15,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Work Log | `<ui-work-log>` | What the agent did, task by task — instructions, narration, tool calls, raw output, child agents; a meta line per task, entries between tasks, slotted tool cards on the same keyboard path |
 | Choice Form | `<ui-choice-form>` | What the agent needs you to decide — numbered questions, the recommended choice, your own answer, submit all at once; or locked with the reason you cannot answer |
 | Goal Card | `<ui-goal-card>` | What the agent is working toward, how far it is, and what is queued — only the actions the host answers, meta and a note on the current and past goals; complete, pause, delete with a second press |
-| Task Plan | `<ui-task-plan>` | The plan step by step — done, running, dropped or moved — and the plans before it; `setOpen()` / `isOpen()` for the folds |
+| Task Plan | `<ui-task-plan>` | The plan step by step — done, running, dropped or moved — and the plans before it; `setOpen()` / `isOpen()` for the folds; or a window of `max` rows for a card, with one “+N” button (`ui-more`) to the whole plan |
 | Task Runs | `<ui-task-runs>` | Each run of a task — status, time, tokens, tools and revisions, approximate runs with a note, a totals row the host can give (“n of m shown”) |
 | Agent Queue | `<ui-agent-queue>` | Provider capacity, rate limits, and the scheduled-job lane |
 | Context Window | `<ui-context-window>` | How full the context is and how far auto-compaction is |
@@ -64,6 +64,7 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Disclosure | `<ui-disclosure>` | Summary row over a region that grows 0fr → 1fr and is inert while closed; a links row that stays in view while closed |
 | Log Scroller | `<ui-log-scroller>` | Newest-at-bottom scroll box: follows the latest, pages older items in without moving your place (`[data-anchor]` rows inside an item count too), “jump to latest” with an unread count; or as tall as its items while the page scrolls |
 | Elapsed | `<ui-elapsed>` | A live time — running for, stopwatch, how long ago, countdown — on one shared whole-second tick, text changed in place |
+| Breadcrumbs | `<ui-breadcrumbs>` | Where you are — the trail root first, links or `ui-select` buttons, the current page last; the middle folds behind “…” when the row is narrow, a status chip in its end slot; `sm` for a panel’s path |
 | Meter | `<ui-meter>` | How much is left (or used) of a bounded thing — a bar or a battery with its fill, the percent or your own words, a tone from `low` / `high` / `optimum` (the native `<meter>`'s rule); a new value slides the fill in place; `role="meter"`, unknown is “?” |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
