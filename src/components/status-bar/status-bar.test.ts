@@ -487,7 +487,12 @@ describe('lang="ko"', () => {
     await Promise.resolve();
     expect(btn(el, 'stop').querySelector('.sb-bt')?.textContent).toBe('한 번 더 눌러 확인');
     expect(btn(el, 'stop').getAttribute('aria-label')).toBe('한 번 더 눌러 확인: Stop');
-    expect(q(mount({ status: 'idle', activeMs: 60_000 }, { lang: 'ko' }), '.sb-time')?.textContent).toBe('활성 1m 00s');
+    expect(q(mount({ status: 'idle', activeMs: 60_000 }, { lang: 'ko' }), '.sb-time')?.textContent).toBe(
+      '활성 1분 00초',
+    );
+    // The live clock too (0.15.1): Korean words under lang="ko", never 9m 22s.
+    const liveBar = mount({ status: 'running', startedAt: Date.now() - 562_000 }, { lang: 'ko' });
+    expect(q(liveBar, '.sb-tick')?.textContent ?? '').toMatch(/^9분 2\d초$/);
     el.data = { ...BASE, status: 'failed' };
     el.renderNow();
     expect(live(el)).toBe('상태: 실패');

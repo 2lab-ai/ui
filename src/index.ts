@@ -54,7 +54,7 @@ export * from './components/work-log';
 export { define, prefersReducedMotion, UiElement } from './core/element';
 export type { FileKind } from './core/files';
 export { FILE_KINDS, fileExt, fileKind, fileKindIcon, fmtBytes } from './core/files';
-export { clamp, fmtAgo, fmtClock, fmtDuration, fmtInt, fmtTokens, fmtUsd } from './core/format';
+export { clamp, fmtAgo, fmtClock, fmtDuration, fmtDurationIn, fmtInt, fmtTokens, fmtUsd } from './core/format';
 export { attrs, cls, esc, escAttr, safeHref, safeLink, safeSrc } from './core/html';
 export type { LinkRenderer } from './core/markdown';
 export { markdownHtml, mdDocCss } from './core/markdown';

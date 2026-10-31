@@ -352,9 +352,15 @@ export class UiBarChart extends UiElement<BarChartData> {
   /** “Mon 3 Nov: 12 sessions” · “Mon 3 Nov: 7 done, 5 failed, 12 total” · “Mon 3 Nov: No data”. */
   #say(b: BarModel, m: BarChartModel, unit: string, t: BarChartStrings): string {
     if (b.missing) return t.bar(b.title, t.noData);
-    if (!m.stacked) return t.bar(b.title, t.withUnit(fmtBarValue(b.values[0], m.format), unit));
-    const parts = m.series.map((s, j) => t.part(fmtBarValue(b.values[j], m.format), s.label));
-    parts.push(t.partTotal(fmtBarValue(b.total, m.format)));
+    if (!m.stacked)
+      return t.bar(
+        b.title,
+        t.withUnit(fmtBarValue(b.values[0], m.format, this.getAttribute('lang') ?? undefined), unit),
+      );
+    const parts = m.series.map((s, j) =>
+      t.part(fmtBarValue(b.values[j], m.format, this.getAttribute('lang') ?? undefined), s.label),
+    );
+    parts.push(t.partTotal(fmtBarValue(b.total, m.format, this.getAttribute('lang') ?? undefined)));
     return t.bar(b.title, parts.join(', '));
   }
 
@@ -367,7 +373,7 @@ export class UiBarChart extends UiElement<BarChartData> {
       if (b.total > hi.total) hi = b;
       sum += b.total;
     }
-    const v = (n: number) => t.withUnit(fmtBarValue(n, m.format), unit);
+    const v = (n: number) => t.withUnit(fmtBarValue(n, m.format, this.getAttribute('lang') ?? undefined), unit);
     return t.summary(m.bars.length, hi.title, v(hi.total), v(sum));
   }
 
@@ -441,9 +447,13 @@ export class UiBarChart extends UiElement<BarChartData> {
         label,
       )}</span><span class="bc-tip-v">${esc(value)}</span></div>`;
     if (!m.stacked)
-      return `${head}${row(BAR_COLORS[m.series[0].color], this.#unit(this.data, m), fmtBarValue(b.values[0], m.format))}`;
-    const rows = m.series.map((s, j) => row(BAR_COLORS[s.color], s.label, fmtBarValue(b.values[j], m.format))).join('');
-    return `${head}${rows}${row('', t.total, fmtBarValue(b.total, m.format), ' is-total')}`;
+      return `${head}${row(BAR_COLORS[m.series[0].color], this.#unit(this.data, m), fmtBarValue(b.values[0], m.format, this.getAttribute('lang') ?? undefined))}`;
+    const rows = m.series
+      .map((s, j) =>
+        row(BAR_COLORS[s.color], s.label, fmtBarValue(b.values[j], m.format, this.getAttribute('lang') ?? undefined)),
+      )
+      .join('');
+    return `${head}${rows}${row('', t.total, fmtBarValue(b.total, m.format, this.getAttribute('lang') ?? undefined), ' is-total')}`;
   }
 
   /**

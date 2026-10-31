@@ -1,5 +1,5 @@
 import { define, UiElement } from '../../core/element';
-import { fmtDuration, fmtTokens } from '../../core/format';
+import { fmtDurationIn, fmtTokens } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import {
   type AgentTreeData,
@@ -281,7 +281,7 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
     let items = '';
     for (const r of model.roots) items += this.#item(r, model.roots.length, ctx);
     const axis = ctx.axis
-      ? `<div class="at-axis" aria-hidden="true"><span>0s</span><span class="at-axis-end">${esc(fmtDuration(ctx.axis.t1 - ctx.axis.t0))}</span></div>`
+      ? `<div class="at-axis" aria-hidden="true"><span>${esc(fmtDurationIn(0, this.#lang))}</span><span class="at-axis-end">${esc(fmtDurationIn(ctx.axis.t1 - ctx.axis.t0, this.#lang))}</span></div>`
       : '';
     return `<div class="at" data-density="${density}">${bar}<div class="at-wrap" style="--D:${model.depth}">${axis}<ul class="at-tree" role="tree" aria-label="${escAttr(
       title ?? t.title,
@@ -365,7 +365,7 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
   #time(it: TreeItem, dur: number | undefined, timeId: string): string {
     if (dur === undefined) return '';
     const tick = ticks(it.node) ? ` data-tick="${escAttr(it.id)}"` : '';
-    return `<span class="at-time" id="${timeId}"${tick}>${esc(fmtDuration(dur))}</span>`;
+    return `<span class="at-time" id="${timeId}"${tick}>${esc(fmtDurationIn(dur, this.#lang))}</span>`;
   }
 
   #costHtml(it: TreeItem, cost: number | undefined, t: AgentTreeStrings): string {
@@ -520,7 +520,7 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
     const now = Date.now();
     for (const { text, item } of this.#ticks) {
       const ms = durationOf(item.node, now);
-      const s = ms === undefined ? '' : fmtDuration(ms);
+      const s = ms === undefined ? '' : fmtDurationIn(ms, this.#lang);
       if (text.data !== s) text.data = s;
     }
     if (!this.#spans.length && !this.#axisEnd) return;
@@ -530,7 +530,7 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
     );
     if (!axis) return;
     if (this.#axisEnd) {
-      const s = fmtDuration(axis.t1 - axis.t0);
+      const s = fmtDurationIn(axis.t1 - axis.t0, this.#lang);
       if (this.#axisEnd.data !== s) this.#axisEnd.data = s;
     }
     for (const { el, item } of this.#spans) {
