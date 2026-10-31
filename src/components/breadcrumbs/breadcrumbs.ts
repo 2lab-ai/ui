@@ -39,6 +39,17 @@ type Strings = (typeof STRINGS)['en'];
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
 
+/**
+ * The width the row needs to show every crumb whole: its scroll width plus what each ellipsized crumb is missing
+ * (a crumb shrinks and ellipsizes before the list ever overflows, so the list's own scroll width is not enough).
+ */
+function neededWidth(list: Element): number {
+  let need = list.scrollWidth;
+  for (const c of Array.from(list.querySelectorAll('.bc-link, .bc-btn, .bc-cur')))
+    need += Math.max(0, c.scrollWidth - c.clientWidth);
+  return need;
+}
+
 // ── Pure helpers ────────────────────────────────────────────────────────────
 
 /** The items as drawn: objects with a label (junk left out). */
@@ -191,8 +202,9 @@ export class UiBreadcrumbs extends UiElement<BreadcrumbsData> {
   }
 
   /**
-   * Fold or unfold from the row's measured overflow. Folding happens when the whole row is wider than its box;
-   * unfolding when the box is at least as wide as the row needed — so a box between the two never flips.
+   * Fold or unfold from the row's measured need. Folding happens when the crumbs whole are wider than the box (the
+   * list overflows, or a crumb had to ellipsize); unfolding when the box is at least as wide as the row needed — so
+   * a box between the two never flips.
    */
   #fit(): void {
     const list = this.$('.bc-list');
@@ -201,9 +213,10 @@ export class UiBreadcrumbs extends UiElement<BreadcrumbsData> {
     let folded = this.#folded;
     if (breadcrumbCollapse(this.getAttribute('collapse')) === 'never' || this.#expanded || n < 3) folded = false;
     else if (!folded) {
-      if (list.scrollWidth > list.clientWidth) {
+      const need = neededWidth(list);
+      if (need > list.clientWidth) {
         folded = true;
-        this.#needed = list.scrollWidth;
+        this.#needed = need;
       }
     } else if (list.clientWidth >= this.#needed) folded = false;
     if (folded === this.#folded) return;
