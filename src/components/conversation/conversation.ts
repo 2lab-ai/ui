@@ -149,11 +149,12 @@ function paintProgress(el: HTMLElement, now: number, t: ConversationStrings): vo
  * turns the system put there, newest at the bottom, in a `<ui-log-scroller>` that follows new turns and never moves
  * what the reader is on. Turns are nodes keyed by id: a data change rebuilds only the turns whose data changed;
  * older turns are prepended without a jump; new ones are appended live. Answers render in a nested `<ui-ai-answer>`.
+ * `layout="page"`: as tall as the turns — the page scrolls (see `<ui-log-scroller layout="page">`).
  */
 export class UiConversation extends UiElement<ConversationData> {
   static override styles = [activityCss, styles];
   static get observedAttributes() {
-    return ['lang', 'selectable'];
+    return ['lang', 'selectable', 'layout'];
   }
 
   #log: UiLogScroller | null = null;
@@ -385,6 +386,9 @@ export class UiConversation extends UiElement<ConversationData> {
     const { lang, t } = this.#ctx;
     if (lang === 'ko') setAttr(log, 'lang', 'ko');
     else log.removeAttribute('lang');
+    // layout="page": the scroller is as tall as the turns and the page scrolls.
+    if (this.getAttribute('layout') === 'page') setAttr(log, 'layout', 'page');
+    else log.removeAttribute('layout');
     const error = d.error ? String(d.error) : '';
     const retry =
       d.canRetry !== false

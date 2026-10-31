@@ -151,11 +151,13 @@ export function anchorsIn(item: HTMLElement, hook?: LogAnchorsHook | null): Elem
  * `upsertItem` / `removeItem` touch only the nodes they name — existing nodes are never re-rendered. The reader's
  * place is held on the rows they see: items, their `[data-anchor]` descendants, the rows a host's `anchorsFor`
  * names, or `[data-anchor]` rows inside an element item's open shadow root (`<ui-agent-tree>` marks its rows so).
+ * `layout="page"`: as tall as its items — the page scrolls; older pages come by the button, or on their own once the
+ * reader scrolls up to the top row; no latest pill (the page's scroll is the reader's).
  */
 export class UiLogScroller extends UiElement<LogScrollerData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang'];
+    return ['lang', 'layout'];
   }
 
   #vp: HTMLElement | null = null;
@@ -180,6 +182,9 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
   #ro: ResizeObserver | null = null;
   #io: IntersectionObserver | null = null;
   #fillQueued = false;
+  /** `layout="page"`: the window's scroll is listened to instead of the box's. */
+  #winListening = false;
+  readonly #onWin = () => this.#onWindowScroll();
 
   /**
    * Names the rows inside an item whose place is kept (`(item) => Element[]`) — for an element item that draws its
@@ -203,8 +208,21 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     });
   }
 
-  attributeChangedCallback(): void {
+  attributeChangedCallback(name: string): void {
+    if (name === 'layout') {
+      // The observers are built for one mode: start over in the other.
+      this.#ro?.disconnect();
+      this.#io?.disconnect();
+      this.#ro = null;
+      this.#io = null;
+      this.#syncWindow();
+    }
     this.requestRender();
+  }
+
+  /** `layout="page"`: the box does not scroll — the page does. */
+  get #page(): boolean {
+    return this.getAttribute('layout') === 'page';
   }
 
   override set data(value: LogScrollerData | undefined) {
@@ -223,6 +241,7 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
   override connectedCallback(): void {
     super.connectedCallback();
     this.renderNow();
+    this.#syncWindow();
   }
 
   override disconnectedCallback(): void {
@@ -232,6 +251,7 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     this.#io?.disconnect();
     this.#ro = null;
     this.#io = null;
+    this.#syncWindow();
   }
 
   // ── Public API ───────────────────────────────────────────────────────────
@@ -341,7 +361,7 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     this.renderNow();
   }
 
-  /** Go to the newest item (smooth unless reduced motion or `smooth: false`). */
+  /** Go to the newest item (smooth unless reduced motion or `smooth: false`). In `layout="page"` the page scrolls. */
   scrollToLatest(opts: { smooth?: boolean } = {}): void {
     const vp = this.#vp;
     this.#pinned = true;
@@ -350,6 +370,15 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     this.#armed = false;
     this.#syncChrome();
     if (!vp) return;
+    if (this.#page) {
+      const last = this.items[this.items.length - 1] ?? vp;
+      if (typeof last.scrollIntoView === 'function')
+        last.scrollIntoView({
+          block: 'end',
+          behavior: opts.smooth !== false && !prefersReducedMotion() ? 'smooth' : 'auto',
+        });
+      return;
+    }
     const smooth = opts.smooth !== false && !prefersReducedMotion() && typeof vp.scrollTo === 'function';
     if (smooth) {
       this.#glideUntil = Date.now() + GLIDE_MS;
@@ -426,7 +455,7 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
   }
 
   #showJump(): boolean {
-    if (this.#pinned) return false;
+    if (this.#pinned || this.#page) return false;
     if (this.#unread > 0) return true;
     const vp = this.#vp;
     return !!vp && vp.scrollHeight - vp.clientHeight - vp.scrollTop > vp.clientHeight;
@@ -502,7 +531,8 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     }
     this.#io?.disconnect();
     const top = this.$('.ls-top');
-    if (top && typeof IntersectionObserver === 'function') {
+    // In layout="page" the window's scroll says when the top row is near (#onWindowScroll), not a box sentinel.
+    if (top && !this.#page && typeof IntersectionObserver === 'function') {
       this.#io = new IntersectionObserver(
         (entries) => {
           if (entries.some((e) => e.isIntersecting)) this.#maybeFill();
@@ -562,6 +592,31 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     if (this.#pinned) this.#stick();
     else if (this.#held) this.#restore(this.#held);
     this.#syncChrome();
+  }
+
+  /** `layout="page"`: listen to the window while connected in that mode; let go otherwise. */
+  #syncWindow(): void {
+    const want = this.isConnected && this.#page && typeof window !== 'undefined';
+    if (want === this.#winListening) return;
+    this.#winListening = want;
+    if (want) {
+      this.#lastTop = window.scrollY;
+      window.addEventListener('scroll', this.#onWin, { passive: true });
+    } else window.removeEventListener('scroll', this.#onWin);
+  }
+
+  /** The page scrolled: moving up arms the next older page (a landing never does), as the box's own scroll would. */
+  #onWindowScroll(): void {
+    const y = window.scrollY;
+    if (Math.abs(y - this.#lastTop) < 1) return;
+    const up = y < this.#lastTop;
+    this.#lastTop = y;
+    this.#held = null;
+    if (up) {
+      this.#armed = true;
+      this.#stalled = false;
+    }
+    this.#maybeFill();
   }
 
   /** Change the items; a reader above the newest keeps the rows they see where they were. */
@@ -652,6 +707,15 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
   #maybeFill(): void {
     const vp = this.#vp;
     if (!vp || !this.data?.hasMore || this.data?.loading || this.#olderLoading || !this.items.length) return;
+    if (this.#page) {
+      // A page never fills itself (it would page in the whole history): only once the reader scrolled up and the
+      // top row is within a window height of the view.
+      if (!this.#armed || this.#stalled) return;
+      const top = this.$('.ls-top')?.getBoundingClientRect();
+      const h = window.innerHeight || 0;
+      if (top && top.bottom > -h) this.#requestOlder(false);
+      return;
+    }
     const cannotScroll = vp.scrollHeight <= vp.clientHeight + 1;
     if (this.#stalled && (cannotScroll || !this.#armed)) return;
     if (!logPageDue(vp.scrollTop, vp.scrollHeight, vp.clientHeight, this.#armed)) return;

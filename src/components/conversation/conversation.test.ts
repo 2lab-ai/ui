@@ -949,6 +949,20 @@ describe('docs', () => {
   });
 });
 
+describe('<ui-conversation> layout="page" (D5 G5-5)', () => {
+  it('hands the attribute to its scroller and takes it back', () => {
+    const el = mount({ turns: [USER, BOT] }, { layout: 'page' });
+    const log = q<UiLogScroller>(el, 'ui-log-scroller')!;
+    expect(log.getAttribute('layout')).toBe('page');
+    el.removeAttribute('layout');
+    el.renderNow();
+    expect(log.getAttribute('layout')).toBeNull();
+    el.setAttribute('layout', 'page');
+    el.renderNow();
+    expect(log.getAttribute('layout')).toBe('page');
+  });
+});
+
 describe('<ui-conversation> selectable (D5 G5-1)', () => {
   it('a checkbox leads every turn but the writing row; checking marks the row, fills selectedIds and sends ui-select', () => {
     const el = mount({ turns: [USER, BOT, SYS], pending: true }, { selectable: '' });
