@@ -949,6 +949,85 @@ describe('docs', () => {
   });
 });
 
+describe('<ui-conversation> selectable (D5 G5-1)', () => {
+  it('a checkbox leads every turn but the writing row; checking marks the row, fills selectedIds and sends ui-select', () => {
+    const el = mount({ turns: [USER, BOT, SYS], pending: true }, { selectable: '' });
+    const boxes = qa(el, '.cv-turn > .cv-pick > .cv-pick-in') as HTMLInputElement[];
+    expect(boxes.length).toBe(3);
+    expect(boxes[0].getAttribute('aria-label')).toBe('Select the turn by dana');
+    expect(boxes[1].getAttribute('aria-label')).toBe('Select the turn by Assistant');
+    // The writing row keeps the column with nothing in it.
+    expect(node(el, PENDING_KEY).querySelector('.cv-pick-in')).toBeNull();
+    expect(node(el, PENDING_KEY).querySelector('.cv-pick')).not.toBeNull();
+    expect(el.selectedIds).toEqual([]);
+    const seen: unknown[] = [];
+    el.addEventListener('ui-select', (e) => seen.push((e as CustomEvent).detail));
+    boxes[1].click();
+    expect(boxes[1].checked).toBe(true);
+    expect(node(el, 'a1').hasAttribute('data-selected')).toBe(true);
+    expect(el.selectedIds).toEqual(['a1']);
+    boxes[0].click();
+    expect(el.selectedIds).toEqual(['u1', 'a1']); // the order shown, not the order picked
+    boxes[1].click();
+    expect(node(el, 'a1').hasAttribute('data-selected')).toBe(false);
+    expect(seen).toEqual([
+      { id: 'a1', selected: true, ids: ['a1'] },
+      { id: 'u1', selected: true, ids: ['u1', 'a1'] },
+      { id: 'a1', selected: false, ids: ['u1'] },
+    ]);
+  });
+
+  it('selectAll / clearSelection / selectedIds paint in place without ui-select; the selection survives a rebuild and a new turn, goes with another conversation', () => {
+    const el = mount({ turns: [USER, BOT], pending: true }, { selectable: '' });
+    const seen: unknown[] = [];
+    el.addEventListener('ui-select', (e) => seen.push((e as CustomEvent).detail));
+    el.selectAll();
+    expect(el.selectedIds).toEqual(['u1', 'a1']);
+    expect(qa(el, '.cv-pick-in').every((b) => (b as HTMLInputElement).checked)).toBe(true);
+    expect(qa(el, '.cv-turn[data-selected]').length).toBe(2);
+    // The turn is rebuilt (its data changed): the box stays checked.
+    el.data = { turns: [USER, { ...BOT, markdown: 'Fixed — and **tested**.' }, SYS] };
+    el.renderNow();
+    expect((node(el, 'a1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    expect(node(el, 'a1').hasAttribute('data-selected')).toBe(true);
+    expect((node(el, 's1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(false);
+    expect(el.selectedIds).toEqual(['u1', 'a1']);
+    el.selectedIds = ['s1', 'ghost'];
+    expect(el.selectedIds).toEqual(['s1']);
+    expect((node(el, 'u1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(false);
+    expect((node(el, 's1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    // An id kept for a turn that may come: the older page shows it checked.
+    el.data = { turns: [{ id: 'ghost', role: 'user', text: 'earlier' }, USER, BOT, SYS] };
+    el.renderNow();
+    expect((node(el, 'ghost').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    expect(el.selectedIds).toEqual(['ghost', 's1']);
+    el.clearSelection();
+    expect(el.selectedIds).toEqual([]);
+    expect(qa(el, '.cv-turn[data-selected]').length).toBe(0);
+    el.selectAll();
+    // Another conversation (no id in common) starts unselected.
+    el.data = { turns: [{ id: 'x1', role: 'user', text: 'other' }] };
+    el.renderNow();
+    expect(el.selectedIds).toEqual([]);
+    expect((node(el, 'x1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  it('the attribute off: no checkboxes; on again: the selection is still there; Korean names the box', () => {
+    const el = mount({ turns: [USER, BOT] }, { selectable: '' });
+    el.selectedIds = ['a1'];
+    el.removeAttribute('selectable');
+    el.renderNow();
+    expect(qa(el, '.cv-pick').length).toBe(0);
+    expect(node(el, 'u1').style.gridTemplateColumns).toBe('');
+    el.setAttribute('selectable', '');
+    el.renderNow();
+    expect((node(el, 'a1').querySelector('.cv-pick-in') as HTMLInputElement).checked).toBe(true);
+    const ko = mount({ turns: [{ ...USER, name: '박민아' }] }, { selectable: '', lang: 'ko' });
+    expect(q(ko, '.cv-pick-in')?.getAttribute('aria-label')).toBe('박민아의 대화 선택');
+  });
+});
+
 describe('sound', () => {
   let spy: SoundSpy;
   beforeEach(() => {
@@ -1005,6 +1084,23 @@ describe('sound', () => {
     press(kept.shadowRoot?.querySelector('.ans-load'));
     await spy.settle();
     expect(spy.calls).toHaveLength(5);
+  });
+
+  it('G5-1: a turn’s checkbox toggles forward and back; selectAll is the host’s and silent', async () => {
+    const el = mount({ turns: [USER, BOT] }, { selectable: '' });
+    const box = node(el, 'u1').querySelector('.cv-pick-in') as HTMLInputElement;
+    press(box);
+    await spy.settle();
+    expect(box.checked).toBe(true);
+    expect(spy.calls).toEqual([['toggle', { direction: 'forward', input: 'mouse' }]]);
+    press(box, 0); // Space on the box is a click with detail 0
+    await spy.settle();
+    expect(box.checked).toBe(false);
+    expect(spy.calls.at(-1)).toEqual(['toggle', { direction: 'back', input: 'keyboard' }]);
+    el.selectAll();
+    el.clearSelection();
+    await spy.settle();
+    expect(spy.calls).toHaveLength(2);
   });
 
   it('nothing for a prevented retry, data the app sets, or a data-ui-sound="off" region', async () => {
