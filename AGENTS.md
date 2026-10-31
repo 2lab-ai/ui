@@ -29,10 +29,12 @@ npm run consumer-check  # pack → install → NodeNext and node10 typecheck, ev
 - Every dynamic string → `esc` / `escAttr` / `safeHref` (`src/core/html.ts`). No `${userText}` in markup unescaped.
 - Strings: English default, Korean with `lang="ko"` (a `STRINGS = { en, ko }` table).
 - Focus survives re-render when the focused element has `data-key`. Timers update text nodes in place, not via re-render.
+  An element whose value moves (the meter's fill) overrides `update()` with `morphInto(this.content, this.render())`, so a
+  new value patches attributes on the nodes that are there and CSS transitions run — nothing re-enters.
 - Reduced motion is handled globally in `baseCss`; keep animations CSS-only where possible.
 - Page parts (`group: 'Pages'` in docs: settings-nav, setting-row, knowledge-pages, episode-log, auth-card) are the pieces of the pages
   around the app (settings, memory, sign-in); a host's own controls go in their slots, styled with the kit's `.ui-input` / `.ui-switch`.
-- Primitives (`group: 'Primitives'` in docs: segmented, tabs, menu, tooltip, hovercard, dialog, drawer, disclosure, log-scroller, elapsed) are the building
+- Primitives (`group: 'Primitives'` in docs: segmented, tabs, menu, tooltip, hovercard, dialog, drawer, disclosure, log-scroller, elapsed, meter) are the building
   blocks the components and the dashboard share. Reuse `src/core/popover.ts` (anchored overlays), `src/core/roving.ts`
   (roving tabindex) and glyphs from `src/icons/icons.ts` (`icon(name)`) instead of drawing new ones. Light-DOM styling
   for hosts lives in `src/kit/kit.ts` (`ui-kit.css`): tokens and `color-mix()` only, no hex / rgba literals.

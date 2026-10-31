@@ -41,8 +41,10 @@ import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { filterPages, type KnowledgePagesData, UiKnowledgePages } from '@2lab.ai/ui/knowledge-pages';
 import { type LogScrollerData, logJumpText, UiLogScroller } from '@2lab.ai/ui/log-scroller';
+import { type MediaGridData, type MediaOpenDetail, mediaLabel, UiMediaGrid } from '@2lab.ai/ui/media-grid';
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
 import { applyMenuSelect, type MenuData, UiMenu } from '@2lab.ai/ui/menu';
+import { type MeterData, type MeterTone, meterPercent, meterTone, UiMeter } from '@2lab.ai/ui/meter';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
 import { type SegmentedData, segmentedOptions, UiSegmented } from '@2lab.ai/ui/segmented';
@@ -133,6 +135,16 @@ const pages: KnowledgePagesData = { pages: [{ id: 'p1', title: 'Deploy checklist
 const episodes: EpisodeLogData = { days: [{ date: '2026-10-30', entries: [{ time: '09:12', text: 'Noted' }] }] };
 const auth: AuthCardData = { title: 'Sign in', providers: [{ id: 'sso', label: 'Continue', href: '/auth/sso' }] };
 const timer: ElapsedData = { since: 0, format: 'clock' };
+// LG4: the pictures grid and the meter.
+const shots: MediaGridData = {
+  items: [{ id: 'p1', name: 'login.png', url: '/media/1', alt: 'The login screen' }],
+  max: 4,
+};
+const opened: MediaOpenDetail = { id: 'p1', index: 0, item: shots.items[0] };
+const left: MeterData = { value: 0.72, low: 0.2, high: 0.5, label: 'Remaining usage', shape: 'battery' };
+const leftTone: MeterTone = meterTone(left.value, left);
+const gridEl: HTMLElementTagNameMap['ui-media-grid'] = document.createElement('ui-media-grid');
+const meterEl: HTMLElementTagNameMap['ui-meter'] = document.createElement('ui-meter');
 const navEl: HTMLElementTagNameMap['ui-settings-nav'] = document.createElement('ui-settings-nav');
 const authEl: HTMLElementTagNameMap['ui-auth-card'] = document.createElement('ui-auth-card');
 // Sound: the policy from the root and the subpath is one API; the Cuelume player has the SoundPlayer shape.
@@ -184,6 +196,8 @@ const classes = [
   UiEpisodeLog,
   UiAuthCard,
   UiElapsed,
+  UiMediaGrid,
+  UiMeter,
 ];
 console.log(
   typeof bindSound,
@@ -284,4 +298,10 @@ console.log(
   elapsedText(timer, 61_000),
   navEl.tagName,
   authEl.tagName,
+  mediaLabel(shots.items[0], 1, 1, 0),
+  opened.index,
+  meterPercent(left.value, left),
+  leftTone,
+  gridEl.tagName,
+  meterEl.tagName,
 );
