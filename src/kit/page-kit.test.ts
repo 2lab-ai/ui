@@ -71,6 +71,10 @@ describe('ui-kit.css — page parts (inputs, switch, card, notice, row)', () => 
     expect(kitCss).toContain('.ui-row + .ui-row { border-top: 1px solid var(--ui-ib-card-border); }');
   });
 
+  it('G5-4: the current row (aria-current, any value but "false") keeps the hover fill', () => {
+    expect(kitCss).toContain('.ui-row[aria-current]:not([aria-current="false"]) { background: var(--ui-ib-pill); }');
+  });
+
   it('keeps page-part hovers to colour on fine pointers', () => {
     const hover = lastMedia('(hover: hover) and (pointer: fine)');
     expect(hover).toContain('.ui-input:hover');
