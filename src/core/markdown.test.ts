@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_QUOTE_DEPTH, markdownHtml } from './markdown';
+import { MAX_QUOTE_DEPTH, markdownHtml, mdDocCss } from './markdown';
 
 const ms = (f: () => void) => {
   const t = performance.now();
@@ -40,5 +40,13 @@ describe('markdownHtml on hostile input', () => {
     expect(markdownHtml('> a\n> > b').replace(/\n/g, '')).toBe(
       '<blockquote><p>a</p><blockquote><p>b</p></blockquote></blockquote>',
     );
+  });
+});
+
+describe('mdDocCss', () => {
+  it('wraps long strings with overflow-wrap only, so a Korean host’s keep-all reaches the prose (D5 G4-4)', () => {
+    expect(mdDocCss).toContain('.md-doc { color: var(--text); overflow-wrap: anywhere; }');
+    expect(mdDocCss).not.toMatch(/word-break:\s*break-word/);
+    expect(mdDocCss).toContain('.md-doc:lang(ko) { word-break: keep-all; }');
   });
 });

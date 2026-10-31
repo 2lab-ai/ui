@@ -205,13 +205,14 @@ const CHART_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
 body{margin:0;padding:28px 32px;font:15px/1.5 system-ui,sans-serif;color:#18181b;background:#fff}
 h1{margin:0 0 4px;font-size:20px}p{margin:0 0 20px;color:#555}
 .bars{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;align-items:end;height:200px}
-.bar{display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:6px;font-size:12px;color:#555;text-align:center}
-.bar i{display:block;border-radius:8px 8px 0 0;background:#2f63e0;transition:height .5s ease}
+.bar{display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:4px;font-size:12px;color:#555;text-align:center}
+.bar i{display:block;margin-bottom:2px;border-radius:8px 8px 0 0;background:#2f63e0;transition:height .5s ease}
+.bar b{color:#18181b;font-weight:600}.bar small{font-size:11px}
 </style></head><body><h1>Weekly signups</h1><p id="note">This page draws its chart by script.</p><div class="bars" id="bars"></div>
 <script>
 const data=[["9/28",1204],["10/5",1318],["10/12",1290],["10/19",1452],["10/26",1511]];
 const max=Math.max(...data.map(d=>d[1]));const bars=document.getElementById('bars');
-for(const [w,n] of data){const b=document.createElement('div');b.className='bar';const i=document.createElement('i');i.style.height='0';b.append(i,n.toLocaleString(),w);bars.append(b);requestAnimationFrame(()=>{i.style.height=(n/max*160)+'px'});}
+for(const [w,n] of data){const b=document.createElement('div');b.className='bar';const i=document.createElement('i');i.style.height='0';const v=document.createElement('b');v.textContent=n.toLocaleString();const s=document.createElement('small');s.textContent=w;b.append(i,v,s);bars.append(b);requestAnimationFrame(()=>{i.style.height=(n/max*160)+'px'});}
 document.getElementById('note').textContent='Drawn by the page’s own script — '+data.length+' weeks, '+data.reduce((a,d)=>a+d[1],0).toLocaleString()+' signups.';
 </script></body></html>`;
 
