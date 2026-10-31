@@ -409,7 +409,8 @@ export const doc: ComponentDoc = {
     {
       name: 'slot="tool-<entry id>"',
       type: 'slot',
-      description: 'One per tool entry: the host’s <ui-tool-call-card>. Set lang / theme on the cards you slot.',
+      description:
+        'One per tool entry: the host’s <ui-tool-call-card>. Set lang / theme on the cards you slot. A slotted card is a row on the log’s arrow path: the log sets head-tabindex ("0" on the current row, "-1" on the rest) so the list keeps one tab stop, and ↑ / ↓ land on the card’s header.',
     },
     {
       name: '::part(viewport) · ::part(jump)',
@@ -449,7 +450,10 @@ export const doc: ComponentDoc = {
   ],
   keyboard: [
     ['Tab', 'The log has one stop: the newest row (or the one you last focused). The scroll box itself is a stop too.'],
-    ['↑ / ↓', 'Previous / next group head, openable row or child agent (rows of folded groups are skipped).'],
+    [
+      '↑ / ↓',
+      'Previous / next group head, openable row, child agent or slotted tool card (rows of folded groups are skipped).',
+    ],
     ['Home / End', 'First / last of those.'],
     ['Enter / Space', 'Open or fold a group; open or close a row’s raw output; open a child agent.'],
     ['→ / ← on a group head', 'Open / fold the group.'],
@@ -458,6 +462,7 @@ export const doc: ComponentDoc = {
     'The list is the scroller’s role="log" (polite); opened raw outputs are aria-live="off" so a long output is never read out.',
     'Group heads are buttons inside headings with aria-expanded and aria-controls; a folded group’s body is inert. Focus inside a group that folds moves to its head. A headless group has no head: its entries are always shown and on the arrow path.',
     'Openable rows are role="button" with aria-expanded / aria-controls; child agents are buttons named “Open <name> — <status>, <n> tools”.',
+    'A <ui-tool-call-card> slotted into a tool entry is on the same roving path as the rows: the log sets head-tabindex on it (its header follows), so one Tab stop covers rows and cards alike.',
     'Status is always an icon plus a word (Done, Failed, Running …), never colour alone; times are <time datetime>.',
     'Reduced motion: groups open without the height glide or chevron turn; spinners stand still.',
     'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the user opens or folds a group or a row, a soft success when a copy lands, a tap for Retry, a navigate for Open on a child agent. Silent until the page turns sound on.',

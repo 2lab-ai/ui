@@ -122,8 +122,9 @@ export class UiWorkLog extends UiElement<WorkLogData> {
   #seq = 0;
   #lang: WorkLogLang | null = null;
   #scrollerSig = '';
-  /** `data-key` of the row the reader last focused: the log's one tab stop. */
+  /** `data-key` of the row (or `t:<entry id>` of the slotted card) the reader last focused: the log's one tab stop. */
   #current: string | null = null;
+  #slotListening = false;
   /** A ui-load-older went out (not prevented) and no page came back yet. */
   #olderPending = false;
   #tick: ReturnType<typeof setInterval> | null = null;
@@ -131,18 +132,25 @@ export class UiWorkLog extends UiElement<WorkLogData> {
   constructor() {
     super();
     this.root.addEventListener('click', (e) => this.#onClick(e));
-    this.root.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
+    // Keys and focus from our own rows arrive at the shadow root; the host's cards in the tool slots are light
+    // children, so theirs are taken at the host (a browser also passes them through the slot — the root listener
+    // leaves anything outside our tree to the host one, so nothing is handled twice).
+    this.root.addEventListener('keydown', (e) => {
+      if (this.#ours(e.target)) this.#onKey(e as KeyboardEvent);
+    });
+    this.addEventListener('keydown', (e) => {
+      if (this.#slottedTarget(e.target)) this.#onKey(e as KeyboardEvent);
+    });
     // A live entry's rise runs once.
     this.root.addEventListener('animationend', (e) => {
       const t = e.target as Element | null;
       if (t?.classList?.contains('wl-entry')) t.removeAttribute('data-enter');
     });
     this.root.addEventListener('focusin', (e) => {
-      const t = e.target as HTMLElement | null;
-      if (t?.hasAttribute?.('data-nav') && t.dataset.key) {
-        this.#current = t.dataset.key;
-        this.#syncRoving();
-      }
+      if (this.#ours(e.target)) this.#onFocusIn(e.target as HTMLElement);
+    });
+    this.addEventListener('focusin', (e) => {
+      if (this.#slottedTarget(e.target)) this.#onFocusIn(e.target as HTMLElement);
     });
     // The scroller's page request passes through to the host (composed). Note it once nobody prevented it.
     this.root.addEventListener('ui-load-older', (e) => {
@@ -255,6 +263,11 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     const groups = denied ? [] : normGroups(d.groups);
     const open = openGroups(groups, this.#chosen);
 
+    // A card slotted into a tool entry joins the roving when it lands (and when it leaves).
+    if (!this.#slotListening) {
+      this.#slotListening = true;
+      this.root.addEventListener('slotchange', () => this.#syncRoving());
+    }
     // Groups that left.
     const ids = new Set(groups.map((g) => g.id));
     const gone = [...this.#groups.keys()].filter((id) => !ids.has(id));
@@ -514,25 +527,89 @@ export class UiWorkLog extends UiElement<WorkLogData> {
     this.#copied.delete(id);
   }
 
-  // ── Keyboard: one tab stop, arrows walk the visible heads and rows ───────
+  // ── Keyboard: one tab stop, arrows walk the visible heads, rows and slotted cards ──
 
-  /** Group heads, openable rows and child agents the reader can reach (not inside a closed group). */
-  #navs(): HTMLElement[] {
-    return this.$$<HTMLElement>('[data-nav]').filter((el) => {
-      const region = el.closest('.wl-g-region');
-      return !region || !!region.closest('.wl-group')?.hasAttribute('data-open');
-    });
+  /** An event target inside our shadow tree. */
+  #ours(t: EventTarget | null): t is HTMLElement {
+    return t instanceof HTMLElement && t.getRootNode() === this.root;
   }
 
+  /** An event target that is a light child of ours (a card in a tool slot; focus inside it is retargeted to it). */
+  #slottedTarget(t: EventTarget | null): t is HTMLElement {
+    return t instanceof HTMLElement && t !== this && t.getRootNode() !== this.root && !!this.#toolSlotOf(t);
+  }
+
+  /** The row (or slotted card) the reader focused becomes the log's one tab stop. */
+  #onFocusIn(t: HTMLElement): void {
+    const key = this.#navKey(t);
+    if (!key) return;
+    this.#current = key;
+    this.#syncRoving();
+  }
+
+  /** The slot a host's element sits in, when it is one of our tool slots. */
+  #toolSlotOf(el: Element): HTMLSlotElement | null {
+    const own = (el as HTMLElement).assignedSlot;
+    if (own && own.getRootNode() === this.root && own.name.startsWith('tool-')) return own;
+    // Engines without assignedSlot across the boundary: the slot that holds it.
+    return this.$$<HTMLSlotElement>('slot[name^="tool-"]').find((sl) => sl.assignedElements().includes(el)) ?? null;
+  }
+
+  /** The roving key of a row of ours (`data-key`) or of a slotted card (`t:<entry id>`); null for anything else. */
+  #navKey(el: HTMLElement): string | null {
+    if (el.getRootNode() === this.root) return el.hasAttribute('data-nav') ? (el.dataset.key ?? null) : null;
+    const slot = this.#toolSlotOf(el);
+    return slot ? `t:${slot.name.slice(5)}` : null;
+  }
+
+  /** The host's cards in the tool slots (the first element of each). */
+  #slottedNavs(): HTMLElement[] {
+    const out: HTMLElement[] = [];
+    for (const slot of this.$$<HTMLSlotElement>('slot[name^="tool-"]')) {
+      const el = slot.assignedElements()[0];
+      if (el instanceof HTMLElement) out.push(el);
+    }
+    return out;
+  }
+
+  /**
+   * Group heads, openable rows, child agents and the host's slotted tool cards the reader can reach (not inside a
+   * closed group), in document order — a walk over the children, so a tool entry's card sits where its slot is.
+   */
+  #navs(): HTMLElement[] {
+    const out: HTMLElement[] = [];
+    const visit = (el: Element, folded: boolean): void => {
+      for (const c of Array.from(el.children)) {
+        if (c.classList.contains('wl-group')) {
+          visit(c, !c.hasAttribute('data-open'));
+          continue;
+        }
+        if (c instanceof HTMLSlotElement) {
+          // The host's card in a tool slot (its fallback line has nothing to focus).
+          const card = !folded && c.name.startsWith('tool-') ? c.assignedElements()[0] : undefined;
+          if (card instanceof HTMLElement) out.push(card);
+          continue;
+        }
+        // A folded group's head stays reachable; its rows do not.
+        if (c.hasAttribute('data-nav') && (!folded || c.classList.contains('wl-gh'))) out.push(c as HTMLElement);
+        visit(c, folded);
+      }
+    };
+    visit(this.content, false);
+    return out;
+  }
+
+  /** One stop: our rows take tabindex 0 / -1; a slotted card is told through head-tabindex (its header follows). */
   #syncRoving(): void {
     const navs = this.#navs();
-    const cur = navs.find((n) => n.dataset.key === this.#current) ?? navs[navs.length - 1];
+    const cur = navs.find((n) => this.#navKey(n) === this.#current) ?? navs[navs.length - 1];
     for (const n of this.$$<HTMLElement>('[data-nav]')) syncAttr(n, 'tabindex', n === cur ? '0' : '-1');
+    for (const c of this.#slottedNavs()) syncAttr(c, 'head-tabindex', c === cur ? '0' : '-1');
   }
 
   #onKey(e: KeyboardEvent): void {
     const t = e.target as HTMLElement | null;
-    if (!t?.hasAttribute?.('data-nav')) return;
+    if (!t || !this.#navKey(t)) return;
     if (t.classList.contains('wl-row') && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       const id = t.closest<HTMLElement>('[data-entry]')?.dataset.entry;
@@ -549,6 +626,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       return;
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    if (e.defaultPrevented) return; // a slotted card that used the key itself
     const navs = this.#navs();
     const i = navs.indexOf(t);
     if (i < 0 || !navs.length) return;
@@ -560,6 +638,8 @@ export class UiWorkLog extends UiElement<WorkLogData> {
           ? navs.length - 1
           : Math.max(0, Math.min(navs.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
     navs[j].focus();
+    this.#current = this.#navKey(navs[j]);
+    this.#syncRoving();
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────

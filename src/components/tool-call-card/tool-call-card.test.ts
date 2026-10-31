@@ -520,6 +520,28 @@ describe('<ui-tool-call-card>', () => {
     expect(live(mount(READ))).toBe('');
   });
 
+  it('G2-3: head-tabindex sets the header’s tabindex and wins over focusable; focus() still lands on the header', () => {
+    const el = mount({ name: 'Read', status: 'success' }, { 'head-tabindex': '-1' });
+    expect(q(el, '.tc-head')?.getAttribute('tabindex')).toBe('-1');
+    el.setAttribute('head-tabindex', '0');
+    el.renderNow();
+    expect(q(el, '.tc-head')?.getAttribute('tabindex')).toBe('0');
+    el.data = { name: 'Read', status: 'success', focusable: false };
+    el.renderNow();
+    expect(q(el, '.tc-head')?.getAttribute('tabindex')).toBe('0');
+    el.setAttribute('head-tabindex', 'nope');
+    el.renderNow();
+    expect(q(el, '.tc-head')?.getAttribute('tabindex')).toBe('-1');
+    el.removeAttribute('head-tabindex');
+    el.data = { name: 'Read', status: 'success' };
+    el.renderNow();
+    expect(q(el, '.tc-head')?.hasAttribute('tabindex')).toBe(false);
+    el.setAttribute('head-tabindex', '-1');
+    el.renderNow();
+    el.focus();
+    expect(el.shadowRoot!.activeElement).toBe(q(el, '.tc-head'));
+  });
+
   it('focus() focuses the header button; focusable=false takes it out of the tab order', () => {
     const el = mount(READ);
     el.focus();
