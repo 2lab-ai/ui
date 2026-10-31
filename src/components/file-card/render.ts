@@ -46,6 +46,12 @@ export interface FileItem {
    */
   scripts?: boolean;
   /**
+   * pdf: the host vouches for the url (same origin, or a file store it trusts), so the viewer frames it as is in the
+   * browser's own PDF viewer — no sandbox, since a sandbox turns that viewer off. Without it a PDF is the calm card
+   * with Open and Download: an unvetted url never runs in an unsandboxed frame.
+   */
+  frame?: boolean;
+  /**
    * The first lines of a markdown / text document (fetched with a Range request, say) for the peek alone, when `text`
    * is not in hand. The viewer's body still wants `text`; without it, the card.
    */
