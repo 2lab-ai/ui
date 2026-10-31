@@ -13,6 +13,7 @@ export const KIT_CLASSES = [
   'ui-fab',
   'ui-chip',
   'ui-select-chip',
+  'ui-spinner',
   'ui-status',
   'ui-kbd',
   'ui-dl',
@@ -268,6 +269,23 @@ select.ui-select-chip:disabled, .ui-select-chip:has(> select:disabled) { opacity
 /* The list itself (the dropdown) on the page's surface, so it reads in the dark theme too. */
 :is(select.ui-select-chip, .ui-select-chip > select) > option { background: ${T('surface')}; color: ${T('text')}; }
 
+/* ── Spinner: the working ring — 0.9s linear, the arc in the run tone over a quiet track (data-tone recolours it,
+   .is-current takes the text colour, .is-sm / .is-lg). Decorative (aria-hidden) beside the word that says what runs;
+   in a .ui-status it replaces the dot. Rings on one page share a phase when the page sets
+   style="animation-delay: -<now % 900>ms" as it inserts one. ── */
+.ui-spinner {
+  --ui-tone: ${T('st-run')};
+  position: relative; display: inline-block; flex: none; box-sizing: border-box; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--ui-tone) 25%, transparent); border-top-color: var(--ui-tone); border-right-color: var(--ui-tone);
+  vertical-align: -2px; animation: ui-spin 0.9s linear infinite;
+}
+.ui-spinner.is-sm { width: 11px; height: 11px; border-width: 1.8px; vertical-align: -1px; }
+.ui-spinner.is-lg { width: 20px; height: 20px; border-width: 2.5px; vertical-align: -4px; }
+.ui-spinner.is-current { --ui-tone: currentColor; }
+${TONES.map(([k, dot]) => `.ui-spinner[data-tone="${k}"] { --ui-tone: ${dot}; }`).join('\n')}
+.ui-status > .ui-spinner { --ui-tone: inherit; }
+.ui-status:has(> .ui-spinner)::before { content: none; }
+
 /* ── Status: tone dot + word (st-* tones, idle = hollow); a leading <svg> replaces the dot; .is-pill adds the tint; [data-live] pulses ── */
 .ui-status {
   --ui-tone: ${T('ib-muted')};
@@ -414,6 +432,9 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-btn, .ui-icon-btn, .ui-chip, .ui-select-chip, .ui-fab { transition-duration: 0.01ms; }
   .ui-fab { animation: ui-fade-in 120ms ease both; }
   .ui-fab.is-extended, .ui-fab.is-extended > span { transition: none; }
+  /* The ring stands still as a track with a dot in the middle: still "working", nothing turns. */
+  .ui-spinner { animation: none; border-color: color-mix(in srgb, var(--ui-tone) 25%, transparent); }
+  .ui-spinner::after { content: ''; position: absolute; inset: 0; width: 4px; height: 4px; margin: auto; border-radius: 50%; background: var(--ui-tone); }
   .ui-skeleton, .ui-status[data-live]::before { animation: none; }
   .ui-status[data-live] > svg { animation: none; }
   .ui-expand { transition: none; }
@@ -422,6 +443,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-count[data-pop] { animation: ui-fade-in 120ms ease both; }
 }
 @keyframes ui-fab-in { from { opacity: 0; transform: scale(0.95); } }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
 @keyframes ui-fade-in { from { opacity: 0; } }
 @keyframes ui-count-pop { from { opacity: 0; transform: scale(0.9); } }
 @keyframes ui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
