@@ -262,7 +262,8 @@ select.ui-select-chip { display: inline-block; padding-right: 26px; background-p
   flex: 0 1 auto; min-height: 0; height: 100%; margin: 0; padding: 0 18px 0 0; border: 0; border-radius: 0; background-color: transparent;
   background-position: calc(100% - 6px) 52%, calc(100% - 2px) 52%;
 }
-.ui-select-chip > select:focus-visible { outline: none; }
+/* The ring moves to the chip only where :has can draw it there; elsewhere the select keeps its own. */
+@supports selector(:has(a)) { .ui-select-chip > select:focus-visible { outline: none; } }
 .ui-select-chip:has(> select:focus-visible), select.ui-select-chip:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
 select.ui-select-chip:disabled, .ui-select-chip:has(> select:disabled) { opacity: 0.5; cursor: not-allowed; }
 .ui-select-chip > select:disabled { cursor: not-allowed; }

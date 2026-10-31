@@ -81,7 +81,7 @@ const css = `
 :host { display: block; min-width: 0; }
 .mg { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 /* The "+N" veil sits on the picture, not on the theme: the same dark wash and white figure in light and dark. */
-.mg { --mg-scrim: rgba(0, 0, 0, 0.55); --mg-on: #fff; }
+.mg { --mg-scrim: color-mix(in srgb, #000 55%, transparent); --mg-on: #fff; }
 .mg-tile {
   position: relative; flex: 0 0 auto; width: 80px; height: 80px; padding: 0; overflow: hidden;
   border: 1px solid var(--ib-card-border); border-radius: 8px; background: var(--ib-col); color: var(--ib-muted);
