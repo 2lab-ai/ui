@@ -79,6 +79,12 @@ const SPECIMENS: KitSpecimen[] = [
     html: `<div class="kit-row"><span class="ui-chip">${I('file-code', 12)}report.html</span><span class="ui-chip">${I('file-image', 12)}chart.png</span><button class="ui-chip" aria-pressed="true">Mine</button><button class="ui-chip" aria-pressed="false">All</button><span class="ui-chip is-quiet">+3</span></div>`,
   },
   {
+    title: 'Select chip',
+    cls: 'ui-select-chip',
+    desc: 'A native <select> read as a label — the model picker’s trigger shape: as wide as its selected option (field-sizing: content; older engines take the widest option, capped by --ui-select-max), an ellipsis past the cap, a token chevron, the list on the page surface. On the <select> itself, or on a <label> with a leading word. The list, the keys and the picker stay the browser’s; mark it data-ui-sound="select" for the cue.',
+    html: `<div class="kit-row"><select class="ui-select-chip" aria-label="User" data-ui-sound="select"><option>All users</option><option selected>Daisy Park</option><option>Zhuge Liang-with-a-very-long-display-name</option></select><label class="ui-select-chip"><span>Model</span><select data-ui-sound="select"><option>claude-sonnet-4-5</option><option selected>claude-opus-5-5</option><option>claude-haiku-4-5</option></select></label><label class="ui-select-chip"><span>Effort</span><select data-ui-sound="select"><option>Low</option><option selected>Medium</option><option>High</option></select></label><label class="ui-select-chip"><span>Channel</span><select disabled><option selected>#ops</option></select></label></div>`,
+  },
+  {
     title: 'Status',
     cls: 'ui-status',
     desc: 'A tone dot and a word in the st-* tones; text is mixed toward ink (≥ 4.5:1 in both themes). .is-pill adds the 16% tint; data-live pulses the dot.',

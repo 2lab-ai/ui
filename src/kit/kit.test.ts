@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import tokens from '../core/tokens.json';
 import { KIT_CLASSES, kitCss } from './kit';
 
-const KNOWN = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared), 'tone']);
+// The kit's own knobs beside the tokens: `--ui-tone` (a tone's colour) and `--ui-select-max` (a select chip's cap).
+const KNOWN = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared), 'tone', 'select-max']);
 
 describe('ui-kit.css', () => {
   it('defines every class it lists', () => {
@@ -106,6 +107,51 @@ describe('ui-kit.css', () => {
     expect(kitCss).toMatch(
       /:is\(\.ui-notice, \.ui-card, \.ui-row, \.ui-dl,[^)]*\):lang\(ko\) \{ word-break: keep-all; \}/,
     );
+  });
+
+  it('select chip: the trigger shape, sized to its selected option, a token chevron, a word form, a focus ring (A-11, H-02)', () => {
+    expect(KIT_CLASSES).toContain('ui-select-chip');
+    const chip = /\.ui-select-chip \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    // The model picker's trigger: the neutral well, 8px, 30px, 13px / 500.
+    expect(chip).toContain('min-height: 30px');
+    expect(chip).toContain('border-radius: 8px');
+    expect(chip).toContain('background-color: var(--ui-ib-seg)');
+    expect(chip).toContain('font-size: 13px; font-weight: 500');
+    const select = /select\.ui-select-chip, \.ui-select-chip > select \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(select).toContain('appearance: none');
+    expect(select).toContain('field-sizing: content');
+    expect(select).toContain('max-width: var(--ui-select-max, 220px)');
+    expect(select).toContain('text-overflow: ellipsis');
+    // The chevron is two token-coloured triangles, never a data URI.
+    expect(select).toContain('var(--ui-ib-muted) 50%');
+    expect(select).not.toContain('url(');
+    // The word form: a quiet leading word, the select inside loses its own box.
+    expect(kitCss).toMatch(
+      /\.ui-select-chip > span \{[^}]*font-size: 11\.5px; font-weight: 600; color: var\(--ui-ib-muted\)/,
+    );
+    expect(kitCss).toMatch(/\.ui-select-chip > select \{[^}]*border: 0;[^}]*background-color: transparent/);
+    expect(kitCss).toContain(
+      '.ui-select-chip:has(> select:focus-visible), select.ui-select-chip:focus-visible { outline: 2px solid var(--ui-border-focus); outline-offset: 2px; }',
+    );
+    expect(kitCss).toContain('.ui-select-chip > select:focus-visible { outline: none; }');
+    expect(kitCss).toMatch(/\.ui-select-chip:has\(> select:disabled\) \{ opacity: 0\.5; cursor: not-allowed; \}/);
+    // The dropdown list on the page surface (dark theme too).
+    expect(kitCss).toContain(
+      ':is(select.ui-select-chip, .ui-select-chip > select) > option { background: var(--ui-surface); color: var(--ui-text); }',
+    );
+    // Hover: the well, colour only, fine pointers; 44px and 16px type on touch; keep-all in Korean.
+    const hover = kitCss.slice(kitCss.indexOf('@media (hover: hover)'));
+    expect(hover.slice(0, hover.indexOf('\n}\n'))).toContain(
+      'select.ui-select-chip:hover:not(:disabled), .ui-select-chip:hover:has(> select:not(:disabled)) { background-color: color-mix(in srgb, var(--ui-ib-text) 6%, var(--ui-ib-card)); }',
+    );
+    const coarse = kitCss.slice(kitCss.indexOf('@media (pointer: coarse), (max-width: 639px)'));
+    expect(coarse.slice(0, coarse.indexOf('\n}\n'))).toContain('.ui-select-chip { min-height: 44px; }');
+    expect(kitCss).toMatch(
+      /@media \(pointer: coarse\) \{\s*select\.ui-select-chip, \.ui-select-chip > select \{ font-size: 16px; \}/,
+    );
+    expect(kitCss).toMatch(/:is\([^)]*\.ui-select-chip[^)]*\):lang\(ko\) \{ word-break: keep-all; \}/);
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(rm.slice(0, rm.indexOf('\n}\n'))).toContain('.ui-select-chip, .ui-fab { transition-duration: 0.01ms; }');
   });
 
   it('parses as CSS in the DOM', () => {

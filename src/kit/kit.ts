@@ -12,6 +12,7 @@ export const KIT_CLASSES = [
   'ui-icon-btn',
   'ui-fab',
   'ui-chip',
+  'ui-select-chip',
   'ui-status',
   'ui-kbd',
   'ui-dl',
@@ -226,6 +227,35 @@ button.ui-chip, a.ui-chip { cursor: pointer; -webkit-tap-highlight-color: transp
 .ui-chip.is-quiet { background: transparent; }
 .ui-chip:disabled, .ui-chip[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Select chip: a native <select> read as a label (the model picker's trigger shape) — as wide as its selected
+   option (field-sizing: content; older engines take the widest option, capped by --ui-select-max), an ellipsis past
+   the cap, the chevron from tokens. On the <select> itself, or on a <label> with a leading word: <label class=
+   "ui-select-chip"><span>Model</span><select>…</select></label>. Mark it data-ui-sound="select" for the cue. ── */
+.ui-select-chip {
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; max-width: 100%; min-width: 0; min-height: 30px;
+  margin: 0; padding: 0 9px 0 10px; border: 1px solid ${T('ib-card-border')}; border-radius: 8px; background-color: ${T('ib-seg')};
+  color: ${T('ib-text')}; font: inherit; font-size: 13px; font-weight: 500; line-height: 1.2; white-space: nowrap; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: background-color ${COLOR_T}, border-color ${COLOR_T}, opacity ${COLOR_T};
+}
+.ui-select-chip > span { flex: none; font-size: 11.5px; font-weight: 600; color: ${T('ib-muted')}; }
+select.ui-select-chip, .ui-select-chip > select {
+  appearance: none; -webkit-appearance: none; min-width: 0; max-width: var(--ui-select-max, 220px); field-sizing: content;
+  overflow: hidden; text-overflow: ellipsis; color: inherit; font: inherit; font-weight: 500; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, ${T('ib-muted')} 50%), linear-gradient(135deg, ${T('ib-muted')} 50%, transparent 50%);
+  background-size: 4px 4px; background-repeat: no-repeat;
+}
+select.ui-select-chip { display: inline-block; padding-right: 26px; background-position: calc(100% - 14px) 52%, calc(100% - 10px) 52%; }
+.ui-select-chip > select {
+  flex: 0 1 auto; min-height: 0; height: 100%; margin: 0; padding: 0 18px 0 0; border: 0; border-radius: 0; background-color: transparent;
+  background-position: calc(100% - 6px) 52%, calc(100% - 2px) 52%;
+}
+.ui-select-chip > select:focus-visible { outline: none; }
+.ui-select-chip:has(> select:focus-visible), select.ui-select-chip:focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
+select.ui-select-chip:disabled, .ui-select-chip:has(> select:disabled) { opacity: 0.5; cursor: not-allowed; }
+.ui-select-chip > select:disabled { cursor: not-allowed; }
+/* The list itself (the dropdown) on the page's surface, so it reads in the dark theme too. */
+:is(select.ui-select-chip, .ui-select-chip > select) > option { background: ${T('surface')}; color: ${T('text')}; }
+
 /* ── Status: tone dot + word (st-* tones, idle = hollow); a leading <svg> replaces the dot; .is-pill adds the tint; [data-live] pulses ── */
 .ui-status {
   --ui-tone: ${T('ib-muted')};
@@ -335,7 +365,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
 .ui-count[data-pop] { animation: ui-count-pop ${T('dur-move')} ${T('ease-out')} both; }
 
 /* ── Korean: prose breaks between words, never inside them (the page's or the element's lang="ko") ── */
-:is(.ui-notice, .ui-card, .ui-row, .ui-dl, .ui-empty, .ui-status-line, .ui-section-head, .ui-input, .ui-btn, .ui-chip, .ui-status):lang(ko) { word-break: keep-all; }
+:is(.ui-notice, .ui-card, .ui-row, .ui-dl, .ui-empty, .ui-status-line, .ui-section-head, .ui-input, .ui-btn, .ui-chip, .ui-select-chip, .ui-status):lang(ko) { word-break: keep-all; }
 
 /* ── Focus, press ── */
 :is(.ui-btn, .ui-icon-btn, .ui-fab, .ui-chip):focus-visible { outline: 2px solid ${T('border-focus')}; outline-offset: 2px; }
@@ -354,6 +384,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-icon-btn.is-bordered:hover:not(:disabled):not([aria-disabled="true"]) { border-color: ${T('ib-muted')}; }
   .ui-fab:hover { opacity: 0.9; }
   :is(button.ui-chip, a.ui-chip):hover:not(:disabled):not([aria-disabled="true"]) { border-color: ${T('ib-muted')}; }
+  select.ui-select-chip:hover:not(:disabled), .ui-select-chip:hover:has(> select:not(:disabled)) { background-color: color-mix(in srgb, ${T('ib-text')} 6%, ${T('ib-card')}); }
 }
 /* ── 44px targets on touch and narrow screens ── */
 @media (pointer: coarse), (max-width: 639px) {
@@ -361,10 +392,14 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-icon-btn, .ui-icon-btn.is-sm, .ui-icon-btn.is-bordered { width: 44px; height: 44px; }
   :is(button.ui-chip, a.ui-chip) { position: relative; }
   :is(button.ui-chip, a.ui-chip)::after { content: ''; position: absolute; inset: -10px 0; }
+  .ui-select-chip { min-height: 44px; }
+}
+@media (pointer: coarse) {
+  select.ui-select-chip, .ui-select-chip > select { font-size: 16px; }
 }
 /* ── Reduced motion: nothing moves; overlays of meaning (opacity) stay short ── */
 @media (prefers-reduced-motion: reduce) {
-  .ui-btn, .ui-icon-btn, .ui-chip, .ui-fab { transition-duration: 0.01ms; }
+  .ui-btn, .ui-icon-btn, .ui-chip, .ui-select-chip, .ui-fab { transition-duration: 0.01ms; }
   .ui-fab { animation: ui-fade-in 120ms ease both; }
   .ui-skeleton, .ui-status[data-live]::before { animation: none; }
   .ui-status[data-live] > svg { animation: none; }
