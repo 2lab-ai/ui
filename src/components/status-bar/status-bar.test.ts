@@ -184,6 +184,41 @@ describe('<ui-status-bar> rendering', () => {
     expect(b.every((x) => x.type === 'button' && x.dataset.key)).toBe(true);
   });
 
+  it('names, tips, presses and quiets an action: ariaLabel, title, pressed, tone quiet (D3 G6-1)', () => {
+    const el = mount({
+      status: 'running',
+      actions: [
+        { id: 'close', label: 'Close', ariaLabel: 'Close — end the session', title: 'Ends the session for everyone' },
+        { id: 'star', label: '★ Starred', icon: 'star', pressed: true, title: 'Kept at the top of the board' },
+        { id: 'unstar', label: '☆ Star', icon: 'star', pressed: false },
+        { id: 'trash', label: 'Trash', icon: 'trash', tone: 'quiet' },
+        { id: 'ro', label: 'Archive', title: 'Archive it', disabled: 'Read-only' },
+        { id: 'stop', label: 'Stop', tone: 'danger', ariaLabel: 'Stop — halt the session' },
+        { id: 'blank', label: 'Blank', ariaLabel: '  ', title: ' ' },
+      ],
+    });
+    const b = qa<HTMLButtonElement>(el, '.sb-btn');
+    expect(b[0].getAttribute('aria-label')).toBe('Close — end the session');
+    expect(b[0].title).toBe('Ends the session for everyone');
+    expect(b[0].hasAttribute('aria-pressed')).toBe(false);
+    expect(b[1].getAttribute('aria-pressed')).toBe('true');
+    expect(b[1].title).toBe('Kept at the top of the board');
+    expect(b[2].getAttribute('aria-pressed')).toBe('false');
+    expect(b[3].className).toBe('sb-btn is-quiet');
+    expect(b[4].title).toBe('Read-only');
+    expect(b[5].getAttribute('aria-label')).toBe('Stop — halt the session');
+    expect(b[6].hasAttribute('aria-label')).toBe(false);
+    expect(b[6].hasAttribute('title')).toBe(false);
+    // Armed: the “Press again” name wins over the host's name.
+    b[5].click();
+    el.renderNow();
+    expect(btn(el, 'stop').getAttribute('aria-label')).toBe('Press again to confirm: Stop');
+    expect(styles).toContain(
+      '.sb-btn.is-quiet { border-color: transparent; background: transparent; color: var(--ib-text-2); }',
+    );
+    expect(styles).toContain('.sb-btn[aria-pressed="true"]:not(.is-primary) { background: var(--ib-seg-on);');
+  });
+
   it('escapes every action field and the link', () => {
     const evil = '"><img src=x onerror=alert(1)>';
     const el = mount({
