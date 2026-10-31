@@ -1,5 +1,5 @@
 import { define, UiElement } from '../../core/element';
-import { fmtDuration } from '../../core/format';
+import { fmtDurationIn } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import {
@@ -350,7 +350,7 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
   #tick(): void {
     const now = Date.now() + this.#skew;
     for (const el of this.$$('[data-since]')) {
-      const txt = fmtDuration(now - (Number(el.dataset.since) || now));
+      const txt = fmtDurationIn(now - (Number(el.dataset.since) || now), this.#lang);
       if (el.textContent !== txt) el.textContent = txt;
     }
   }
