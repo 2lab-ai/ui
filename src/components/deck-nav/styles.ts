@@ -26,6 +26,8 @@ export const styles = `
 
 /* ── Peek: up to two card tops behind the front card (the far one narrower and fainter), meeting what sits below ── */
 .dn-peek { display: flex; flex-direction: column; align-items: center; margin-bottom: -1px; }
+/* peek="only": no controls — the edges span the host's width (a panel header's top) */
+.dn.is-peek-only { gap: 0; }
 .dn-edge {
   display: block; box-sizing: border-box; height: 0; opacity: 0; border: 1px solid color-mix(in srgb, var(--text-tertiary) 40%, var(--ib-card-border));
   border-bottom: 0; border-radius: 10px 10px 0 0; background: color-mix(in srgb, var(--ib-pill) 60%, var(--ib-card));
