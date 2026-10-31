@@ -57,7 +57,7 @@ function files(): FileItem[] {
     { id: 'code', name: 'retry.ts', size: 1_180, text: 'export const a = 1;\n', url: '/files/retry.ts' },
     { id: 'memo', name: 'memo.wav', size: 70_600, url: 'blob:https://app.example/1234' },
     { id: 'clip', name: 'demo.mp4', url: '/files/demo.mp4' },
-    { id: 'invoice', name: 'invoice.pdf', size: 318_464, url: '/files/invoice.pdf', downloadName: 'Invoice Oct.pdf' },
+    { id: 'bundle', name: 'bundle.zip', size: 318_464, url: '/files/bundle.zip', downloadName: 'Bundle Oct.zip' },
   ];
 }
 
@@ -197,8 +197,8 @@ describe('helpers', () => {
   });
 
   it('viewerBodyKind picks the body from the kind and the content it carries', () => {
-    const [shot, notes, page, code, memo, clip, invoice] = files();
-    expect([shot, notes, page, code, memo, clip, invoice].map((x) => viewerBodyKind(x))).toEqual([
+    const [shot, notes, page, code, memo, clip, bundle] = files();
+    expect([shot, notes, page, code, memo, clip, bundle].map((x) => viewerBodyKind(x))).toEqual([
       'image',
       'markdown',
       'html',
@@ -215,6 +215,10 @@ describe('helpers', () => {
     expect(viewerBodyKind({ id: '1', name: 'a.log', text: 'line' })).toBe('text');
     expect(viewerBodyKind({ id: '1', name: 'a.log' })).toBe('fallback');
     expect(viewerBodyKind({ id: '1', name: 'blob', text: 'raw' })).toBe('text');
+    // D4 G5-1: a PDF with a url is the browser's viewer; without one, the card.
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: '/files/invoice.pdf' })).toBe('pdf');
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf' })).toBe('fallback');
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: 'javascript:alert(1)' })).toBe('fallback');
   });
 
   it('viewerStrings: English unless ko', () => {
@@ -521,11 +525,11 @@ describe('viewer', () => {
     const el = mount({ items: files() });
     el.open(6);
     expect(q(el, '.av-stage')?.dataset.body).toBe('fallback');
-    expect(q(el, '.av-card .av-fname')?.textContent).toBe('invoice.pdf');
+    expect(q(el, '.av-card .av-fname')?.textContent).toBe('bundle.zip');
     expect(q(el, '.av-card .av-fnote')?.textContent).toBe('No preview');
     const dl = q<HTMLAnchorElement>(el, '.av-card a.av-act[data-act="download"]')!;
     expect(dl.classList.contains('is-primary')).toBe(true);
-    expect(dl.getAttribute('download')).toBe('Invoice Oct.pdf');
+    expect(dl.getAttribute('download')).toBe('Bundle Oct.zip');
     expect(q(el, '.av-vf .av-act')).toBeNull();
   });
 
@@ -637,6 +641,46 @@ describe('viewer', () => {
     expect(q(el, '.av-audio .av-fname')?.textContent).toBe('memo.wav');
     el.next();
     expect(q(el, '.av-vid video')?.getAttribute('src')).toBe('/files/demo.mp4');
+  });
+
+  it('D4 G5-1: a PDF is framed as is (the browser’s viewer, no sandbox); a page with scripts: true runs them in the viewer and the peek', () => {
+    const el = mount({
+      items: [
+        { id: 'inv', name: 'invoice.pdf', url: '/files/invoice.pdf', downloadName: 'Invoice Oct.pdf' },
+        { id: 'chart', name: 'chart.html', text: '<h1>Hi</h1><script>draw()</script>', scripts: true },
+        { id: 'page', name: 'landing.html', text: '<h1>Hi</h1>' },
+        { id: 'nourl', name: 'scan.pdf' },
+      ],
+    });
+    el.open(0);
+    expect(q(el, '.av-stage')?.dataset.body).toBe('pdf');
+    const pdf = q<HTMLIFrameElement>(el, '.av-pdf iframe.av-frame')!;
+    expect(pdf.getAttribute('src')).toBe('/files/invoice.pdf');
+    expect(pdf.hasAttribute('sandbox')).toBe(false);
+    expect(pdf.getAttribute('title')).toBe('invoice.pdf');
+    expect(q(el, '.av-note')).toBeNull();
+    // The footer keeps Open / Download for it (the body is not the fallback card).
+    expect(qa(el, '.av-vf .av-act').map((a) => (a as HTMLElement).dataset.act)).toEqual(['open', 'download']);
+    el.next();
+    expect(q(el, '.av-stage')?.dataset.body).toBe('html');
+    const frame = q<HTMLIFrameElement>(el, '.av-html iframe.av-frame')!;
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(frame.getAttribute('srcdoc')).toBe('<h1>Hi</h1><script>draw()</script>');
+    expect(q(el, '.av-note')?.textContent).toBe('Runs its own scripts');
+    expect(qa(el, 'script')).toHaveLength(0);
+    el.next();
+    expect(q<HTMLIFrameElement>(el, '.av-html iframe.av-frame')?.getAttribute('sandbox')).toBe('');
+    expect(q(el, '.av-note')?.textContent).toBe('Scripts are off');
+    el.next();
+    expect(q(el, '.av-stage')?.dataset.body).toBe('fallback');
+    expect(q(el, '.av-card .av-fname')?.textContent).toBe('scan.pdf');
+    el.close();
+    const ko = mount(
+      { items: [{ id: 'chart', name: 'chart.html', text: '<h1>Hi</h1>', scripts: true }] },
+      { lang: 'ko' },
+    );
+    ko.open(0);
+    expect(q(ko, '.av-note')?.textContent).toBe('스크립트 켜짐');
   });
 
   it('escapes names and text in every body; an HTML page is only an attribute', () => {
@@ -997,6 +1041,15 @@ describe('peek', () => {
     expect(peek.querySelector('iframe')?.getAttribute('srcdoc')).toBe(PAGE_XSS);
     expect(peek.querySelector('iframe')?.getAttribute('sandbox')).toBe('');
     expect(qa(el, 'img, script')).toHaveLength(0);
+  });
+
+  it('D4 G5-1: a page with scripts: true runs them in the peek too (sandbox="allow-scripts"), never same-origin', () => {
+    const el = mount({ items: [{ id: 'x', name: 'chart.html', text: '<h1>Hi</h1>', scripts: true }] });
+    pointer(tiles(el)[0], 'pointerover');
+    vi.advanceTimersByTime(PEEK_DELAY_MS);
+    const frame = q(el, '.av-peek')!.querySelector('iframe')!;
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(frame.getAttribute('srcdoc')).toBe('<h1>Hi</h1>');
   });
 });
 
