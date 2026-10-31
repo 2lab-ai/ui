@@ -15,7 +15,8 @@ function el(attrs: Record<string, string>): HTMLElement {
 function line(parts: Array<string | HTMLElement>, cls = ''): HTMLElement {
   const p = document.createElement('p');
   p.style.cssText = 'margin:0;font-size:13.5px;line-height:1.5;color:var(--ui-ib-text-2)';
-  if (cls) p.className = cls;
+  if (cls === 'ko') p.lang = 'ko';
+  else if (cls) p.className = cls;
   for (const x of parts) p.append(typeof x === 'string' ? document.createTextNode(x) : x);
   return p;
 }
@@ -34,7 +35,7 @@ export const doc: ComponentDoc = {
   summary:
     'How long has it run, how long ago, how long is left? — one live time that ticks in place and stops by itself.',
   description:
-    'An inline element for every live time on a page: a running task’s elapsed time (9m 22s), a stopwatch (2:15:07), a relative time (5m ago) or a countdown (3m 12s left until the next run). All of them tick on one shared timer, on whole seconds, so a page of twenty timers turns together; the text node changes in place (no re-render, no layout shift — tabular figures), and an element leaves the timer by itself once its time is final (a finished run, a countdown at zero). It takes the font and colour around it, carries a <time datetime> with the full date in its title, and says “ui-end” once when a countdown reaches zero.',
+    'An inline element for every live time on a page: a running task’s elapsed time (9m 22s), a stopwatch (2:15:07), a relative time (5m ago) or a countdown (3m 12s left until the next run). All of them tick on one shared timer, on whole seconds, so a page of twenty timers turns together; the text node changes in place (no re-render, no layout shift — tabular figures), and an element leaves the timer by itself once its time is final (a finished run, a countdown at zero). It takes the font and colour around it, carries a <time datetime> with the full date in its title, and says “ui-end” once when a countdown reaches zero. A countdown can speak the host’s words: `after` follows the time (“3분 후”, “24분 후 복귀”), `at-zero` replaces 0s from the moment it would read so (“곧 복귀” — never “곧 후”), and `precision="minute"` is the loose form a scheduled run is told in (42초 · 24분 · 1시간 20분 · 1일 5시간).',
   usedIn: 'soma-work dashboard live timers: card timers, relative times and task elapsed times (K-03).',
   reference: { name: 'Relative time', url: 'https://www.affectui.com' },
   group: 'Primitives',
@@ -55,11 +56,36 @@ export const doc: ComponentDoc = {
       default: '"duration"',
       description: '42s · 9m 22s · 2h 15m — 0:42 · 2:15:07 — just now · 5m ago — time left until `until`.',
     },
-    { name: 'lang', type: '"en" | "ko"', default: '"en"', description: '9m 22s / 9분 22초, 5m ago / 5분 전.' },
+    {
+      name: 'precision',
+      type: '"second" | "minute"',
+      default: '"second"',
+      description:
+        'minute: the loose form for a duration or countdown — seconds under a minute, then whole minutes, hours and minutes, days and hours (42s · 24m · 1h 20m · 1d 5h; ko 42초 · 24분 · 1시간 20분 · 1일 5시간), floored, unpadded. `fmtSpanCoarse(ms, lang)` is the rule.',
+    },
+    {
+      name: 'after',
+      type: 'attribute / data.after: string',
+      description:
+        'Words after the time: `left` → “3m 12s left”; ko `후` → “3분 후”, `후 복귀` → “24분 후 복귀”. Any format.',
+    },
+    {
+      name: 'at-zero',
+      type: 'attribute / data.atZero: string',
+      description:
+        'A countdown’s words from the moment it would read 0s (under a second left) and after: `now`; ko `곧`, `곧 복귀`. `after` is left off then — never “곧 후”. `ui-end` still fires once.',
+    },
+    {
+      name: 'lang',
+      type: '"en" | "ko"',
+      default: '"en"',
+      description: '9m 22s / 9분 22초, 5m ago / 5분 전, 1분 05초 · 3분 전 · 방금.',
+    },
     {
       name: 'data',
       type: 'ElapsedData',
-      description: '`{ since?, until?, format? }` — the same as the attributes (data wins).',
+      description:
+        '`{ since?, until?, format?, precision?, after?, atZero? }` — the same as the attributes (data wins).',
     },
     {
       name: 'elapsedText(data, now, lang)',
@@ -79,6 +105,8 @@ export const doc: ComponentDoc = {
   usage: `<p>Running for <ui-elapsed since="2026-10-30T05:00:00Z"></ui-elapsed></p>
 <p>Updated <ui-elapsed since="1793336400000" format="ago"></ui-elapsed></p>
 <p>Next run in <ui-elapsed until="1793340000000" format="countdown"></ui-elapsed></p>
+<!-- a scheduled run's words: 24분 후 복귀 → 곧 복귀 -->
+<p lang="ko">다음 실행 14:30 (<ui-elapsed until="1793340000000" format="countdown" precision="minute" after="후 복귀" at-zero="곧 복귀" lang="ko"></ui-elapsed>)</p>
 <script type="module">
   import '@2lab.ai/ui/elapsed';
   document.querySelector('ui-elapsed[format="countdown"]').addEventListener('ui-end', () => refresh());
@@ -133,6 +161,44 @@ export const doc: ComponentDoc = {
           ]),
         );
         return list;
+      },
+    },
+    {
+      id: 'words',
+      title: 'Countdown words — after, at-zero, precision="minute"',
+      description:
+        'A scheduled run’s line the way the dashboard’s cron drawer says it: the loose form (24분, 1시간 20분), “후 복귀” after it and “곧 복귀” from the moment it would read 0초 — the ten-second one gets there while you watch; the English one says “left” and “now”.',
+      height: 240,
+      create: () => {
+        const now = Date.now();
+        const ko = (ms: number) =>
+          el({
+            until: String(now + ms),
+            format: 'countdown',
+            precision: 'minute',
+            after: '후 복귀',
+            'at-zero': '곧 복귀',
+            lang: 'ko',
+          });
+        return col(
+          line(['다음 실행 14:30 (', ko(24 * M + 41 * S), ')'], 'ko'),
+          line(['다음 실행 내일 09:00 (', ko(29 * 60 * M + 12 * S), ')'], 'ko'),
+          line(['다음 실행 (', ko(10 * S), ')'], 'ko'),
+          line([
+            'Next run in ',
+            el({ until: String(now + 3 * M + 12 * S), format: 'countdown', after: 'left', 'at-zero': 'now' }),
+          ]),
+          line([
+            'Next run ',
+            el({
+              until: String(now + 7 * S),
+              format: 'countdown',
+              precision: 'minute',
+              after: 'from now',
+              'at-zero': 'now',
+            }),
+          ]),
+        );
       },
     },
     {
