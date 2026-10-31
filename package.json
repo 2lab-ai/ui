@@ -193,6 +193,14 @@
       "types": "./dist/components/elapsed/index.d.ts",
       "import": "./dist/elapsed.js"
     },
+    "./media-grid": {
+      "types": "./dist/components/media-grid/index.d.ts",
+      "import": "./dist/media-grid.js"
+    },
+    "./meter": {
+      "types": "./dist/components/meter/index.d.ts",
+      "import": "./dist/meter.js"
+    },
     "./icons": {
       "types": "./dist/icons/index.d.ts",
       "import": "./dist/icons.js"
