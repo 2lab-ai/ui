@@ -5,6 +5,7 @@ export type {
   ConversationLang,
   ConversationLoadDetail,
   ConversationRetryDetail,
+  ConversationSelectDetail,
   ConversationStrings,
   ConversationTurn,
   TurnPlan,

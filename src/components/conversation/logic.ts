@@ -133,6 +133,14 @@ export interface ConversationRetryDetail {
   what?: 'summary';
 }
 
+/** `ui-select` detail (notification, `selectable`): the turn the person checked or unchecked, and every selected id. */
+export interface ConversationSelectDetail {
+  id: string;
+  selected: boolean;
+  /** The selected turns' ids, in the order shown. */
+  ids: string[];
+}
+
 /** `ui-load-answer` detail (cancelable): the deferred turn whose answer to fetch (“Load answer” was pressed). */
 export interface ConversationLoadDetail {
   id: string;
@@ -176,6 +184,7 @@ export const STRINGS = {
     of: (est: string) => `/ ~${est}`,
     details: 'Details',
     noSummary: 'No summary yet',
+    pick: (name: string) => `Select the turn by ${name}`,
   },
   ko: {
     label: '대화',
@@ -202,6 +211,7 @@ export const STRINGS = {
     of: (est: string) => `/ 약 ${est}`,
     details: '자세히',
     noSummary: '아직 요약이 없습니다',
+    pick: (name: string) => `${name}의 대화 선택`,
   },
 };
 export type ConversationStrings = (typeof STRINGS)['en'];
