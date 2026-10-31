@@ -36,9 +36,13 @@ describe('ui-kit.css', () => {
     expect(kitCss.slice(0, kitCss.indexOf('@media (hover: hover)'))).not.toMatch(/:hover/);
   });
 
-  it('a toned chip takes the host's --ui-tone for its tint and word, and a small size (0.15.0)', () => {
-    expect(kitCss).toMatch(/\.ui-chip\.is-toned \{[^}]*background: color-mix\(in srgb, var\(--ui-tone, var\(--ui-ib-muted\)\) 14%, var\(--ui-ib-card\)\);/);
-    expect(kitCss).toMatch(/\.ui-chip\.is-toned \{[^}]*color: color-mix\(in srgb, var\(--ui-tone, var\(--ui-ib-muted\)\) 70%, var\(--ui-ib-text\)\);/);
+  it("a toned chip takes the host's --ui-tone for its tint and word, and a small size (0.15.0)", () => {
+    expect(kitCss).toMatch(
+      /\.ui-chip\.is-toned \{[^}]*background: color-mix\(in srgb, var\(--ui-tone, var\(--ui-ib-muted\)\) 14%, var\(--ui-ib-card\)\);/,
+    );
+    expect(kitCss).toMatch(
+      /\.ui-chip\.is-toned \{[^}]*color: color-mix\(in srgb, var\(--ui-tone, var\(--ui-ib-muted\)\) 70%, var\(--ui-ib-text\)\);/,
+    );
     expect(kitCss).toContain('.ui-chip.is-sm { gap: 4px; height: 20px; padding: 0 7px; font-size: 11px; }');
   });
 
