@@ -51,6 +51,33 @@ export interface TaskRun {
   href?: string;
   /** An Open button without a link: the host handles `ui-open`. */
   canOpen?: boolean;
+  /**
+   * The numbers are a share or an estimate (work shared with other tasks, a start the host inferred): ≈ before the
+   * run's time, tokens, tool calls and cost, in the row and the detail. Say why in `notes`.
+   */
+  approx?: boolean;
+  /** Extra detail rows after the cost (`{ label: 'Shared', value: '2 tasks ran together — a half each' }`). */
+  notes?: TaskRunNote[];
+}
+
+/** A free detail row: a label and its words. `approx` puts ≈ before the words. */
+export interface TaskRunNote {
+  label: string;
+  value: string;
+  approx?: boolean;
+}
+
+/**
+ * Totals the host gives instead of the sum of the runs it handed over (it may show only the newest ones): each
+ * field present is drawn, the rest left out. `approx` puts ≈ before every number.
+ */
+export interface TaskRunTotalsGiven {
+  runs?: number;
+  tokens?: number;
+  tools?: number;
+  ms?: number;
+  costUsd?: number;
+  approx?: boolean;
 }
 
 export interface TaskRunsData {
@@ -58,8 +85,15 @@ export interface TaskRunsData {
   title?: string;
   /** The runs in the order to show them (the host sorts; oldest first reads like a log). */
   runs: TaskRun[];
-  /** The totals row under the runs. Default true. */
-  totals?: boolean;
+  /**
+   * The totals row under the runs. Default true (the sum of `runs`); `false` hides it; an object draws the host's
+   * own totals (over every run, shown or not) instead of the sum.
+   */
+  totals?: boolean | TaskRunTotalsGiven;
+  /** More totals rows under the first (`{ label: 'Outside tasks', value: '3 tool calls · $0.02' }`). */
+  extraTotals?: TaskRunNote[];
+  /** Runs that exist but were not handed over (older ones): the totals row says “12 of 15 shown”. */
+  hidden?: number;
   /** The host's clock (epoch ms) when it built this data: running clocks correct for this device's clock skew. */
   now?: number;
 }
@@ -96,7 +130,9 @@ const STRINGS = {
     empty: 'No runs yet',
     emptyHint: 'Each task the agent works on shows up here with its time, tokens and tools.',
     tokens: (s: string) => `${s} tokens`,
-    calls: (n: number) => (n === 1 ? '1 tool call' : `${n} tool calls`),
+    calls: (n: number | string) => (countOf(n) === 1 ? `${n} tool call` : `${n} tool calls`),
+    approx: 'Approximate',
+    shown: (n: number, of: number) => `${n} of ${of} shown`,
     started: 'Started',
     ended: 'Ended',
     took: 'Took',
@@ -122,7 +158,9 @@ const STRINGS = {
     empty: '아직 실행된 태스크가 없습니다',
     emptyHint: '에이전트가 맡은 태스크가 시간, 토큰, 도구와 함께 여기에 표시됩니다.',
     tokens: (s: string) => `토큰 ${s}`,
-    calls: (n: number) => `툴 ${n}회`,
+    calls: (n: number | string) => `툴 ${n}회`,
+    approx: '근사치',
+    shown: (n: number, of: number) => `${of}개 중 ${n}개 표시`,
     started: '시작',
     ended: '종료',
     took: '소요',
@@ -145,6 +183,8 @@ const STRINGS = {
 };
 type Strings = (typeof STRINGS)['en'];
 
+/** The count behind a figure that may carry ≈ ('≈7' → 7). */
+const countOf = (n: number | string): number => (typeof n === 'number' ? n : Number(String(n).replace(/[^\d.]/g, '')));
 const STATUSES: ReadonlySet<string> = new Set<TaskRunStatus>(['running', 'paused', 'done', 'failed', 'dropped']);
 const PARTS = ['input', 'output', 'cacheRead', 'cacheWrite'] as const;
 
@@ -154,6 +194,13 @@ const num = (v: unknown): number => {
 };
 const runsOf = (v: unknown): TaskRun[] =>
   Array.isArray(v) ? v.filter((r): r is TaskRun => !!r && typeof r === 'object') : [];
+const notesOf = (v: unknown): TaskRunNote[] =>
+  Array.isArray(v)
+    ? v
+        .filter((n): n is TaskRunNote => !!n && typeof n === 'object')
+        .map((n) => ({ label: String(n.label ?? '').trim(), value: String(n.value ?? '').trim(), approx: !!n.approx }))
+        .filter((n) => n.label || n.value)
+    : [];
 const statusOf = (r: TaskRun): TaskRunStatus => (STATUSES.has(r.status) ? r.status : 'done');
 
 // ── Pure helpers ────────────────────────────────────────────────────────────
@@ -404,7 +451,7 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
     const stop = runs.some((r) => r.id === this.#current) ? this.#current : runs[0].id;
     const rows = runs.map((r, i) => this.#run(r, i, r.id === stop, t)).join('');
     return `<section class="tr" ${label}>${head}<ul class="tr-list" aria-label="${escAttr(t.list)}">${rows}</ul>${
-      d.totals === false ? '' : this.#totals(runs, t)
+      d.totals === false ? '' : this.#totals(runs, t, d)
     }</section>`;
   }
 
@@ -415,13 +462,14 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
     const start = num(r.startedAt);
     const ticking = st === 'running' && !!start;
     const ms = taskRunMs(r, Date.now() + this.#skew);
-    const time = ticking ? `<span data-since="${start}"></span>` : ms ? esc(fmtDuration(ms)) : '';
+    const ap = r.approx ? '≈' : '';
+    const time = ticking ? `<span data-since="${start}"></span>` : ms ? esc(ap + fmtDuration(ms)) : '';
     const tools = taskRunToolCount(r);
     const meta = [
       start ? esc(planTimeOfDay(start, lang)) : '',
       time,
-      r.tokens ? esc(t.tokens(fmtTokens(taskRunTokenTotal(r.tokens)))) : '',
-      tools || r.tools?.length || r.toolCalls !== undefined ? esc(t.calls(tools)) : '',
+      r.tokens ? esc(t.tokens(ap + fmtTokens(taskRunTokenTotal(r.tokens)))) : '',
+      tools || r.tools?.length || r.toolCalls !== undefined ? esc(t.calls(ap ? `${ap}${tools}` : tools)) : '',
     ]
       .filter(Boolean)
       .map((m) => `<span class="tr-m">${m}</span>`)
@@ -435,9 +483,12 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
       class: 'tr-chev',
     })}<span class="tr-main"><span class="tr-line">${r.ref ? `<span class="tr-ref">${esc(r.ref)}</span>` : ''}<span class="tr-name">${esc(
       r.title,
-    )}</span></span>${meta ? `<span class="tr-meta">${meta}</span>` : ''}</span>${planStateHtml(st, {
-      lang,
-    })}</button><div class="tr-region" id="tr-r-${i}"${open ? '' : ' inert'}><div class="tr-in">${this.#detail(
+    )}</span></span>${meta ? `<span class="tr-meta"${r.approx ? ` title="${escAttr(t.approx)}"` : ''}>${meta}</span>` : ''}</span>${planStateHtml(
+      st,
+      {
+        lang,
+      },
+    )}</button><div class="tr-region" id="tr-r-${i}"${open ? '' : ' inert'}><div class="tr-in">${this.#detail(
       r,
       st,
       t,
@@ -457,15 +508,16 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
       rows.push([t.ended, esc(st === 'dropped' ? t.leftPlan(stamp) : stamp)]);
     }
     const ms = taskRunMs(r, Date.now() + this.#skew);
+    const ap = r.approx ? '≈' : '';
     if (st === 'running' && start) rows.push([t.took, `<span data-since="${start}"></span>`]);
-    else if (ms) rows.push([t.took, esc(fmtDuration(ms))]);
+    else if (ms) rows.push([t.took, esc(ap + fmtDuration(ms))]);
     if (r.tokens) {
       const parts = PARTS.filter((k) => r.tokens?.[k] !== undefined)
-        .map((k) => `<span class="tr-part">${esc(t.part[k])} ${esc(fmtTokens(num(r.tokens?.[k])))}</span>`)
+        .map((k) => `<span class="tr-part">${esc(t.part[k])} ${esc(ap + fmtTokens(num(r.tokens?.[k])))}</span>`)
         .join('<span class="tr-dot" aria-hidden="true">·</span>');
       rows.push([
         t.tokensK,
-        `<span class="tr-tok-total">${esc(fmtTokens(taskRunTokenTotal(r.tokens)))}</span>${
+        `<span class="tr-tok-total">${esc(ap + fmtTokens(taskRunTokenTotal(r.tokens)))}</span>${
           parts ? `<span class="tr-parts">${parts}</span>` : ''
         }`,
       ]);
@@ -484,11 +536,14 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
           .join('')}</ul>`,
       ]);
     } else if (r.toolCalls !== undefined) {
-      rows.push([t.toolsK, esc(t.calls(taskRunToolCount(r)))]);
+      const n = taskRunToolCount(r);
+      rows.push([t.toolsK, esc(t.calls(ap ? `${ap}${n}` : n))]);
     }
     if (typeof r.costUsd === 'number' && Number.isFinite(r.costUsd)) {
-      rows.push([t.cost, esc(fmtUsd(Math.max(0, r.costUsd)))]);
+      rows.push([t.cost, esc(ap + fmtUsd(Math.max(0, r.costUsd)))]);
     }
+    for (const n of notesOf(r.notes))
+      rows.push([n.label, `<span class="tr-note">${esc((n.approx ? '≈' : '') + n.value)}</span>`]);
     const revs = (r.revisions ?? []).filter((x) => x && x.note !== undefined && x.note !== '');
     if (revs.length) {
       rows.push([
@@ -519,17 +574,42 @@ export class UiTaskRuns extends UiElement<TaskRunsData> {
     return `<div class="tr-detail">${dl}${action ? `<div class="tr-actions">${action}</div>` : ''}</div>`;
   }
 
-  #totals(runs: TaskRun[], t: Strings): string {
-    const s = taskRunTotals(runs, Date.now() + this.#skew);
-    const bits = [esc(t.runs(s.runs))];
-    if (s.hasTokens) bits.push(esc(t.tokens(fmtTokens(s.tokens))));
-    bits.push(esc(t.calls(s.tools)));
-    if (s.live) bits.push(`<span class="tr-total-time" data-total-live></span>`);
-    else if (s.ms) bits.push(`<span class="tr-total-time">${esc(fmtDuration(s.ms))}</span>`);
-    if (s.hasCost) bits.push(esc(fmtUsd(s.costUsd)));
+  /** The totals row: the sum of the runs, or the host's own figures; then “12 of 15 shown” and the extra rows. */
+  #totals(runs: TaskRun[], t: Strings, d: TaskRunsData): string {
+    const given = d.totals && typeof d.totals === 'object' ? d.totals : null;
+    const bits: string[] = [];
+    if (given) {
+      const ap = given.approx ? '≈' : '';
+      const has = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+      if (has(given.runs)) bits.push(esc(t.runs(Math.round(num(given.runs)))));
+      if (has(given.tokens)) bits.push(esc(t.tokens(ap + fmtTokens(num(given.tokens)))));
+      if (has(given.tools))
+        bits.push(esc(t.calls(ap ? `${ap}${Math.round(num(given.tools))}` : Math.round(num(given.tools)))));
+      if (has(given.ms) && num(given.ms))
+        bits.push(`<span class="tr-total-time">${esc(ap + fmtDuration(num(given.ms)))}</span>`);
+      if (has(given.costUsd)) bits.push(esc(ap + fmtUsd(Math.max(0, num(given.costUsd)))));
+    } else {
+      const s = taskRunTotals(runs, Date.now() + this.#skew);
+      bits.push(esc(t.runs(s.runs)));
+      if (s.hasTokens) bits.push(esc(t.tokens(fmtTokens(s.tokens))));
+      bits.push(esc(t.calls(s.tools)));
+      if (s.live) bits.push(`<span class="tr-total-time" data-total-live></span>`);
+      else if (s.ms) bits.push(`<span class="tr-total-time">${esc(fmtDuration(s.ms))}</span>`);
+      if (s.hasCost) bits.push(esc(fmtUsd(s.costUsd)));
+    }
+    const hidden = Math.round(num(d.hidden));
+    const shown = hidden ? `<span class="tr-total-note">${esc(t.shown(runs.length, runs.length + hidden))}</span>` : '';
+    const extra = notesOf(d.extraTotals)
+      .map(
+        (n) =>
+          `<div class="tr-total tr-total-x"><span class="tr-total-k">${esc(n.label)}</span><span class="tr-total-v"><span class="tr-m">${esc(
+            (n.approx ? '≈' : '') + n.value,
+          )}</span></span></div>`,
+      )
+      .join('');
     return `<div class="tr-total"><span class="tr-total-k">${esc(t.total)}</span><span class="tr-total-v">${bits
       .map((b) => `<span class="tr-m">${b}</span>`)
-      .join('<span class="tr-dot" aria-hidden="true">·</span>')}</span></div>`;
+      .join('<span class="tr-dot" aria-hidden="true">·</span>')}</span>${shown}</div>${extra}`;
   }
 }
 
