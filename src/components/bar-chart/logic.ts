@@ -1,4 +1,4 @@
-import { fmtDuration, fmtInt, fmtTokens, fmtUsd } from '../../core/format';
+import { fmtDurationIn, fmtInt, fmtTokens, fmtUsd } from '../../core/format';
 
 /** How values are written: 1,234 · 12.3K · 12.3K · $4.20 · 9m 22s (duration values are milliseconds). */
 export type ChartFormat = 'int' | 'compact' | 'tokens' | 'usd' | 'duration';
@@ -157,7 +157,7 @@ export function barScale(max: number, ticks: number, format: ChartFormat): NiceS
 }
 
 /** A value as the tooltip and the accessible label write it. */
-export function fmtBarValue(v: number, format: ChartFormat = 'int'): string {
+export function fmtBarValue(v: number, format: ChartFormat = 'int', lang?: string): string {
   switch (format) {
     case 'compact':
     case 'tokens':
@@ -165,7 +165,7 @@ export function fmtBarValue(v: number, format: ChartFormat = 'int'): string {
     case 'usd':
       return fmtUsd(v);
     case 'duration':
-      return fmtDuration(v);
+      return fmtDurationIn(v, lang);
     default:
       return fmtInt(v);
   }

@@ -522,6 +522,10 @@ describe('<ui-agent-tree>', () => {
     set(el, { expanded: ['main'] });
     expect(item(el, 'a')?.getAttribute('aria-label')).toContain('하위 2 접힘');
     expect(agentTreeStrings('ko').status.cancelled).toBe('중단');
+    // The times in the same language (0.15.1): 1분 00초 · 1분 08초, never 1m 00s under lang="ko".
+    const ko = mount({ nodes: NODES, now: T0 + 70_000 }, { lang: 'ko' });
+    expect(row(ko, 'a')?.querySelector('.at-time')?.textContent).toBe('1분 00초');
+    expect(row(ko, 'a1')?.querySelector('.at-time')?.textContent).toBe('1분 08초');
     expect(agentTreeStrings('fr').title).toBe('Agents');
   });
 
