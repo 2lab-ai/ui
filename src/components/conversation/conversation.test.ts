@@ -279,6 +279,36 @@ describe('<ui-conversation> rendering', () => {
     expect(s2.querySelector('div.cv-sys')).not.toBeNull();
   });
 
+  it('G1-2: a system turn with media opens to the slot media-<id>, first in its detail', () => {
+    const el = mount({
+      turns: [
+        { id: 's3', role: 'system', kind: 'compact', text: 'Held during compaction', media: true },
+        { ...SYS, media: true },
+      ],
+    });
+    // Media alone makes the row openable.
+    const s3 = node(el, 's3');
+    const row = s3.querySelector('button.cv-sys') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(s3.querySelector('.cv-media')).toBeNull();
+    click(row);
+    const media = s3.querySelector('.cv-detail .cv-media') as HTMLElement;
+    expect(media.getAttribute('role')).toBe('group');
+    expect(media.getAttribute('aria-label')).toBe('Attached media');
+    expect(media.querySelector('slot')?.getAttribute('name')).toBe('media-s3');
+    // With facts and raw text too: media first, then the facts, then the raw text.
+    const s1 = node(el, 's1');
+    click(s1.querySelector('button.cv-sys'));
+    const kids = Array.from(s1.querySelector('.cv-detail')!.children).map((c) => c.className);
+    expect(kids).toEqual(['cv-media', 'cv-facts', 'cv-sysraw']);
+    expect(s1.querySelector('.cv-media slot')?.getAttribute('name')).toBe('media-s1');
+    // A system turn without media draws no media box.
+    el.data = { turns: [SYS] };
+    el.renderNow();
+    click(node(el, 's1').querySelector('button.cv-sys'));
+    expect(node(el, 's1').querySelector('.cv-media')).toBeNull();
+  });
+
   it('keeps the writing row last and drops it when the answer is done', () => {
     const el = mount({ turns: [USER], pending: true });
     expect(keys(el)).toEqual(['u1', PENDING_KEY]);
@@ -656,9 +686,18 @@ describe('<ui-conversation> keyboard', () => {
 describe('<ui-conversation> lang="ko"', () => {
   it('speaks Korean everywhere it speaks', () => {
     const el = mount(
-      { turns: [{ ...USER, name: '' }, BOT, SYS, { id: 'a3', role: 'assistant', responseMs: 65_000, markdown: 'x' }] },
+      {
+        turns: [
+          { ...USER, name: '' },
+          BOT,
+          { ...SYS, media: true },
+          { id: 'a3', role: 'assistant', responseMs: 65_000, markdown: 'x' },
+        ],
+      },
       { lang: 'ko' },
     );
+    click(node(el, 's1').querySelector('button.cv-sys'));
+    expect(node(el, 's1').querySelector('.cv-detail .cv-media')?.getAttribute('aria-label')).toBe('첨부한 미디어');
     expect(node(el, 'u1').querySelector('.cv-name')?.textContent).toBe('사용자');
     expect(node(el, 'a1').querySelector('.cv-name')?.textContent).toBe('어시스턴트');
     expect(node(el, 's1').querySelector('.cv-name')?.textContent).toBe('시스템');

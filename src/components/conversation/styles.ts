@@ -119,6 +119,9 @@ export const styles = `
 .cv-facts dt { color: var(--ib-muted); font-weight: 500; }
 .cv-facts dd { margin: 0; color: var(--ib-text); font-variant-numeric: tabular-nums; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cv-facts + .cv-sysraw { margin-top: 12px; }
+/* A system turn's media (the files an intercepted message carried) heads its detail */
+.cv-detail .cv-media { margin: 0; }
+.cv-detail .cv-media + :is(.cv-facts, .cv-sysraw) { margin-top: 12px; }
 
 /* Progress of a long operation: verb, bar, elapsed / estimate, percent — ticking in place. */
 .cv-prog { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 22px; color: var(--ib-muted); font-size: 12px; font-variant-numeric: tabular-nums; }

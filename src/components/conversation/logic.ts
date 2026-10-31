@@ -21,7 +21,7 @@ export interface TurnProgress {
  * - user: `name`, `at`, `text`, `media`, `skills`
  * - assistant: `name`, `at`, `markdown`, `source`, `summary`, `responseMs`, `streaming`, `loading`, `error`,
  *   `canRetry`, `attachments`, `linkTitles`
- * - system: `name`, `at`, `kind`, `label`, `text`, `facts`, `raw`, `progress`
+ * - system: `name`, `at`, `kind`, `label`, `text`, `facts`, `raw`, `media`, `progress`
  * - pending: `name` — the "writing the answer" row; always shown last.
  */
 export interface ConversationTurn {
@@ -33,7 +33,10 @@ export interface ConversationTurn {
   at?: number | string;
   /** user: the instruction as typed (plain text, clamped to `data.clampLines`). system: the one line it shows. */
   text?: string;
-  /** user: the host put media for this turn in slot `media-<id>` (shown above the words). */
+  /**
+   * user: the host put media for this turn in slot `media-<id>` (shown above the words). system: the files the
+   * intercepted message carried, in the same slot — shown in the open detail (the row opens for them alone).
+   */
   media?: boolean;
   /** user: skills the instruction invoked — chips that open their text. */
   skills?: SkillBadge[];

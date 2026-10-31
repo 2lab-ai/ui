@@ -589,7 +589,7 @@ export class UiConversation extends UiElement<ConversationData> {
     const badge = kind || label ? sysBadgeHtml(kind, lang, label || undefined) : '';
     const line = String(turn.text ?? '') || (p?.done ? t.done : '');
     const lineHtml = line ? `<span class="cv-line">${esc(line)}</span>` : '';
-    const canOpen = this.#facts(turn).length > 0 || String(turn.raw ?? '') !== '';
+    const canOpen = this.#facts(turn).length > 0 || String(turn.raw ?? '') !== '' || !!turn.media;
     const open = canOpen && !!st.open;
     const row = canOpen
       ? `<button type="button" class="cv-sys" data-act="sys" data-key="${st.dom}:sys" aria-expanded="${open}" aria-controls="${st.dom}-sys">${who}${badge}${lineHtml}${icon(
@@ -612,6 +612,10 @@ export class UiConversation extends UiElement<ConversationData> {
 
   #systemDetail(turn: ConversationTurn, st: TurnUi): string {
     const facts = this.#facts(turn);
+    // The files the intercepted message carried: the host's media, first in the detail.
+    const media = turn.media
+      ? `<div class="cv-media" role="group" aria-label="${escAttr(this.#ctx.t.media)}"><slot name="${escAttr(`media-${turn.id}`)}"></slot></div>`
+      : '';
     const dl = facts.length
       ? `<dl class="cv-facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`
       : '';
@@ -619,7 +623,7 @@ export class UiConversation extends UiElement<ConversationData> {
       String(turn.raw ?? '') !== ''
         ? `<div class="cv-sysraw"><p class="cv-raw-h">${esc(this.#ctx.t.rawText)}</p>${this.#rawView(turn, st, 'raw')}</div>`
         : '';
-    return `<div class="cv-detail">${dl}${raw}</div>`;
+    return `<div class="cv-detail">${media}${dl}${raw}</div>`;
   }
 
   #progressHtml(turn: ConversationTurn, p: TurnProgress): string {
