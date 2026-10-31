@@ -611,6 +611,118 @@ describe('ui-drawer — notifications', () => {
   });
 });
 
+describe('P3-2: the switch holds the scroll places while the layout settles', () => {
+  /** A docked drawer with a slotted box scrolled to 120 (the body to 40); close() tears the boxes down as a browser does. */
+  function setup() {
+    const media = fakeMedia(true);
+    const el = mount(
+      { heading: 'Session' },
+      '<div class="log" style="overflow:auto;height:80px"><p>1</p><p>2</p></div>',
+    );
+    el.show();
+    const body = q(el, '.dr-body')!;
+    const log = el.querySelector<HTMLElement>('.log')!;
+    log.scrollTop = 120;
+    body.scrollTop = 40;
+    vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+      body.scrollTop = 0;
+      log.scrollTop = 0;
+    });
+    return { media, el, body, log };
+  }
+  const frame = () => vi.advanceTimersByTime(16);
+  const ev = (t: EventTarget, type: string) => t.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
+
+  it('a slotted box at 120 survives a switch whose layout changes a frame later — and the morph’s end', () => {
+    const { media, body, log } = setup();
+    media.set(false);
+    expect(log.scrollTop).toBe(120);
+    expect(body.scrollTop).toBe(40);
+    // One layout later the sheet's box is taller and the browser clamps / anchors the boxes in it.
+    log.scrollTop = 100;
+    body.scrollTop = 20;
+    frame();
+    expect(log.scrollTop).toBe(120);
+    expect(body.scrollTop).toBe(40);
+    // …and again on the second frame.
+    log.scrollTop = 100;
+    frame();
+    expect(log.scrollTop).toBe(120);
+    // Once more when the morph ends.
+    log.scrollTop = 100;
+    vi.advanceTimersByTime(DRAWER_MORPH_MS);
+    expect(log.scrollTop).toBe(120);
+    // Then the box is the browser's (and the person's) again.
+    log.scrollTop = 100;
+    vi.advanceTimersByTime(DRAWER_MORPH_MS);
+    expect(log.scrollTop).toBe(100);
+  });
+
+  it('a wheel, a key, a pointer or a touch inside in between is the person’s place: it wins', () => {
+    const { media, log } = setup();
+    media.set(false);
+    ev(log, 'wheel');
+    log.scrollTop = 60;
+    frame();
+    frame();
+    vi.advanceTimersByTime(DRAWER_MORPH_MS);
+    expect(log.scrollTop).toBe(60);
+    // Back the other way (the places are taken fresh: 60), then a key press inside lets go too.
+    media.set(true);
+    expect(log.scrollTop).toBe(60);
+    log.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }));
+    log.scrollTop = 30;
+    frame();
+    expect(log.scrollTop).toBe(30);
+    media.set(false);
+    ev(log, 'pointerdown');
+    log.scrollTop = 10;
+    frame();
+    expect(log.scrollTop).toBe(10);
+    media.set(true);
+    ev(log, 'touchstart');
+    log.scrollTop = 5;
+    frame();
+    expect(log.scrollTop).toBe(5);
+  });
+
+  it('a box inside a slotted element’s shadow root is put back once, then left to that element', () => {
+    const media = fakeMedia(true);
+    const el = mount({ heading: 'Session' }, '');
+    const host = document.createElement('div');
+    host.attachShadow({ mode: 'open' }).innerHTML = '<div class="in" style="overflow:auto;height:50px"><p>1</p></div>';
+    el.append(host);
+    el.show();
+    const inner = host.shadowRoot!.querySelector<HTMLElement>('.in')!;
+    inner.scrollTop = 36;
+    vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+      inner.scrollTop = 0;
+    });
+    media.set(false);
+    expect(inner.scrollTop).toBe(36);
+    // The element sticks its box to a new place on its own resize (a log scroller pinned at the bottom): kept.
+    inner.scrollTop = 50;
+    frame();
+    frame();
+    vi.advanceTimersByTime(DRAWER_MORPH_MS);
+    expect(inner.scrollTop).toBe(50);
+  });
+
+  it('a close from the browser lets the places go', () => {
+    const { media, el, log } = setup();
+    media.set(false);
+    const d = dlg(el);
+    d.close(); // the mock tears the box down
+    d.dispatchEvent(new Event('close'));
+    expect(el.open).toBe(false);
+    expect(log.scrollTop).toBe(0);
+    frame();
+    expect(log.scrollTop).toBe(0);
+  });
+});
+
 describe('sound', () => {
   let spy: SoundSpy;
   beforeEach(() => {
