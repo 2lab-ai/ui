@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import './log-scroller';
 import {
+  anchorHidden,
   anchorsIn,
   type LogScrollerData,
   logAtBottom,
@@ -369,6 +370,68 @@ describe('<ui-log-scroller>', () => {
     el.prependItems([], { hasMore: false });
     expect(q(el, '.ls-start')?.textContent).toBe('기록의 시작');
     expect(q(el, '.ls-vp')?.getAttribute('aria-label')).toBe('기록');
+  });
+});
+
+describe('G2-1: anchors inside a folded (inert) region are not the reader’s place', () => {
+  it('anchorHidden: an inert ancestor inside the item, read through shadow hosts; never the item itself', () => {
+    const item = document.createElement('div');
+    item.innerHTML = '<div class="head" data-anchor></div><div inert><p data-anchor>hidden</p></div>';
+    expect(anchorHidden(item.querySelector('.head')!, item)).toBe(false);
+    expect(anchorHidden(item.querySelector('p')!, item)).toBe(true);
+    expect(anchorHidden(item, item)).toBe(false);
+    // An inert ancestor above the item does not count (the item is still the list's business).
+    const inertHost = document.createElement('div');
+    inertHost.setAttribute('inert', '');
+    inertHost.append(item);
+    expect(anchorHidden(item.querySelector('.head')!, item)).toBe(false);
+    // Through a shadow root: the region is in the item's shadow, the row inside it.
+    const sh = document.createElement('div');
+    const sr = sh.attachShadow({ mode: 'open' });
+    sr.innerHTML = '<section inert><p data-anchor>x</p></section><p data-anchor>y</p>';
+    expect(anchorHidden(sr.querySelector('section p')!, sh)).toBe(true);
+    expect(anchorHidden(sr.querySelectorAll('p')[1], sh)).toBe(false);
+  });
+
+  it('an older page that also adds rows to a folded group above the reader does not move the rows they see', async () => {
+    const { el, vp } = mount({ hasMore: true });
+    el.appendItems(rows(el, 0, 20));
+    // k5 is a folded group: its entries sit in an inert region, laid out over the rows below (a clipped 0fr row).
+    const g = row(el, 'k5');
+    const region = document.createElement('div');
+    region.setAttribute('inert', '');
+    g.append(region);
+    const hidden: HTMLElement[] = [];
+    const hiddenRow = (key: string) => {
+      const h = document.createElement('div');
+      h.setAttribute('data-anchor', '');
+      h.textContent = key;
+      h.getBoundingClientRect = () => {
+        const t = g.getBoundingClientRect().bottom + hidden.indexOf(h) * ITEM_H;
+        return { top: t, bottom: t + ITEM_H, height: ITEM_H, left: 0, right: 300, width: 300 } as DOMRect;
+      };
+      h.getClientRects = () => [h.getBoundingClientRect()] as unknown as DOMRectList;
+      return h;
+    };
+    for (const k of ['h0', 'h1']) {
+      const h = hiddenRow(k);
+      hidden.push(h);
+      region.append(h);
+    }
+    el.upsertItem('k5', g);
+    // The reader stops with k5's head cut by the top edge: the first row wholly in view is k6 — and, laid out, h0.
+    scrollTo(vp, TOP_H + 5 * ITEM_H + 20);
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    const k6 = el.itemFor('k6')!;
+    const before = k6.getBoundingClientRect().top;
+    expect(before).toBe(20);
+    // The older page: a row lands in the folded group (h0 moves down) and ten older groups go in above.
+    const h = hiddenRow('h-1');
+    hidden.unshift(h);
+    region.prepend(h);
+    el.prependItems(rows(el, -10, 10), { hasMore: true });
+    expect(k6.getBoundingClientRect().top).toBe(before);
+    expect(vp.scrollTop).toBe(TOP_H + 5 * ITEM_H + 20 + 10 * ITEM_H);
   });
 });
 
