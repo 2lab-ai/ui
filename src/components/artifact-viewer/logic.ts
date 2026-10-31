@@ -281,7 +281,8 @@ export function viewerBodyKind(item: FileItem, broken: ReadonlySet<string> = new
   if (kind === 'markdown')
     return hasText(item) ? (String(item.text).length > MARKDOWN_VIEW_CHARS ? 'text' : 'markdown') : 'fallback';
   if (kind === 'html') return frameAttrs(item) ? 'html' : 'fallback';
-  if (kind === 'pdf') return src ? 'pdf' : 'fallback';
+  // A PDF is framed unsandboxed (the browser's viewer is a plugin) — only a url the host vouches for (frame: true).
+  if (kind === 'pdf') return src && item.frame === true ? 'pdf' : 'fallback';
   if (kind === 'audio') return src ? 'audio' : 'fallback';
   if (kind === 'video') return src ? 'video' : 'fallback';
   if (kind === 'text' || kind === 'code' || kind === 'file') return hasText(item) ? 'text' : 'fallback';

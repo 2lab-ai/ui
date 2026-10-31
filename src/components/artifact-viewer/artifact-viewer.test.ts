@@ -216,8 +216,12 @@ describe('helpers', () => {
     expect(viewerBodyKind({ id: '1', name: 'a.log', text: 'line' })).toBe('text');
     expect(viewerBodyKind({ id: '1', name: 'a.log' })).toBe('fallback');
     expect(viewerBodyKind({ id: '1', name: 'blob', text: 'raw' })).toBe('text');
-    // D4 G5-1: a PDF with a url is the browser's viewer; without one, the card.
-    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: '/files/invoice.pdf' })).toBe('pdf');
+    // D4 G5-1: a PDF with a url the host vouches for (frame: true) is the browser's viewer; otherwise the card.
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: '/files/invoice.pdf', frame: true })).toBe('pdf');
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: '/files/invoice.pdf' })).toBe('fallback');
+    expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: 'https://elsewhere.example/x.pdf', frame: false })).toBe(
+      'fallback',
+    );
     expect(viewerBodyKind({ id: '1', name: 'invoice.pdf' })).toBe('fallback');
     expect(viewerBodyKind({ id: '1', name: 'invoice.pdf', url: 'javascript:alert(1)' })).toBe('fallback');
   });
@@ -746,7 +750,7 @@ describe('viewer', () => {
   it('D4 G5-1: a PDF is framed as is (the browser’s viewer, no sandbox); a page with scripts: true runs them in the viewer and the peek', () => {
     const el = mount({
       items: [
-        { id: 'inv', name: 'invoice.pdf', url: '/files/invoice.pdf', downloadName: 'Invoice Oct.pdf' },
+        { id: 'inv', name: 'invoice.pdf', url: '/files/invoice.pdf', downloadName: 'Invoice Oct.pdf', frame: true },
         { id: 'chart', name: 'chart.html', text: '<h1>Hi</h1><script>draw()</script>', scripts: true },
         { id: 'page', name: 'landing.html', text: '<h1>Hi</h1>' },
         { id: 'nourl', name: 'scan.pdf' },
@@ -857,7 +861,12 @@ describe('viewer', () => {
 });
 
 describe('extra actions (D2 G4-2)', () => {
-  const slack = { id: 'slack', label: 'Slack', icon: 'external' as const, href: 'https://x.slack.com/files/1' };
+  const slack = {
+    id: 'slack',
+    label: 'Slack',
+    icon: 'external' as const,
+    href: 'https://slack.example.invalid/files/1',
+  };
 
   it('extraActions keeps drawable ones: id + label, no built-in ids, first of each id, safe hrefs only, capped', () => {
     const item: FileItem = {
@@ -895,7 +904,7 @@ describe('extra actions (D2 G4-2)', () => {
     expect(acts.map((a) => a.dataset.act ?? a.dataset.x)).toEqual(['open', 'download', 'slack', BREAK]);
     const [, , link, btn] = acts;
     expect(link.tagName).toBe('A');
-    expect(link.getAttribute('href')).toBe('https://x.slack.com/files/1');
+    expect(link.getAttribute('href')).toBe('https://slack.example.invalid/files/1');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(link.getAttribute('aria-label')).toBe('Slack');
@@ -923,8 +932,8 @@ describe('extra actions (D2 G4-2)', () => {
     click(q(el, '.av-act[data-x="copy"]')!);
     el.removeEventListener('ui-action', stop);
     expect(seen).toEqual([
-      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
-      { action: 'slack', id: 'code', url: 'https://x.slack.com/files/1', extra: true, cancelable: true },
+      { action: 'slack', id: 'code', url: 'https://slack.example.invalid/files/1', extra: true, cancelable: true },
+      { action: 'slack', id: 'code', url: 'https://slack.example.invalid/files/1', extra: true, cancelable: true },
       { action: 'copy', id: 'code', url: '', extra: true, cancelable: true },
     ]);
     // The viewer stays open on its own actions.

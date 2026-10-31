@@ -361,7 +361,7 @@ export const doc: ComponentDoc = {
       name: 'kind: "pdf"',
       type: 'body',
       description:
-        'A PDF with a url opens in the browser’s own viewer (the url framed as is — a sandbox would turn the viewer off); without a url, the calm card.',
+        'A PDF with a url and frame: true opens in the browser’s own viewer (the url framed as is — a sandbox would turn the viewer off, so frame says the host vouches for the url: same origin or a store it trusts); otherwise the calm card with Open and Download.',
     },
     { name: 'data.items[].meta', type: 'string', description: 'One extra quiet line (“from Build agent”).' },
     { name: 'data.items[].downloadName', type: 'string', description: 'File name for Download. Default: name.' },
@@ -586,7 +586,7 @@ export const doc: ComponentDoc = {
       id: 'scripts-pdf',
       title: 'A page with its scripts, and a PDF',
       description:
-        'items[].scripts: the model’s chart page runs its own script (sandbox="allow-scripts", never same-origin) in the viewer and the peek — the note says so. The PDF is the browser’s own viewer; no slot, no body of the page’s own.',
+        'items[].scripts: the model’s chart page runs its own script (sandbox="allow-scripts", never same-origin) in the viewer and the peek — the note says so. The PDF (frame: true — a url the host vouches for) is the browser’s own viewer; no slot, no body of the page’s own.',
       height: 290,
       create: () =>
         stage(
@@ -602,7 +602,8 @@ export const doc: ComponentDoc = {
                 scripts: true,
                 meta: 'the model’s page',
               },
-              demoFiles().find((f) => f.id === 'invoice') as FileItem,
+              // The demo's own file (same origin): the host vouches for it, so it is framed in the browser's viewer.
+              { ...(demoFiles().find((f) => f.id === 'invoice') as FileItem), frame: true },
             ],
           }),
         ).box,
