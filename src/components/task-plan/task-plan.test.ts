@@ -80,6 +80,26 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('0.15.1 — step times in the surface language', () => {
+  it('a done step under lang="ko" says its time in Korean (9분 22초), not 9m 22s', async () => {
+    const { UiTaskPlan } = await import('./task-plan');
+    void UiTaskPlan;
+    const el = document.createElement('ui-task-plan') as HTMLElement & { data: unknown; renderNow(): void };
+    el.setAttribute('lang', 'ko');
+    document.body.append(el);
+    el.data = {
+      steps: [
+        { id: 'a', title: '설계', status: 'done', startedAt: 1_000_000, endedAt: 1_000_000 + 9 * 60_000 + 22_000 },
+      ],
+    };
+    el.renderNow();
+    const text = el.shadowRoot!.textContent ?? '';
+    expect(text).toContain('9분 22초');
+    expect(text).not.toMatch(/\b9m 22s\b/);
+    el.remove();
+  });
+});
+
 describe('pure helpers', () => {
   it('derives an earlier step’s fate: its own, else moved / done / dropped', () => {
     expect(taskStepFate({ status: 'done' })).toBe('done');

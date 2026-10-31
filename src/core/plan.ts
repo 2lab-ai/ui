@@ -1,5 +1,5 @@
 import { icon } from '../icons/icons';
-import { fmtDuration } from './format';
+import { fmtDurationIn } from './format';
 import { esc, escAttr } from './html';
 
 /**
@@ -316,7 +316,7 @@ function stepHtml(s: PlanStep, o: PlanStepOptions, depth: number): string {
   let aside = '';
   if (st === 'running' && start) aside = `<span data-since="${start}"></span>`;
   else if (s.note) aside = esc(s.note);
-  else if (st !== 'running' && start && end > start) aside = esc(fmtDuration(end - start));
+  else if (st !== 'running' && start && end > start) aside = esc(fmtDurationIn(end - start, lang));
   const times = [start ? planTimeOfDay(start, lang) : '', end ? planTimeOfDay(end, lang) : '']
     .filter(Boolean)
     .join(' → ');
@@ -381,7 +381,7 @@ export function planFootHtml(
     p.phase === 'running' && p.since
       ? `<span data-since="${p.since}"></span>`
       : p.tookMs
-        ? esc(fmtDuration(p.tookMs))
+        ? esc(fmtDurationIn(p.tookMs, o.lang))
         : '';
   return `<div class="pl-foot" data-phase="${p.phase}"><span class="pl-foot-st"><span class="pl-foot-icon" aria-hidden="true">${icon}</span>${esc(
     t.phase[p.phase],
