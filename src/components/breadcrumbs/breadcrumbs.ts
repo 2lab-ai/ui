@@ -104,7 +104,10 @@ export class UiBreadcrumbs extends UiElement<BreadcrumbsData> {
     super();
     this.root.addEventListener('click', (e) => this.#onClick(e));
     // The end slot's content changed size or came: the list's room did too.
-    this.root.addEventListener('slotchange', () => this.#fit());
+    this.root.addEventListener('slotchange', () => {
+      this.requestRender(); // the end box shows only with a chip in it
+      this.#fit();
+    });
   }
 
   attributeChangedCallback(name: string): void {
@@ -242,7 +245,7 @@ export class UiBreadcrumbs extends UiElement<BreadcrumbsData> {
     for (const i of shown) {
       if (i > 0) {
         if (this.#folded && i === items.length - 1) {
-          rows += `${sep}<li class="bc-item bc-fold"><button type="button" class="bc-more" data-key="more" aria-expanded="false" aria-label="${escAttr(
+          rows += `${sep}<li class="bc-item bc-fold"><button type="button" class="bc-more" data-key="more" aria-label="${escAttr(
             t.more(hidden),
           )}">${icon('more', { size: 14 })}</button></li>`;
         }
@@ -250,7 +253,7 @@ export class UiBreadcrumbs extends UiElement<BreadcrumbsData> {
       }
       rows += this.#crumb(items[i], i, i === items.length - 1);
     }
-    return `<nav class="bc" aria-label="${escAttr(label)}"><ol class="bc-list">${rows}</ol><div class="bc-end"><slot name="end"></slot></div></nav>`;
+    return `<nav class="bc" aria-label="${escAttr(label)}"><ol class="bc-list">${rows}</ol><div class="bc-end${this.querySelector(':scope > [slot="end"]') ? '' : ' is-empty'}"><slot name="end"></slot></div></nav>`;
   }
 
   #crumb(item: BreadcrumbItem, i: number, last: boolean): string {
