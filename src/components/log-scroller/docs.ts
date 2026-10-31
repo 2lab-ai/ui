@@ -190,7 +190,7 @@ export const doc: ComponentDoc = {
       name: 'ui-load-older',
       detail: '{ oldest: string | null }',
       description:
-        'The reader asked for older items (scrolled near the top, or pressed Load older). Cancelable: preventDefault keeps the button as it was; otherwise the row shows Loading… until prependItems() or a new data object.',
+        'The reader asked for older items (scrolled near the top, or pressed Load older). Cancelable: preventDefault keeps the button as it was; otherwise the row shows Loading… until prependItems() or a new data object. The rows they see are held from the request on — a page that also grows what is shown (entries landing in a group already there) still lands above them.',
     },
   ],
   keyboard: [

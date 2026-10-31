@@ -55,6 +55,14 @@ describe('helpers', () => {
     expect(mediaSrc({ url: 'javascript:alert(1)' })).toBe('');
     expect(mediaSrc({ thumb: 'javascript:alert(1)', url: '/media/1' })).toBe('/media/1');
     expect(mediaSrc(null)).toBe('');
+    // With the sources that failed: the thumb gives way to the url once, the url to nothing; the same source only once.
+    const item = { url: '/media/1', thumb: '/thumb/1' };
+    expect(mediaSrc(item, new Set())).toBe('/thumb/1');
+    expect(mediaSrc(item, new Set(['/thumb/1']))).toBe('/media/1');
+    expect(mediaSrc(item, new Set(['/thumb/1', '/media/1']))).toBe('');
+    expect(mediaSrc({ url: '/media/1', thumb: '/media/1' }, new Set(['/media/1']))).toBe('');
+    expect(mediaSrc({ thumb: '/thumb/1', url: 'javascript:alert(1)' }, new Set(['/thumb/1']))).toBe('');
+    expect(mediaSrc({ url: '/media/1' }, new Set(['/media/1']))).toBe('');
   });
 
   it('names a tile by its action, position, file, the rest and the alt — in en and ko', () => {
@@ -146,6 +154,56 @@ describe('<ui-media-grid>', () => {
     expect(tile.querySelector('.mg-none')!.textContent).toContain('미리보기 불가');
     expect(tile.getAttribute('aria-label')).toBe('이미지 열기 2/2: shot-2.png');
     expect(qa(el, '.mg-tile')[0].classList.contains('is-broken')).toBe(false);
+  });
+
+  it('P3-3: a source with a query string (&) — the failed thumb is known by the form the tile drew, the url is tried', () => {
+    const el = mount({ items: [{ id: 'q', name: 'q.png', thumb: '/thumb/q?w=96&h=96', url: '/media/q?sig=a&exp=1' }] });
+    const img = () => qa(el, '.mg-tile')[0].querySelector('img');
+    expect(img()!.getAttribute('src')).toBe('/thumb/q?w=96&h=96');
+    img()!.dispatchEvent(new Event('error'));
+    el.renderNow();
+    expect(img()!.getAttribute('src')).toBe('/media/q?sig=a&exp=1');
+    img()!.dispatchEvent(new Event('error'));
+    el.renderNow();
+    expect(qa(el, '.mg-tile')[0].classList.contains('is-broken')).toBe(true);
+    expect(img()).toBeNull();
+  });
+
+  it('P3-3: a thumb that fails to load tries the url once — only then "No preview"; the same source is not tried twice', () => {
+    const el = mount({
+      items: [
+        { id: 'a', name: 'a.png', thumb: '/thumb/a', url: '/media/a' },
+        { id: 'b', name: 'b.png', thumb: '/thumb/b', url: '/thumb/b' },
+        { id: 'c', name: 'c.png', thumb: '/thumb/c', url: 'javascript:alert(1)' },
+      ],
+    });
+    const tile = (i: number) => qa(el, '.mg-tile')[i];
+    const fail = (i: number) => {
+      tile(i).querySelector('img')!.dispatchEvent(new Event('error'));
+      el.renderNow();
+    };
+    expect(tile(0).querySelector('img')!.getAttribute('src')).toBe('/thumb/a');
+    fail(0);
+    // The picture itself, drawn in the thumb's place; the tile is not broken, the button keeps its name.
+    expect(tile(0).classList.contains('is-broken')).toBe(false);
+    expect(tile(0).querySelector('img')!.getAttribute('src')).toBe('/media/a');
+    expect(tile(0).querySelector('.mg-none')).toBeNull();
+    expect(tile(0).getAttribute('aria-label')).toBe('Open image 1 of 3: a.png');
+    fail(0);
+    expect(tile(0).classList.contains('is-broken')).toBe(true);
+    expect(tile(0).querySelector('img')).toBeNull();
+    expect(tile(0).querySelector('.mg-none')!.textContent).toContain('No preview');
+    // url the same as the thumb: once is enough.
+    fail(1);
+    expect(tile(1).classList.contains('is-broken')).toBe(true);
+    // A url the tile would not draw is no fallback.
+    fail(2);
+    expect(tile(2).classList.contains('is-broken')).toBe(true);
+    // A re-render keeps what was learned.
+    el.data = { ...el.data! };
+    el.renderNow();
+    expect(tile(0).classList.contains('is-broken')).toBe(true);
+    expect(qa(el, '.mg-tile').filter((t) => t.classList.contains('is-broken'))).toHaveLength(3);
   });
 
   it('activating a tile sends ui-open with the item and its index among all pictures; preventable', () => {

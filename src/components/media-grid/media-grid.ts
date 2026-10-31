@@ -58,9 +58,14 @@ export function mediaShown(items: MediaItem[], max?: number | null): { shown: Me
   return { shown, more: Math.max(0, items.length - shown.length) };
 }
 
-/** The picture a tile shows: its `thumb`, else its `url` — '' when neither is a source a page may load. */
-export function mediaSrc(item: Partial<MediaItem> | null | undefined): string {
-  return safeSrc(item?.thumb) || safeSrc(item?.url);
+/**
+ * The picture a tile shows: its `thumb`, else its `url` — '' when neither is a source a page may load. With the
+ * sources that `failed` to load: a thumb that failed gives way to the `url` once (when it differs and is a source the
+ * tile would draw); a url that failed too gives '' ("No preview").
+ */
+export function mediaSrc(item: Partial<MediaItem> | null | undefined, failed?: ReadonlySet<string>): string {
+  for (const s of [safeSrc(item?.thumb), safeSrc(item?.url)]) if (s && !failed?.has(s)) return s;
+  return '';
 }
 
 /** A tile's name: "Open image 2 of 5: login.png, and 3 more — the login screen" (ko: 이미지 열기 2/5: …). */
@@ -121,7 +126,8 @@ const css = `
  * `max` (4) the last tile says "+N" for the rest, one picture alone sits in a wide box that shows it whole. Every
  * tile is a button named by its action ("Open image 2 of 5: login.png, and 3 more"); activating one sends a
  * cancelable `ui-open` with the item and its index — the host opens its viewer at that picture (an artifact viewer
- * pages through the rest). Images load lazily; one that fails shows "No preview" in its place.
+ * pages through the rest). Images load lazily; a thumb that fails to load tries the picture itself (`url`) once, and
+ * one that fails shows "No preview" in its place.
  */
 export class UiMediaGrid extends UiElement<MediaGridData> {
   static override styles = [css];
@@ -129,7 +135,7 @@ export class UiMediaGrid extends UiElement<MediaGridData> {
     return ['size', 'max', 'lang'];
   }
 
-  /** Sources that failed to load: drawn as "No preview" from then on. */
+  /** Sources that failed to load: a thumb gives way to its url, a url to "No preview", from then on. */
   readonly #broken = new Set<string>();
   /** The tile activated last: where `focus()` returns after a viewer closes. */
   #last = '';
@@ -143,7 +149,9 @@ export class UiMediaGrid extends UiElement<MediaGridData> {
       (e) => {
         const el = e.target as Element | null;
         if (el?.tagName !== 'IMG') return;
-        const src = el.getAttribute('src') ?? '';
+        // The attribute reads decoded (`&`); the tiles compare the escaped form `mediaSrc` drew (`&amp;`).
+        const raw = el.getAttribute('src') ?? '';
+        const src = safeSrc(raw) || raw;
         if (!src || this.#broken.has(src)) return;
         this.#broken.add(src);
         this.requestRender();
@@ -211,8 +219,8 @@ export class UiMediaGrid extends UiElement<MediaGridData> {
     const tiles = shown
       .map((item, i) => {
         const rest = i === shown.length - 1 ? more : 0;
-        const src = mediaSrc(item);
-        const broken = !src || this.#broken.has(src);
+        const src = mediaSrc(item, this.#broken);
+        const broken = !src;
         const name = String(item.name ?? '').trim();
         const a = attrs({
           type: 'button',

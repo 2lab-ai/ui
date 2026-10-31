@@ -45,6 +45,10 @@ const SCRIM_FADE_MS = 180;
 const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
 const STEP = 16;
 const BIG_STEP = 64;
+/** After a switch the saved scroll places go back on this many frames (the sheet's box settles one layout later). */
+const SETTLE_FRAMES = 2;
+/** What the person does inside that makes the place theirs again while the switch settles. */
+const INTENT = ['wheel', 'keydown', 'pointerdown', 'touchstart'] as const;
 
 /** The width range `[min, max]` the panel may take in a viewport this wide (max never below min). */
 export function drawerWidthBounds(min: number, max: number, viewport: number): [number, number] {
@@ -142,6 +146,10 @@ export class UiDrawer extends UiElement {
   #vvStop: (() => void) | null = null;
   /** The running sheet ↔ dock morph (panel box, scrim). */
   #morph: Animation[] = [];
+  /** Scroll places put back while a switch settles (the frames after it, then the morph's end); null when none. */
+  #places: ScrollPlace[] | null = null;
+  #placesRaf = 0;
+  #placesTimer = 0;
 
   constructor() {
     super();
@@ -226,6 +234,7 @@ export class UiDrawer extends UiElement {
     this.#state = 'closed';
     this.#syncViewport();
     this.#stopMorph();
+    this.#letGo();
     const dlg = this.#dlg();
     if (!dlg) return;
     dlg.setAttribute('data-state', 'closed');
@@ -408,9 +417,64 @@ export class UiDrawer extends UiElement {
     }
     dlg.removeAttribute('data-instant');
     if (inside && active?.isConnected) (active as HTMLElement).focus?.({ preventScroll: true });
-    else if (this.#mode === 'sheet') this.#focusFirst();
+    // Without scrolling: the places just restored (and held by #settle) are the reader's, not the [autofocus] field's.
+    else if (this.#mode === 'sheet') this.#focusFirst(true);
     if (!this.#drag && !prefersReducedMotion()) this.#morphFrom(dlg, from, scrimFrom);
+    this.#settle(places);
   }
+
+  /**
+   * The panel's box settles one layout after the switch (the sheet is taller than the dock a frame later), and the
+   * browser then clamps or anchors the scroll boxes in it: the saved places go back on the next frames and once more
+   * at the morph's end. The panel's own body and the slotted boxes only — a box inside a slotted element's shadow
+   * root is that element's to keep (a log scroller puts its own place back when its box resizes). A wheel, key,
+   * pointer or touch inside meanwhile makes the place the person's: theirs wins.
+   */
+  #settle(places: ScrollPlace[]): void {
+    this.#letGo();
+    const mine = this.getRootNode();
+    const own = places.filter(([el]) => {
+      const r = el.getRootNode();
+      return r === this.root || r === mine;
+    });
+    if (!own.length || typeof requestAnimationFrame !== 'function') return;
+    this.#places = own;
+    for (const t of INTENT) this.addEventListener(t, this.#onIntent, { capture: true, passive: true });
+    let frames = SETTLE_FRAMES;
+    const tick = (): void => {
+      this.#placesRaf = 0;
+      if (!this.#putBack()) return;
+      if (--frames > 0) this.#placesRaf = requestAnimationFrame(tick);
+    };
+    this.#placesRaf = requestAnimationFrame(tick);
+    this.#placesTimer = window.setTimeout(() => {
+      this.#putBack();
+      this.#letGo();
+    }, DRAWER_MORPH_MS);
+  }
+
+  /** The saved places, on the boxes still there. False once nothing is held. */
+  #putBack(): boolean {
+    const places = this.#places;
+    if (!places) return false;
+    for (const [el, top, left] of places) {
+      if (!el.isConnected) continue;
+      if (el.scrollTop !== top) el.scrollTop = top;
+      if (el.scrollLeft !== left) el.scrollLeft = left;
+    }
+    return true;
+  }
+
+  #letGo(): void {
+    if (this.#places) for (const t of INTENT) this.removeEventListener(t, this.#onIntent, { capture: true });
+    this.#places = null;
+    if (this.#placesRaf) cancelAnimationFrame(this.#placesRaf);
+    clearTimeout(this.#placesTimer);
+    this.#placesRaf = 0;
+    this.#placesTimer = 0;
+  }
+
+  readonly #onIntent = (): void => this.#letGo();
 
   /** Glide the panel's box (width, top) from `from` to where the new mode puts it; fade the scrim to its new end. */
   #morphFrom(dlg: HTMLDialogElement, from: DOMRect | undefined, scrimFrom: number): void {
@@ -568,6 +632,7 @@ export class UiDrawer extends UiElement {
     this.#drag = null;
     this.#syncViewport();
     this.#stopMorph();
+    this.#letGo();
     if (dlg) {
       dlg.setAttribute('data-state', 'closed');
       dlg.removeAttribute('data-resizing');
@@ -581,9 +646,9 @@ export class UiDrawer extends UiElement {
       (el as HTMLElement).focus({ preventScroll: true });
   }
 
-  #focusFirst(): void {
+  #focusFirst(still = false): void {
     const auto = this.querySelector<HTMLElement>('[autofocus]');
-    if (auto) auto.focus();
+    if (auto) auto.focus(still ? { preventScroll: true } : undefined);
     else this.$<HTMLElement>('.dr-panel')?.focus({ preventScroll: true });
   }
 
@@ -707,6 +772,7 @@ export class UiDrawer extends UiElement {
     this.#want = false;
     this.#reflect(false);
     this.#syncViewport();
+    this.#letGo();
     if (this.#focusWithin() || focusOnBody()) this.#focusBack(back);
   }
 

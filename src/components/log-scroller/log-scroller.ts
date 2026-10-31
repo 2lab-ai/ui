@@ -506,12 +506,13 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     this.#lastTop = vp.scrollTop;
     vp.addEventListener('scroll', () => this.#onScroll(), { passive: true });
     // The reader acting on a row (opening a detail, a fold) changes the list by their own hand: nothing is held against it.
+    // Pressing Load older is not that: it asks for a page above the rows they see, which stay held for it.
     for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
       vp.addEventListener(
         type,
-        () => {
-          this.#held = null;
+        (e) => {
           if (type !== 'pointerdown') this.#glideUntil = 0;
+          if (!(e.target as Element | null)?.closest?.('.ls-older')) this.#held = null;
         },
         { passive: true },
       );
@@ -727,6 +728,10 @@ export class UiLogScroller extends UiElement<LogScrollerData> {
     const d = this.data;
     if (!d?.hasMore || d.loading || this.#olderLoading) return;
     if (byHand) this.#stalled = false;
+    // The rows the reader sees are held before the request goes out: the page that answers it — and anything the
+    // host grows on the way, a group already shown taking older entries — lands above them and the box resizes
+    // (#onResize) or the page is prepended (#mutate) with their place to put back.
+    if (!this.#pinned && !this.#held) this.#held = this.#viewAnchor();
     const detail: LogLoadOlderDetail = { oldest: this.items[0]?.dataset.item ?? null };
     if (!this.emit('ui-load-older', detail)) return;
     this.#olderLoading = true;

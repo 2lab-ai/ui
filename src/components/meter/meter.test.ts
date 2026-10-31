@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { doc } from './docs';
 import {
   type MeterData,
   meterFraction,
@@ -125,6 +126,22 @@ describe('<ui-meter>', () => {
     const pct = mount(undefined, { value: '82', max: '100', low: '50', high: '80', optimum: '0' });
     expect(meter(pct).getAttribute('aria-valuenow')).toBe('82');
     expect(meter(pct).dataset.tone).toBe('fail');
+  });
+
+  it('P3-4: a meter without a label is still named — by its words (the percent, or your text); the docs say to give one', () => {
+    expect(meter(mount({ value: 0.72, ...LEFT })).getAttribute('aria-label')).toBe('72%');
+    expect(meter(mount(undefined, { value: '0.5' })).getAttribute('aria-label')).toBe('50%');
+    expect(meter(mount({ value: 3, max: 5, text: '3 of 5 accounts' })).getAttribute('aria-label')).toBe(
+      '3 of 5 accounts',
+    );
+    expect(meter(mount({ value: 1, text: XSS })).getAttribute('aria-label')).toBe(XSS);
+    // A label still wins; unknown stays "Unknown".
+    expect(meter(mount({ value: 0.5, label: 'Left' })).getAttribute('aria-label')).toBe('Left');
+    expect(meter(mount({ value: null })).getAttribute('aria-label')).toBe('Unknown');
+    const a11y = doc.a11y.join(' ');
+    expect(a11y).toMatch(/under low/i);
+    expect(a11y).toMatch(/at or over high/i);
+    expect(a11y).toMatch(/give it a label/i);
   });
 
   it('unknown: an image named "<label>: Unknown" (미확인 in Korean), a "?" and no fill', () => {
