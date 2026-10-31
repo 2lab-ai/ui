@@ -634,6 +634,23 @@ describe('P3-2: the switch holds the scroll places while the layout settles', ()
   const frame = () => vi.advanceTimersByTime(16);
   const ev = (t: EventTarget, type: string) => t.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
 
+  it('dock → sheet with focus outside: the [autofocus] field takes focus without scrolling the places away', () => {
+    const media = fakeMedia(true);
+    const el = mount(
+      { heading: 'Session' },
+      '<div class="log" style="overflow:auto;height:80px"><input autofocus></div>',
+    );
+    el.show();
+    const field = el.querySelector<HTMLInputElement>('input')!;
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    const spy = vi.spyOn(field, 'focus');
+    media.set(false);
+    expect(spy).toHaveBeenCalledWith({ preventScroll: true });
+    outside.remove();
+  });
+
   it('a slotted box at 120 survives a switch whose layout changes a frame later — and the morph’s end', () => {
     const { media, body, log } = setup();
     media.set(false);
