@@ -486,7 +486,6 @@ function archiveDemo(): HTMLElement {
 .ca-side h2 { margin: 2px 4px 2px; font-size: 13px; font-weight: 650; letter-spacing: -0.006em; }
 .ca-side ul { margin: 0; padding: 0; list-style: none; }
 .ca-side .ui-row + .ui-row { border-top: 0; }
-.ca-side .ui-row[aria-current="true"] { background: var(--ui-ib-pill); }
 .ca-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 14px 16px 16px; gap: 10px; }
 .ca-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ca-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -162,8 +162,8 @@ const SPECIMENS: KitSpecimen[] = [
   {
     title: 'Row',
     cls: 'ui-row',
-    desc: 'A list row — a run, a job, an entry: the leading glyph in the tone, a title with quiet meta, an error line, trailing actions in .is-end. As an <a> or <button> the whole row is the target.',
-    html: `<ul style="padding:0;margin:0;list-style:none"><li class="ui-row" data-tone="done">${I('check')}<div><strong>Daily digest</strong><small>Today 09:00 · took 42s</small></div><span class="is-end"><a class="ui-btn is-sm is-quiet" href="#row">Open</a></span></li><li class="ui-row" data-tone="fail">${I('cross')}<div><strong>Weekly report</strong><small>Mon 08:30 · took 3s</small><p class="ui-status-line" data-tone="fail">Couldn’t reach the calendar (HTTP 503)</p></div><span class="is-end"><a class="ui-btn is-sm is-quiet" href="#row">Open</a></span></li><li class="ui-row" data-tone="run">${I('clock')}<div><strong>Backup check</strong><small>Running · started 2m ago</small></div></li></ul>`,
+    desc: 'A list row — a run, a job, an entry: the leading glyph in the tone, a title with quiet meta, an error line, trailing actions in .is-end. As an <a> or <button> the whole row is the target; the row that is the page (aria-current="page") keeps the hover fill.',
+    html: `<ul style="padding:0;margin:0;list-style:none"><li class="ui-row" data-tone="done">${I('check')}<div><strong>Daily digest</strong><small>Today 09:00 · took 42s</small></div><span class="is-end"><a class="ui-btn is-sm is-quiet" href="#row">Open</a></span></li><li class="ui-row" data-tone="fail">${I('cross')}<div><strong>Weekly report</strong><small>Mon 08:30 · took 3s</small><p class="ui-status-line" data-tone="fail">Couldn’t reach the calendar (HTTP 503)</p></div><span class="is-end"><a class="ui-btn is-sm is-quiet" href="#row">Open</a></span></li><li class="ui-row" data-tone="run">${I('clock')}<div><strong>Backup check</strong><small>Running · started 2m ago</small></div></li><li><a class="ui-row" href="#row" aria-current="page">${I('clock')}<div><strong>Nightly sync</strong><small>The row that is the page</small></div></a></li></ul>`,
   },
 ];
 
