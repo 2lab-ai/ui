@@ -285,6 +285,87 @@ describe('<ui-task-runs> rendering', () => {
     expect(q(mount({ ...BASE, totals: false }), '.tr-total')).toBeNull();
   });
 
+  it('marks a run’s numbers as approximate and lists its notes (D3 G5-1)', () => {
+    const el = mount({
+      runs: [
+        {
+          ...RUNS[0],
+          approx: true,
+          notes: [
+            { label: 'Shared', value: '2 tasks ran together — a half each' },
+            { label: 'Start', value: 'inferred from the first tool call', approx: true },
+            { label: ' ', value: '' },
+          ],
+        },
+      ],
+    });
+    el.setOpen('T1', true);
+    el.renderNow();
+    const r = row(el, 'T1');
+    expect(Array.from(r.querySelectorAll('.tr-m')).map(text).slice(1)).toEqual([
+      '≈1m 12s',
+      '≈43.2K tokens',
+      '≈5 tool calls',
+    ]);
+    expect(r.querySelector('.tr-meta')?.getAttribute('title')).toBe('Approximate');
+    const li = run(el, 'T1');
+    expect(text(dd(li, 'Took'))).toBe('≈1m 12s');
+    expect(text(dd(li, 'Tokens')?.querySelector('.tr-tok-total'))).toBe('≈43.2K');
+    expect(text(dd(li, 'Cost'))).toBe('≈$0.06');
+    expect(Array.from(li.querySelectorAll('dt')).map(text)).toEqual([
+      'Started',
+      'Ended',
+      'Took',
+      'Tokens',
+      'Tools',
+      'Cost',
+      'Shared',
+      'Start',
+    ]);
+    expect(text(dd(li, 'Shared'))).toBe('2 tasks ran together — a half each');
+    expect(text(dd(li, 'Start'))).toBe('≈inferred from the first tool call');
+    expect(text(dd(li, 'Shared')?.querySelector('.tr-note'))).toBe('2 tasks ran together — a half each');
+    expect(q(mount(BASE), '.tr-meta[title]')).toBeNull();
+    const one = mount({ runs: [{ id: 'x', title: 'x', status: 'done', toolCalls: 1, approx: true }] });
+    expect(text(row(one, 'x').querySelector('.tr-meta'))).toBe('≈1 tool call');
+  });
+
+  it('draws the host’s totals, “n of m shown” and extra rows instead of the sum (D3 G5-2)', () => {
+    const el = mount({
+      ...BASE,
+      totals: { runs: 15, tokens: 612_400, tools: 71, ms: 52 * 60_000, costUsd: 2.31 },
+      hidden: 12,
+      extraTotals: [
+        { label: 'Outside tasks', value: '3 tool calls · $0.02' },
+        { label: '+ subagents', value: '12 tool calls', approx: true },
+        { label: '', value: '' },
+      ],
+    });
+    const totals = qa(el, '.tr-total');
+    expect(totals).toHaveLength(3);
+    expect(qa(el, '.tr-total:not(.tr-total-x) .tr-m').map(text)).toEqual([
+      '15 runs',
+      '612.4K tokens',
+      '71 tool calls',
+      '52m 00s',
+      '$2.31',
+    ]);
+    expect(text(q(el, '.tr-total-note'))).toBe('3 of 15 shown');
+    expect(q(el, '[data-total-live]')).toBeNull();
+    expect(totals.slice(1).map((x) => text(x.querySelector('.tr-total-k')))).toEqual(['Outside tasks', '+ subagents']);
+    expect(totals.slice(1).map((x) => text(x.querySelector('.tr-m')))).toEqual([
+      '3 tool calls · $0.02',
+      '≈12 tool calls',
+    ]);
+    const part = mount({ runs: RUNS, totals: { tools: 9, approx: true } });
+    expect(qa(part, '.tr-total .tr-m').map(text)).toEqual(['≈9 tool calls']);
+    expect(q(part, '.tr-total-note')).toBeNull();
+    const ko = mount({ ...BASE, totals: { runs: 15, tools: 71, approx: true }, hidden: 12 }, { lang: 'ko' });
+    expect(qa(ko, '.tr-total .tr-m').map(text)).toEqual(['실행 15', '툴 ≈71회']);
+    expect(text(q(ko, '.tr-total-note'))).toBe('15개 중 3개 표시');
+    expect(q(mount({ ...BASE, totals: false, extraTotals: [{ label: 'x', value: 'y' }] }), '.tr-total')).toBeNull();
+  });
+
   it('says when nothing has run yet', () => {
     const el = mount({ runs: [] });
     expect(text(q(el, '.tr-empty strong'))).toBe('No runs yet');
@@ -387,6 +468,15 @@ describe('keyboard', () => {
 
 describe('escaping', () => {
   it('escapes every host / model / tool string; unsafe links become #', () => {
+    const noted = mount({
+      runs: [{ id: 'n', title: 'n', status: 'done', notes: [{ label: XSS, value: XSS }] }],
+      extraTotals: [{ label: XSS, value: XSS }],
+    });
+    noted.setOpen('n', true);
+    noted.renderNow();
+    expect(noted.shadowRoot!.querySelector('img')).toBeNull();
+    expect(text(noted.shadowRoot!.querySelector('.tr-note'))).toBe(XSS);
+    expect(text(noted.shadowRoot!.querySelector('.tr-total-x .tr-total-k'))).toBe(XSS);
     const el = mount({
       title: XSS,
       runs: [
