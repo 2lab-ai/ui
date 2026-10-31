@@ -49,6 +49,7 @@ function runGroups(now: number): WorkGroup[] {
       ref: 'T-1',
       title: 'Read the routing code',
       at: t1,
+      meta: ['Done in 3m', { label: 'Tools', value: '1' }],
       entries: [
         { id: 'w1', kind: 'instruction', text: 'Find out why an empty path shows the 404 page.', at: t1, hasRaw: true },
         { id: 'w2', kind: 'narration', text: 'Reading the router and its tests first.', at: t1 + 9_000 },
@@ -72,6 +73,7 @@ function runGroups(now: number): WorkGroup[] {
       ref: 'T-2',
       title: 'Fix the empty path',
       at: t2,
+      meta: ['Done in 8m', { label: 'Tools', value: '3' }, { label: 'Agents', value: '1' }],
       entries: [
         {
           id: 'w5',
@@ -105,6 +107,20 @@ function runGroups(now: number): WorkGroup[] {
         },
         { id: 'w9', kind: 'notice', text: 'The linter was slow to start; nothing changed.', at: t2 + 6 * MIN },
         { id: 'w10', kind: 'final', text: 'Fixed. 4 new tests pass.', at: t2 + 8 * MIN, hasRaw: true },
+      ],
+    },
+    // Outside any task: the instruction that starts the next turn, in line between the groups.
+    {
+      id: 'turn-3',
+      headless: true,
+      entries: [
+        {
+          id: 'w15',
+          kind: 'instruction',
+          text: 'Open a pull request once the tests are green.',
+          at: t3 - 20_000,
+          hasRaw: true,
+        },
       ],
     },
     {
@@ -145,6 +161,7 @@ const RAW_TEXT: Record<string, string> = {
   w4: RAW_RESPONSE.split('\n')[0],
   w5: RAW_PROMPT,
   w10: RAW_RESPONSE,
+  w15: 'Open a pull request once the tests are green.\n\n(Sent from Slack.)',
 };
 
 /** Loads a raw output when a row opens; Retry works after a short wait. */
@@ -297,7 +314,19 @@ export const doc: ComponentDoc = {
       type: 'WorkGroup[]',
       required: true,
       description:
-        'Oldest first. { id, ref?, title?, at?, count?, open?, entries }. ref defaults to the id ("" hides it); open set → controlled.',
+        'Oldest first. { id, ref?, title?, at?, count?, open?, meta?, headless?, entries }. ref defaults to the id ("" hides it); open set → controlled.',
+    },
+    {
+      name: 'group.meta',
+      type: '(string | { label, value? })[]',
+      description:
+        'The task’s ledger as one quiet · separated line under the title: how it ended, its time, { label: "Tools", value: "12" }. Strings as they are.',
+    },
+    {
+      name: 'group.headless',
+      type: 'boolean',
+      description:
+        'No head: the entries stand in line between the task groups (the instruction that starts a turn, the response that ends it) — always shown, never folded, on the arrow path. The newest group with a head is the one open by default.',
     },
     {
       name: 'data.groups[].entries',
@@ -427,7 +456,7 @@ export const doc: ComponentDoc = {
   ],
   a11y: [
     'The list is the scroller’s role="log" (polite); opened raw outputs are aria-live="off" so a long output is never read out.',
-    'Group heads are buttons inside headings with aria-expanded and aria-controls; a folded group’s body is inert. Focus inside a group that folds moves to its head.',
+    'Group heads are buttons inside headings with aria-expanded and aria-controls; a folded group’s body is inert. Focus inside a group that folds moves to its head. A headless group has no head: its entries are always shown and on the arrow path.',
     'Openable rows are role="button" with aria-expanded / aria-controls; child agents are buttons named “Open <name> — <status>, <n> tools”.',
     'Status is always an icon plus a word (Done, Failed, Running …), never colour alone; times are <time datetime>.',
     'Reduced motion: groups open without the height glide or chevron turn; spinners stand still.',
@@ -554,6 +583,7 @@ export const doc: ComponentDoc = {
             ref: 'T-4',
             title: '설정 로더 점검',
             at: at - 30 * MIN,
+            meta: ['8분 만에 완료', { label: '툴', value: '3회' }],
             entries: [
               { id: 'k-1', kind: 'instruction', text: '설정 파일을 못 읽는 원인을 찾아 주세요.', at: at - 30 * MIN },
               { id: 'k-2', kind: 'final', text: '경로를 문자열로 넘기는 호출이 원인이었어요.', at: at - 22 * MIN },
