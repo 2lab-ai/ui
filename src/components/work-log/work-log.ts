@@ -33,6 +33,7 @@ export type {
   WorkGroup,
   WorkLogData,
   WorkLogLang,
+  WorkMetaItem,
   WorkOpenDetail,
   WorkRetryDetail,
   WorkSystem,
@@ -59,7 +60,8 @@ interface GroupRec {
   id: string;
   uid: string;
   el: HTMLElement;
-  head: HTMLElement;
+  /** The head button; null for a headless group. */
+  head: HTMLElement | null;
   region: HTMLElement;
   body: HTMLElement;
   headHtml: string;
@@ -89,9 +91,10 @@ function json(v: unknown): string {
 }
 
 /**
- * `<ui-work-log>` — what an agent did, grouped by task: a group head (ref · title · count · time; the newest group
- * open) over entry rows — instructions, progress, responses, notices, errors, system turns, tool calls (a slot for
- * the host's `<ui-tool-call-card>`) and child agents (Open → `ui-open`). Rows with raw output open a viewer with
+ * `<ui-work-log>` — what an agent did, grouped by task: a group head (ref · title · count · time, a quiet meta line;
+ * the newest group open) over entry rows — instructions, progress, responses, notices, errors, system turns, tool
+ * calls (a slot for the host's `<ui-tool-call-card>`) and child agents (Open → `ui-open`); a headless group puts
+ * entries in line between the tasks. Rows with raw output open a viewer with
  * Copy and Retry. Built on `<ui-log-scroller>`: it follows the newest entry, pages older groups (`ui-load-older`)
  * and keeps the reader's place. A new `data` touches only the groups and entries that changed.
  */
@@ -295,7 +298,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       const rec = this.#groups.get(g.id);
       if (rec) {
         seen = true;
-        if (langChanged) {
+        if (langChanged || !!g.headless !== !!rec.data.headless) {
           this.#dropGroup(g.id, true);
           sc.upsertItem(g.id, this.#buildGroup(g, isOpen));
           changed = true;
@@ -332,18 +335,23 @@ export class UiWorkLog extends UiElement<WorkLogData> {
 
   #buildGroup(g: WorkGroup, open: boolean): HTMLElement {
     const uid = `wl${++this.#seq}`;
-    const headHtml = groupHeadHtml(g, this.#langAttr);
+    const headless = !!g.headless;
+    const headHtml = headless ? '' : groupHeadHtml(g, this.#langAttr);
+    // A headless group: no head, its entries in line and always shown (the region is open from the start).
+    const head = headless
+      ? ''
+      : `<h3 class="wl-gh-h"><button${attrs({
+          type: 'button',
+          class: 'wl-gh',
+          id: `${uid}-head`,
+          tabindex: '-1',
+          'data-nav': true,
+          'data-key': `g:${g.id}`,
+          'aria-expanded': 'false',
+          'aria-controls': `${uid}-body`,
+        })}>${headHtml}</button></h3>`;
     const el = fromHtml(
-      `<section${attrs({ class: 'wl-group', 'data-item': g.id })}><h3 class="wl-gh-h"><button${attrs({
-        type: 'button',
-        class: 'wl-gh',
-        id: `${uid}-head`,
-        tabindex: '-1',
-        'data-nav': true,
-        'data-key': `g:${g.id}`,
-        'aria-expanded': 'false',
-        'aria-controls': `${uid}-body`,
-      })}>${headHtml}</button></h3><div${attrs({
+      `<section${attrs({ class: 'wl-group', 'data-item': g.id, 'data-headless': headless })}>${head}<div${attrs({
         class: 'wl-g-region',
         id: `${uid}-body`,
         inert: true,
@@ -353,7 +361,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       id: g.id,
       uid,
       el,
-      head: el.querySelector('.wl-gh') as HTMLElement,
+      head: el.querySelector('.wl-gh'),
       region: el.querySelector('.wl-g-region') as HTMLElement,
       body: el.querySelector('.wl-g-body') as HTMLElement,
       headHtml,
@@ -362,7 +370,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
       data: g,
     };
     this.#groups.set(g.id, rec);
-    this.#setOpen(rec, open, false);
+    this.#setOpen(rec, headless || open, false);
     this.#syncEntries(rec, g.entries ?? [], false);
     return el;
   }
@@ -371,20 +379,20 @@ export class UiWorkLog extends UiElement<WorkLogData> {
   #patchGroup(rec: GroupRec, g: WorkGroup, open: boolean): boolean {
     let changed = false;
     rec.data = g;
-    const headHtml = groupHeadHtml(g, this.#langAttr);
-    if (headHtml !== rec.headHtml) {
+    const headHtml = rec.head ? groupHeadHtml(g, this.#langAttr) : '';
+    if (rec.head && headHtml !== rec.headHtml) {
       rec.head.innerHTML = headHtml;
       rec.headHtml = headHtml;
       changed = true;
     }
-    let want = open;
+    let want = !rec.head || open;
     if (!want && rec.open) {
       // Never fold a group under the reader's focus on our own: it stays open as if they had chosen it.
       const active = this.root.activeElement;
       if (typeof g.open !== 'boolean' && active && rec.region.contains(active)) {
         this.#chosen.set(rec.id, true);
         want = true;
-      } else if (active && rec.region.contains(active)) rec.head.focus({ preventScroll: true });
+      } else if (active && rec.region.contains(active)) rec.head?.focus({ preventScroll: true });
     }
     if (want !== rec.open) this.#setOpen(rec, want, true);
     if (this.#syncEntries(rec, g.entries ?? [], true)) changed = true;
@@ -394,7 +402,7 @@ export class UiWorkLog extends UiElement<WorkLogData> {
   #setOpen(rec: GroupRec, open: boolean, animate: boolean): void {
     rec.open = open;
     rec.el.toggleAttribute('data-open', open);
-    rec.head.setAttribute('aria-expanded', String(open));
+    rec.head?.setAttribute('aria-expanded', String(open));
     rec.region.toggleAttribute('inert', !open);
     if (rec.settle) clearTimeout(rec.settle);
     rec.settle = undefined;
@@ -580,14 +588,14 @@ export class UiWorkLog extends UiElement<WorkLogData> {
 
   #toggleGroup(gid: string, e: Event): void {
     const rec = this.#groups.get(gid);
-    if (!rec) return;
+    if (!rec?.head) return;
     const open = !rec.open;
     if (!this.emit<WorkToggleDetail>('ui-toggle', { kind: 'group', id: gid, group: gid, open })) return;
     this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
     if (typeof rec.data.open === 'boolean') return; // controlled: the host answers with data
     this.#chosen.set(gid, open);
     const active = this.root.activeElement;
-    if (!open && active && rec.region.contains(active)) rec.head.focus({ preventScroll: true });
+    if (!open && active && rec.region.contains(active)) rec.head?.focus({ preventScroll: true });
     this.#setOpen(rec, open, true);
     this.#syncRoving();
   }

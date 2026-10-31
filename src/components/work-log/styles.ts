@@ -40,6 +40,18 @@ export const styles = `
   font-size: 11px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums;
 }
 .wl-g-time { flex: none; color: var(--ib-muted); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+/* The task's ledger: a quiet second line under the title, indented past the chevron */
+.wl-gh { flex-wrap: wrap; }
+.wl-g-meta {
+  flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; margin-top: -2px; padding-left: 20px;
+  color: var(--ib-muted); font-size: 11.5px; font-weight: 500; line-height: 1.4; font-variant-numeric: tabular-nums;
+}
+.wl-g-kv { min-width: 0; overflow-wrap: anywhere; }
+.wl-g-k { color: var(--ib-muted); }
+.wl-g-v { color: var(--ib-text-2); }
+.wl-g-dot { color: var(--ib-muted); }
+/* A headless group: entries in line between the tasks — no head, no rail, always open */
+.wl-group[data-headless] .wl-g-body { margin: 2px 0; padding-left: 0; border-left: 0; }
 .wl-g-region { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .wl-group[data-open] .wl-g-region { grid-template-rows: 1fr; }
 .wl-g-inner {

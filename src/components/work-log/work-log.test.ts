@@ -13,6 +13,7 @@ import {
   toolStatus,
   type WorkGroup,
   type WorkLogData,
+  workMetaHtml,
 } from './logic';
 import { styles } from './styles';
 import { type UiWorkLog, WORK_LOG_COPIED_MS } from './work-log';
@@ -176,6 +177,45 @@ describe('logic', () => {
     ]).toEqual([true, false]);
   });
 
+  it('G2-2: workMetaHtml — strings as they are, label + value spans, · between, everything escaped; nothing when empty', () => {
+    expect(workMetaHtml(undefined)).toBe('');
+    expect(workMetaHtml([])).toBe('');
+    expect(workMetaHtml(['', '  ', {}, { label: '' }, 42 as unknown as string])).toBe('');
+    const box = document.createElement('div');
+    box.innerHTML = workMetaHtml(['Done in 3m', { label: 'Tools', value: '12' }, { label: XSS, value: XSS }, XSS]);
+    const meta = box.querySelector('.wl-g-meta')!;
+    expect(meta.querySelectorAll('.wl-g-kv')).toHaveLength(4);
+    expect(meta.querySelectorAll('.wl-g-dot')).toHaveLength(3);
+    expect(meta.querySelector('.wl-g-dot')?.getAttribute('aria-hidden')).toBe('true');
+    expect(meta.querySelectorAll('.wl-g-kv')[0].textContent).toBe('Done in 3m');
+    expect(meta.querySelector('.wl-g-k')?.textContent).toBe('Tools');
+    expect(meta.querySelector('.wl-g-v')?.textContent).toBe('12');
+    expect(meta.querySelectorAll('.wl-g-kv')[2].textContent).toBe(`${XSS} ${XSS}`);
+    expect(box.querySelector('img')).toBeNull();
+    // Value alone: no label span, no gap.
+    box.innerHTML = workMetaHtml([{ value: 'v' }]);
+    expect(box.querySelector('.wl-g-k')).toBeNull();
+    expect(box.querySelector('.wl-g-kv')?.textContent).toBe('v');
+  });
+
+  it('G2-2: the group head carries the meta line after the time; openGroups keeps a headless group open and skips it as newest', () => {
+    const box = document.createElement('div');
+    box.innerHTML = groupHeadHtml({ id: 'g9', at: T0, meta: ['Done', { label: 'Tools', value: '2' }] });
+    expect(box.querySelector('time + .wl-g-meta')).not.toBeNull();
+    expect(box.querySelector('.wl-g-meta')?.textContent).toBe('Done·Tools 2');
+    box.innerHTML = groupHeadHtml({ id: 'g9' });
+    expect(box.querySelector('.wl-g-meta')).toBeNull();
+    const gs: WorkGroup[] = [{ id: 'a' }, { id: 'b' }, { id: 'c', headless: true }];
+    expect([...openGroups(gs).entries()]).toEqual([
+      ['a', false],
+      ['b', true],
+      ['c', true],
+    ]);
+    // A reader's choice to close never applies to a headless group; a host's open: false neither.
+    expect(openGroups([{ id: 'c', headless: true, open: false }], new Map([['c', false]])).get('c')).toBe(true);
+    expect([...openGroups([{ id: 'c', headless: true }]).values()]).toEqual([true]);
+  });
+
   it('group head: ref (default id), title or Untitled, count (default entries), time', () => {
     const box = document.createElement('div');
     box.innerHTML = groupHeadHtml({ id: 'g9', at: T0, entries: [{ id: 'x', kind: 'notice' }] });
@@ -291,6 +331,73 @@ describe('<ui-work-log> rendering', () => {
     // Opening the group makes its entries anchors again.
     key(el, 'g:g1').click();
     expect(folded.every((e) => !anchorHidden(e, g1))).toBe(true);
+  });
+
+  it('G2-2: a headless group has no head, is open from the start and never inert; its entries are on the arrow path', () => {
+    const el = mount({
+      groups: [
+        ...groups(),
+        {
+          id: 'turn',
+          headless: true,
+          title: 'not drawn',
+          meta: ['not drawn'],
+          entries: [
+            { id: 'h1', kind: 'instruction', text: 'Also open a PR.', hasRaw: true },
+            { id: 'h2', kind: 'final', text: 'Opened #482.' },
+          ],
+        },
+      ],
+    });
+    const g = group(el, 'turn')!;
+    expect(g.hasAttribute('data-headless')).toBe(true);
+    expect(g.querySelector('.wl-gh, .wl-gh-h, .wl-g-meta')).toBeNull();
+    expect(g.hasAttribute('data-open')).toBe(true);
+    expect(g.hasAttribute('data-settled')).toBe(true);
+    expect(g.querySelector('.wl-g-region')?.hasAttribute('inert')).toBe(false);
+    expect(g.querySelectorAll('[data-entry]')).toHaveLength(2);
+    expect(scroller(el).items.map((i) => i.dataset.item)).toEqual(['g1', 'g2', 'turn']);
+    // The newest group with a head (g2) is the open one; the headless group did not take that role.
+    expect(group(el, 'g2')?.hasAttribute('data-open')).toBe(true);
+    expect(group(el, 'g1')?.hasAttribute('data-open')).toBe(false);
+    // Roving: the last visible row is the headless instruction; End lands on it, ArrowUp walks back into g2.
+    const stops = () => qa(el, '[data-nav]').filter((n) => n.getAttribute('tabindex') === '0');
+    expect(stops()[0].dataset.key).toBe('e:h1');
+    const h1 = key(el, 'e:h1');
+    h1.focus();
+    press(h1, 'ArrowUp');
+    expect(el.shadowRoot!.activeElement).toBe(key(el, 'e:e8'));
+    press(key(el, 'e:e8'), 'End');
+    expect(el.shadowRoot!.activeElement).toBe(h1);
+    // Patching the same group keeps its node; a group that gains a head is rebuilt with one.
+    const node = g;
+    el.data = {
+      groups: [
+        ...groups(),
+        { id: 'turn', headless: true, entries: [{ id: 'h1', kind: 'instruction', text: 'Edited.' }] },
+      ],
+    };
+    el.renderNow();
+    expect(group(el, 'turn')).toBe(node);
+    expect(entry(el, 'h1')?.textContent).toContain('Edited.');
+    el.data = {
+      groups: [...groups(), { id: 'turn', title: 'Now a task', entries: [{ id: 'h1', kind: 'instruction' }] }],
+    };
+    el.renderNow();
+    expect(group(el, 'turn')).not.toBe(node);
+    expect(group(el, 'turn')?.hasAttribute('data-headless')).toBe(false);
+    expect(group(el, 'turn')?.querySelector('.wl-g-title')?.textContent).toBe('Now a task');
+  });
+
+  it('G2-2: the meta line is drawn in the head and patched in place', () => {
+    const el = mount({ groups: [{ id: 'g', title: 'T', meta: ['Done in 3m', { label: 'Tools', value: '3' }] }] });
+    const head = key(el, 'g:g');
+    expect(head.querySelector('.wl-g-meta')?.textContent).toBe('Done in 3m·Tools 3');
+    el.data = { groups: [{ id: 'g', title: 'T', meta: [{ label: 'Tools', value: '4' }] }] };
+    el.renderNow();
+    expect(key(el, 'g:g')).toBe(head);
+    expect(head.querySelector('.wl-g-meta')?.textContent).toBe('Tools 4');
+    expect(styles).toMatch(/\.wl-group\[data-headless\] \.wl-g-body \{[^}]*border-left: 0/);
   });
 
   it('tool entry: a named slot with a plain line (status icon + word, name, summary) as fallback', () => {
@@ -883,7 +990,7 @@ describe('docs', () => {
     older.dispatchEvent(new CustomEvent('ui-load-older', { detail: { oldest: null } }));
     vi.advanceTimersByTime(800);
     older.renderNow();
-    expect(scroller(older).items.length).toBe(5); // three shown + a page of two
+    expect(scroller(older).items.length).toBe(6); // four shown (a headless turn among them) + a page of two
     const run = built.run as UiWorkLog;
     run.renderNow();
     expect(run.shadowRoot!.querySelector('img')).toBeNull();
