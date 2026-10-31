@@ -108,6 +108,7 @@ const STRINGS = {
     priceWords: (i: string, o: string) => `input ${i} · output ${o} per million tokens`,
     noPriceWords: 'price unknown',
     switching: 'Switching model…',
+    autocompact: (n: string) => `autocompact ${n}`,
     effort: 'Effort',
     cap: (set: string, runs: string) => `Set ${set} → this model runs ${runs}`,
   },
@@ -129,6 +130,7 @@ const STRINGS = {
     priceWords: (i: string, o: string) => `입력 ${i} · 출력 ${o} / 백만 토큰`,
     noPriceWords: '가격 정보 없음',
     switching: '모델 전환 중…',
+    autocompact: (n: string) => `자동 압축 ${n}`,
     effort: '추론 강도',
     cap: (set: string, runs: string) => `설정 ${set} → 이 모델은 ${runs}까지 실행`,
   },
@@ -799,7 +801,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       const desc = o.listed
         ? [
             m.short || m.id,
-            ac > 0 ? `autocompact ${fmtModelTokens(ac)}` : '',
+            ac > 0 ? t.autocompact(fmtModelTokens(ac)) : '',
             !isCur && ac > 0 && used > ac ? t.after : '',
           ]
             .filter(Boolean)
