@@ -36,6 +36,18 @@ describe('ui-kit.css', () => {
     expect(kitCss.slice(0, kitCss.indexOf('@media (hover: hover)'))).not.toMatch(/:hover/);
   });
 
+  it("a toned chip takes the host's --ui-tone for its tint and word, and a small size (0.15.0)", () => {
+    expect(kitCss).toMatch(
+      /\.ui-chip\.is-toned \{[^}]*background: color-mix\(in srgb, var\(--ui-tone, var\(--ui-ib-muted\)\) 14%, var\(--ui-ib-card\)\);/,
+    );
+    expect(kitCss).toMatch(
+      /\.ui-chip\.is-toned \{[^}]*color: color-mix\(in srgb, var\(--ui-tone, var\(--ui-ib-muted\)\) 70%, var\(--ui-ib-text\)\);/,
+    );
+    expect(kitCss).toContain('.ui-chip.is-sm { gap: 4px; height: 20px; padding: 0 7px; font-size: 11px; }');
+    // A small chip as a button still reaches 44px on touch (20 + 2 × 12).
+    expect(kitCss).toContain(':is(button.ui-chip, a.ui-chip).is-sm::after { inset: -12px 0; }');
+  });
+
   it('tints status tones with color-mix in both text and pill', () => {
     for (const t of ['run', 'wait', 'done', 'fail']) {
       expect(kitCss).toContain(`.ui-status[data-tone="${t}"]`);
