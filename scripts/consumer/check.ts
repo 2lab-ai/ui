@@ -17,6 +17,12 @@ import {
 } from '@2lab.ai/ui/artifact-viewer';
 import { type AuthCardData, authCardHtml, UiAuthCard } from '@2lab.ai/ui/auth-card';
 import { type BarChartData, niceScale, UiBarChart } from '@2lab.ai/ui/bar-chart';
+import {
+  type BreadcrumbsData,
+  type BreadcrumbsSelect,
+  breadcrumbVisible,
+  UiBreadcrumbs,
+} from '@2lab.ai/ui/breadcrumbs';
 import { type ChoiceFormData, choiceFormLocked, UiChoiceForm } from '@2lab.ai/ui/choice-form';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
 import { type ComposerData, composerEnterAction, UiComposer } from '@2lab.ai/ui/composer';
@@ -60,7 +66,7 @@ import { cuelumeSound, type SoundTheme, setSoundTheme, unlockSound } from '@2lab
 import { fmtMetric, type StatStripData, UiStatStrip } from '@2lab.ai/ui/stat-strip';
 import { STATUS_ARM_MS, type StatusBarData, UiStatusBar } from '@2lab.ai/ui/status-bar';
 import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
-import { type TaskPlanData, taskFateCounts, UiTaskPlan } from '@2lab.ai/ui/task-plan';
+import { type TaskPlanData, type TaskPlanMore, taskFateCounts, taskWindow, UiTaskPlan } from '@2lab.ai/ui/task-plan';
 import { type TaskRunsData, taskRunTotals, UiTaskRuns } from '@2lab.ai/ui/task-runs';
 import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
@@ -145,6 +151,22 @@ const left: MeterData = { value: 0.72, low: 0.2, high: 0.5, label: 'Remaining us
 const leftTone: MeterTone = meterTone(left.value, left);
 const gridEl: HTMLElementTagNameMap['ui-media-grid'] = document.createElement('ui-media-grid');
 const meterEl: HTMLElementTagNameMap['ui-meter'] = document.createElement('ui-meter');
+// LG6 (0.14.0): the task plan as a window, the breadcrumbs, the countdown's words.
+const windowed: TaskPlanData = {
+  steps: [{ id: 's', label: 'S', status: 'running' }],
+  max: 3,
+  foot: 'none',
+  more: '+2 more →',
+};
+const asked: TaskPlanMore = { hidden: 2, total: 5 };
+const trail: BreadcrumbsData = {
+  items: [
+    { label: 'Home', href: '/' },
+    { id: 'here', label: 'Here' },
+  ],
+};
+const chosen: BreadcrumbsSelect = { id: 'here', index: 1, item: trail.items[1] };
+const trailEl: HTMLElementTagNameMap['ui-breadcrumbs'] = document.createElement('ui-breadcrumbs');
 const navEl: HTMLElementTagNameMap['ui-settings-nav'] = document.createElement('ui-settings-nav');
 const authEl: HTMLElementTagNameMap['ui-auth-card'] = document.createElement('ui-auth-card');
 // Sound: the policy from the root and the subpath is one API; the Cuelume player has the SoundPlayer shape.
@@ -198,6 +220,7 @@ const classes = [
   UiElapsed,
   UiMediaGrid,
   UiMeter,
+  UiBreadcrumbs,
 ];
 console.log(
   typeof bindSound,
@@ -304,4 +327,9 @@ console.log(
   leftTone,
   gridEl.tagName,
   meterEl.tagName,
+  taskWindow(windowed.steps, windowed.max ?? 0).hidden,
+  asked.total,
+  breadcrumbVisible(trail.items.length, false).length,
+  chosen.index,
+  trailEl.tagName,
 );
