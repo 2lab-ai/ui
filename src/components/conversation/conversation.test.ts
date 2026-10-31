@@ -9,6 +9,7 @@ import {
   clampLinesOf,
   clampOverflows,
   clockText,
+  hasSummaryView,
   initialOf,
   normalizeTurns,
   PENDING_KEY,
@@ -16,6 +17,7 @@ import {
   progressState,
   summaryLine,
   summaryText,
+  summaryView,
   tookText,
   turnAnswerData,
   turnSignature,
@@ -540,6 +542,75 @@ describe('<ui-conversation> keyed updates', () => {
 });
 
 describe('<ui-conversation> events', () => {
+  it('G1-3: summaryView / hasSummaryView — the text, the failure, or the quiet line, Retry with canRetry', () => {
+    expect(hasSummaryView(undefined)).toBe(false);
+    expect(hasSummaryView({})).toBe(false);
+    expect(hasSummaryView({ title: 'T' })).toBe(true);
+    expect(hasSummaryView({ error: 'HTTP 500' })).toBe(true);
+    expect(hasSummaryView({ canRetry: true })).toBe(true);
+    expect(summaryView({ title: 'T', text: 'x', canRetry: true }, 'none')).toEqual({
+      state: 'ready',
+      text: 'T\n\nx',
+      canRetry: true,
+    });
+    expect(summaryView({ title: 'T' }, 'none')).toEqual({ state: 'ready', text: 'T', canRetry: false });
+    expect(summaryView({ error: 'HTTP 500', canRetry: true }, 'none')).toEqual({
+      state: 'error',
+      note: 'HTTP 500',
+      canRetry: true,
+    });
+    expect(summaryView({ canRetry: true }, 'none')).toEqual({ state: 'missing', note: 'none', canRetry: true });
+    expect(summaryView(undefined, 'none')).toEqual({ state: 'missing', note: 'none', canRetry: false });
+  });
+
+  it('G1-3: Retry on Raw’s Summary view sends ui-retry { id, what: "summary" }; the failed and missing summary states', () => {
+    const el = mount({
+      turns: [
+        { ...BOT, source: 'src', summary: { ...BOT.summary, canRetry: true } },
+        { id: 'a2', role: 'assistant', markdown: 'Done', summary: { error: 'HTTP 500', canRetry: true } },
+        { id: 'a3', role: 'assistant', markdown: 'Done', summary: { canRetry: true } },
+        { id: 'a4', role: 'assistant', markdown: 'Done', summary: {} },
+      ],
+    });
+    const seen: unknown[] = [];
+    el.addEventListener('ui-retry', (e) => seen.push((e as CustomEvent).detail));
+    // A summary with text: Copy and Retry in the bar.
+    const a1 = node(el, 'a1');
+    click(a1.querySelector('[data-act="raw"]'));
+    click(a1.querySelector('.cv-tab[data-view="summary"]'));
+    const view = a1.querySelector('.cv-rawview[data-from="summary"]') as HTMLElement;
+    expect(view.querySelector('.raw-text')?.textContent).toBe('Pinned the clock\n\nThe test read the wall clock.');
+    expect(view.querySelector('.raw-copy')).not.toBeNull();
+    click(view.querySelector('.raw-retry'));
+    expect(seen).toEqual([{ id: 'a1', what: 'summary' }]);
+    // The source view has no Retry (nothing to summarise again there).
+    click(a1.querySelector('.cv-tab[data-view="source"]'));
+    expect(a1.querySelector('.cv-rawview[data-from="source"] .raw-retry')).toBeNull();
+    // A failed summary: the error line with the alert mark and Retry.
+    const a2 = node(el, 'a2');
+    click(a2.querySelector('[data-act="raw"]'));
+    click(a2.querySelector('.cv-tab[data-view="summary"]'));
+    const failed = a2.querySelector('.cv-rawview[data-from="summary"] .raw') as HTMLElement;
+    expect(failed.dataset.state).toBe('error');
+    expect(failed.textContent).toContain('HTTP 500');
+    expect(failed.querySelector('.raw-line-icon')?.getAttribute('data-icon')).toBe('alert');
+    click(failed.querySelector('.raw-retry'));
+    expect(seen.at(-1)).toEqual({ id: 'a2', what: 'summary' });
+    // No summary yet, but one can be asked for: the quiet line and Retry.
+    const a3 = node(el, 'a3');
+    click(a3.querySelector('[data-act="raw"]'));
+    click(a3.querySelector('.cv-tab[data-view="summary"]'));
+    const missing = a3.querySelector('.cv-rawview[data-from="summary"] .raw') as HTMLElement;
+    expect(missing.dataset.state).toBe('missing');
+    expect(missing.textContent).toContain('No summary yet');
+    expect(missing.querySelector('.raw-retry')).not.toBeNull();
+    // An empty summary object: no Summary view at all.
+    const a4 = node(el, 'a4');
+    click(a4.querySelector('[data-act="raw"]'));
+    expect(a4.querySelector('.cv-tab')).toBeNull();
+    expect(a4.querySelector('.cv-rawview')?.getAttribute('data-from')).toBe('source');
+  });
+
   it('sends ui-retry with id null from the error bar and the error box', () => {
     const el = mount({ turns: [USER], error: 'HTTP 500' });
     const seen: Array<CustomEvent> = [];
@@ -712,6 +783,13 @@ describe('<ui-conversation> lang="ko"', () => {
     expect(logOf(el).data?.startText).toBe('대화의 시작');
     click(node(el, 'a1').querySelector('[data-act="raw"]'));
     expect(Array.from(node(el, 'a1').querySelectorAll('.cv-tab')).map((b) => b.textContent)).toEqual(['요약', '원문']);
+    el.data = { turns: [{ ...BOT, summary: { canRetry: true } }] };
+    el.renderNow();
+    click(node(el, 'a1').querySelector('[data-act="raw"]'));
+    click(node(el, 'a1').querySelector('.cv-tab[data-view="summary"]'));
+    expect(node(el, 'a1').querySelector('.cv-rawview[data-from="summary"] .raw')?.textContent).toContain(
+      '아직 요약이 없습니다',
+    );
   });
 
   it('switches language in place', () => {
@@ -851,6 +929,19 @@ describe('sound', () => {
     press(ans.shadowRoot?.querySelector('.ans-retry'));
     await spy.settle();
     expect(spy.calls.slice(2)).toEqual([['tap', { input: 'mouse' }]]);
+    // G1-3: Retry on the summary → tap; prevented → silent.
+    el.data = { turns: [{ ...BOT, summary: { error: 'x', canRetry: true } }] };
+    el.renderNow();
+    const b = node(el, 'a1');
+    click(b.querySelector('[data-act="raw"]'));
+    click(b.querySelector('.cv-tab[data-view="summary"]'));
+    press(b.querySelector('.raw-retry'));
+    await spy.settle();
+    expect(spy.calls.slice(3)).toEqual([['tap', { input: 'mouse' }]]);
+    el.addEventListener('ui-retry', (e) => e.preventDefault());
+    press(b.querySelector('.raw-retry'));
+    await spy.settle();
+    expect(spy.calls).toHaveLength(4);
   });
 
   it('nothing for a prevented retry, data the app sets, or a data-ui-sound="off" region', async () => {

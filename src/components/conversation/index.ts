@@ -9,6 +9,7 @@ export type {
   TurnPlan,
   TurnProgress,
   TurnRole,
+  TurnSummary,
 } from './logic';
 export {
   clampLinesOf,
@@ -16,6 +17,7 @@ export {
   clockText as progressClockText,
   conversationStrings,
   DEFAULT_CLAMP,
+  hasSummaryView,
   initialOf,
   normalizeTurns,
   PENDING_KEY,
@@ -24,6 +26,7 @@ export {
   STRINGS as CONVERSATION_STRINGS,
   summaryLine,
   summaryText,
+  summaryView,
   tookText,
   turnAnswerData,
   turnSignature,

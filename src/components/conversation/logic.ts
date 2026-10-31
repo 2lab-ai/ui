@@ -1,8 +1,18 @@
-import type { SkillBadge } from '../../core/activity';
+import type { RawView, SkillBadge } from '../../core/activity';
 import type { AiAnswerData } from '../ai-answer/ai-answer';
 
 export type ConversationLang = 'en' | 'ko';
 export type TurnRole = 'user' | 'assistant' | 'system' | 'pending';
+
+/** An assistant turn's summary: a title and a text, or why there is none yet. */
+export interface TurnSummary {
+  title?: string;
+  text?: string;
+  /** Offer Retry in Raw's Summary view: `ui-retry` with `{ id, what: 'summary' }`. */
+  canRetry?: boolean;
+  /** The summary failed (e.g. "HTTP 500"): shown in the Summary view instead of the text. */
+  error?: string;
+}
 
 /** A long operation a system turn reports while it runs (a compaction, a restart, a background job). */
 export interface TurnProgress {
@@ -44,8 +54,12 @@ export interface ConversationTurn {
   markdown?: string;
   /** assistant: the source shown in Raw, when it differs from `markdown`. */
   source?: string;
-  /** assistant: the turn's summary — shown in Raw, and as the heading of an answer that is empty or failed. */
-  summary?: { title?: string; text?: string };
+  /**
+   * assistant: the turn's summary — shown in Raw, and as the heading of an answer that is empty or failed.
+   * `canRetry` offers Retry in Raw's Summary view (`ui-retry` with `what: 'summary'`); `error` says why there is
+   * none yet (shown instead of the text, with the alert mark).
+   */
+  summary?: TurnSummary;
   /** assistant: time from the instruction to the answer (ms) — the chip in the header. */
   responseMs?: number;
   /** assistant: more text is coming. */
@@ -101,9 +115,13 @@ export interface ConversationData {
   live?: boolean;
 }
 
-/** `ui-retry` detail: the turn whose answer to fetch again, or null for the conversation itself. */
+/**
+ * `ui-retry` detail: the turn whose answer to fetch again, or null for the conversation itself. `what: 'summary'`
+ * when the person pressed Retry on the turn's summary (Raw's Summary view, `summary.canRetry`); absent for the answer.
+ */
 export interface ConversationRetryDetail {
   id: string | null;
+  what?: 'summary';
 }
 
 /** `ui-copy` detail (notification): what was copied from which turn. */
@@ -143,6 +161,7 @@ export const STRINGS = {
     over: 'Taking longer than expected',
     of: (est: string) => `/ ~${est}`,
     details: 'Details',
+    noSummary: 'No summary yet',
   },
   ko: {
     label: '대화',
@@ -168,6 +187,7 @@ export const STRINGS = {
     over: '예상보다 오래 걸리는 중',
     of: (est: string) => `/ 약 ${est}`,
     details: '자세히',
+    noSummary: '아직 요약이 없습니다',
   },
 };
 export type ConversationStrings = (typeof STRINGS)['en'];
@@ -362,6 +382,24 @@ export function turnSource(turn: ConversationTurn): string {
 export function clampLinesOf(n: unknown): number {
   const v = Math.floor(Number(n));
   return Number.isFinite(v) && v >= 1 ? Math.min(200, v) : DEFAULT_CLAMP;
+}
+
+/** Raw's Summary view has something to show: the text, why it failed, or a Retry to ask for one. */
+export function hasSummaryView(summary: TurnSummary | undefined): boolean {
+  return !!summary && (!!summaryText(summary) || !!summary.error || !!summary.canRetry);
+}
+
+/**
+ * Raw's Summary view: the text when there is one (Copy; Retry with `canRetry`), else the failure (`error`, alert
+ * mark) or the quiet "no summary yet" line — each with Retry when `canRetry`.
+ */
+export function summaryView(summary: TurnSummary | undefined, noneText: string): RawView {
+  const text = summaryText(summary);
+  const canRetry = !!summary?.canRetry;
+  if (text) return { state: 'ready', text, canRetry };
+  const error = summary?.error === undefined || summary.error === null ? '' : String(summary.error);
+  if (error) return { state: 'error', note: error, canRetry };
+  return { state: 'missing', note: noneText, canRetry };
 }
 
 /** The summary as Raw shows and copies it: the title, a blank line, the text. */
