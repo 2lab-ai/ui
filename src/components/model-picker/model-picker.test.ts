@@ -572,6 +572,9 @@ describe('<ui-model-picker>', () => {
     el.renderNow();
     expect(q(el, '.mp-caption')!.textContent).toBe('가격 정보 없음 · 창 500.0K');
     expect(q(el, '.mp-opt[data-k="opus"] .mp-desc')!.textContent).toContain('압축 후 전환');
+    // The row's compaction point in Korean too (0.14.1): 자동 압축 750.0K, no English left in the menu.
+    for (const d of qa(el, '.mp-desc')) expect(d.textContent).not.toContain('autocompact');
+    expect(qa(el, '.mp-desc').some((d) => (d.textContent ?? '').includes('자동 압축'))).toBe(true);
   });
 });
 
