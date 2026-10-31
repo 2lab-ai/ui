@@ -17,11 +17,13 @@ import {
   clampOverflows,
   clockText,
   conversationStrings,
+  hasSummaryView,
   initialOf,
   normalizeTurns,
   planTurns,
   progressState,
   summaryText,
+  summaryView,
   type TurnProgress,
   tookText,
   turnAnswerData,
@@ -526,7 +528,8 @@ export class UiConversation extends UiElement<ConversationData> {
   #rawViews(turn: ConversationTurn): AnswerView[] {
     if (turn.streaming || turn.loading) return [];
     const views: AnswerView[] = [];
-    if (summaryText(turn.summary)) views.push('summary');
+    // The summary, its failure, or a Retry that asks for one (summary.canRetry).
+    if (hasSummaryView(turn.summary)) views.push('summary');
     if (turnSource(turn).trim()) views.push('source');
     return views;
   }
@@ -574,10 +577,15 @@ export class UiConversation extends UiElement<ConversationData> {
   }
 
   #rawViewInner(turn: ConversationTurn, st: TurnUi, from: RawFrom): string {
-    return rawViewHtml(
-      { state: 'ready', text: this.#rawText(turn, from) },
-      { lang: this.#ctx.lang, keyPrefix: `${st.dom}:${from}`, copied: this.#copied === `${turn.id}\n${from}` },
-    );
+    const view =
+      from === 'summary'
+        ? summaryView(turn.summary, this.#ctx.t.noSummary)
+        : { state: 'ready' as const, text: this.#rawText(turn, from) };
+    return rawViewHtml(view, {
+      lang: this.#ctx.lang,
+      keyPrefix: `${st.dom}:${from}`,
+      copied: this.#copied === `${turn.id}\n${from}`,
+    });
   }
 
   #systemBody(turn: ConversationTurn, st: TurnUi, who: string): string {
@@ -713,7 +721,14 @@ export class UiConversation extends UiElement<ConversationData> {
     else if (btn.dataset.act === 'raw' || btn.dataset.act === 'sys') this.#toggleDisc(node, id, btn.dataset.act);
     else if (btn.classList.contains('cv-tab')) this.#setView(node, id, btn.dataset.view as AnswerView);
     else if (btn.classList.contains('raw-copy')) void this.#copy(id, btn, e);
+    else if (btn.classList.contains('raw-retry')) this.#retrySummary(id, btn, e);
     else if (btn.classList.contains('skill-badge')) this.#toggleSkill(node, id, Number(btn.dataset.skill));
+  }
+
+  /** Retry on Raw's Summary view: the host summarises the turn again (`ui-retry` with what: 'summary'). */
+  #retrySummary(id: string, btn: HTMLElement, e: Event): void {
+    if (btn.closest<HTMLElement>('.cv-rawview')?.dataset.from !== 'summary') return;
+    if (this.emit<ConversationRetryDetail>('ui-retry', { id, what: 'summary' })) this.sound('tap', undefined, e);
   }
 
   #onKey(e: KeyboardEvent): void {

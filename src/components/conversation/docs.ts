@@ -333,12 +333,22 @@ function statesDemo(): HTMLElement {
     at: BASE + 30_000,
     error: 'HTTP 404',
     canRetry: true,
-    summary: { title: 'Incident summary' },
+    summary: { error: 'Summary failed (HTTP 500)', canRetry: true },
   };
   const partial = frame(make({ turns: [ask, answer], error: 'HTTP 500' }, 260));
   partial.addEventListener('ui-retry', (e) => {
-    const id = (e as CustomEvent<{ id: string | null }>).detail.id;
-    if (id === 'a-1') {
+    const { id, what } = (e as CustomEvent<{ id: string | null; what?: 'summary' }>).detail;
+    if (id === 'a-1' && what === 'summary') {
+      // Summarise again: the host answers with the summary.
+      setTimeout(() => {
+        if (!partial.isConnected) return;
+        answer = {
+          ...answer,
+          summary: { title: 'Incident summary', text: 'Search down 14 minutes; certificate renewed.' },
+        };
+        partial.data = { turns: [ask, answer] };
+      }, 700);
+    } else if (id === 'a-1') {
       answer = { ...answer, error: undefined, canRetry: undefined, loading: true };
       partial.data = { turns: [ask, answer] };
       setTimeout(() => {
@@ -583,9 +593,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.turns[].markdown · source · summary',
-      type: 'string · string · { title?, text? }',
+      type: 'string · string · { title?, text?, canRetry?, error? }',
       description:
-        'assistant: the answer (markdown, rendered safely by <ui-ai-answer>); Raw shows the summary and the source as written (source defaults to markdown). The summary heads an answer that is empty or failed.',
+        'assistant: the answer (markdown, rendered safely by <ui-ai-answer>); Raw shows the summary and the source as written (source defaults to markdown). The summary heads an answer that is empty or failed. summary.canRetry puts Retry in Raw’s Summary view (ui-retry with what: "summary"); summary.error says why there is none yet, shown there instead of the text.',
     },
     {
       name: 'data.turns[].responseMs · streaming · loading · error · canRetry',
@@ -686,8 +696,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-retry',
-      detail: '{ id: string | null }',
-      description: 'Try again: a turn’s answer (its id) or the conversation itself (null). Cancelable.',
+      detail: '{ id: string | null; what?: "summary" }',
+      description:
+        'Try again: a turn’s answer (its id) or the conversation itself (null); what: "summary" when Retry was pressed on the turn’s summary (Raw’s Summary view, summary.canRetry). Cancelable.',
     },
     {
       name: 'ui-copy',
