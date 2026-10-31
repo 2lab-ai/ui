@@ -21,6 +21,11 @@ export interface DialogCloseDetail {
   reason: DialogCloseReason;
 }
 
+/** `ui-closed` detail (notification, after the exit): what closed it — the person's reason, or `hide` for the host. */
+export interface DialogClosedDetail {
+  reason: DialogCloseReason | 'hide';
+}
+
 const SIZES: readonly DialogSize[] = ['sm', 'md', 'lg', 'xl', 'full'];
 
 /** The `size` attribute as a size (unknown or missing → `md`). */
@@ -51,7 +56,8 @@ function focusOnBody(): boolean {
  * `<ui-dialog>` — a modal dialog over a dimmed page: a native `<dialog>` opened with `showModal()` (focus trap,
  * inert page, top layer) whose panel rises in (opacity + translateY(8px) scale(.97), 240ms) and settles back out
  * in 180ms; on phones it is a bottom sheet. Escape, the scrim and the close button send a cancelable `ui-close`;
- * `show()` / `hide()` / `open` open and close without one.
+ * `show()` / `hide()` / `open` open and close without one. `ui-closed` follows every exit (a host that must wait for
+ * it — dropping an iframe, giving a scroll place back — listens there).
  */
 export class UiDialog extends UiElement {
   static override styles = [styles];
@@ -62,6 +68,8 @@ export class UiDialog extends UiElement {
   /** Asked to be open (the `open` attribute). False from the moment a close starts. */
   #want = false;
   #state: State = 'closed';
+  /** What the close under way was asked by (for `ui-closed`). */
+  #reason: DialogClosedDetail['reason'] = 'hide';
   #reflecting = false;
   #timer = 0;
   #closeAt = 0;
@@ -230,6 +238,7 @@ export class UiDialog extends UiElement {
    */
   #setOpen(v: boolean, user = false, e?: Event): void {
     this.#want = v;
+    if (!v && !user) this.#reason = 'hide';
     this.#reflect(v);
     if (!this.isConnected) return;
     const was = this.#dlg() ? this.#state : null;
@@ -306,6 +315,7 @@ export class UiDialog extends UiElement {
       if (dlg.open) dlg.close();
     }
     if (restore) this.#focusBack(back);
+    this.notify<DialogClosedDetail>('ui-closed', { reason: this.#reason });
   }
 
   #focusBack(el: Element | null): void {
@@ -331,7 +341,9 @@ export class UiDialog extends UiElement {
 
   #request(reason: DialogCloseReason, e?: Event): void {
     if (this.#state !== 'open') return;
-    if (this.emit<DialogCloseDetail>('ui-close', { reason })) this.#setOpen(false, true, e);
+    if (!this.emit<DialogCloseDetail>('ui-close', { reason })) return;
+    this.#reason = reason;
+    this.#setOpen(false, true, e);
   }
 
   // ── events ────────────────────────────────────────────────────────────────

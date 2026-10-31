@@ -85,6 +85,46 @@ describe('<ui-dialog>', () => {
     expect(seen).toEqual([]);
   });
 
+  it('D4 G6-2: ui-closed follows every exit with its reason — hide, escape, close-button — not a cancelled or turned-around close', () => {
+    const el = mount({ heading: 'Hi' });
+    const closed: string[] = [];
+    el.addEventListener('ui-closed', (e) => closed.push((e as CustomEvent).detail.reason));
+    el.show();
+    el.hide();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS - 1);
+    expect(closed).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(closed).toEqual(['hide']);
+    el.show();
+    key(dlg(el), 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS);
+    expect(closed).toEqual(['hide', 'escape']);
+    el.show();
+    click(q(el, '.dg-close')!);
+    vi.advanceTimersByTime(DIALOG_EXIT_MS);
+    expect(closed).toEqual(['hide', 'escape', 'close-button']);
+    // Cancelled: nothing closes, nothing follows.
+    el.show();
+    const stop = (e: Event) => e.preventDefault();
+    el.addEventListener('ui-close', stop);
+    key(dlg(el), 'Escape');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS);
+    expect(dlg(el).open).toBe(true);
+    expect(closed).toHaveLength(3);
+    el.removeEventListener('ui-close', stop);
+    // Turned around mid-exit: still open, no ui-closed.
+    el.hide();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS / 2);
+    el.show();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS);
+    expect(dlg(el).open).toBe(true);
+    expect(closed).toHaveLength(3);
+    // The open attribute going is the host's: hide.
+    el.removeAttribute('open');
+    vi.advanceTimersByTime(DIALOG_EXIT_MS);
+    expect(closed).toEqual(['hide', 'escape', 'close-button', 'hide']);
+  });
+
   it('the open attribute and property open and close it', () => {
     const el = mount();
     el.setAttribute('open', '');

@@ -189,7 +189,8 @@ export const doc: ComponentDoc = {
     {
       name: 'hide()',
       type: '() => void',
-      description: 'Close with the exit motion (no event). Focus returns to where it was.',
+      description:
+        'Close with the exit motion (no ui-close; ui-closed once the exit is over). Focus returns to where it was.',
     },
     {
       name: '--ui-vv-h / --ui-vv-top',
@@ -218,6 +219,12 @@ export const doc: ComponentDoc = {
       detail: "{ reason: 'escape' | 'scrim' | 'close-button' }",
       description:
         'The person asked to close. Cancelable: preventDefault() keeps it open; otherwise it closes. Not sent for show() / hide() / open.',
+    },
+    {
+      name: 'ui-closed',
+      detail: "{ reason: 'escape' | 'scrim' | 'close-button' | 'hide' }",
+      description:
+        'Notification, after the exit has played (180ms; 120ms under reduced motion) — for every close: the person’s (their reason) and the host’s hide() / open = false (hide). Drop an iframe or give a scroll place back here. Not sent for a close that was cancelled, nor when the dialog reopens before its exit is over.',
     },
   ],
   keyboard: [
