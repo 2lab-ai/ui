@@ -1,5 +1,5 @@
 import { define, UiElement } from '../../core/element';
-import { fmtDuration } from '../../core/format';
+import { fmtDurationIn } from '../../core/format';
 import { attrs, cls, esc, escAttr, safeHref } from '../../core/html';
 import { morphInto } from '../../core/morph';
 import { icon } from '../../icons/icons';
@@ -238,6 +238,10 @@ export class UiStatusBar extends UiElement<StatusBarData> {
     return this.getAttribute('lang') === 'ko' ? STRINGS.ko : STRINGS.en;
   }
 
+  get #langKey(): 'en' | 'ko' {
+    return this.getAttribute('lang') === 'ko' ? 'ko' : 'en';
+  }
+
   // ── Intent ────────────────────────────────────────────────────────────────
 
   #onClick(e: Event): void {
@@ -334,16 +338,16 @@ export class UiStatusBar extends UiElement<StatusBarData> {
     const tm = statusBarTime(d);
     if (tm.kind === 'none') return '';
     if (tm.kind === 'active')
-      return `<span class="sb-time" title="${escAttr(t.activeTitle)}">${esc(t.active)} <span class="sb-dur">${esc(fmtDuration(tm.ms))}</span></span>`;
+      return `<span class="sb-time" title="${escAttr(t.activeTitle)}">${esc(t.active)} <span class="sb-dur">${esc(fmtDurationIn(tm.ms, this.#langKey))}</span></span>`;
     const clock = `<span class="sb-clock" aria-hidden="true">${icon('clock', { size: 13 })}</span>`;
     const start = `<span class="sb-start">${esc(t.started(statusTimeOfDay(tm.since)))}</span>`;
     // Spaces between the parts keep the text readable as text (a flex row drops them visually).
     const dot = ' <span class="sb-dot" aria-hidden="true">·</span> ';
     if (tm.kind === 'started') return `<span class="sb-time" title="${escAttr(t.startTitle)}">${clock}${start}</span>`;
     if (tm.kind === 'ran')
-      return `<span class="sb-time" title="${escAttr(t.ranTitle)}">${clock}${start}${dot}<span class="sb-dur">${esc(fmtDuration(tm.ms))}</span></span>`;
+      return `<span class="sb-time" title="${escAttr(t.ranTitle)}">${clock}${start}${dot}<span class="sb-dur">${esc(fmtDurationIn(tm.ms, this.#langKey))}</span></span>`;
     return `<span class="sb-time" title="${escAttr(t.liveTitle)}">${clock}${start}${dot}<span class="sb-tick" data-since="${tm.since}">${esc(
-      fmtDuration(Date.now() - tm.since),
+      fmtDurationIn(Date.now() - tm.since, this.#langKey),
     )}</span></span>`;
   }
 
@@ -402,7 +406,8 @@ export class UiStatusBar extends UiElement<StatusBarData> {
   /** 1 Hz: the elapsed clock is one text node, updated in place — never a re-render. */
   #tick(): void {
     const now = Date.now();
-    for (const el of this.$$('[data-since]')) setText(el, fmtDuration(now - (Number(el.dataset.since) || now)));
+    for (const el of this.$$('[data-since]'))
+      setText(el, fmtDurationIn(now - (Number(el.dataset.since) || now), this.#langKey));
   }
 }
 

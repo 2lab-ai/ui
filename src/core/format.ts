@@ -27,6 +27,18 @@ export function fmtDuration(ms: number): string {
   return `${h}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
+/** Elapsed time in the surface's language: 42s · 9m 22s · 2h 15m; ko: 42초 · 9분 22초 · 2시간 15분 — the same words as
+ *  <ui-elapsed lang="ko"> (a plan's step clocks, a run's time and the page's live times read alike). */
+export function fmtDurationIn(ms: number, lang?: string): string {
+  if (lang !== 'ko') return fmtDuration(ms);
+  const s = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+  if (s < 60) return `${s}초`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}분 ${String(s % 60).padStart(2, '0')}초`;
+  const h = Math.floor(m / 60);
+  return `${h}시간 ${String(m % 60).padStart(2, '0')}분`;
+}
+
 /** Duration in Korean: 42초, 7분 12초 (7분 on the minute), 2시간 3분 (2시간 on the hour). */
 export function fmtDurationKo(ms: number): string {
   const s = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
