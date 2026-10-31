@@ -417,7 +417,8 @@ export class UiDrawer extends UiElement {
     }
     dlg.removeAttribute('data-instant');
     if (inside && active?.isConnected) (active as HTMLElement).focus?.({ preventScroll: true });
-    else if (this.#mode === 'sheet') this.#focusFirst();
+    // Without scrolling: the places just restored (and held by #settle) are the reader's, not the [autofocus] field's.
+    else if (this.#mode === 'sheet') this.#focusFirst(true);
     if (!this.#drag && !prefersReducedMotion()) this.#morphFrom(dlg, from, scrimFrom);
     this.#settle(places);
   }
@@ -645,9 +646,9 @@ export class UiDrawer extends UiElement {
       (el as HTMLElement).focus({ preventScroll: true });
   }
 
-  #focusFirst(): void {
+  #focusFirst(still = false): void {
     const auto = this.querySelector<HTMLElement>('[autofocus]');
-    if (auto) auto.focus();
+    if (auto) auto.focus(still ? { preventScroll: true } : undefined);
     else this.$<HTMLElement>('.dr-panel')?.focus({ preventScroll: true });
   }
 

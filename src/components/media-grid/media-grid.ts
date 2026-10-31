@@ -149,7 +149,9 @@ export class UiMediaGrid extends UiElement<MediaGridData> {
       (e) => {
         const el = e.target as Element | null;
         if (el?.tagName !== 'IMG') return;
-        const src = el.getAttribute('src') ?? '';
+        // The attribute reads decoded (`&`); the tiles compare the escaped form `mediaSrc` drew (`&amp;`).
+        const raw = el.getAttribute('src') ?? '';
+        const src = safeSrc(raw) || raw;
         if (!src || this.#broken.has(src)) return;
         this.#broken.add(src);
         this.requestRender();

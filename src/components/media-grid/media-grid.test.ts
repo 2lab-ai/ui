@@ -156,6 +156,19 @@ describe('<ui-media-grid>', () => {
     expect(qa(el, '.mg-tile')[0].classList.contains('is-broken')).toBe(false);
   });
 
+  it('P3-3: a source with a query string (&) — the failed thumb is known by the form the tile drew, the url is tried', () => {
+    const el = mount({ items: [{ id: 'q', name: 'q.png', thumb: '/thumb/q?w=96&h=96', url: '/media/q?sig=a&exp=1' }] });
+    const img = () => qa(el, '.mg-tile')[0].querySelector('img');
+    expect(img()!.getAttribute('src')).toBe('/thumb/q?w=96&h=96');
+    img()!.dispatchEvent(new Event('error'));
+    el.renderNow();
+    expect(img()!.getAttribute('src')).toBe('/media/q?sig=a&exp=1');
+    img()!.dispatchEvent(new Event('error'));
+    el.renderNow();
+    expect(qa(el, '.mg-tile')[0].classList.contains('is-broken')).toBe(true);
+    expect(img()).toBeNull();
+  });
+
   it('P3-3: a thumb that fails to load tries the url once — only then "No preview"; the same source is not tried twice', () => {
     const el = mount({
       items: [
