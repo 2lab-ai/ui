@@ -41,12 +41,38 @@ export interface TaskPlanData {
   labels?: { earlier?: string; earlierList?: string; noSteps?: string };
   /** The host's clock (epoch ms) when it built this data: running clocks correct for this device's clock skew. */
   now?: number;
+  /**
+   * Window mode (also the `max` attribute): at most this many step rows — when the plan is longer, the earliest
+   * done steps leave first, then the latest pending ones from the end; the running step always stays. The rows
+   * left out are one quiet "+N" button at the end (`more`) whose press is `ui-more`. No lead fold in a window.
+   */
+  max?: number;
+  /** `'none'` (also the `foot` attribute): no phase foot — the host's face already says the phase and the time. */
+  foot?: 'none';
+  /** The window's "+N" button in the host's words (`+3 done · all 12 tasks →`). Default `+N more` / `+N개 더`. */
+  more?: string;
 }
 
 /** `ui-toggle` detail: which fold the person opened or closed. */
 export interface TaskPlanToggle {
   id: 'earlier-plans' | 'earlier-steps';
   open: boolean;
+}
+
+/** `ui-more` detail (notification): the person pressed the window's "+N" button — the host opens the whole plan. */
+export interface TaskPlanMore {
+  /** Steps the window left out. */
+  hidden: number;
+  /** Steps in the plan. */
+  total: number;
+}
+
+/** What a window of `max` rows shows of a plan. */
+export interface TaskPlanWindow {
+  /** Indexes of the steps shown, in plan order. */
+  shown: number[];
+  /** Steps left out. */
+  hidden: number;
 }
 
 const STRINGS = {
@@ -61,6 +87,8 @@ const STRINGS = {
     stepDone: (l: string) => `Step done: ${l}`,
     stepFailed: (l: string) => `Step failed: ${l}`,
     stepPaused: (l: string) => `Step paused: ${l}`,
+    window: (n: number, total: number) => `Plan steps, ${n} of ${total}`,
+    more: (n: number) => `+${n} more`,
     fateCount: {
       done: (n: number) => `${n} done`,
       dropped: (n: number) => `${n} dropped`,
@@ -78,6 +106,8 @@ const STRINGS = {
     stepDone: (l: string) => `단계 완료: ${l}`,
     stepFailed: (l: string) => `단계 실패: ${l}`,
     stepPaused: (l: string) => `단계 멈춤: ${l}`,
+    window: (n: number, total: number) => `계획 단계, 전체 ${total}개 중 ${n}개`,
+    more: (n: number) => `+${n}개 더`,
     fateCount: {
       done: (n: number) => `완료 ${n}`,
       dropped: (n: number) => `제외 ${n}`,
@@ -140,6 +170,31 @@ export function taskFateSummary(counts: Record<PlanFate, number>, lang?: string)
     .join(' · ');
 }
 
+/**
+ * The rows a window of `max` keeps (0 = every row): when the plan is longer, the earliest done steps leave first,
+ * then the latest pending ones from the end, then anything else from the end — a running step never leaves, so a
+ * window may run over `max` only when more steps than that run at once.
+ */
+export function taskWindow(steps: ReadonlyArray<Pick<PlanStep, 'status'>>, max: number): TaskPlanWindow {
+  const n = steps.length;
+  const cap = Math.floor(num(max));
+  const st = steps.map((s) => planStatus(s.status));
+  const keep: boolean[] = new Array(n).fill(true);
+  let over = cap ? Math.max(0, n - cap) : 0;
+  const drop = (i: number) => {
+    keep[i] = false;
+    over--;
+  };
+  for (let i = 0; i < n && over > 0; i++) if (st[i] === 'done') drop(i);
+  for (let i = n - 1; i >= 0 && over > 0; i--) if (keep[i] && st[i] === 'pending') drop(i);
+  for (let i = n - 1; i >= 0 && over > 0; i--) if (keep[i] && st[i] !== 'running') drop(i);
+  const shown: number[] = [];
+  keep.forEach((k, i) => {
+    if (k) shown.push(i);
+  });
+  return { shown, hidden: n - shown.length };
+}
+
 /** Every step of a plan with its sub-steps, depth first (ids → statuses for announcing changes). */
 function flatten(steps: readonly PlanStep[], out: PlanStep[] = [], depth = 0): PlanStep[] {
   for (const s of list(steps)) {
@@ -153,12 +208,13 @@ function flatten(steps: readonly PlanStep[], out: PlanStep[] = [], depth = 0): P
  * `<ui-task-plan>` — the agent's plan for a task: a marker per step on one rail (sub-steps nested), the running
  * step bold with a live clock, status chips for paused / failed / skipped / dropped steps, earlier completed steps
  * and earlier plans folded behind toggles (each earlier step with its fate), and the phase foot
- * (`Running · 3/7 · 4m 12s`). Read-only: the only intent is opening a fold, reported with `ui-toggle`.
+ * (`Running · 3/7 · 4m 12s`). Read-only: the only intents are opening a fold (`ui-toggle`) and, in a window
+ * (`max`), asking for the whole plan with the "+N" button (`ui-more`).
  */
 export class UiTaskPlan extends UiElement<TaskPlanData> {
   static override styles = [planCss, styles];
   static get observedAttributes() {
-    return ['lang'];
+    return ['lang', 'max', 'foot'];
   }
 
   readonly #live: HTMLElement;
@@ -195,6 +251,17 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
     return STRINGS[this.#lang];
   }
 
+  /** The window's row cap: `data.max`, else the `max` attribute; 0 = the whole plan. */
+  get #max(): number {
+    const d = this.data?.max;
+    return Math.floor(num(d !== undefined && d !== null ? d : this.getAttribute('max')));
+  }
+
+  /** No phase foot: `data.foot` / the `foot` attribute is `none`. */
+  get #footOff(): boolean {
+    return (this.data?.foot ?? this.getAttribute('foot')) === 'none';
+  }
+
   /** Open or close a fold from the host (no event, no sound — its own choice): a “see every task” landing. */
   setOpen(id: TaskPlanToggle['id'], open: boolean): void {
     if (id !== 'earlier-plans' && id !== 'earlier-steps') return;
@@ -209,7 +276,14 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
   }
 
   #onClick(e: Event): void {
-    const btn = (e.target as Element | null)?.closest?.('.pl-earlier-btn') as HTMLElement | null;
+    const target = e.target as Element | null;
+    if (target?.closest?.('.tp-more-btn')) {
+      // The window's "+N": the host opens the whole plan (and its surface sounds); nothing changes here.
+      const steps = list(this.data?.steps);
+      this.notify<TaskPlanMore>('ui-more', { hidden: taskWindow(steps, this.#max).hidden, total: steps.length });
+      return;
+    }
+    const btn = target?.closest?.('.pl-earlier-btn') as HTMLElement | null;
     const id = btn?.dataset.earlier;
     if (id !== 'earlier-plans' && id !== 'earlier-steps') return;
     const open = !this.#open[id];
@@ -333,9 +407,31 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
     });
   }
 
-  /** The current plan: leading done steps past three fold away, then the rest on one rail, then the foot. */
+  /** The phase foot, unless the host turned it off (`foot="none"`: its face already says the phase and time). */
+  #foot(steps: PlanStep[], lang: PlanLang): string {
+    return this.#footOff ? '' : planFootHtml(steps, { lang });
+  }
+
+  /**
+   * The current plan. A window (`max`): the rows `taskWindow` keeps on one rail, no lead fold, and one quiet "+N"
+   * button for the rest. Otherwise: leading done steps past three fold away, then the rest on one rail, then the foot.
+   */
   #current(steps: PlanStep[], t: Strings, lang: PlanLang): string {
     const o = { lang, pop: this.#pop, chips: CHIPS };
+    const max = this.#max;
+    if (max > 0) {
+      const w = taskWindow(steps, max);
+      const own = typeof this.data?.more === 'string' ? this.data.more.trim() : '';
+      const more = w.hidden
+        ? `<div class="tp-more"><button type="button" class="tp-more-btn" data-key="tp-more">${esc(
+            own || t.more(w.hidden),
+          )}</button></div>`
+        : '';
+      return `${planListHtml(
+        w.shown.map((i) => steps[i]),
+        { ...o, label: w.hidden ? t.window(w.shown.length, steps.length) : t.steps, className: 'tp-list tp-window' },
+      )}${more}${this.#foot(steps, lang)}`;
+    }
     const lead = planLeadFold(steps, KEEP_DONE);
     const open = this.#open['earlier-steps'];
     const s = planStrings(lang);
@@ -347,9 +443,9 @@ export class UiTaskPlan extends UiElement<TaskPlanData> {
           body: planListHtml(steps.slice(0, lead), { ...o, label: t.steps, className: 'tp-lead' }),
         })
       : '';
-    return `${fold}${planListHtml(steps.slice(lead), { ...o, label: t.steps, className: 'tp-list' })}${planFootHtml(
+    return `${fold}${planListHtml(steps.slice(lead), { ...o, label: t.steps, className: 'tp-list' })}${this.#foot(
       steps,
-      { lang },
+      lang,
     )}`;
   }
 }

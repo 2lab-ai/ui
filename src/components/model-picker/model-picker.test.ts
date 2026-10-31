@@ -562,12 +562,16 @@ describe('<ui-model-picker>', () => {
     expect(q(el, '.mp-head-t')!.textContent).toBe('이 세션 모델');
     expect(qa(el, '.mp-cols span').map((s) => s.textContent)).toEqual(['창', '압축', '비용']);
     expect(q(el, '.mp-caption')!.textContent).toBe('입력 $5 · 출력 $25 / M · 창 1.0M');
-    expect(q(el, '.mp-trigger')!.getAttribute('aria-label')).toBe('모델 Opus 5.5 (1M), effort Extra high — 바꾸기');
-    expect(q(el, '#mp-menu')!.getAttribute('aria-label')).toBe('이 세션의 모델 · effort');
+    expect(q(el, '.mp-trigger')!.getAttribute('aria-label')).toBe('모델 Opus 5.5 (1M), 추론 강도 매우 높음 — 바꾸기');
+    expect(q(el, '#mp-menu')!.getAttribute('aria-label')).toBe('이 세션의 모델 · 추론 강도');
+    // The effort row in one language: its label and every level (0.14.0).
+    expect(q(el, '#mp-effort-label')?.textContent ?? q(el, '.mp-effort-label')!.textContent).toBe('추론 강도');
+    expect(qa(el, '.mp-seg-btn').map((b) => b.textContent)).toEqual(['낮음', '보통', '높음', '매우 높음', '최대']);
+    expect(q(el, '.mp-level')?.textContent ?? '').not.toMatch(/[A-Za-z]{3,}/);
     el.data = { ...BASE, value: { model: 'grok', effort: 'high' }, contextTokens: 800_000 };
     el.renderNow();
     expect(q(el, '.mp-caption')!.textContent).toBe('가격 정보 없음 · 창 500.0K');
-    expect(q(el, '.mp-opt[data-k="opus"] .mp-desc')!.textContent).toContain('compact 후 전환');
+    expect(q(el, '.mp-opt[data-k="opus"] .mp-desc')!.textContent).toContain('압축 후 전환');
   });
 });
 

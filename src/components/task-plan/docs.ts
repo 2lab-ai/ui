@@ -1,5 +1,6 @@
 import type { PlanStep } from '../../core/plan';
 import type { ComponentDoc } from '../../docs/types';
+import '../elapsed/elapsed';
 import './task-plan';
 import type { TaskPlanData, TaskPlanEarlier, UiTaskPlan } from './task-plan';
 
@@ -248,6 +249,32 @@ function longPlan(): TaskPlanData {
   return { title: 'Investigate the checkout timeouts', steps };
 }
 
+/** The long plan in Korean, for the window demo's second card. */
+function koLongPlan(): TaskPlanData {
+  const base = longPlan();
+  const labels = [
+    '최근 24시간 오류 로그 수집',
+    '엔드포인트별로 오류 묶기',
+    '가장 시끄러운 핸들러 세 개 읽기',
+    '공유 타임아웃 설정 찾기',
+    '업스트림 타임아웃 8초로 올리기',
+    '지터가 있는 재시도 추가',
+    '결제 엔드포인트 부하 테스트',
+    '부하 테스트 다시 실행',
+    '장애 노트 작성',
+    '온콜 리뷰어 호출',
+  ];
+  return {
+    title: '결제 타임아웃 조사',
+    steps: base.steps.map((s, i) => ({
+      ...s,
+      label: labels[i] ?? s.label,
+      detail: s.detail ? 'k6 실행 · 가상 사용자 200명' : undefined,
+      note: s.note ? '불필요' : undefined,
+    })),
+  };
+}
+
 export const doc: ComponentDoc = {
   slug: 'task-plan',
   name: 'Task Plan',
@@ -313,6 +340,24 @@ export const doc: ComponentDoc = {
       description:
         'The host’s clock (epoch ms) when it built the data. Running clocks correct for the skew between it and this device.',
     },
+    {
+      name: 'max',
+      type: 'attribute / data.max: number',
+      description:
+        'Window mode — for a narrow card that shows a few rows of a plan and links to the whole one: at most this many step rows. When the plan is longer, the earliest done steps leave first, then the latest pending ones from the end; the running step always stays. No lead fold inside a window; the rows left out are one quiet “+N” button at the end. The list’s name says the window (“Plan steps, 3 of 12”). `taskWindow(steps, max)` is the rule, exported.',
+    },
+    {
+      name: 'foot',
+      type: "attribute / data.foot: 'none'",
+      description: 'No phase foot — when the host’s face (a card’s status row) already says the phase and the time.',
+    },
+    {
+      name: 'data.more',
+      type: 'string',
+      default: "'+N more' / '+N개 더'",
+      description:
+        'The window’s “+N” button in the host’s words (`+3 done · all 12 tasks →`, `+3 완료 · 전체 task 12개 →`). Its press is `ui-more`; the host opens its full plan.',
+    },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
       name: 'flush',
@@ -327,18 +372,28 @@ export const doc: ComponentDoc = {
       description:
         'A fold was opened or closed (a report, not cancelable). The fold state is the element’s own; the host may store it.',
     },
+    {
+      name: 'ui-more',
+      detail: '{ hidden: number; total: number }',
+      description:
+        'The window’s “+N” button was pressed (a report, not cancelable): the host opens the whole plan — the panel’s `<ui-task-plan>`, a drawer. Nothing changes in the element.',
+    },
   ],
   keyboard: [
-    ['Tab', 'Moves to the “Earlier plans” and “Show N more completed” toggles (the steps are not focusable).'],
-    ['Enter / Space', 'Opens or closes the focused fold.'],
+    [
+      'Tab',
+      'Moves to the “Earlier plans” and “Show N more completed” toggles, or a window’s “+N” button (the steps are not focusable).',
+    ],
+    ['Enter / Space', 'Opens or closes the focused fold; presses “+N” (ui-more).'],
   ],
   a11y: [
     'A section labelled by the heading; each list is an `<ol>` with a name, sub-steps a nested `<ol>` named after their step.',
     'Each step ends with its state as text (“, in progress”); the running step has `aria-current="step"`. Status chips are icon + word and hidden from screen readers where that text already says it.',
     'Folds are buttons with `aria-expanded` / `aria-controls`; a closed region is `inert` (nothing inside takes focus or clicks).',
     'A polite live region says when a step is done, failed or paused (never on the first render). Clocks tick in text nodes, never re-rendering; the foot’s clock is hidden from screen readers.',
-    'Reduced motion: no marker pop or rail draw; folds fade (120 ms) without growing.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or folds earlier plans or steps. Silent until the page turns sound on.',
+    'Reduced motion: no marker pop or rail draw; folds fade (120 ms) without growing; the “+N” button does not press-scale.',
+    'A window’s “+N” is a native button (44px on coarse pointers) that keeps focus across new data; the list’s name says how many of the plan’s steps it shows.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or folds earlier plans or steps. The “+N” button is silent — the host’s surface that opens plays its own cue. Silent until the page turns sound on.',
   ],
   usage: `<ui-task-plan id="plan"></ui-task-plan>
 <script type="module">
@@ -394,6 +449,55 @@ export const doc: ComponentDoc = {
         'Six completed steps lead the plan: the first three fold behind “Show 3 more completed” (0fr → 1fr). A failed load test, its retry running, and a dropped step.',
       height: 520,
       create: () => make(longPlan()),
+    },
+    {
+      id: 'window',
+      title: 'Window — a card’s few rows',
+      description:
+        'max="4" foot="none": a narrow card shows four rows of a ten-step plan — the earliest done steps fold first, the latest pending ones are cut, the running step stays — and one quiet “+N” button in the host’s words. The card’s face already says the phase and the time, so there is no foot. Press “+N”: the host gets ui-more and, here, opens the whole plan in place (Replay to window it again).',
+      height: 420,
+      create: () => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;padding:4px 0';
+        const card = (lang: 'en' | 'ko', data: TaskPlanData, face: string, opened: string) => {
+          const box = document.createElement('div');
+          box.style.cssText =
+            'flex:1 1 280px;max-width:340px;min-width:0;padding:12px 14px;border:1px solid var(--ui-ib-card-border);border-radius:12px;background:var(--ui-ib-card);box-shadow:var(--ui-ib-shadow)';
+          if (lang === 'ko') box.lang = 'ko';
+          const head = document.createElement('div');
+          head.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:13px';
+          head.innerHTML = `<span class="ui-status is-pill" data-tone="run"></span><ui-elapsed style="margin-left:auto;font-size:12px;color:var(--ui-ib-muted)"></ui-elapsed>`;
+          (head.querySelector('.ui-status') as HTMLElement).textContent = face;
+          const clock = head.querySelector('ui-elapsed') as HTMLElement & { data?: unknown };
+          clock.setAttribute('lang', lang);
+          clock.data = { since: data.steps[0]?.startedAt };
+          const el = make(data, { lang, flush: '', max: '4', foot: 'none' });
+          const said = document.createElement('p');
+          said.className = 'ui-status-line';
+          said.style.cssText = 'margin:8px 0 0;min-height:18px';
+          el.addEventListener('ui-more', (e) => {
+            const { hidden, total } = (e as CustomEvent<{ hidden: number; total: number }>).detail;
+            el.removeAttribute('max');
+            el.removeAttribute('foot');
+            said.textContent = `${opened} — ui-more { hidden: ${hidden}, total: ${total} }`;
+            said.dataset.tone = 'done';
+          });
+          box.append(head, el, said);
+          return box;
+        };
+        const en = longPlan();
+        const ko = koLongPlan();
+        row.append(
+          card('en', { ...en, title: '', more: '+6 done · all 10 tasks →' }, 'Running · 6/10', 'Opened the whole plan'),
+          card(
+            'ko',
+            { ...ko, title: '', more: '+6 완료 · 전체 task 10개 →' },
+            '실행 중 · 6/10',
+            '전체 계획을 열었습니다',
+          ),
+        );
+        return row;
+      },
     },
     {
       id: 'empty',

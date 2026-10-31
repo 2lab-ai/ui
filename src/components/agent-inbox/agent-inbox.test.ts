@@ -455,6 +455,9 @@ describe('<ui-agent-inbox>', () => {
     expect(card(el, 'notes').querySelector('.ib-tag')?.textContent).toBe('실행 중 · 3분 49초');
     expect(card(el, 'notes').querySelector('[data-open]')?.textContent).toBe('작업 로그');
     expect(q(el, '[aria-live="polite"]')?.textContent).toBe('응답이 필요한 세션 1개, 실행 중 1개');
+    // The token count's unit in Korean too (0.14.0): one language on the card.
+    expect(qa(el, '.ib-unit').length).toBeGreaterThan(0);
+    for (const u of qa(el, '.ib-unit')) expect(u.textContent).toBe('토큰');
     const empty = mount({ columns: columnsByStatus([], 'ko') }, { lang: 'ko' });
     expect(q(empty, '.ib-empty')?.textContent).toBe('비어 있음');
   });
