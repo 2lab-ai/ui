@@ -85,6 +85,13 @@ const SPECIMENS: KitSpecimen[] = [
     html: `<div class="kit-row"><select class="ui-select-chip" aria-label="User" data-ui-sound="select"><option>All users</option><option selected>Daisy Park</option><option>Zhuge Liang-with-a-very-long-display-name</option></select><label class="ui-select-chip"><span>Model</span><select data-ui-sound="select"><option>claude-sonnet-4-5</option><option selected>claude-opus-5-5</option><option>claude-haiku-4-5</option></select></label><label class="ui-select-chip"><span>Effort</span><select data-ui-sound="select"><option>Low</option><option selected>Medium</option><option>High</option></select></label><label class="ui-select-chip"><span>Channel</span><select disabled><option selected>#ops</option></select></label></div>`,
   },
   {
+    title: 'Spinner',
+    cls: 'ui-spinner',
+    desc: 'The working ring: 0.9s linear, the arc in the run tone over a quiet track. Decorative (aria-hidden) beside the word that says what runs; data-tone recolours it, .is-current takes the text colour (inside an ink button), .is-sm / .is-lg. In a .ui-status it stands where the dot was. Under reduced motion it stands still, a track with a dot in the middle.',
+    html: `<div class="kit-row"><span class="ui-spinner" aria-hidden="true"></span><span class="ui-spinner is-sm" aria-hidden="true"></span><span class="ui-spinner is-lg" aria-hidden="true"></span><span class="ui-spinner" data-tone="wait" aria-hidden="true"></span><span class="kit-say"><span class="ui-spinner is-sm is-current" aria-hidden="true"></span>Thinking…</span></div>
+<div class="kit-row"><span class="ui-status" data-tone="run"><span class="ui-spinner is-sm" aria-hidden="true"></span>Running</span><span class="ui-status is-pill" data-tone="run"><span class="ui-spinner is-sm" aria-hidden="true"></span>Compacting</span><button class="ui-btn is-primary" aria-busy="true"><span class="ui-spinner is-current" aria-hidden="true"></span>Starting…</button><button class="ui-btn" aria-busy="true"><span class="ui-spinner" aria-hidden="true"></span>Saving</button></div>`,
+  },
+  {
     title: 'Status',
     cls: 'ui-status',
     desc: 'A tone dot and a word in the st-* tones; text is mixed toward ink (≥ 4.5:1 in both themes). .is-pill adds the 16% tint; data-live pulses the dot.',

@@ -180,6 +180,38 @@ describe('ui-kit.css', () => {
     );
   });
 
+  it('spinner: a 0.9s linear ring in the run tone, sizes and tones, the status dot swapped, a still ring + dot under reduced motion (K-01)', () => {
+    expect(KIT_CLASSES).toContain('ui-spinner');
+    const spin = /\.ui-spinner \{([^}]*)\}/.exec(kitCss)?.[1] ?? '';
+    expect(spin).toContain('--ui-tone: var(--ui-st-run)');
+    expect(spin).toContain('width: 14px; height: 14px; border-radius: 50%');
+    // The track is the tone at 25%, the arc the tone itself — one rule for both themes.
+    expect(spin).toContain('border: 2px solid color-mix(in srgb, var(--ui-tone) 25%, transparent)');
+    expect(spin).toContain('border-top-color: var(--ui-tone); border-right-color: var(--ui-tone)');
+    expect(spin).toContain('animation: ui-spin 0.9s linear infinite');
+    expect(kitCss).toContain('@keyframes ui-spin { to { transform: rotate(360deg); } }');
+    expect(kitCss).toMatch(/\.ui-spinner\.is-sm \{ width: 11px; height: 11px; border-width: 1\.8px/);
+    expect(kitCss).toMatch(/\.ui-spinner\.is-lg \{ width: 20px; height: 20px; border-width: 2\.5px/);
+    expect(kitCss).toContain('.ui-spinner.is-current { --ui-tone: currentColor; }');
+    for (const t of ['run', 'wait', 'done', 'fail'])
+      expect(kitCss).toContain(`.ui-spinner[data-tone="${t}"] { --ui-tone: var(--ui-st-${t}); }`);
+    // Inside a status it takes the status tone and stands where the dot was.
+    expect(kitCss).toContain('.ui-status > .ui-spinner { --ui-tone: inherit; }');
+    expect(kitCss).toContain('.ui-status:has(> .ui-spinner)::before { content: none; }');
+    const rm = kitCss.slice(kitCss.indexOf('@media (prefers-reduced-motion: reduce)'));
+    const block = rm.slice(0, rm.indexOf('\n}\n'));
+    expect(block).toContain(
+      '.ui-spinner { animation: none; border-color: color-mix(in srgb, var(--ui-tone) 25%, transparent); }',
+    );
+    expect(block).toMatch(
+      /\.ui-spinner::after \{ content: '';[^}]*width: 4px; height: 4px; margin: auto; border-radius: 50%; background: var\(--ui-tone\)/,
+    );
+    // Still rings only there: outside reduced motion no ::after is drawn.
+    expect(kitCss.slice(0, kitCss.indexOf('@media (prefers-reduced-motion: reduce)'))).not.toContain(
+      '.ui-spinner::after',
+    );
+  });
+
   it('parses as CSS in the DOM', () => {
     const style = document.createElement('style');
     style.textContent = kitCss;
