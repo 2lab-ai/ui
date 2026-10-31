@@ -25,6 +25,21 @@ export const styles = `
 .tp-lead > .pl-step[data-step="done"]:last-child::after { content: ""; position: absolute; left: 8.5px; top: 25px; bottom: 0; width: 1px; background: var(--text-tertiary); }
 .pl-earlier[data-earlier="earlier-steps"] > .pl-earlier-btn { margin-left: 22px; color: var(--text-tertiary); }
 
+/* Window mode (max): a few rows and one quiet "+N" button at the end — the host opens the whole plan on its press. */
+.tp-more { padding: 2px 0 0; }
+.tp-more-btn { display: inline-flex; align-items: center; max-width: 100%; min-height: 28px; margin: 0 0 0 22px; padding: 4px 8px 4px 6px; border: 0; border-radius: 8px; background: none; color: var(--text-secondary); font-size: 12px; font-weight: 500; line-height: 16px; text-align: left; overflow-wrap: anywhere; -webkit-tap-highlight-color: transparent; transition: background-color var(--dur-press) ease, color var(--dur-press) ease, transform var(--dur-press) var(--ease-out); }
+.tp-more-btn:active:not(:focus-visible) { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .tp-more-btn:hover { background: var(--ib-pill); color: var(--text); }
+}
+@media (pointer: coarse), (max-width: 639px) {
+  .tp-more-btn { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-more-btn { transition: none !important; }
+  .tp-more-btn:active:not(:focus-visible) { transform: none; }
+}
+
 /* Empty: a glyph, what is missing, when it will come. */
 .tp-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 12px 16px; text-align: center; font-size: 12.5px; line-height: 1.45; color: var(--ib-muted); }
 .tp-empty strong { font-size: 13px; font-weight: 600; color: var(--ib-text-2); }
