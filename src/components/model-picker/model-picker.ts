@@ -78,6 +78,14 @@ const EFFORT_LABELS: Record<string, string> = {
   max: 'Max',
 };
 const EFFORT_SHORT: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max' };
+/** Korean (lang="ko"): one word per level, the same in the segment and in sentences. */
+const EFFORT_LABELS_KO: Record<string, string> = {
+  low: '낮음',
+  medium: '보통',
+  high: '높음',
+  xhigh: '매우 높음',
+  max: '최대',
+};
 const ROLL_MS = 560;
 const WATCH_MS = 150;
 
@@ -105,12 +113,12 @@ const STRINGS = {
   },
   ko: {
     model: '모델',
-    trigger: (name: string, level: string) => `모델 ${name}${level ? `, effort ${level}` : ''} — 바꾸기`,
-    dialog: '이 세션의 모델 · effort',
+    trigger: (name: string, level: string) => `모델 ${name}${level ? `, 추론 강도 ${level}` : ''} — 바꾸기`,
+    dialog: '이 세션의 모델 · 추론 강도',
     head: '이 세션 모델',
     cols: ['창', '압축', '비용'],
     list: '모델',
-    after: 'compact 후 전환',
+    after: '압축 후 전환',
     outside: '현재 · 전환 목록 밖',
     outsideTray: '전환 목록 밖 모델 · 가격 정보 없음',
     outsideSr: '전환 목록 밖 모델, 가격 정보 없음',
@@ -121,7 +129,7 @@ const STRINGS = {
     priceWords: (i: string, o: string) => `입력 ${i} · 출력 ${o} / 백만 토큰`,
     noPriceWords: '가격 정보 없음',
     switching: '모델 전환 중…',
-    effort: 'Effort',
+    effort: '추론 강도',
     cap: (set: string, runs: string) => `설정 ${set} → 이 모델은 ${runs}까지 실행`,
   },
 };
@@ -204,8 +212,9 @@ export function modelEffortLevels(model?: PickerModel | null): string[] {
   return out;
 }
 
-export function modelEffortLabel(level?: string): string {
-  return level ? (EFFORT_LABELS[level] ?? level) : '';
+export function modelEffortLabel(level?: string, lang: 'en' | 'ko' = 'en'): string {
+  if (!level) return '';
+  return (lang === 'ko' ? EFFORT_LABELS_KO[level] : EFFORT_LABELS[level]) ?? level;
 }
 
 /** The avatar letter: first character of the short name (or label), upper-cased. */
@@ -379,6 +388,9 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
 
   get #t(): Strings {
     return this.getAttribute('lang') === 'ko' ? STRINGS.ko : STRINGS.en;
+  }
+  get #langKey(): 'en' | 'ko' {
+    return this.getAttribute('lang') === 'ko' ? 'ko' : 'en';
   }
 
   get #side(): ModelMenuSide {
@@ -751,7 +763,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const why = typeof d.disabled === 'string' ? d.disabled : '';
     const busy = !!(d.busy?.model || d.busy?.effort);
     const name = curOpt ? curOpt.model.label || curOpt.model.id : t.model;
-    const level = modelEffortLabel(v.effectiveEffort || v.effort);
+    const level = modelEffortLabel(v.effectiveEffort || v.effort, this.#langKey);
     const pending = typeof d.busy?.model === 'string' ? d.busy.model : '';
 
     const trigger = `<button type="button" class="mp-trigger" part="trigger" data-key="mp-trigger" aria-haspopup="dialog" aria-expanded="${
@@ -851,11 +863,11 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
         l,
       )}" data-effort="${escAttr(l)}" aria-checked="${checked ? 'true' : 'false'}" tabindex="${
         checked || (idx < 0 && i === 0) ? '0' : '-1'
-      }" aria-label="${escAttr(modelEffortLabel(l))}">${esc(EFFORT_SHORT[l] ?? l)}</button>`;
+      }" aria-label="${escAttr(modelEffortLabel(l, this.#langKey))}">${esc(this.#langKey === 'ko' ? (EFFORT_LABELS_KO[l] ?? l) : (EFFORT_SHORT[l] ?? l))}</button>`;
     });
     return `<div class="mp-settings"><div class="mp-effort-head"><span class="mp-effort-label" id="mp-effort-label">${esc(
       t.effort,
-    )}</span>${capped ? `<span class="mp-effort-cap">${esc(t.cap(modelEffortLabel(v.effort), modelEffortLabel(v.effectiveEffort)))}</span>` : ''}</div><div class="mp-seg-ctl" role="radiogroup" aria-labelledby="mp-effort-label"${
+    )}</span>${capped ? `<span class="mp-effort-cap">${esc(t.cap(modelEffortLabel(v.effort, this.#langKey), modelEffortLabel(v.effectiveEffort, this.#langKey)))}</span>` : ''}</div><div class="mp-seg-ctl" role="radiogroup" aria-labelledby="mp-effort-label"${
       busy ? ' aria-disabled="true" aria-busy="true"' : ''
     } style="--i:${Math.max(0, idx)};--n:${levels.length}">${idx >= 0 ? '<span class="mp-thumb" aria-hidden="true"></span>' : ''}${btns}</div></div>`;
   }
