@@ -224,7 +224,7 @@ function installPage(): string {
   <h2>npm</h2>
   ${codeBlock(`npm i @2lab.ai/ui`, 'npmi')}
   <h2>Import</h2>
-  ${codeBlock(`// everything\nimport '@2lab.ai/ui';\n\n// or one component (registers only that element)\nimport '@2lab.ai/ui/context-window';\n\n// optional page tokens (data-theme="dark" on any ancestor switches)\nimport '@2lab.ai/ui/tokens.css';\n\n// optional light-DOM classes (buttons, chips, status …) and the icon set\nimport '@2lab.ai/ui/ui-kit.css';\nimport { icon } from '@2lab.ai/ui/icons';`, 'imp')}
+  ${codeBlock(`// everything\nimport '@2lab.ai/ui';\n\n// or one component (registers only that element)\nimport '@2lab.ai/ui/context-window';\n\n// optional page tokens (data-theme="dark" on any ancestor switches)\nimport '@2lab.ai/ui/tokens.css';\n\n// optional light-DOM classes (buttons, chips, status …) and the icon set\nimport '@2lab.ai/ui/ui-kit.css';\nimport { icon } from '@2lab.ai/ui/icons';\n\n// on a server (ESM or CommonJS, no DOM, no element): the auth card as markup\nimport { authCardHtml } from '@2lab.ai/ui/server';`, 'imp')}
   <h2>No build step</h2>
   ${codeBlock(`<script type="module" src="${origin}/lib/index.js"></script>\n<link rel="stylesheet" href="${origin}/lib/tokens.css">\n<link rel="stylesheet" href="${origin}/lib/ui-kit.css">\n\n<ui-context-window lang="en"></ui-context-window>`, 'cdn')}
   <h2>Data in, events out</h2>

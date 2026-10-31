@@ -12,6 +12,11 @@ for (const [key, val] of Object.entries(pkg.exports)) {
     if (!existsSync(join(root, target))) errors.push(`exports["${key}"] → ${target} missing`);
   }
 }
+// node10 consumers reach subpath types through typesVersions: those targets must exist too.
+for (const map of Object.values(pkg.typesVersions ?? {}))
+  for (const [key, targets] of Object.entries(map))
+    for (const target of targets)
+      if (!existsSync(join(root, target))) errors.push(`typesVersions["${key}"] → ${target} missing`);
 const SPEC = /(?:\bfrom\s+|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"]+)\1/g;
 let checked = 0;
 function walk(dir) {

@@ -174,6 +174,48 @@ export const doc: ComponentDoc = {
         }),
     },
     {
+      id: 'named',
+      title: 'Named · toggled · quiet',
+      description:
+        'ariaLabel names an action when its label alone would mislead (this Close is the bar’s, beside a panel’s ✕), title is its tooltip, pressed is a toggle’s state (Starred, the raised chip — press it), tone: "quiet" keeps a secondary action low.',
+      height: 200,
+      create: () => {
+        const el = make({
+          ...running(),
+          actions: [
+            { id: 'star', label: 'Starred', icon: 'star', pressed: true, title: 'Press to remove the star' },
+            {
+              id: 'close',
+              label: 'Close',
+              icon: 'close',
+              tone: 'quiet',
+              ariaLabel: 'Close the status bar',
+              title: 'Close the status bar',
+            },
+            { id: 'stop', label: 'Stop', icon: 'stop', tone: 'danger' },
+          ],
+        }) as UiStatusBar;
+        el.addEventListener('ui-action', (e) => {
+          const { id } = (e as CustomEvent<StatusBarActionDetail>).detail;
+          if (id !== 'star' || !el.data?.actions) return;
+          el.data = {
+            ...el.data,
+            actions: el.data.actions.map((a) =>
+              a.id === 'star'
+                ? {
+                    ...a,
+                    pressed: !a.pressed,
+                    label: a.pressed ? 'Star' : 'Starred',
+                    title: a.pressed ? 'Press to star this run' : 'Press to remove the star',
+                  }
+                : a,
+            ),
+          };
+        });
+        return el;
+      },
+    },
+    {
       id: 'finished',
       title: 'Finished',
       description: 'Done shows the run time instead of a clock; Failed keeps the start and offers a retry.',

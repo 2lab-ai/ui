@@ -8,22 +8,34 @@ import { type AgentTreeData, buildTree, UiAgentTree } from '@2lab.ai/ui/agent-tr
 import { UiAiAnswer } from '@2lab.ai/ui/ai-answer';
 import { type AppBarData, appBarInitials, UiAppBar } from '@2lab.ai/ui/app-bar';
 import { type ApprovalCardData, toPreview, UiApprovalCard } from '@2lab.ai/ui/approval-card';
-import { type ArtifactViewerData, stepIndex, UiArtifactViewer } from '@2lab.ai/ui/artifact-viewer';
+import {
+  type ArtifactClosedDetail,
+  type ArtifactViewerData,
+  peekHtml,
+  stepIndex,
+  UiArtifactViewer,
+} from '@2lab.ai/ui/artifact-viewer';
 import { type AuthCardData, authCardHtml, UiAuthCard } from '@2lab.ai/ui/auth-card';
 import { type BarChartData, niceScale, UiBarChart } from '@2lab.ai/ui/bar-chart';
-import { type ChoiceFormData, UiChoiceForm } from '@2lab.ai/ui/choice-form';
+import { type ChoiceFormData, choiceFormLocked, UiChoiceForm } from '@2lab.ai/ui/choice-form';
 import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.ai/ui/compact-breakdown';
 import { type ComposerData, composerEnterAction, UiComposer } from '@2lab.ai/ui/composer';
 import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-window';
 import { type ConversationData, initialOf, UiConversation } from '@2lab.ai/ui/conversation';
 import { type DeckNavData, deckClamp, UiDeckNav } from '@2lab.ai/ui/deck-nav';
-import { type DialogCloseDetail, type DialogViewport, dialogSize, UiDialog } from '@2lab.ai/ui/dialog';
+import {
+  type DialogCloseDetail,
+  type DialogClosedDetail,
+  type DialogViewport,
+  dialogSize,
+  UiDialog,
+} from '@2lab.ai/ui/dialog';
 import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
 import { clampDrawerWidth, DRAWER_MORPH_MS, type DrawerMode, type DrawerViewport, UiDrawer } from '@2lab.ai/ui/drawer';
 import { type ElapsedData, elapsedText, UiElapsed } from '@2lab.ai/ui/elapsed';
 import { EPISODE_ARM_MS, type EpisodeLogData, episodeDays, UiEpisodeLog } from '@2lab.ai/ui/episode-log';
 import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
-import { GOAL_ARM_MS, type GoalCardData, UiGoalCard } from '@2lab.ai/ui/goal-card';
+import { GOAL_ARM_MS, type GoalCardData, goalMetaHtml, UiGoalCard } from '@2lab.ai/ui/goal-card';
 import { type HovercardDetail, hovercardDelay, UiHovercard } from '@2lab.ai/ui/hovercard';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
@@ -34,6 +46,11 @@ import { applyMenuSelect, type MenuData, UiMenu } from '@2lab.ai/ui/menu';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
 import { type SegmentedData, segmentedOptions, UiSegmented } from '@2lab.ai/ui/segmented';
+import {
+  authCardCss,
+  type AuthCardData as ServerAuthCardData,
+  authCardHtml as serverAuthCardHtml,
+} from '@2lab.ai/ui/server';
 import { type SettingRowData, UiSettingRow } from '@2lab.ai/ui/setting-row';
 import { applySettingsFilter, type SettingsNavData, settingMatches, UiSettingsNav } from '@2lab.ai/ui/settings-nav';
 import { bindSound, playSound, type SoundCue, type SoundPlayer, setSound } from '@2lab.ai/ui/sound';
@@ -46,7 +63,7 @@ import { type TaskRunsData, taskRunTotals, UiTaskRuns } from '@2lab.ai/ui/task-r
 import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
 import { tooltipDelay, UiTooltip } from '@2lab.ai/ui/tooltip';
-import { normGroups, UiWorkLog, type WorkLogData } from '@2lab.ai/ui/work-log';
+import { normGroups, UiWorkLog, type WorkLogData, workMetaHtml } from '@2lab.ai/ui/work-log';
 
 const d: ContextWindowData = { window: 1000 };
 const m: Partial<ModelPickerData> = {};
@@ -72,6 +89,13 @@ const seg: SegmentedData = { options: [{ value: 'd', label: 'Day' }], value: 'd'
 const tabs: TabsData = { tabs: [{ id: 'a', label: 'A' }], value: 'a' };
 const menu: MenuData = { items: [{ kind: 'radio', value: 'a', label: 'A' }] };
 const closed: DialogCloseDetail = { reason: 'escape' };
+const hidden: DialogClosedDetail = { reason: 'hide' };
+const gone: ArtifactClosedDetail = { reason: 'host' };
+// The server entry's types are the auth card's own.
+const serverAuth: ServerAuthCardData = {
+  title: 'Sign in',
+  providers: [{ id: 'sso', label: 'Continue', href: '/auth/sso' }],
+};
 const vvs: [DialogViewport, DrawerViewport] = ['visual', 'layout'];
 const peekDetail: HovercardDetail = { trigger: document.createElement('button') };
 const mode: DrawerMode = 'dock';
@@ -249,6 +273,14 @@ console.log(
   episodeDays(episodes.days).length,
   EPISODE_ARM_MS,
   authCardHtml(auth).length,
+  serverAuthCardHtml(serverAuth, { page: true }).length,
+  authCardCss.length,
+  hidden.reason,
+  gone.reason,
+  peekHtml(file, 'en').length,
+  choiceFormLocked('Only the session owner can answer'),
+  goalMetaHtml(['Day 3', { label: 'Budget', value: '$4.20' }]).length,
+  workMetaHtml(['Done in 3m']).length,
   elapsedText(timer, 61_000),
   navEl.tagName,
   authEl.tagName,
