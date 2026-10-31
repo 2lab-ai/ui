@@ -10,8 +10,11 @@ export const styles = `
 .bc { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; line-height: 22px; }
 :host([size="sm"]) .bc { font-size: 12px; line-height: 18px; gap: 6px; }
 .bc-list { display: flex; flex: 1 1 auto; align-items: center; gap: 0; min-width: 0; margin: 0; padding: 0; list-style: none; overflow: hidden; white-space: nowrap; }
-.bc-item { display: flex; align-items: center; flex: 0 1 auto; min-width: 0; }
-.bc-item:first-child { flex-shrink: 0; max-width: 55%; }
+/* Room: the middle crumbs give way first, then the root; the current page reads whole up to 60% of the row. */
+.bc-item { display: flex; align-items: center; flex: 0 4 auto; min-width: 0; }
+.bc-item:first-child { flex-shrink: 1; max-width: 55%; }
+.bc-item:last-child { flex-shrink: 0; max-width: 60%; }
+.bc-item:only-child { max-width: 100%; }
 .bc-item.bc-fold { flex: none; }
 .bc-item.is-in { animation: bc-in var(--dur-fade) var(--ease-out) both; }
 @keyframes bc-in { from { opacity: 0; } }

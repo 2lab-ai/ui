@@ -171,6 +171,9 @@ describe('<ui-breadcrumbs> rendering', () => {
     expect(css).toMatch(/\(pointer: coarse\)[^{]*\{\s*\.bc-link, \.bc-btn, \.bc-more \{ min-height: 44px;/);
     expect(css).toMatch(/\(pointer: coarse\)[^}]*\}\s*\.bc-more \{ width: 44px; \}/);
     expect(css).toContain('.bc-item.bc-fold { flex: none; }');
+    // The current page reads whole (it never shrinks below 60% of the row); the middle crumbs give way first.
+    expect(css).toContain('.bc-item:last-child { flex-shrink: 0; max-width: 60%; }');
+    expect(css).toContain('.bc-item { display: flex; align-items: center; flex: 0 4 auto; min-width: 0; }');
     expect(css).toMatch(/prefers-reduced-motion: reduce\)[^}]*\.bc-item\.is-in \{ animation: none; \}/);
     expect(css).toContain(
       '.bc-link:hover, .bc-btn:hover, .bc-more:hover { background: var(--ib-pill); color: var(--text); }',
