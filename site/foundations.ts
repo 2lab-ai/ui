@@ -69,8 +69,8 @@ const SPECIMENS: KitSpecimen[] = [
   {
     title: 'Floating action button',
     cls: 'ui-fab',
-    desc: 'Ink, 56px, raised; enters from opacity 0 and scale(.95) in 240ms — no rings, no loops. Fixed to the corner (safe-area aware); .is-inline places it in flow.',
-    html: `<div class="kit-row"><button class="ui-fab is-inline" aria-label="New task">${I('plus')}</button></div>`,
+    desc: 'Ink, 56px, raised; enters from opacity 0 and scale(.95) in 240ms — no rings, no loops. Fixed to the corner (safe-area aware); .is-inline places it in flow. .is-extended puts a word beside the glyph (a 56px pill); .is-folded folds the word away on --dur-expand so it is the round button again — toggle it while the page scrolls down. Mark it data-ui-sound for the cue.',
+    html: `<div class="kit-row"><button class="ui-fab is-inline" aria-label="New task" data-ui-sound>${I('plus')}</button><button class="ui-fab is-inline is-extended" aria-label="New task" data-ui-sound>${I('plus')}<span>New task</span></button><button class="ui-btn is-sm is-quiet" data-kit-fold aria-pressed="false">Fold</button></div>`,
   },
   {
     title: 'Chip',
@@ -190,8 +190,17 @@ export function kitPage(codeBlock: CodeBlock): string {
   ${blocks}`;
 }
 
-/** Wire the kit page's live bits (the expand demo). */
+/** Wire the kit page's live bits (the expand demo, the FAB fold). */
 export function wireKit(root: ParentNode): void {
+  for (const b of Array.from(root.querySelectorAll<HTMLElement>('[data-kit-fold]'))) {
+    b.addEventListener('click', () => {
+      const fab = b.closest('.kit-row')?.querySelector('.ui-fab.is-extended');
+      const folded = !fab?.classList.contains('is-folded');
+      fab?.classList.toggle('is-folded', folded);
+      b.setAttribute('aria-pressed', String(folded));
+      b.textContent = folded ? 'Unfold' : 'Fold';
+    });
+  }
   for (const b of Array.from(root.querySelectorAll<HTMLElement>('[data-kit-expand]'))) {
     b.addEventListener('click', () => {
       const open = b.getAttribute('aria-expanded') !== 'true';

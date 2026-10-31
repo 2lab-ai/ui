@@ -211,6 +211,18 @@ export const kitCss = `/* @2lab.ai/ui kit — light-DOM classes. Reads the --ui-
 }
 .ui-fab > svg { width: 22px; height: 22px; }
 .ui-fab.is-inline { position: static; }
+/* Extended: the glyph with a word beside it (<button class="ui-fab is-extended"><svg/><span>New task</span></button>), a
+   56px pill in the thumb zone. .is-folded folds the word away on --dur-expand and it is the round button again — toggle it
+   from a passive scroll listener while the page scrolls down; the name stays (aria-label, or the folded word). */
+.ui-fab.is-extended {
+  display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 56px; padding: 0 20px 0 17px; border-radius: 999px;
+  font-size: 15px; font-weight: 600; line-height: 1; white-space: nowrap;
+  transition: padding ${T('dur-expand')} ${T('ease-out')}, gap ${T('dur-expand')} ${T('ease-out')}, opacity ${COLOR_T}, ${PRESS_T};
+}
+.ui-fab.is-extended > svg { flex: none; }
+.ui-fab.is-extended > span { display: inline-block; max-width: 10em; overflow: hidden; opacity: 1; transition: max-width ${T('dur-expand')} ${T('ease-out')}, opacity ${T('dur-fade')} ${T('ease-out')}; }
+.ui-fab.is-extended.is-folded { gap: 0; padding: 0 17px; }
+.ui-fab.is-extended.is-folded > span { max-width: 0; opacity: 0; }
 
 /* ── Chip — a pill label or a toggle; "on" is the raised neutral chip ── */
 .ui-chip {
@@ -401,6 +413,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
 @media (prefers-reduced-motion: reduce) {
   .ui-btn, .ui-icon-btn, .ui-chip, .ui-select-chip, .ui-fab { transition-duration: 0.01ms; }
   .ui-fab { animation: ui-fade-in 120ms ease both; }
+  .ui-fab.is-extended, .ui-fab.is-extended > span { transition: none; }
   .ui-skeleton, .ui-status[data-live]::before { animation: none; }
   .ui-status[data-live] > svg { animation: none; }
   .ui-expand { transition: none; }
