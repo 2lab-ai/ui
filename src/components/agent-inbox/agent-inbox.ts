@@ -235,7 +235,7 @@ const STRINGS = {
     agents: '서브에이전트',
     agentsRunning: (n: number) => `실행 ${n}`,
     agentsFailed: (n: number) => `실패 ${n}`,
-    tok: 'tok',
+    tok: '토큰',
     tokTitle: '총 토큰',
     costTitle: 'API 환산 비용',
     steps: '완료한 task / 전체',
