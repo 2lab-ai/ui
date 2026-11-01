@@ -1143,3 +1143,101 @@ describe('sound', () => {
     vi.restoreAllMocks();
   });
 });
+
+// 0.16.0 — the star is a toggle on the face, the face's kind and vendor glyphs (soma-work 2026-11-01).
+describe('face star toggle, kind and vendor glyphs (0.16.0)', () => {
+  const faceOf = (el: UiAgentInbox, id: string) => card(el, id).querySelector<HTMLElement>('.ib-face')!;
+
+  it('a star on the face is a toggle button that sends ui-star and never toggles the card', () => {
+    const el = mount(board({ ...RUN, star: { on: false } }));
+    const star = card(el, 'notes').querySelector<HTMLButtonElement>('button.ib-star')!;
+    expect(star).not.toBeNull();
+    expect(star.getAttribute('aria-pressed')).toBe('false');
+    expect(star.getAttribute('data-star')).toBe('');
+    // A toggle names the thing (fixed), aria-pressed says the state (review: fable P3).
+    expect(star.hasAttribute('aria-label')).toBe(false);
+    expect(star.textContent).toBe('Star');
+    // It sits in the head, after the title.
+    expect(star.parentElement?.classList.contains('ib-head')).toBe(true);
+    const stars: unknown[] = [];
+    const toggles = vi.fn();
+    el.addEventListener('ui-star', (e) => stars.push((e as CustomEvent).detail));
+    el.addEventListener('ui-toggle', toggles);
+    star.click();
+    expect(stars).toEqual([{ cardId: 'notes', starred: true }]);
+    expect(toggles).not.toHaveBeenCalled();
+    expect(faceOf(el, 'notes').getAttribute('aria-expanded')).not.toBe('true');
+    // On: pressed, the filled star, the word to take it off.
+    el.data = board({ ...RUN, star: { on: true, title: '즐겨찾기 — 항상 맨 위' } });
+    el.renderNow();
+    const on = card(el, 'notes').querySelector<HTMLButtonElement>('button.ib-star')!;
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+    expect(on.getAttribute('title')).toBe('즐겨찾기 — 항상 맨 위');
+    on.click();
+    expect(stars[1]).toEqual({ cardId: 'notes', starred: false });
+  });
+
+  it('a disabled star says why and sends nothing; Enter on the star is the star’s, not the face’s', () => {
+    const el = mount(board({ ...RUN, star: { on: true, disabled: '다른 인스턴스의 세션' } }));
+    const star = card(el, 'notes').querySelector<HTMLButtonElement>('button.ib-star')!;
+    expect(star.getAttribute('aria-disabled')).toBe('true');
+    expect(star.getAttribute('title')).toBe('다른 인스턴스의 세션');
+    // The reason reaches a screen reader too, not only the tooltip.
+    expect(star.textContent).toBe('Star — 다른 인스턴스의 세션');
+    const stars = vi.fn();
+    el.addEventListener('ui-star', stars);
+    star.click();
+    expect(stars).not.toHaveBeenCalled();
+    const toggles = vi.fn();
+    el.addEventListener('ui-toggle', toggles);
+    key(star, 'Enter');
+    expect(toggles).not.toHaveBeenCalled();
+  });
+
+  it('Korean names the star in Korean; no star without data', () => {
+    const el = mount(board({ ...RUN, star: { on: false } }), { lang: 'ko' });
+    expect(card(el, 'notes').querySelector('button.ib-star')?.textContent).toBe('즐겨찾기');
+    el.data = board({ ...RUN, star: { on: true } });
+    el.renderNow();
+    const on = card(el, 'notes').querySelector('button.ib-star')!;
+    expect(on.textContent).toBe('즐겨찾기');
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+    expect(on.getAttribute('title')).toBe('즐겨찾기 해제');
+    el.data = board(RUN);
+    el.renderNow();
+    expect(card(el, 'notes').querySelector('button.ib-star')).toBeNull();
+  });
+
+  it('a glyph-only lead draws the glyph with its title as the name — an epic and a plain task tell apart', () => {
+    const el = mount(
+      board(
+        { ...RUN, lead: { glyph: 'epic', text: 'EPIC', title: '에픽' } },
+        { ...WAIT, lead: { glyph: 'task', title: '일반 작업' } },
+      ),
+    );
+    const epic = card(el, 'notes').querySelector<HTMLElement>('.ib-lead')!;
+    expect(epic.querySelector('svg')).not.toBeNull();
+    expect(epic.textContent).toBe('EPIC');
+    const task = card(el, 'migrate').querySelector<HTMLElement>('.ib-lead')!;
+    expect(task.classList.contains('is-icon')).toBe(true);
+    expect(task.querySelector('svg')).not.toBeNull();
+    expect(task.getAttribute('role')).toBe('img');
+    expect(task.getAttribute('aria-label')).toBe('일반 작업');
+    expect(card(el, 'migrate').querySelector('.ib-spark')).toBeNull();
+    // An unknown glyph with no text is no lead: the spark.
+    el.data = board({ ...WAIT, lead: { glyph: 'nope' as never } });
+    el.renderNow();
+    expect(card(el, 'migrate').querySelector('.ib-spark')).not.toBeNull();
+  });
+
+  it('vendor glyphs mark a model metric: claude, openai, grok, gemini and any other model', () => {
+    const vendors = ['claude', 'openai', 'grok', 'gemini', 'model'] as const;
+    const el = mount(board({ ...RUN, metrics: vendors.map((v) => ({ text: v, glyph: v, title: `${v} model` })) }));
+    const ms = Array.from(card(el, 'notes').querySelectorAll<HTMLElement>('.ib-metric.is-host'));
+    expect(ms.map((m) => m.textContent)).toEqual([...vendors]);
+    const svgs = ms.map((m) => m.querySelector('svg')?.outerHTML ?? '');
+    for (const s of svgs) expect(s).not.toBe('');
+    // Five different marks.
+    expect(new Set(svgs).size).toBe(5);
+  });
+});
