@@ -1154,7 +1154,9 @@ describe('face star toggle, kind and vendor glyphs (0.16.0)', () => {
     expect(star).not.toBeNull();
     expect(star.getAttribute('aria-pressed')).toBe('false');
     expect(star.getAttribute('data-star')).toBe('');
-    expect(star.getAttribute('aria-label')).toBe('Star');
+    // A toggle names the thing (fixed), aria-pressed says the state (review: fable P3).
+    expect(star.hasAttribute('aria-label')).toBe(false);
+    expect(star.textContent).toBe('Star');
     // It sits in the head, after the title.
     expect(star.parentElement?.classList.contains('ib-head')).toBe(true);
     const stars: unknown[] = [];
@@ -1180,6 +1182,8 @@ describe('face star toggle, kind and vendor glyphs (0.16.0)', () => {
     const star = card(el, 'notes').querySelector<HTMLButtonElement>('button.ib-star')!;
     expect(star.getAttribute('aria-disabled')).toBe('true');
     expect(star.getAttribute('title')).toBe('다른 인스턴스의 세션');
+    // The reason reaches a screen reader too, not only the tooltip.
+    expect(star.textContent).toBe('Star — 다른 인스턴스의 세션');
     const stars = vi.fn();
     el.addEventListener('ui-star', stars);
     star.click();
@@ -1192,10 +1196,13 @@ describe('face star toggle, kind and vendor glyphs (0.16.0)', () => {
 
   it('Korean names the star in Korean; no star without data', () => {
     const el = mount(board({ ...RUN, star: { on: false } }), { lang: 'ko' });
-    expect(card(el, 'notes').querySelector('button.ib-star')?.getAttribute('aria-label')).toBe('즐겨찾기');
+    expect(card(el, 'notes').querySelector('button.ib-star')?.textContent).toBe('즐겨찾기');
     el.data = board({ ...RUN, star: { on: true } });
     el.renderNow();
-    expect(card(el, 'notes').querySelector('button.ib-star')?.getAttribute('aria-label')).toBe('즐겨찾기 해제');
+    const on = card(el, 'notes').querySelector('button.ib-star')!;
+    expect(on.textContent).toBe('즐겨찾기');
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+    expect(on.getAttribute('title')).toBe('즐겨찾기 해제');
     el.data = board(RUN);
     el.renderNow();
     expect(card(el, 'notes').querySelector('button.ib-star')).toBeNull();

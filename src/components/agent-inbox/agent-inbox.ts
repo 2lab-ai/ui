@@ -765,9 +765,12 @@ function renderStar(c: InboxCard, t: Strings): string {
   const why = typeof st.disabled === 'string' ? st.disabled : '';
   const off = !!st.disabled;
   const title = why || str(st.title) || (on ? t.starOn : t.starOff);
-  return `<button type="button" class="ib-star${on ? ' is-on' : ''}" data-star aria-pressed="${on ? 'true' : 'false'}" aria-label="${escAttr(
-    on ? t.starOn : t.starOff,
-  )}" title="${escAttr(title)}" data-key="${escAttr(`s:${c.id}`)}"${off ? ' aria-disabled="true"' : ''}>${STAR_SVG}</button>`;
+  // A toggle names the thing (fixed) and aria-pressed says the state; a disabled star's reason is read too.
+  return `<button type="button" class="ib-star${on ? ' is-on' : ''}" data-star aria-pressed="${on ? 'true' : 'false'}" title="${escAttr(
+    title,
+  )}" data-key="${escAttr(`s:${c.id}`)}"${off ? ' aria-disabled="true"' : ''}>${STAR_SVG}<span class="sr-only">${esc(t.starOff)}${
+    why ? ` — ${esc(why)}` : ''
+  }</span></button>`;
 }
 
 function renderBadge(c: InboxCard): string {
