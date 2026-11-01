@@ -658,6 +658,12 @@ export const doc: ComponentDoc = {
         'A star toggle at the head’s right end — a button of its own inside the face (aria-pressed): pressing it sends ui-star and never toggles the card. `disabled` keeps it visible and inert (a string is its tooltip). The host owns the state: set `on` from its answer.',
     },
     {
+      name: 'data.columns[].cards[].rows',
+      type: "Array<'summary' | 'task' | 'agents' | 'usage' | 'artifacts'>",
+      description:
+        'The face’s rows between the head and the foot, in this order — only these: a row the list leaves out is not drawn even with its data (a user’s card layout). Unknown names and repeats are skipped. Default: every row, summary · task · agents · usage · artifacts.',
+    },
+    {
       name: 'data.columns[].cards[].badge',
       type: '{ text, hue?, title? }',
       description:
