@@ -647,9 +647,15 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.columns[].cards[].lead',
-      type: '{ text, glyph?, title? }',
+      type: '{ text?, glyph?, title? }',
       description:
-        "Leads the head instead of the ✦ spark — a CRON badge (`{ text: 'CRON', glyph: 'clock', title: '크론 잡: nightly' }`). Glyphs: clock · pr · attach · file · tasks · context · agents · spark.",
+        "Leads the head instead of the ✦ spark — a CRON badge (`{ text: 'CRON', glyph: 'clock', title: '크론 잡: nightly' }`). A glyph without text is the glyph alone, named by its title — what the card is (`{ glyph: 'epic', title: '에픽' }`, `{ glyph: 'task', title: '일반 작업' }`). Glyphs: clock · pr · attach · file · tasks · context · agents · spark · epic · task · claude · openai · grok · gemini · model.",
+    },
+    {
+      name: 'data.columns[].cards[].star',
+      type: '{ on: boolean; title?: string; disabled?: boolean | string }',
+      description:
+        'A star toggle at the head’s right end — a button of its own inside the face (aria-pressed): pressing it sends ui-star and never toggles the card. `disabled` keeps it visible and inert (a string is its tooltip). The host owns the state: set `on` from its answer.',
     },
     {
       name: 'data.columns[].cards[].badge',
@@ -661,7 +667,7 @@ export const doc: ComponentDoc = {
       name: 'data.columns[].cards[].metrics',
       type: "Array<{ text, glyph?, tone?: 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger', title?, label? }>",
       description:
-        'Host metrics after tasks and context: a PR badge (`#12 머지됨`, tone done), a media count (`2`, label `지시 첨부 2개`). Text only — never markup.',
+        "Host metrics after tasks and context: a PR badge (`#12 머지됨`, tone done), a media count (`2`, label `지시 첨부 2개`), the cost (`$6.20`), the model with its vendor’s mark (`{ text: 'Opus 5.5', glyph: 'claude' }` — claude · openai · grok · gemini · model for any other). Text only — never markup.",
     },
     {
       name: 'data.columns[].cards[].bodyMode',
@@ -770,6 +776,12 @@ export const doc: ComponentDoc = {
       name: 'ui-artifact',
       detail: '{ cardId: string; artifactId: string }',
       description: 'A file chip (`artifacts[] { id, name }`) was pressed — open the viewer. The card does not toggle.',
+    },
+    {
+      name: 'ui-star',
+      detail: '{ cardId: string; starred: boolean }',
+      description:
+        'The face’s star (`star`) was pressed — `starred` is the state asked for. Cancelable. The card does not toggle; nothing is sent for a disabled star.',
     },
     {
       name: 'ui-group-toggle',
