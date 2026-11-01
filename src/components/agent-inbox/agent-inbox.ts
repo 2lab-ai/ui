@@ -45,6 +45,10 @@ export type InboxGlyph =
 
 /** Colour of a host metric's text. `warn` tints only the glyph (amber text is under 4.5:1 on a light card). */
 export type InboxMetricTone = 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger';
+/** A row of the collapsed face between the head and the foot (`card.rows` orders them). */
+export type InboxRow = 'summary' | 'task' | 'agents' | 'usage' | 'artifacts';
+/** The face's rows in their default order. */
+export const INBOX_ROWS: readonly InboxRow[] = ['summary', 'task', 'agents', 'usage', 'artifacts'];
 
 /** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
 export interface InboxMetric {
@@ -121,6 +125,11 @@ export interface InboxCard {
   badge?: { text: string; hue?: number; title?: string };
   /** Host metrics after tasks and context (a PR badge, a media count). */
   metrics?: InboxMetric[];
+  /**
+   * The face's rows between the head and the foot, in this order — only these (a row the list leaves out is not
+   * drawn even with its data). Unknown names and repeats are skipped. Default: every row, in `INBOX_ROWS` order.
+   */
+  rows?: readonly InboxRow[];
   /** Model (agent) name, shown at the left of the open card's button row. */
   model?: string;
   /** The one decision this viewer can make here — the card's single ink button. */
@@ -784,12 +793,37 @@ function renderBadge(c: InboxCard): string {
 
 /**
  * The collapsed face: spark (or the host's lead) + title + badge / summary / task / sub-agents / tokens · cost /
- * files / status tag · metrics.
+ * files (or the card's `rows`, in its order) / status tag · metrics.
  */
+/** The face's rows in the card's order (`rows`), else the default order. */
+export function faceRows(c: InboxCard): InboxRow[] {
+  if (!Array.isArray(c.rows)) return INBOX_ROWS.slice();
+  const out: InboxRow[] = [];
+  for (const r of c.rows) if (INBOX_ROWS.includes(r) && !out.includes(r)) out.push(r);
+  return out;
+}
+
+function renderRow(c: InboxCard, row: InboxRow, t: Strings): string {
+  switch (row) {
+    case 'summary':
+      return c.summary ? `<div class="ib-summary">${esc(c.summary)}</div>` : '';
+    case 'task':
+      return renderTask(c, t);
+    case 'agents':
+      return renderAgents(c, t);
+    case 'usage':
+      return renderUsage(c, t);
+    case 'artifacts':
+      return renderArtifacts(c, t);
+  }
+}
+
 function renderFace(c: InboxCard, t: Strings = STRINGS.en): string {
-  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c)}${renderStar(c, t)}</div>${
-    c.summary ? `<div class="ib-summary">${esc(c.summary)}</div>` : ''
-  }${renderTask(c, t)}${renderAgents(c, t)}${renderUsage(c, t)}${renderArtifacts(c, t)}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
+  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c)}${renderStar(c, t)}</div>${faceRows(
+    c,
+  )
+    .map((r) => renderRow(c, r, t))
+    .join('')}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
     statusOf(c),
   )}">${renderStatus(c, t)}</span>${renderMetrics(c, t)}</div>`;
 }

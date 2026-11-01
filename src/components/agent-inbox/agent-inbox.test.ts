@@ -1241,3 +1241,31 @@ describe('face star toggle, kind and vendor glyphs (0.16.0)', () => {
     expect(new Set(svgs).size).toBe(5);
   });
 });
+
+describe('face row order (0.17.0)', () => {
+  const rowsOf = (el: UiAgentInbox, id: string) =>
+    Array.from(card(el, id).querySelectorAll<HTMLElement>('.ib-face > div'))
+      .map((d) => d.className.split(' ')[0])
+      .filter((c) => c !== 'ib-head' && c !== 'ib-foot');
+  const FULL: InboxCard = { ...RUN, summary: 'Why it is here' };
+
+  it('without rows: every row, in the default order', () => {
+    const el = mount(board(FULL));
+    expect(rowsOf(el, 'notes')).toEqual(['ib-summary', 'ib-task', 'ib-agents', 'ib-usage', 'ib-arts']);
+  });
+
+  it('rows draws only the rows it names, in its order', () => {
+    const el = mount(board({ ...FULL, rows: ['artifacts', 'task', 'summary'] }));
+    expect(rowsOf(el, 'notes')).toEqual(['ib-arts', 'ib-task', 'ib-summary']);
+    // The foot (status, metrics) is not a row: it stays.
+    expect(card(el, 'notes').querySelector('.ib-foot .ib-metrics')).not.toBeNull();
+  });
+
+  it('an empty list draws no rows; unknown names and repeats are skipped', () => {
+    const none = mount(board({ ...FULL, rows: [] }));
+    expect(rowsOf(none, 'notes')).toEqual([]);
+    document.body.innerHTML = '';
+    const odd = mount(board({ ...FULL, rows: ['usage', 'nope' as never, 'usage', 'agents'] }));
+    expect(rowsOf(odd, 'notes')).toEqual(['ib-usage', 'ib-agents']);
+  });
+});
