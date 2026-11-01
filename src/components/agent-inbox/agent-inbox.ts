@@ -25,7 +25,23 @@ export interface InboxDetail {
 export type AgentDot = 'running' | 'done' | 'failed' | 'stopped' | 'unknown';
 
 /** Named glyphs a host can put in a face extra (no raw markup). */
-export type InboxGlyph = 'clock' | 'pr' | 'attach' | 'file' | 'tasks' | 'context' | 'agents' | 'spark';
+export type InboxGlyph =
+  | 'clock'
+  | 'pr'
+  | 'attach'
+  | 'file'
+  | 'tasks'
+  | 'context'
+  | 'agents'
+  | 'spark'
+  // 0.16.0 — what a card is (an epic, a plain task) and whose model runs it.
+  | 'epic'
+  | 'task'
+  | 'claude'
+  | 'openai'
+  | 'grok'
+  | 'gemini'
+  | 'model';
 
 /** Colour of a host metric's text. `warn` tints only the glyph (amber text is under 4.5:1 on a light card). */
 export type InboxMetricTone = 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger';
@@ -90,8 +106,17 @@ export interface InboxCard {
   contextLevel?: 'warn' | 'danger' | '';
   /** Tooltips that replace the built-in ones (`총 토큰 (task 합계: …)`, `컨텍스트 72% · 자동 압축 750K까지 120K`). */
   titles?: { tokens?: string; cost?: string; context?: string; steps?: string };
-  /** What leads the head instead of the ✦ spark (a CRON badge). */
-  lead?: { text: string; glyph?: InboxGlyph; title?: string };
+  /**
+   * What leads the head instead of the ✦ spark (a CRON badge). With a glyph and no `text` it is the glyph alone
+   * (an epic's or a plain task's mark), named by `title`.
+   */
+  lead?: { text?: string; glyph?: InboxGlyph; title?: string };
+  /**
+   * A star toggle at the head's right end — a button of its own inside the face: pressing it sends `ui-star`
+   * `{ cardId, starred }` (the state asked for) and never toggles the card. `disabled` (a reason string is its
+   * tooltip) keeps it visible and inert. The host owns the state: set `on` from its answer.
+   */
+  star?: { on: boolean; title?: string; disabled?: boolean | string };
   /** A name pill at the right end of the head (the owner in an all-users board). `hue` 0–7 picks its colour. */
   badge?: { text: string; hue?: number; title?: string };
   /** Host metrics after tasks and context (a PR badge, a media count). */
@@ -219,6 +244,8 @@ const STRINGS = {
     ago: (at: number, now?: number) => fmtAgo(at, now),
     duration: (ms: number) => fmtDuration(ms),
     artOpen: (name: string, _kind: ArtifactKind) => `Open ${name}`,
+    starOff: 'Star',
+    starOn: 'Unstar',
   },
   ko: {
     status: {
@@ -247,6 +274,8 @@ const STRINGS = {
     ago: agoKo as (at: number, now?: number) => string,
     duration: (ms: number) => fmtDurationKo(ms),
     artOpen: (name: string, _kind: ArtifactKind) => `${name} — 크게 보기`,
+    starOff: '즐겨찾기',
+    starOn: '즐겨찾기 해제',
   },
 };
 type Strings = InboxStrings;
@@ -315,6 +344,23 @@ const ATTACH_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 7.5l-5.4 5.4a3.2 3.2 0 0 1-4.5-4.5l5.6-5.6a2.1 2.1 0 0 1 3 3L6.6 11.4a1.1 1.1 0 0 1-1.5-1.5L10.2 4.8"/></svg>';
 const CHEV_SVG =
   '<svg class="ib-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
+// 0.16.0 — kind and vendor marks (monochrome, currentColor; drawn at 14px).
+const EPIC_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8 14.2 5 8 8.2 1.8 5z"/><path d="M1.8 8 8 11.2 14.2 8M1.8 11 8 14.2 14.2 11"/></svg>';
+const TASK_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/><path d="M5.4 8.1l1.8 1.8 3.5-3.7"/></svg>';
+const CLAUDE_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 1.6v4.2M8 10.2v4.2M1.6 8h4.2M10.2 8h4.2M3.5 3.5l3 3M9.5 9.5l3 3M12.5 3.5l-3 3M6.5 9.5l-3 3"/></svg>';
+const OPENAI_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z"/><path d="M8 1.8v6.2l5.4 3.1M8 8l-5.4 3.1"/></svg>';
+const GROK_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 13 13 3M5.2 3.6A5.2 5.2 0 0 1 12.4 10.8M10.8 12.4A5.2 5.2 0 0 1 3.6 5.2"/></svg>';
+const GEMINI_SVG =
+  '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6z"/></svg>';
+const MODEL_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.8V4M9.5 1.8V4M6.5 12v2.2M9.5 12v2.2M1.8 6.5H4M1.8 9.5H4M12 6.5h2.2M12 9.5h2.2"/></svg>';
+const STAR_SVG =
+  '<svg viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>';
 const AGENTS_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.8"/><circle cx="12" cy="8" r="1.8"/><circle cx="12" cy="13" r="1.8"/><path d="M4 5.3v5.2c0 1.4 1.1 2.5 2.5 2.5h3.7M4 8h6.2"/></svg>';
 
@@ -353,6 +399,20 @@ function hostGlyph(name: unknown): string {
       return AGENTS_SVG;
     case 'spark':
       return SPARK_SVG;
+    case 'epic':
+      return EPIC_SVG;
+    case 'task':
+      return TASK_SVG;
+    case 'claude':
+      return CLAUDE_SVG;
+    case 'openai':
+      return OPENAI_SVG;
+    case 'grok':
+      return GROK_SVG;
+    case 'gemini':
+      return GEMINI_SVG;
+    case 'model':
+      return MODEL_SVG;
     default:
       return '';
   }
@@ -681,15 +741,33 @@ function renderMetrics(c: InboxCard, t: Strings): string {
   return out.length ? `<span class="ib-metrics">${out.join('')}</span>` : '';
 }
 
-/** The head's lead: the ✦ spark, or the host's badge (a CRON clock). */
+/** The head's lead: the ✦ spark, the host's badge (a CRON clock), or the host's glyph alone (an epic, a task). */
 function renderLead(c: InboxCard): string {
   const lead = c.lead && typeof c.lead === 'object' ? c.lead : null;
   const text = lead ? str(lead.text) : '';
+  const mark = lead ? hostGlyph(lead.glyph) : '';
+  if (lead && !text && mark) {
+    const name = str(lead.title);
+    return `<span class="ib-lead is-icon" role="img"${name ? ` aria-label="${escAttr(name)}" title="${escAttr(name)}"` : ''}>${mark}</span>`;
+  }
   if (!lead || !text) return `<span class="ib-spark" aria-hidden="true">${SPARK_SVG}</span>`;
   const title = str(lead.title);
   return `<span class="ib-lead"${title ? ` title="${escAttr(title)}"` : ''}>${hostGlyph(lead.glyph)}<span class="ib-lead-text">${esc(
     text,
   )}</span></span>`;
+}
+
+/** The face's star toggle (0.16.0): a button inside the face that sends `ui-star`, never a card toggle. */
+function renderStar(c: InboxCard, t: Strings): string {
+  const st = c.star && typeof c.star === 'object' ? c.star : null;
+  if (!st) return '';
+  const on = st.on === true;
+  const why = typeof st.disabled === 'string' ? st.disabled : '';
+  const off = !!st.disabled;
+  const title = why || str(st.title) || (on ? t.starOn : t.starOff);
+  return `<button type="button" class="ib-star${on ? ' is-on' : ''}" data-star aria-pressed="${on ? 'true' : 'false'}" aria-label="${escAttr(
+    on ? t.starOn : t.starOff,
+  )}" title="${escAttr(title)}" data-key="${escAttr(`s:${c.id}`)}"${off ? ' aria-disabled="true"' : ''}>${STAR_SVG}</button>`;
 }
 
 function renderBadge(c: InboxCard): string {
@@ -706,7 +784,7 @@ function renderBadge(c: InboxCard): string {
  * files / status tag · metrics.
  */
 function renderFace(c: InboxCard, t: Strings = STRINGS.en): string {
-  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c)}</div>${
+  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c)}${renderStar(c, t)}</div>${
     c.summary ? `<div class="ib-summary">${esc(c.summary)}</div>` : ''
   }${renderTask(c, t)}${renderAgents(c, t)}${renderUsage(c, t)}${renderArtifacts(c, t)}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
     statusOf(c),
@@ -1027,6 +1105,14 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       const id = this.#cardOf(art);
       if (id !== null && this.emit('ui-artifact', { cardId: id, artifactId: art.getAttribute('data-art') ?? '' }))
         this.sound('navigate', { emphasis: 'subtle' }, e);
+      return;
+    }
+    const star = target.closest?.('[data-star]');
+    if (star) {
+      const id = this.#cardOf(star);
+      if (id === null || star.getAttribute('aria-disabled') === 'true') return;
+      if (this.emit('ui-star', { cardId: id, starred: star.getAttribute('aria-pressed') !== 'true' }))
+        this.sound('tap', undefined, e);
       return;
     }
     const act = target.closest?.('[data-act]');
