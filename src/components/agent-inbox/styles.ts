@@ -116,6 +116,22 @@ export const styles = `
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) 45%, transparent);
 }
 .ib-lead svg { width: 12px; height: 12px; }
+/* A glyph-only lead (0.16.0 — an epic's or a plain task's mark): the glyph in the status colour, no pill. */
+.ib-lead.is-icon { padding: 0; background: none; box-shadow: none; color: var(--st-color); }
+.ib-lead.is-icon svg { width: 14px; height: 14px; }
+/* The face's star toggle (0.16.0): a 24px target at the head's right end; on = the filled amber star. */
+.ib-star {
+  flex: none; display: inline-grid; place-items: center; inline-size: 24px; block-size: 24px; margin: -4px -6px -4px 0;
+  padding: 0; border: 0; border-radius: 6px; background: none; color: var(--ib-muted); cursor: pointer;
+}
+.ib-badge + .ib-star { margin-left: 0; }
+.ib-title + .ib-star { margin-left: auto; }
+.ib-star svg { inline-size: 16px; block-size: 16px; fill: none; }
+.ib-star.is-on { color: var(--yellow); }
+.ib-star.is-on svg { fill: currentColor; }
+.ib-star[aria-disabled="true"] { cursor: default; opacity: 0.6; }
+.ib-star:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+@media (hover: hover) and (pointer: fine) { .ib-star:not([aria-disabled="true"]):hover { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); } }
 /* Owner badge: right end of the head, keeps its width up to its cap so the title truncates first. Eight hues,
    each a tint of the card with text mixed toward ink (≥ 4.5:1 in both themes). */
 .ib-badge {
