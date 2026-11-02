@@ -349,7 +349,7 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   .ib-star::after, .ib-link::after { content: ''; position: absolute; inset: -10px 0; }
   /* Wrapped link rows sit 20px apart, so one chip's reach (10px down) never covers the next row's (10px up). */
   .ib-links { row-gap: 20px; }
-  .ib-tldr-x::after { content: ''; position: absolute; inset: -11px -1px; }
+  .ib-tldr-x::after { content: ''; position: absolute; inset: -11px 0; }
 }
 /* Reduced motion: the global rule only shortens durations, so infinite loops stop here; the ring stays whole. */
 @media (prefers-reduced-motion: reduce) {
