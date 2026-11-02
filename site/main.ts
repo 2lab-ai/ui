@@ -8,6 +8,7 @@ import { playSound } from '@2lab.ai/ui/sound/sound';
 import pkg from '../package.json';
 import { iconsPage, kitPage, wireKit } from './foundations';
 import { setSiteSound, soundButton, soundNow, soundPage, startSiteSound, wireSoundPage } from './sound';
+import { looksCollapsed, THUMB_CARD_W, THUMB_W, thumbFit } from './thumb-fit';
 import './style.css';
 
 // Page-level component tokens (each preview stage switches with data-theme) and the light-DOM kit the demos use.
@@ -49,6 +50,9 @@ function themeNow(): 'light' | 'dark' {
 function shell(active: string, body: string): string {
   const link = (href: string, label: string, extra = '') =>
     `<a href="${href}" data-link${active === href ? ' aria-current="page"' : ''}>${label}${extra}</a>`;
+  // The top nav marks its section: Components on every component page, Docs on every docs page.
+  const section = (href: string, label: string, on: boolean) =>
+    `<a href="${href}" data-link${on ? ' aria-current="page"' : ''}>${label}</a>`;
   const screens = DOCS.filter((d) => d.group === 'Screens');
   const comps = DOCS.filter((d) => d.group === 'Components');
   const pages = DOCS.filter((d) => d.group === 'Pages');
@@ -56,7 +60,7 @@ function shell(active: string, body: string): string {
   return `<header class="top">
   <button class="icon-btn menu-btn" id="menu" aria-label="Menu">${ICON.menu}</button>
   <a class="brand" href="/" data-link><img src="/favicon.svg" alt="" />2lab<span>/ui</span></a>
-  <nav>${link('/components', 'Components')}${link('/docs/installation', 'Docs')}</nav>
+  <nav>${section('/components', 'Components', active.startsWith('/components'))}${section('/docs/installation', 'Docs', active.startsWith('/docs/'))}</nav>
   <div class="grow"></div>
   <span class="ver">v${esc(pkg.version)}</span>
   ${soundButton()}
@@ -87,38 +91,6 @@ function codeBlock(code: string, id: string): string {
   return `<div class="code-wrap"><pre class="code" id="${id}">${esc(code)}</pre><button class="copy" data-copy="${id}">Copy</button></div>`;
 }
 
-const NUMBER_WORDS = [
-  'Zero',
-  'One',
-  'Two',
-  'Three',
-  'Four',
-  'Five',
-  'Six',
-  'Seven',
-  'Eight',
-  'Nine',
-  'Ten',
-  'Eleven',
-  'Twelve',
-  'Thirteen',
-  'Fourteen',
-  'Fifteen',
-  'Sixteen',
-  'Seventeen',
-  'Eighteen',
-  'Nineteen',
-  'Twenty',
-];
-const TENS = ['', '', 'Twenty', 'Thirty', 'Forty'];
-/** 20 → "Twenty", 23 → "Twenty-three" (the hero counts the documented components). */
-function countWord(n: number): string {
-  if (n <= 20) return NUMBER_WORDS[n] ?? String(n);
-  if (n >= 50) return String(n);
-  const t = TENS[Math.floor(n / 10)];
-  return n % 10 ? `${t}-${NUMBER_WORDS[n % 10].toLowerCase()}` : t;
-}
-
 const GROUP_LABEL: Record<ComponentDoc['group'], string> = {
   Screens: 'Screen',
   Components: 'Component',
@@ -132,13 +104,11 @@ function homePage(): string {
       <div class="thumb" data-thumb="${d.slug}"><div></div></div>
       <div class="meta"><em>${GROUP_LABEL[d.group]}</em><b>${esc(d.name)}</b><span>${esc(d.summary)}</span></div></a>`,
   ).join('');
-  const prims = DOCS.filter((d) => d.group === 'Primitives').length;
-  const parts = DOCS.filter((d) => d.group === 'Pages').length;
   return `<section class="hero">
     <div class="crumb">@2lab.ai/ui</div>
     <h1>Agent UI components that show what the agent is doing — and what it needs from you.</h1>
-    <p class="lede">${countWord(DOCS.length)} Web Components lifted from the 2lab soma-work dashboard: the app bar, the run screen, the inbox board, the agent tree, the conversation and the work log, approvals, questions and steering, the composer, answer cards, tool calls, files, the pictures grid and the artifact viewer, goals, plans and runs, provider capacity, context usage, spend, the stats strip and bar chart, toasts, memory, the model picker, the session status row and the card deck nav; ${parts} parts for the pages around them (settings rows and their side nav, a knowledge-pages editor, an observation log, the sign-in card) — plus the ${prims} primitives they share (segmented control, tabs, menu, tooltip, hovercard, dialog, drawer, disclosure, log scroller, live time, meter, breadcrumbs), an icon set and a light-DOM CSS kit. Data in, events out, zero runtime dependencies, light and dark, keyboard-first.</p>
-    <div class="cta"><a class="btn primary" href="/components/${DOCS[0]?.slug ?? ''}" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
+    <p class="lede">${DOCS.length} Web Components from the 2lab soma-work dashboard: runs, approvals, conversations, plans and costs, plus the settings and sign-in pages around them. Pass data in, get events out. No runtime dependencies. Light and dark. Works with a keyboard.</p>
+    <div class="cta"><a class="btn primary" href="/components" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
   </section>
   <h2 id="components">Components <span class="chip">${DOCS.length}</span></h2>
   <div class="grid">${cards}</div>`;
@@ -196,11 +166,12 @@ function componentPage(d: ComponentDoc): string {
     <a class="chip link" href="${esc(d.reference.url)}" target="_blank" rel="noopener">Pattern: ${esc(d.reference.name)} ${ICON.ext}</a></div>
   <section class="preview" aria-label="Live preview">
     <div class="pv-bar">
-      <div class="seg" role="tablist" aria-label="Examples">${demos}</div>
-      <div class="grow"></div>
-      <div class="seg" aria-label="Width"><button data-width="desk" aria-pressed="true">Desktop</button><button data-width="mobile" aria-pressed="false">Mobile</button></div>
-      <div class="seg" aria-label="Preview theme"><button data-pv-theme="light" aria-pressed="${themeNow() === 'light'}">Light</button><button data-pv-theme="dark" aria-pressed="${themeNow() === 'dark'}">Dark</button></div>
-      <button class="icon-btn" id="replay" aria-label="Replay example">${ICON.replay}</button>
+      <div class="seg pv-tabs" role="tablist" aria-label="Examples">${demos}</div>
+      <div class="pv-tools">
+        <div class="seg" aria-label="Width"><button data-width="desk" aria-pressed="true">Desktop</button><button data-width="mobile" aria-pressed="false">Mobile</button></div>
+        <div class="seg" aria-label="Preview theme"><button data-pv-theme="light" aria-pressed="${themeNow() === 'light'}">Light</button><button data-pv-theme="dark" aria-pressed="${themeNow() === 'dark'}">Dark</button></div>
+        <button class="icon-btn" id="replay" aria-label="Replay example">${ICON.replay}</button>
+      </div>
     </div>
     <div class="pv-stage" id="stage" data-theme="${themeNow()}"><div class="pv-frame${WIDE.has(d.slug) ? ' wide' : ''}" id="frame"></div></div>
     <div class="pv-note" id="note"></div>
@@ -277,11 +248,50 @@ function mountDemo(): void {
   }
 }
 
+/**
+ * Places one tile's demo by `thumbFit` — the demo's unscaled box against the tile's. `settled`: called a frame
+ * after the demo rendered, the one time a too-narrow box means it collapsed rather than not drawn yet.
+ */
+function frameThumb(box: HTMLElement, settled = false): void {
+  const inner = box.firstElementChild as HTMLElement | null;
+  if (!inner) return;
+  // A part that sizes to its container (inline-size containment) has no width of its own and collapses when
+  // it shrink-wraps: give it a card's width instead.
+  if (settled && !inner.hasAttribute('data-fixed') && looksCollapsed({ w: inner.offsetWidth, h: inner.offsetHeight })) {
+    inner.setAttribute('data-fixed', '');
+    inner.style.width = `${THUMB_CARD_W}px`;
+  }
+  const f = thumbFit({ w: box.clientWidth, h: box.clientHeight }, { w: inner.offsetWidth, h: inner.offsetHeight });
+  inner.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) scale(${f.scale.toFixed(3)})`;
+  box.toggleAttribute('data-cropped', f.cropped);
+  box.setAttribute('data-framed', '');
+}
+
+let thumbObserver: ResizeObserver | null = null;
+
 function mountThumbs(): void {
+  thumbObserver?.disconnect();
+  // A tile re-frames when it or its demo changes size (the grid's columns, a late render, fonts).
+  thumbObserver =
+    typeof ResizeObserver === 'function'
+      ? new ResizeObserver((entries) => {
+          const boxes = new Set<HTMLElement>();
+          for (const e of entries) {
+            const t = e.target as HTMLElement;
+            const box = t.matches('[data-thumb]') ? t : t.closest<HTMLElement>('[data-thumb]');
+            if (box) boxes.add(box);
+          }
+          for (const box of boxes) frameThumb(box);
+        })
+      : null;
   for (const box of Array.from(document.querySelectorAll<HTMLElement>('[data-thumb]'))) {
     const d = docBySlug(box.dataset.thumb!);
     const inner = box.firstElementChild as HTMLElement;
     if (!d || !d.demos[0] || !inner) continue;
+    inner.style.maxWidth = `${THUMB_W}px`;
+    // A tile is a picture inside a link: its demo's controls take no focus and no press.
+    inner.inert = true;
+    box.setAttribute('aria-hidden', 'true');
     try {
       const el = d.demos[0].create();
       if (d.demos[0].frame ?? d.group !== 'Screens') {
@@ -293,10 +303,17 @@ function mountThumbs(): void {
     } catch (e) {
       console.error(e);
     }
+    frameThumb(box);
+    requestAnimationFrame(() => requestAnimationFrame(() => frameThumb(box, true)));
+    thumbObserver?.observe(box);
+    thumbObserver?.observe(inner);
   }
 }
 
 function route(): void {
+  // The old page's tiles leave with it: let go of them before the new page renders.
+  thumbObserver?.disconnect();
+  thumbObserver = null;
   const path = location.pathname.replace(/\/+$/, '') || '/';
   current = null;
   let body: string;

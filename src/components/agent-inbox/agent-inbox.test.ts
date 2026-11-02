@@ -167,6 +167,14 @@ describe('<ui-agent-inbox>', () => {
     expect(q(el, '.ib-empty')?.textContent).toBe('No runs yet');
   });
 
+  it('a column head is its name and count — no decorative sparkle before the name (0.21.0)', () => {
+    const el = mount(board(WAIT, RUN));
+    for (const head of qa(el, '.ib-col-head')) {
+      expect(Array.from(head.children).map((c) => c.className)).toEqual(['ib-col-name', 'ib-count']);
+      expect(head.querySelector('svg')).toBeNull();
+    }
+  });
+
   it('renders the face: task, sub-agents, tokens · cost, files, status tag with a live clock, metrics', () => {
     const el = mount(board(RUN, DONE));
     const c = card(el, 'notes');
@@ -464,6 +472,17 @@ describe('<ui-agent-inbox>', () => {
 });
 
 describe('Korean duration (D2 G6-1)', () => {
+  it('the Korean board clock is zero-padded like the panel and <ui-elapsed> — 23분 04초, 7분 00초 (0.21.0)', () => {
+    const run = (id: string, ms: number): InboxCard => ({ ...RUN, id, since: NOW - ms });
+    const el = mount(
+      { columns: columnsByStatus([run('a', 23 * MIN + 4_000), run('b', 7 * MIN), run('c', 42_000)], 'ko') },
+      { lang: 'ko' },
+    );
+    expect(card(el, 'a').querySelector('.ib-tag')?.textContent).toBe('실행 중 · 23분 04초');
+    expect(card(el, 'b').querySelector('.ib-tag')?.textContent).toBe('실행 중 · 7분 00초');
+    expect(card(el, 'c').querySelector('.ib-tag')?.textContent).toBe('실행 중 · 42초');
+  });
+
   it('fmtDurationKo: 초 under a minute, 분 초, then 시간 분; whole units drop the zero', () => {
     expect(fmtDurationKo(0)).toBe('0초');
     expect(fmtDurationKo(42_400)).toBe('42초');

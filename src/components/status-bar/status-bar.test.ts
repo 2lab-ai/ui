@@ -217,6 +217,8 @@ describe('<ui-status-bar> rendering', () => {
       '.sb-btn.is-quiet { border-color: transparent; background: transparent; color: var(--ib-text-2); }',
     );
     expect(styles).toContain('.sb-btn[aria-pressed="true"]:not(.is-primary) { background: var(--ib-seg-on);');
+    // A pressed star action (icon: 'star') is drawn filled — the host needs no ★ / ☆ text glyph (0.21.0).
+    expect(styles).toContain('.sb-btn[aria-pressed="true"] svg[data-icon="star"] { fill: currentColor; }');
   });
 
   it('escapes every action field and the link', () => {
