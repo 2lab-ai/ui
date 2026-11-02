@@ -119,7 +119,7 @@ function ownsArrows(t: EventTarget | undefined): boolean {
 
 /**
  * `<ui-artifact-viewer>` — what did the agent make? Every file as a tile (strip, grid, chips or list), a larger
- * peek on hover, and the full file one click away in a `<ui-dialog size="xl">`: image (fit, 1:1 zoom), markdown
+ * peek on hover, and the full file one click away in a `<ui-dialog>` sized to the file (full / xl / lg): image (fit, 1:1 zoom), markdown
  * document, text / code, an HTML page in a sandbox with scripts off, audio, video, or a calm card with Download.
  * ← / → page through, Home / End jump, Esc closes and focus goes back to the tile.
  */
@@ -409,9 +409,12 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     const own = viewerBodyKind(item, this.#broken);
     const body = preview ? 'host' : own;
     // The dialog fits the file (0.20.0): a page, a picture, a video, a PDF fill the screen; a document is tall.
-    const fit = viewerFit(own);
-    if (this.#dialog.getAttribute('data-fit') !== fit) this.#dialog.setAttribute('data-fit', fit);
-    if (this.#dialog.getAttribute('size') !== FIT_SIZE[fit]) this.#dialog.setAttribute('size', FIT_SIZE[fit]);
+    // A host's own preview keeps the size it always had (xl, 860px tall at most): its body is not ours to measure.
+    const fit = preview ? null : viewerFit(own);
+    const size = fit ? FIT_SIZE[fit] : 'xl';
+    if (fit === null) this.#dialog.removeAttribute('data-fit');
+    else if (this.#dialog.getAttribute('data-fit') !== fit) this.#dialog.setAttribute('data-fit', fit);
+    if (this.#dialog.getAttribute('size') !== size) this.#dialog.setAttribute('size', size);
     const acts = viewerActions(item, this.data ?? {});
     const header = `<span slot="header" class="av-vh" data-kind="${kind}"><span class="av-badge">${icon(
       fileKindIcon(kind),

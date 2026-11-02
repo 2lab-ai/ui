@@ -1413,6 +1413,14 @@ describe('face TL;DR row (0.20.0)', () => {
     expect(card(el, 'notes').querySelector('.ib-tldr')).toBeNull();
   });
 
+  it('focus on × goes to the card’s face when the host drops the box (review: astra P2)', () => {
+    const el = mount(board({ ...RUN, tldr: TLDR }));
+    card(el, 'notes').querySelector<HTMLButtonElement>('button.ib-tldr-x')!.focus();
+    el.data = board(RUN);
+    el.renderNow();
+    expect((el.shadowRoot!.activeElement as HTMLElement | null)?.classList.contains('ib-face')).toBe(true);
+  });
+
   it('dismissible: false draws no ×; a host title replaces the label; at most five lines, blanks dropped', () => {
     const el = mount(
       board({

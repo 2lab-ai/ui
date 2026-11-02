@@ -53,7 +53,7 @@ export const peekPageCss = peekCss.replace(
 
 /**
  * The strip / grid / chips of file cards, the hover peek (the `.mp-pop` recipe: origin-aware, raised shadow) and
- * the viewer's slotted header, body and footer inside `<ui-dialog size="xl">` (its panel parts are reached with
+ * the viewer's slotted header, body and footer inside its `<ui-dialog>` (sized to the file; its panel parts are reached with
  * `::part`). Colour comes only from the kind's wash; everything else is ink on the card.
  */
 export const styles = `
@@ -201,12 +201,12 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
 .av-pos {
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 56px;
   height: 32px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; color: var(--ib-text-2); text-align: center;
-  font-variant-numeric: tabular-nums; transition: background-color 150ms ease, color 150ms ease;
+  font-variant-numeric: tabular-nums; transition: background-color var(--dur-press) ease, color var(--dur-press) ease;
 }
 .av-pos > svg { display: block; flex: none; opacity: 0.7; }
 .av-jump {
   position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0;
-  font: inherit; cursor: pointer; appearance: none;
+  font: inherit; font-size: 16px; cursor: pointer; appearance: none; /* ≥ 16px: iOS never zooms the page on focus */
 }
 .av-pos:has(.av-jump:focus-visible) { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 .av-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
