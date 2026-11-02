@@ -701,6 +701,8 @@ describe('effort levels: ultra, the effort follows the model, the strongest leve
     expect(fitEffortLevel(['low', 'medium', 'high'], 'max')).toBe('high');
     expect(fitEffortLevel(['high', 'xhigh'], 'low')).toBe('high');
     expect(fitEffortLevel([], 'max')).toBe('max');
+    // none / minimal rank below low: the strongest not stronger, never a push up.
+    expect(fitEffortLevel(['none', 'minimal', 'high'], 'low')).toBe('minimal');
     expect(fitEffortLevel(['low'], undefined)).toBeUndefined();
     expect(MODEL_EFFORT_ORDER).toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
   });
