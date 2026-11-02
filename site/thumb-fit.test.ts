@@ -37,6 +37,14 @@ describe('thumbFit — a gallery tile frames its demo', () => {
     expect(f.cropped).toBe(true);
   });
 
+  it('a wide, short demo (a bar) runs off the right edge only and sits centred in the height', () => {
+    const f = thumbFit(TILE, { w: 560, h: 88 });
+    expect(f.scale).toBe(THUMB_MIN);
+    expect(f.x).toBe(THUMB_PAD);
+    expect(f.y).toBeCloseTo((230 - 88 * THUMB_MIN) / 2);
+    expect(f.cropped).toBe(true);
+  });
+
   it('never scales above 1:1', () => {
     expect(thumbFit({ w: 1200, h: 900 }, { w: 100, h: 40 }).scale).toBe(1);
   });

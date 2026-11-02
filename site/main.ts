@@ -311,6 +311,9 @@ function mountThumbs(): void {
 }
 
 function route(): void {
+  // The old page's tiles leave with it: let go of them before the new page renders.
+  thumbObserver?.disconnect();
+  thumbObserver = null;
   const path = location.pathname.replace(/\/+$/, '') || '/';
   current = null;
   let body: string;

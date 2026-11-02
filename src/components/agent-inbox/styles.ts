@@ -23,7 +23,7 @@ export const styles = `
 .ib-col { position: relative; background: var(--ib-col); border-radius: 14px; padding: 2px 4px 4px; min-width: 0; display: flex; flex-direction: column; }
 /* The head: the name on the cards' reading edge, the count at the end. No mark before the name — a sparkle
    there meant nothing (0.21.0). */
-.ib-col-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 8px 12px; min-height: 40px; }
+.ib-col-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 8px 15px; min-height: 40px; }
 .ib-spark svg { width: 14px; height: 14px; }
 .ib-col-name { flex: 1; min-width: 0; margin: 0; text-align: left; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ib-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :host([lang="ko"]) .ib-col-name { letter-spacing: 0.04em; }
@@ -342,10 +342,12 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 @media (pointer: coarse), (max-width: 639px) {
   .ib-btn { min-height: 44px; padding: 8px 14px; }
   .ib-group-head { min-height: 44px; }
-  /* The face's small controls keep their look and get a 44px reach (an invisible hit area, as the kit's chip). */
+  /* The face's small controls keep their look and get a 44px vertical reach (an invisible hit area, as the kit's
+     chip). */
   .ib-star, .ib-tldr-x, .ib-link { position: relative; }
   /* Vertical reach only (as the kit's chip): a wider box would take presses meant for the title or summary. */
-  .ib-star::after, .ib-tldr-x::after, .ib-link::after { content: ''; position: absolute; inset: -10px 0; }
+  .ib-star::after, .ib-link::after { content: ''; position: absolute; inset: -10px 0; }
+  .ib-tldr-x::after { content: ''; position: absolute; inset: -11px -1px; }
 }
 /* Reduced motion: the global rule only shortens durations, so infinite loops stop here; the ring stays whole. */
 @media (prefers-reduced-motion: reduce) {
