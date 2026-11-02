@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { THUMB_MIN, THUMB_PAD, thumbFit } from './thumb-fit';
+import { looksCollapsed, THUMB_MIN, THUMB_PAD, thumbFit } from './thumb-fit';
 
 const TILE = { w: 330, h: 230 };
 
@@ -63,5 +63,13 @@ describe('thumbFit — a gallery tile frames its demo', () => {
       expect(Number.isFinite(f.x)).toBe(true);
       expect(Number.isFinite(f.y)).toBe(true);
     }
+  });
+
+  it('looksCollapsed: a narrow, tall box is a collapsed container part; a small, wide trigger is just small', () => {
+    expect(looksCollapsed({ w: 22, h: 900 })).toBe(true); // approval card at no width: a word per line
+    expect(looksCollapsed({ w: 82, h: 30 })).toBe(false); // a drawer's trigger button
+    expect(looksCollapsed({ w: 180, h: 600 })).toBe(false); // wide enough to be itself
+    expect(looksCollapsed({ w: 0, h: 0 })).toBe(false);
+    expect(looksCollapsed({ w: Number.NaN, h: 10 })).toBe(true);
   });
 });
