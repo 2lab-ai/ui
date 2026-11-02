@@ -622,7 +622,7 @@ describe('host gaps', () => {
     expect(q(el, '.ib-empty')?.textContent).toBe('Nothing here');
   });
 
-  // 0.21.0 — the model as icons (2lab-ai/soma-work#805): the maker's mark in the model's colour and the effort as a
+  // 0.22.0 — the model as icons (2lab-ai/soma-work#805): the maker's mark in the model's colour and the effort as a
   // 5-bar gauge, no name on the face (the name is the chip's title and accessible name).
   it('draws an icon-only model metric: the mark in its colour, the effort gauge, the name as title and label', () => {
     const el = mount(
