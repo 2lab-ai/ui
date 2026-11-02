@@ -20,6 +20,7 @@ export {
   modelEffortLevels,
   modelGlyph,
   modelMeters,
+  pickerVendor,
   placeModelMenu,
   UiModelPicker,
   validModelPrice,

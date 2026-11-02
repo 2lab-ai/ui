@@ -1,6 +1,7 @@
 import { define, UiElement } from '../../core/element';
 import { fmtDurationIn, fmtTokens } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
+import { modelMarkHtml } from '../../core/model-mark';
 import {
   type AgentTreeData,
   type AgentTreeDensity,
@@ -405,7 +406,8 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
       : o.line
         ? `<span class="at-line" title="${escAttr(o.line)}">${esc(o.line)}</span>`
         : '';
-    return `<div class="at-row">${chev}<span class="at-icon" aria-hidden="true">${ICON[n.status]}</span><span class="at-body"><span class="at-head"><span class="at-who"><span class="at-name" title="${escAttr(
+    const mark = n.vendor ? modelMarkHtml(n.vendor, 'at-mark') : '';
+    return `<div class="at-row">${chev}<span class="at-icon" aria-hidden="true">${ICON[n.status]}</span><span class="at-body"><span class="at-head"><span class="at-who">${mark}<span class="at-name" title="${escAttr(
       n.name,
     )}">${esc(n.name)}</span>${n.role ? `<span class="at-role" title="${escAttr(n.role)}">${esc(n.role)}</span>` : ''}</span><span class="at-meta">${meta}</span></span>${sub}</span></div>`;
   }
@@ -435,9 +437,11 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
           span.left
         }%;width:${span.width}%"></i></span>`
       : '';
-    return `<div class="at-row at-card"><div class="at-top"><span class="at-avatar" aria-hidden="true">${esc(
-      agentInitials(n.name),
-    )}</span><span class="at-who"><span class="at-name" title="${escAttr(n.name)}">${esc(n.name)}</span>${
+    // 0.23.0 — an agent that names its model: the avatar is its maker's mark (affectUI's agent fleet).
+    const avatar = n.vendor
+      ? modelMarkHtml(n.vendor, 'at-avatar is-mark')
+      : `<span class="at-avatar" aria-hidden="true">${esc(agentInitials(n.name))}</span>`;
+    return `<div class="at-row at-card"><div class="at-top">${avatar}<span class="at-who"><span class="at-name" title="${escAttr(n.name)}">${esc(n.name)}</span>${
       n.role ? `<span class="at-role" title="${escAttr(n.role)}">${esc(n.role)}</span>` : ''
     }</span><span class="at-pill">${ICON[n.status]}<span>${esc(t.status[n.status])}</span></span></div>${
       n.summary ? `<p class="at-task" title="${escAttr(n.summary)}">${esc(n.summary)}</p>` : ''

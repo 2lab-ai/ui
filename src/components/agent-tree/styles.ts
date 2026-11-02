@@ -85,6 +85,12 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
 .at-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .at-avatar { display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--at-card);
   box-shadow: var(--at-shadow); color: var(--at-text); font-size: 10px; font-weight: 600; line-height: 1; letter-spacing: 0; }
+/* 0.23.0 — the agent's model as its maker's mark (soma-work#813): the avatar tile, or a mark before the name. */
+.at-avatar.is-mark { color: var(--model-hue, var(--at-ink)); }
+.at-avatar.is-mark svg { display: block; width: 14px; height: 14px; }
+.at-mark { display: inline-grid; flex: none; align-self: center; place-items: center; color: var(--model-hue, var(--at-ink)); }
+.at-mark svg { display: block; width: 13px; height: 13px; }
+@media (forced-colors: active) { .at-mark, .at-avatar.is-mark { color: CanvasText; } }
 .at-who { display: grid; flex: 1 1 auto; min-width: 0; }
 .at-name { min-width: 0; overflow: hidden; color: var(--at-ink); font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
 .at-card .at-name { line-height: 16px; }

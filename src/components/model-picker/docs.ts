@@ -105,7 +105,13 @@ export const doc: ComponentDoc = {
     {
       name: 'data.models[].short',
       type: 'string',
-      description: 'Compact name for the description line and the avatar letter (default: id / label).',
+      description: 'Compact name for the description line (default: id / label).',
+    },
+    {
+      name: 'data.models[].vendor',
+      type: "'claude' | 'openai' | 'grok' | 'gemini' | 'model'",
+      description:
+        "0.23.0 — the model's maker. Its tile shows the maker's mark in the maker's colour (Claude clay, Gemini blue, OpenAI and Grok in ink), as affectUI's agent rows do; it used to show the name's first letter. When missing, the maker is read from the id, then the label, then the short name.",
     },
     {
       name: 'data.models[].window',

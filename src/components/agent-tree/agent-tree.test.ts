@@ -629,3 +629,29 @@ describe('sound', () => {
     expect(spy.calls).toEqual([]);
   });
 });
+
+// 0.23.0 — an agent's model as its maker's mark (2lab-ai/soma-work#813, affectUI's agent fleet): a rich card's avatar
+// is the mark tile, a compact row shows the mark before the name; an agent with no model keeps its initials.
+describe("an agent's model mark", () => {
+  const MARKED: AgentTreeNode[] = [
+    N('main', undefined, { name: 'Main', status: 'running', startedAt: T0, model: 'claude-opus-5-5[1m]' }),
+    N('x', 'main', { name: 'Explore', status: 'done', startedAt: T0 + 1000, endedAt: T0 + 2000, model: 'gpt-5.5' }),
+    N('y', 'main', { name: 'Plain', status: 'running', startedAt: T0 + 3000 }),
+  ];
+  it('rich: the avatar is the maker mark in its colour; no model keeps the initials', () => {
+    const el = mount({ nodes: MARKED, now: T0 + 10_000 });
+    const av = (id: string) => item(el, id)!.querySelector<HTMLElement>('.at-avatar')!;
+    expect(av('main').dataset.vendor).toBe('claude');
+    expect(av('main').style.getPropertyValue('--model-hue')).toBe('#d97757');
+    expect(av('main').querySelector('svg')).not.toBeNull();
+    expect(av('x').dataset.vendor).toBe('openai');
+    expect(av('y').dataset.vendor).toBeUndefined();
+    expect(av('y').textContent).toBe('P');
+  });
+  it('compact: the mark before the name; none without a model', () => {
+    const el = mount({ nodes: MARKED, now: T0 + 10_000, density: 'compact' });
+    expect(row(el, 'main')!.querySelector<HTMLElement>('.at-mark')?.dataset.vendor).toBe('claude');
+    expect(row(el, 'x')!.querySelector<HTMLElement>('.at-mark')?.dataset.vendor).toBe('openai');
+    expect(row(el, 'y')!.querySelector('.at-mark')).toBeNull();
+  });
+});
