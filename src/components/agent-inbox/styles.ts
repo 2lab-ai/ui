@@ -287,6 +287,8 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 /* 0.22.0 — the model as icons: the maker's mark in the model's colour, then the effort gauge (rising bars). */
 .ib-metric.is-model { gap: 3px; }
 .ib-metric.is-model > svg:first-child:not(.ib-eff) { color: var(--ib-model-hue, currentColor); }
+/* 0.23.0 — OpenAI's and xAI's marks are black: the ink, not the muted metric colour (white in dark mode). */
+.ib-metric.is-model.is-ink > svg:first-child:not(.ib-eff) { color: var(--ib-text); }
 .ib-metric .ib-eff { width: 13px; height: 13px; }
 .ib-eff .ib-eff-bar { fill: color-mix(in srgb, currentColor 22%, transparent); }
 .ib-eff .ib-eff-bar.is-on { fill: currentColor; }
