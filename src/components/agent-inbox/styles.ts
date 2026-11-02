@@ -21,12 +21,13 @@ export const styles = `
 /* Board = equal columns. No overflow clip on columns: a card flying between columns stays visible. */
 .ib-board { display: grid; grid-template-columns: repeat(var(--ib-cols, 3), minmax(0, 1fr)); gap: 12px; align-items: start; }
 .ib-col { position: relative; background: var(--ib-col); border-radius: 14px; padding: 2px 4px 4px; min-width: 0; display: flex; flex-direction: column; }
-.ib-col-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 8px 10px; min-height: 40px; }
-.ib-col-spark { color: var(--ib-spark); display: inline-flex; flex-shrink: 0; }
-.ib-col-spark svg, .ib-spark svg { width: 14px; height: 14px; }
-.ib-col-name { flex: 1; min-width: 0; margin: 0; text-align: center; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ib-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The head: the name centred over the column (equal side tracks), the count at the end. No mark before the
+   name — a sparkle there meant nothing (0.21.0). */
+.ib-col-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr); align-items: center; gap: 8px; padding: 10px 8px 8px 10px; min-height: 40px; }
+.ib-spark svg { width: 14px; height: 14px; }
+.ib-col-name { grid-column: 2; min-width: 0; margin: 0; text-align: center; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ib-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :host([lang="ko"]) .ib-col-name { letter-spacing: 0.04em; }
-.ib-count { flex-shrink: 0; background: var(--ib-pill); color: var(--ib-text-2); border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 500; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
+.ib-count { grid-column: 3; justify-self: end; flex-shrink: 0; background: var(--ib-pill); color: var(--ib-text-2); border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 500; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
 .ib-cards { position: relative; display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
 .ib-empty { margin: 0; text-align: center; color: var(--ib-muted); font-size: 13px; padding: 14px 8px 18px; }
 .ib-empty[hidden] { display: none; }
@@ -34,6 +35,7 @@ export const styles = `
 /* List = the same columns stacked full width (same DOM). Forced with view="list"; automatic below 640px.
    The rules follow .ib[data-view] (it mirrors the attribute) so a switch can be measured before it lands. */
 .ib[data-view="list"] .ib-board { grid-template-columns: minmax(0, 1fr); }
+.ib[data-view="list"] .ib-col-head { display: flex; }
 .ib[data-view="list"] .ib-col-name { flex: 0 1 auto; text-align: left; }
 .ib[data-view="list"] .ib-summary { -webkit-line-clamp: 1; }
 .ib[data-view="list"] .ib-empty { padding: 10px 8px 16px; }
@@ -47,6 +49,7 @@ export const styles = `
 }
 @container ib (max-width: 639px) {
   .ib:not([data-view="board"]) .ib-board { grid-template-columns: minmax(0, 1fr); overflow-x: visible; scroll-snap-type: none; padding-bottom: 0; }
+  .ib:not([data-view="board"]) .ib-col-head { display: flex; }
   .ib:not([data-view="board"]) .ib-col-name { flex: 0 1 auto; text-align: left; }
   .ib:not([data-view="board"]) .ib-summary { -webkit-line-clamp: 1; }
   .ib:not([data-view="board"]) .ib-empty { padding: 10px 8px 16px; }
@@ -291,6 +294,9 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-card.is-open .ib-expand { grid-template-rows: 1fr; }
 .ib-expand-inner { min-height: 0; overflow: hidden; opacity: 0; transition: opacity var(--dur-expand) var(--ease-out); }
 .ib-card.is-open .ib-expand-inner { opacity: 1; }
+/* An open card says its summary once and in full (a waiting card's question): the host's body need not repeat
+   the sentence the clamp cut short (0.21.0). */
+.ib .ib-card.is-open .ib-summary { display: block; -webkit-line-clamp: unset; }
 .ib-card.no-motion .ib-expand, .ib-card.no-motion .ib-expand-inner { transition: none; }
 .ib-body { margin: 0 14px; padding: 12px 0 14px; border-top: 1px solid var(--ib-card-border); font-size: 13px; color: var(--ib-text-2); }
 /* Steps: dot + connector, the current step's dot in ink. */

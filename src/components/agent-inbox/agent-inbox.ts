@@ -1430,7 +1430,6 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     el.setAttribute('data-col', id);
     const head = document.createElement('div');
     head.className = 'ib-col-head';
-    head.innerHTML = `<span class="ib-col-spark" aria-hidden="true">${SPARK_SVG}</span>`;
     const name = document.createElement('h3');
     name.className = 'ib-col-name';
     name.id = `ib-c${n}-name`;

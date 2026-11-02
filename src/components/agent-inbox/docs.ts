@@ -581,7 +581,8 @@ export const doc: ComponentDoc = {
     {
       name: 'data.columns[].cards[].summary',
       type: 'string',
-      description: 'Why it is here / where it stands. Clamped to two lines (one in list view).',
+      description:
+        'Why it is here / where it stands. Clamped to two lines (one in list view); an open card shows it in full (0.21.0), so a host body need not repeat it.',
     },
     {
       name: 'data.columns[].cards[].status',
