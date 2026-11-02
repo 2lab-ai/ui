@@ -622,6 +622,92 @@ describe('host gaps', () => {
     expect(q(el, '.ib-empty')?.textContent).toBe('Nothing here');
   });
 
+  // 0.21.0 — the model as icons (2lab-ai/soma-work#805): the maker's mark in the model's colour and the effort as a
+  // 5-bar gauge, no name on the face (the name is the chip's title and accessible name).
+  it('draws an icon-only model metric: the mark in its colour, the effort gauge, the name as title and label', () => {
+    const el = mount(
+      board({
+        ...RUN,
+        metrics: [
+          {
+            text: '',
+            glyph: 'claude',
+            effort: 'high',
+            color: '#d97757',
+            title: 'Opus 5.5 (1M) · 추론 강도 높음',
+            label: '모델 Opus 5.5 (1M), 추론 강도 높음',
+          },
+        ],
+      }),
+    );
+    const m = card(el, 'notes').querySelector('.ib-metric.is-model') as HTMLElement;
+    expect(m).not.toBeNull();
+    expect(m.textContent).toBe('');
+    expect(m.getAttribute('role')).toBe('img');
+    expect(m.getAttribute('aria-label')).toBe('모델 Opus 5.5 (1M), 추론 강도 높음');
+    expect(m.getAttribute('title')).toBe('Opus 5.5 (1M) · 추론 강도 높음');
+    expect(m.style.getPropertyValue('--ib-model-hue')).toBe('#d97757');
+    const gauge = m.querySelector('.ib-eff')!;
+    expect(gauge.getAttribute('data-effort')).toBe('high');
+    expect(gauge.querySelectorAll('.ib-eff-bar').length).toBe(5);
+    expect(gauge.querySelectorAll('.ib-eff-bar.is-on').length).toBe(3);
+  });
+
+  it('fills the effort gauge by level (low 1 … max 5, ultra 5 with its foil); no gauge for an unknown level', () => {
+    const levels: Array<[string, number]> = [
+      ['low', 1],
+      ['medium', 2],
+      ['high', 3],
+      ['xhigh', 4],
+      ['max', 5],
+      ['ultra', 5],
+    ];
+    const el = mount(
+      board({
+        ...RUN,
+        metrics: [
+          ...levels.map(([effort]) => ({ text: '', glyph: 'claude' as const, effort, label: effort })),
+          {
+            text: '',
+            glyph: 'openai' as const,
+            effort: 'turbo',
+            label: 'unknown',
+          },
+        ],
+      }),
+    );
+    const ms = Array.from(card(el, 'notes').querySelectorAll('.ib-metric.is-model'));
+    expect(ms.map((m) => m.querySelectorAll('.ib-eff-bar.is-on').length)).toEqual([...levels.map(([, n]) => n), 0]);
+    expect(ms.map((m) => m.querySelector('.ib-eff')?.getAttribute('data-effort') ?? '')).toEqual([
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+      'ultra',
+      '',
+    ]);
+    // The last still shows its mark (an icon-only metric needs a mark or a gauge).
+    expect(ms[6].querySelector('svg')).not.toBeNull();
+  });
+
+  it('takes only a hex colour (no CSS injection); an icon-only metric without a mark or a gauge is dropped', () => {
+    const el = mount(
+      board({
+        ...RUN,
+        metrics: [
+          { text: '', glyph: 'gemini', color: 'red;background:url(x)', label: 'a' },
+          { text: '', glyph: 'grok', color: '#abc', label: 'b' },
+          { text: '', label: 'nothing to draw' },
+        ],
+      }),
+    );
+    const ms = Array.from(card(el, 'notes').querySelectorAll<HTMLElement>('.ib-metric.is-model'));
+    expect(ms.length).toBe(2);
+    expect(ms[0].getAttribute('style')).toBeNull();
+    expect(ms[1].style.getPropertyValue('--ib-model-hue')).toBe('#abc');
+  });
+
   it('draws face extras: lead, owner badge, host metrics, titles, context level, artifact count and chip buttons', () => {
     const el = mount(
       board({

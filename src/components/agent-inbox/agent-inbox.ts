@@ -88,13 +88,22 @@ export interface InboxTldr {
 
 /** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
 export interface InboxMetric {
+  /** The words. `''` draws an icon-only metric (0.21.0): its mark and/or effort gauge, named by `label` / `title`. */
   text: string;
   glyph?: InboxGlyph;
   tone?: InboxMetricTone;
   /** Tooltip. */
   title?: string;
-  /** Accessible name when the text alone says too little (`2` → `지시 첨부 2개`). */
+  /** Accessible name when the text alone says too little (`2` → `지시 첨부 2개`); an icon-only metric's name. */
   label?: string;
+  /**
+   * 0.21.0 — an effort level (`low` · `medium` · `high` · `xhigh` · `max` · `ultra`), drawn after the mark as a 5-bar
+   * gauge: 1–5 bars, `xhigh` red, `max` a gold foil, `ultra` a holographic foil (the model picker's effort effects).
+   * An unknown level draws no gauge.
+   */
+  effort?: string;
+  /** 0.21.0 — the mark's colour, a hex colour (`#rgb` … `#rrggbbaa`): a model's own colour. Anything else is ignored. */
+  color?: string;
 }
 
 /** A file the run made, drawn as a chip button that sends `ui-artifact` (never a toggle). */
@@ -771,6 +780,48 @@ function renderArtifacts(c: InboxCard, t: Strings): string {
     .join('')}${more > 0 ? `<span class="ib-arts-more">+${more}</span>` : ''}</div>`;
 }
 
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/** Bars a level fills (0.21.0 — the effort gauge). */
+const EFFORT_BARS: Readonly<Record<string, number>> = { low: 1, medium: 2, high: 3, xhigh: 4, max: 5, ultra: 5 };
+// The foils of the model picker's max and ultra words (core/effort.ts), as SVG paints; the same ids in every gauge
+// draw the same gradient.
+const mixStop = (offset: number, color: string): string => `<stop offset="${offset}" style="stop-color:${color}"/>`;
+const GOLD_DEFS = `<defs><linearGradient id="ib-eff-gold" x1="0" y1="1" x2="1" y2="0">${[
+  [0, 'color-mix(in srgb, var(--orange) 55%, var(--yellow))'],
+  [0.45, 'color-mix(in srgb, var(--yellow) 80%, var(--ib-text))'],
+  [0.6, 'color-mix(in srgb, var(--yellow) 85%, var(--ib-card))'],
+  [1, 'color-mix(in srgb, var(--orange) 55%, var(--yellow))'],
+]
+  .map(([o, c]) => mixStop(o as number, c as string))
+  .join('')}</linearGradient></defs>`;
+const HOLO_DEFS = `<defs><linearGradient id="ib-eff-holo" x1="0" y1="1" x2="1" y2="0">${[
+  'purple',
+  'accent',
+  'green',
+  'yellow',
+  'orange',
+  'red',
+]
+  .map((h, i) => mixStop(i / 5, `color-mix(in srgb, var(--${h}) 78%, var(--ib-text))`))
+  .join('')}</linearGradient></defs>`;
+
+/** The effort as a 5-bar gauge (rising bars, the level's count filled), or '' for an unknown level. */
+function effortGauge(level: unknown): string {
+  const lv = typeof level === 'string' ? level : '';
+  const n = Object.prototype.hasOwnProperty.call(EFFORT_BARS, lv) ? EFFORT_BARS[lv] : 0;
+  if (!n) return '';
+  const bars = [0, 1, 2, 3, 4]
+    .map((i) => {
+      const h = 4 + i * 2.4;
+      return `<rect class="ib-eff-bar${i < n ? ' is-on' : ''}" x="${(1.5 + i * 2.8).toFixed(1)}" y="${(
+        14.5 - h
+      ).toFixed(1)}" width="2" height="${h.toFixed(1)}" rx="0.8"/>`;
+    })
+    .join('');
+  const defs = lv === 'max' ? GOLD_DEFS : lv === 'ultra' ? HOLO_DEFS : '';
+  return `<svg class="ib-eff" data-effort="${lv}" viewBox="0 0 16 16" aria-hidden="true">${defs}${bars}</svg>`;
+}
+
 function renderMetrics(c: InboxCard, t: Strings): string {
   const out: string[] = [];
   const titles = c.titles && typeof c.titles === 'object' ? c.titles : {};
@@ -797,15 +848,23 @@ function renderMetrics(c: InboxCard, t: Strings): string {
     );
   }
   for (const m of Array.isArray(c.metrics) ? c.metrics : []) {
-    const text = m && typeof m === 'object' ? str(m.text) : '';
-    if (!text) continue;
+    if (!m || typeof m !== 'object') continue;
+    const text = str(m.text);
+    const glyph = hostGlyph(m.glyph);
+    const gauge = effortGauge(m.effort);
+    // An icon-only metric (0.21.0) needs something to draw.
+    if (!text && !glyph && !gauge) continue;
     const tone = METRIC_TONES.includes(m.tone as InboxMetricTone) ? (m.tone as InboxMetricTone) : '';
     const title = str(m.title);
-    const label = str(m.label);
+    const label = str(m.label) || (text ? '' : title);
+    const color = HEX_COLOR.test(str(m.color)) ? str(m.color) : '';
+    const model = !text || !!gauge || !!color;
     out.push(
-      `<span class="ib-metric is-host"${tone ? ` data-tone="${tone}"` : ''}${title ? ` title="${escAttr(title)}"` : ''}${
+      `<span class="ib-metric is-host${model ? ' is-model' : ''}"${!text ? ' role="img"' : ''}${
+        color ? ` style="--ib-model-hue:${color}"` : ''
+      }${tone ? ` data-tone="${tone}"` : ''}${title ? ` title="${escAttr(title)}"` : ''}${
         label ? ` aria-label="${escAttr(label)}"` : ''
-      }>${hostGlyph(m.glyph)}${esc(text)}</span>`,
+      }>${glyph}${gauge}${esc(text)}</span>`,
     );
   }
   return out.length ? `<span class="ib-metrics">${out.join('')}</span>` : '';
