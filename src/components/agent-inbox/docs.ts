@@ -336,7 +336,17 @@ function dashboardColumns(now: number): InboxColumn[] {
     steps: { done: 3, total: 6 },
     contextPct: 72,
     contextLevel: 'warn',
-    metrics: [{ text: '#482 열림', glyph: 'pr', tone: 'run', title: 'PR #482 — billing webhooks (열림)' }],
+    metrics: [
+      { text: '#482 열림', glyph: 'pr', tone: 'run', title: 'PR #482 — billing webhooks (열림)' },
+      {
+        text: '',
+        glyph: 'claude',
+        color: '#d97757',
+        effort: 'xhigh',
+        title: 'Opus 5.5 · 매우 높음',
+        label: '모델 Opus 5.5, 추론 강도 매우 높음',
+      },
+    ],
     actions: [{ id: 'stop', label: 'Stop' }],
   };
   const nightly: InboxCard = {
@@ -690,9 +700,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.columns[].cards[].metrics',
-      type: "Array<{ text, glyph?, tone?: 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger', title?, label? }>",
+      type: "Array<{ text, glyph?, tone?: 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger', title?, label?, effort?, color? }>",
       description:
-        "Host metrics after tasks and context: a PR badge (`#12 머지됨`, tone done), a media count (`2`, label `지시 첨부 2개`), the cost (`$6.20`), the model with its vendor’s mark (`{ text: 'Opus 5.5', glyph: 'claude' }` — claude · openai · grok · gemini · model for any other). Text only — never markup.",
+        "Host metrics after tasks and context: a PR badge (`#12 머지됨`, tone done), a media count (`2`, label `지시 첨부 2개`), the cost (`$6.20`), the model with its vendor’s mark (`{ text: 'Opus 5.5', glyph: 'claude' }` — claude · openai · grok · gemini · model for any other). Text only — never markup. 0.21.0 — the model as icons: `text: ''` draws an icon-only metric (role img, named by `label`, else `title`); `effort` (low · medium · high · xhigh · max · ultra) adds a 5-bar gauge after the mark — 1–5 bars, xhigh red, max a gold foil, ultra a holographic foil, as the model picker’s effort words; `color` (a hex colour) tints the mark — e.g. `{ text: '', glyph: 'claude', color: '#d97757', effort: 'high', title: 'Opus 5.5 (1M) · 높음', label: '모델 Opus 5.5 (1M), 추론 강도 높음' }`. A metric with no text, mark or gauge is skipped.",
     },
     {
       name: 'data.columns[].cards[].bodyMode',
