@@ -6,6 +6,8 @@
  * hard-coded hex or rgba, so one rule holds in light and dark.
  */
 
+import { effortTextCss } from '../core/effort';
+
 /** Every class the kit defines (base classes; modifiers are `is-*`). */
 export const KIT_CLASSES = [
   'ui-btn',
@@ -31,6 +33,7 @@ export const KIT_CLASSES = [
   'ui-card',
   'ui-notice',
   'ui-row',
+  'ui-effort',
 ] as const;
 
 const T = (name: string): string => `var(--ui-${name})`;
@@ -458,4 +461,8 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
 @keyframes ui-count-pop { from { opacity: 0; transform: scale(0.9); } }
 @keyframes ui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes ui-sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+/* ── Effort word: <span class="ui-effort" data-effort="max">Max</span> — xhigh a red gradient, max a gold foil, ultra a
+   holographic foil (the same words and effects as <ui-model-picker>, core/effort.ts); other levels stay plain ── */
+.ui-effort { font-weight: 500; }
+${effortTextCss((level) => `.ui-effort[data-effort="${level}"]`, T, 'ui-effort')}
 ${pageKitCss}`;

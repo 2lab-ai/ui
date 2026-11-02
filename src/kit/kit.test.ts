@@ -18,6 +18,18 @@ describe('ui-kit.css', () => {
     for (const m of css.matchAll(/var\(--ui-([a-z0-9-]+)/g)) expect(KNOWN.has(m[1]), m[1]).toBe(true);
   });
 
+  it('.ui-effort: xhigh a red gradient, max and ultra a foil sweep — the picker’s own words and effects', () => {
+    expect(kitCss).toMatch(
+      /\.ui-effort\[data-effort="xhigh"\] \{ background-image: linear-gradient\(90deg, color-mix\(in srgb, var\(--ui-red\)/,
+    );
+    expect(kitCss).toMatch(/\.ui-effort\[data-effort="max"\] \{[^}]*animation: ui-effort-foil/);
+    expect(kitCss).toMatch(
+      /\.ui-effort\[data-effort="ultra"\] \{[^}]*var\(--ui-purple\)[^}]*animation: ui-effort-foil/,
+    );
+    expect(kitCss).toContain('@keyframes ui-effort-foil');
+    expect(kitCss).toMatch(/forced-colors: active\)[\s\S]*\.ui-effort\[data-effort="ultra"\]/);
+  });
+
   it('has the button family, the press scale and 44px coarse targets', () => {
     for (const mod of ['is-primary', 'is-quiet', 'is-danger', 'is-sm', 'is-lg'])
       expect(kitCss).toContain(`.ui-btn.${mod}`);
