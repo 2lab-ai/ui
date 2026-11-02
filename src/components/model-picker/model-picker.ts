@@ -1,3 +1,4 @@
+import { EFFORT_LABELS, EFFORT_LABELS_KO, EFFORT_SHORT, fitEffortLevel } from '../../core/effort';
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
 import { morphInto } from '../../core/morph';
@@ -55,6 +56,11 @@ export interface ModelPickerData {
   busy?: { model?: boolean | string; effort?: boolean };
   /** Last write failed — announced with role="alert" (inside the open menu, or under the trigger). */
   error?: string;
+  /**
+   * The menu's heading and the name of its dialog, for a choice that is not one session's — e.g. "Default for new
+   * sessions" or "This task". Missing = this session's model.
+   */
+  heading?: string;
 }
 
 /** `ui-change` detail. */
@@ -70,22 +76,6 @@ export type ModelMeters = [window: number, compaction: number, cost: number];
 
 /** The standard effort levels, in order (the dashboard's MODEL_EFFORT_LEVELS). */
 export const MODEL_EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'];
-const EFFORT_LABELS: Record<string, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'Extra high',
-  max: 'Max',
-};
-const EFFORT_SHORT: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max' };
-/** Korean (lang="ko"): one word per level, the same in the segment and in sentences. */
-const EFFORT_LABELS_KO: Record<string, string> = {
-  low: '낮음',
-  medium: '보통',
-  high: '높음',
-  xhigh: '매우 높음',
-  max: '최대',
-};
 const ROLL_MS = 560;
 const WATCH_MS = 150;
 
@@ -586,13 +576,14 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const o = opts[i];
     if (!o.listed || d.busy?.model) return;
     this.#setOpen(false, { user: true, returnFocus: true });
-    const detail: ModelPickerChange = { model: o.model.id, effort: d.value?.effort, changed: 'model' };
+    // The effort follows the model: a level the new model does not run becomes the nearest one it does.
+    const effort = fitEffortLevel(modelEffortLevels(o.model), d.value?.effort);
+    const detail: ModelPickerChange = { model: o.model.id, effort, changed: 'model' };
     // Optimistic value on top of the LATEST data: a listener may have set busy/error synchronously; if it set a
     // value of its own, that value wins.
     if (!this.emit('ui-change', detail)) return;
     this.sound('select', { direction: i < cur ? 'back' : 'forward' }, e);
-    if (this.data && this.data.value === d.value)
-      this.data = { ...this.data, value: { model: o.model.id, effort: d.value?.effort } };
+    if (this.data && this.data.value === d.value) this.data = { ...this.data, value: { model: o.model.id, effort } };
   }
 
   /** A level keeps the menu open (it is a setting of the same choice). */
@@ -765,7 +756,8 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const why = typeof d.disabled === 'string' ? d.disabled : '';
     const busy = !!(d.busy?.model || d.busy?.effort);
     const name = curOpt ? curOpt.model.label || curOpt.model.id : t.model;
-    const level = modelEffortLabel(v.effectiveEffort || v.effort, this.#langKey);
+    const levelKey = v.effectiveEffort || v.effort || '';
+    const level = modelEffortLabel(levelKey, this.#langKey);
     const pending = typeof d.busy?.model === 'string' ? d.busy.model : '';
 
     const trigger = `<button type="button" class="mp-trigger" part="trigger" data-key="mp-trigger" aria-haspopup="dialog" aria-expanded="${
@@ -774,7 +766,11 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       off ? ` aria-disabled="true"${why ? ` title="${escAttr(why)}" aria-describedby="mp-why"` : ''}` : ''
     }><span class="mp-glyph" aria-hidden="true">${esc(modelGlyph(curOpt ? curOpt.model : { label: name }))}</span><span class="mp-name">${esc(
       name,
-    )}</span>${level ? `<span class="mp-level">&middot; ${esc(level)}</span>` : ''}<span class="mp-chev" aria-hidden="true"></span></button>`;
+    )}</span>${
+      level
+        ? `<span class="mp-level">&middot; <span class="mp-fx" data-effort="${escAttr(levelKey)}">${esc(level)}</span></span>`
+        : ''
+    }<span class="mp-chev" aria-hidden="true"></span></button>`;
 
     return `<div class="mp">${trigger}${why ? `<span class="sr-only" id="mp-why">${esc(why)}</span>` : ''}
 <div class="mp-note" role="status">${!open && pending ? esc(pending) : ''}</div>
@@ -825,12 +821,12 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       )}</span>${isCur ? `<span class="mp-check" aria-hidden="true">${CHECK}</span>` : ''}</span>${meters(o.meters)}<span class="mp-desc">${esc(desc)}</span></div>`;
     });
     const tray = this.#tray(lit >= 0 ? opts[lit] : undefined, t);
-    return `<div class="mp-pop${open ? ' is-open' : ''}" part="menu" id="mp-menu" role="dialog" aria-label="${escAttr(t.dialog)}"${
+    return `<div class="mp-pop${open ? ' is-open' : ''}" part="menu" id="mp-menu" role="dialog" aria-label="${escAttr(d.heading || t.dialog)}"${
       open ? '' : ' inert'
     } data-side="${pos?.side ?? this.#side}"${
       pos ? ` style="left:${pos.left}px;top:${pos.top}px;max-height:${pos.maxHeight}px"` : ''
     }><div class="mp-card"><div class="mp-head" aria-hidden="true"><span class="mp-head-t">${esc(
-      t.head,
+      d.heading || t.head,
     )}</span><span class="mp-cols">${t.cols.map((c) => `<span>${esc(c)}</span>`).join('')}</span></div>${
       locked ? `<div class="mp-wait" id="mp-wait">${esc(wait)}</div>` : ''
     }<div class="mp-list" role="listbox" aria-label="${escAttr(t.list)}" tabindex="0" data-key="mp-list"${
@@ -865,13 +861,15 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
         l,
       )}" data-effort="${escAttr(l)}" aria-checked="${checked ? 'true' : 'false'}" tabindex="${
         checked || (idx < 0 && i === 0) ? '0' : '-1'
-      }" aria-label="${escAttr(modelEffortLabel(l, this.#langKey))}">${esc(this.#langKey === 'ko' ? (EFFORT_LABELS_KO[l] ?? l) : (EFFORT_SHORT[l] ?? l))}</button>`;
+      }" aria-label="${escAttr(modelEffortLabel(l, this.#langKey))}"><span class="mp-fx" data-effort="${escAttr(l)}">${esc(
+        this.#langKey === 'ko' ? (EFFORT_LABELS_KO[l] ?? l) : (EFFORT_SHORT[l] ?? l),
+      )}</span></button>`;
     });
     return `<div class="mp-settings"><div class="mp-effort-head"><span class="mp-effort-label" id="mp-effort-label">${esc(
       t.effort,
     )}</span>${capped ? `<span class="mp-effort-cap">${esc(t.cap(modelEffortLabel(v.effort, this.#langKey), modelEffortLabel(v.effectiveEffort, this.#langKey)))}</span>` : ''}</div><div class="mp-seg-ctl" role="radiogroup" aria-labelledby="mp-effort-label"${
       busy ? ' aria-disabled="true" aria-busy="true"' : ''
-    } style="--i:${Math.max(0, idx)};--n:${levels.length}">${idx >= 0 ? '<span class="mp-thumb" aria-hidden="true"></span>' : ''}${btns}</div></div>`;
+    }${levels.length > 5 ? ' data-many=""' : ''} style="--i:${Math.max(0, idx)};--n:${levels.length}">${idx >= 0 ? '<span class="mp-thumb" aria-hidden="true"></span>' : ''}${btns}</div></div>`;
   }
 
   /** The tray of the lit row, and the sentence the live region reads once. */

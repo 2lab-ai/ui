@@ -126,7 +126,8 @@ export const doc: ComponentDoc = {
       name: 'data.models[].effortLevels',
       type: 'string[]',
       default: "['low','medium','high','xhigh','max']",
-      description: 'Levels this model runs, in order. The effort control offers only these; `[]` hides it.',
+      description:
+        'Levels this model runs, in order. The effort control offers only these; `[]` hides it. `ultra` (after `max`) is offered only by a model that lists it. XHigh reads as a red gradient, Max as a gold foil and Ultra as a holographic foil — the kit’s `.ui-effort[data-effort]` draws the same words on a page.',
     },
     {
       name: 'data.models[].bars',
@@ -145,7 +146,13 @@ export const doc: ComponentDoc = {
       name: 'data.value.effortLevels',
       type: 'string[]',
       description:
-        'The levels the session’s own model runs (e.g. its catalog entry). When given, the effort control offers these instead of the current row’s `effortLevels` — also for a model outside the list, which otherwise gets the standard five. `[]` hides the control. A model switch drops it from the optimistic value.',
+        'The levels the session’s own model runs (e.g. its catalog entry). When given, the effort control offers these instead of the current row’s `effortLevels` — also for a model outside the list, which otherwise gets the standard five. `[]` hides the control. A model switch drops it from the optimistic value, and carries the effort over to the nearest level the new model runs (`fitEffortLevel`): Ultra on Sol becomes XHigh on Grok.',
+    },
+    {
+      name: 'data.heading',
+      type: 'string',
+      description:
+        'The menu’s heading and the name of its dialog when the choice is not one session’s — e.g. a default for new sessions, or a task about to start. Missing = this session’s model.',
     },
     {
       name: 'data.contextTokens',
@@ -286,6 +293,44 @@ export const doc: ComponentDoc = {
       create: () =>
         make(
           { ...BASE, value: { model: 'claude-sonnet-4-6[1m]', effort: 'max', effectiveEffort: 'high' } },
+          { open: true },
+        ),
+    },
+    {
+      id: 'foil',
+      title: 'Ultra and Max foil',
+      description:
+        'A model that lists `ultra` offers six levels. XHigh is a red gradient, Max a gold foil and Ultra a holographic foil — on the trigger and in the segments (still under reduced motion). Switching to Grok, which stops at XHigh, carries Ultra over to XHigh.',
+      height: H,
+      create: () =>
+        make(
+          {
+            models: [
+              {
+                id: 'gpt-6.1-sol[1m]',
+                label: 'Sol 6.1 (1M)',
+                short: 'sol[1m]',
+                window: 1_000_000,
+                autoCompactAt: 600_000,
+                price: null,
+                effortLevels: [...ALL, 'ultra'],
+              },
+              ...MODELS.filter((m) => m.short === 'grok[1m]'),
+            ],
+            value: { model: 'gpt-6.1-sol[1m]', effort: 'ultra' },
+          },
+          { open: true },
+        ),
+    },
+    {
+      id: 'default',
+      title: 'A default, not a session',
+      description:
+        '`heading` names the choice — here the default model and effort for new sessions. No context, so no row says it switches after compaction.',
+      height: H,
+      create: () =>
+        make(
+          { ...BASE, heading: 'Default for new sessions', value: { model: 'claude-opus-5-5[1m]', effort: 'max' } },
           { open: true },
         ),
     },
