@@ -1,5 +1,5 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
-import { fmtAgo, fmtDuration, fmtDurationKo, fmtInt, fmtUsd } from '../../core/format';
+import { fmtAgo, fmtDuration, fmtDurationIn, fmtInt, fmtUsd } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import { styles } from './styles';
 
@@ -328,7 +328,8 @@ const STRINGS = {
     announce: (w: number, r: number) => `응답이 필요한 세션 ${w}개, 실행 중 ${r}개`,
     changed: (title: string, word: string) => `${title}: ${word}.`,
     ago: agoKo as (at: number, now?: number) => string,
-    duration: (ms: number) => fmtDurationKo(ms),
+    // Zero-padded like the panel's clock and <ui-elapsed> (23분 04초): the tag keeps its width as it ticks.
+    duration: (ms: number) => fmtDurationIn(ms, 'ko'),
     artOpen: (name: string, _kind: ArtifactKind) => `${name} — 크게 보기`,
     starOff: '즐겨찾기',
     starOn: '즐겨찾기 해제',

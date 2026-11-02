@@ -453,7 +453,7 @@ export const doc: ComponentDoc = {
         'The dashboard on 30 October 2026: 4 usable, 11 in cooldown, 2 at their weekly limit, a failed login and 2 paused. The strip is one row — usable badges, then one overlapped stack per reason (snowflake amber, calendar amber, lock red, pause grey). Narrow the frame: the widest stacks fold to icon + count first, the usable accounts last.',
       height: 560,
       frame: false,
-      create: () => make({ providers: [twenty(Date.now())] }, { lang: 'ko' }),
+      create: () => make({ providers: [twenty(Date.now())] }),
     },
     {
       id: 'default',
