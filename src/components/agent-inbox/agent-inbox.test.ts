@@ -167,6 +167,14 @@ describe('<ui-agent-inbox>', () => {
     expect(q(el, '.ib-empty')?.textContent).toBe('No runs yet');
   });
 
+  it('a column head is its name and count — no decorative sparkle before the name (0.21.0)', () => {
+    const el = mount(board(WAIT, RUN));
+    for (const head of qa(el, '.ib-col-head')) {
+      expect(Array.from(head.children).map((c) => c.className)).toEqual(['ib-col-name', 'ib-count']);
+      expect(head.querySelector('svg')).toBeNull();
+    }
+  });
+
   it('renders the face: task, sub-agents, tokens · cost, files, status tag with a live clock, metrics', () => {
     const el = mount(board(RUN, DONE));
     const c = card(el, 'notes');
