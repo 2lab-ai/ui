@@ -245,8 +245,9 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
-  padding: 0 10px;
+  min-height: 26px;
+  padding: 3px 10px;
+  line-height: 1.35;
   border-radius: 999px;
   background: var(--s-chip);
   font-size: 12.5px;
@@ -306,6 +307,41 @@ h3 {
 .pv-bar .grow {
   flex: 1;
 }
+/* The examples scroll sideways when they outgrow the bar (they were clipped by .preview); the width, theme and
+   replay tools stay together at the end, or on their own row on narrow screens. */
+.pv-bar {
+  flex-wrap: nowrap;
+}
+.pv-bar .pv-tabs {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pv-bar .pv-tabs::-webkit-scrollbar {
+  display: none;
+}
+.pv-tools {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+@media (max-width: 900px) {
+  .pv-bar {
+    flex-wrap: wrap;
+  }
+  .pv-bar .pv-tabs {
+    flex-basis: 100%;
+  }
+  .pv-tools {
+    margin-left: 0;
+  }
+}
 .pv-stage {
   position: relative;
   display: flex;
@@ -345,7 +381,7 @@ h3 {
 .code {
   position: relative;
   margin: 0;
-  padding: 18px 20px;
+  padding: 18px 84px 18px 20px;
   background: var(--s-code);
   overflow: auto;
   font-size: 12.5px;
@@ -420,7 +456,7 @@ td .type {
 td .req {
   margin-left: 6px;
   font-size: 10.5px;
-  color: #d43a3a;
+  color: var(--ui-st-fail-text, #d43a3a);
   font-weight: 600;
 }
 kbd {
@@ -512,12 +548,35 @@ ul.plain li {
   pointer-events: none;
 }
 .thumb > div {
+  /* Framed by site/thumb-fit.ts: the demo shrink-wraps (at most 560px), then scales to fill the tile —
+     whole and centred when it fits at a readable size, else top-anchored and cropped by the tile. */
   position: absolute;
-  left: 50%;
-  top: 18px;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: 560px;
+  transform-origin: top left;
+  visibility: hidden;
+}
+.thumb[data-framed] > div {
+  visibility: visible;
+}
+/* Its own clip: a sticky part (a run's foot) sticks to the demo's bottom, not mid-list at the tile's. */
+.thumb > div {
+  overflow: hidden;
+}
+/* A screen (no card around it) lays out at the full width it was designed for. */
+.thumb > div:not(:has(> .pv-card)) {
   width: 560px;
-  transform: translateX(-50%) scale(0.56);
-  transform-origin: top center;
+}
+/* A cropped demo fades out at the tile's foot instead of being sliced by a hard line. */
+.thumb[data-cropped]::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 36px;
+  background: linear-gradient(to bottom, transparent, var(--s-canvas));
+  pointer-events: none;
 }
 .card .meta {
   padding: 14px 16px 16px;
@@ -566,7 +625,11 @@ ul.plain li {
   margin-left: -14px;
 }
 .sw code {
+  min-width: 0;
+  overflow: hidden;
   color: var(--s-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .sw span {
   margin-left: auto;
@@ -772,4 +835,10 @@ ul.plain li {
   font-weight: 400;
   opacity: 0.72;
   line-height: 1.3;
+}
+/* Dark: the pressed segment is a lighter step on its track with a hairline, never a sunken panel colour. */
+[data-theme="dark"] .seg button[aria-pressed="true"],
+[data-theme="dark"] .seg button[aria-selected="true"] {
+  background: color-mix(in srgb, var(--s-text) 12%, var(--s-chip));
+  box-shadow: inset 0 0 0 1px var(--s-line-2);
 }

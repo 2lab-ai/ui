@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { hasIcon, ICON_ALIASES, ICON_NAMES, icon, iconName } from './icons';
 
@@ -46,6 +47,8 @@ const BRIEF = [
   'ban',
   'dot',
   'circle-dashed',
+  // The dashboard's rewind action (it drew the ⏪ emoji before).
+  'undo',
 ];
 
 function parse(svg: string): SVGSVGElement {
@@ -128,5 +131,17 @@ describe('icons', () => {
     expect(icon('__proto__')).toBe('');
     expect(hasIcon('constructor')).toBe(false);
     for (const target of Object.values(ICON_ALIASES)) expect(ICON_NAMES).toContain(target);
+  });
+
+  it('GLYPHS and ICON_ALIASES stay flat literals — one entry per line, no comments (soma-work reads dist/icons.js as data)', () => {
+    const src = readFileSync(`${process.cwd()}/src/icons/icons.ts`, 'utf8');
+    for (const name of ['GLYPHS', 'ICON_ALIASES']) {
+      const head = src.indexOf(`const ${name}`);
+      const from = src.indexOf('{\n', head) + 2;
+      const body = src.slice(from, src.indexOf('\n}', from)); // `} as const;` here, `};` once built
+      // An entry may wrap once (a long value on its own line, as the formatter writes it) — never a comment.
+      const lines = body.split('\n').filter((l) => l.trim());
+      for (const line of lines) expect(line, name).not.toMatch(/^\s*(\/\/|\/\*|\*)/);
+    }
   });
 });

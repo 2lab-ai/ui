@@ -52,6 +52,7 @@ export const styles = `
 .sb-btn.is-quiet.is-danger { color: var(--st-fail-text); }
 /* Pressed (a toggle that is on — Starred): the raised neutral chip, never a colour alone */
 .sb-btn[aria-pressed="true"]:not(.is-primary) { background: var(--ib-seg-on); border-color: var(--ib-card-border); color: var(--ib-text); box-shadow: var(--ib-shadow); }
+.sb-btn[aria-pressed="true"] svg[data-icon="star"] { fill: currentColor; }
 .sb-btn[aria-pressed="true"] .sb-bi { color: var(--st-wait); }
 .sb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .sb-btn[aria-busy="true"] { cursor: progress; }

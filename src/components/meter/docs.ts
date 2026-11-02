@@ -13,9 +13,9 @@ function meter(data: MeterData, attrs: Record<string, string> = {}): UiMeter {
 function line(word: string, ...els: Array<HTMLElement | string>): HTMLElement {
   const p = document.createElement('p');
   p.style.cssText =
-    'display:flex;align-items:center;gap:10px;margin:0;font-size:13px;line-height:1.5;color:var(--ui-ib-text-2)';
+    'display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0;font-size:13px;line-height:1.5;color:var(--ui-ib-text-2)';
   const w = document.createElement('span');
-  w.style.cssText = 'min-width:150px;color:var(--ui-ib-muted)';
+  w.style.cssText = 'min-width:min(150px,40%);color:var(--ui-ib-muted)';
   w.textContent = word;
   p.append(w);
   for (const x of els) p.append(typeof x === 'string' ? document.createTextNode(x) : x);

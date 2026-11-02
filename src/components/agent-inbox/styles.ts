@@ -21,10 +21,11 @@ export const styles = `
 /* Board = equal columns. No overflow clip on columns: a card flying between columns stays visible. */
 .ib-board { display: grid; grid-template-columns: repeat(var(--ib-cols, 3), minmax(0, 1fr)); gap: 12px; align-items: start; }
 .ib-col { position: relative; background: var(--ib-col); border-radius: 14px; padding: 2px 4px 4px; min-width: 0; display: flex; flex-direction: column; }
-.ib-col-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 8px 10px; min-height: 40px; }
-.ib-col-spark { color: var(--ib-spark); display: inline-flex; flex-shrink: 0; }
-.ib-col-spark svg, .ib-spark svg { width: 14px; height: 14px; }
-.ib-col-name { flex: 1; min-width: 0; margin: 0; text-align: center; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ib-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The head: the name on the cards' reading edge, the count at the end. No mark before the name — a sparkle
+   there meant nothing (0.21.0). */
+.ib-col-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 8px 15px; min-height: 40px; }
+.ib-spark svg { width: 14px; height: 14px; }
+.ib-col-name { flex: 1; min-width: 0; margin: 0; text-align: left; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ib-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :host([lang="ko"]) .ib-col-name { letter-spacing: 0.04em; }
 .ib-count { flex-shrink: 0; background: var(--ib-pill); color: var(--ib-text-2); border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 500; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
 .ib-cards { position: relative; display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
@@ -291,6 +292,9 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-card.is-open .ib-expand { grid-template-rows: 1fr; }
 .ib-expand-inner { min-height: 0; overflow: hidden; opacity: 0; transition: opacity var(--dur-expand) var(--ease-out); }
 .ib-card.is-open .ib-expand-inner { opacity: 1; }
+/* An open card says its summary once and in full (a waiting card's question): the host's body need not repeat
+   the sentence the clamp cut short (0.21.0). */
+.ib .ib-card.is-open .ib-summary { display: block; -webkit-line-clamp: unset; }
 .ib-card.no-motion .ib-expand, .ib-card.no-motion .ib-expand-inner { transition: none; }
 .ib-body { margin: 0 14px; padding: 12px 0 14px; border-top: 1px solid var(--ib-card-border); font-size: 13px; color: var(--ib-text-2); }
 /* Steps: dot + connector, the current step's dot in ink. */
@@ -337,6 +341,15 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 /* 44px targets on touch and narrow screens. */
 @media (pointer: coarse), (max-width: 639px) {
   .ib-btn { min-height: 44px; padding: 8px 14px; }
+  .ib-group-head { min-height: 44px; }
+  /* The face's small controls keep their look and get a 44px vertical reach (an invisible hit area, as the kit's
+     chip). */
+  .ib-star, .ib-tldr-x, .ib-link { position: relative; }
+  /* Vertical reach only (as the kit's chip): a wider box would take presses meant for the title or summary. */
+  .ib-star::after, .ib-link::after { content: ''; position: absolute; inset: -10px 0; }
+  /* Wrapped link rows sit 20px apart, so one chip's reach (10px down) never covers the next row's (10px up). */
+  .ib-links { row-gap: 20px; }
+  .ib-tldr-x::after { content: ''; position: absolute; inset: -11px 0; }
 }
 /* Reduced motion: the global rule only shortens durations, so infinite loops stop here; the ring stays whole. */
 @media (prefers-reduced-motion: reduce) {

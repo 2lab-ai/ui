@@ -4,7 +4,13 @@
  * default; pass `label` for a meaningful image). The brand mark and `dot` are the only filled glyphs.
  */
 
-/** Inner markup per glyph (16-unit viewBox). A dot is a zero-length segment: `M8 8h.01` with a round cap. */
+/**
+ * Inner markup per glyph (16-unit viewBox). A dot is a zero-length segment: `M8 8h.01` with a round cap. `undo` is a
+ * hooked arrow (a rewind, an undo — never the ⏪ emoji).
+ *
+ * Keep this a flat literal — one `name: 'markup',` entry per line, no comments inside: soma-work reads the built
+ * `dist/icons.js` table line by line as data and refuses the whole table on any other line (icons.test.ts pins it).
+ */
 const GLYPHS = {
   brand:
     '<g fill="currentColor" stroke="none"><rect x="2" y="2" width="5" height="5" rx="1.25"/><rect x="9" y="2" width="5" height="5" rx="1.25" opacity=".55"/><rect x="2" y="9" width="5" height="5" rx="1.25" opacity=".55"/><rect x="9" y="9" width="5" height="5" rx="1.25" opacity=".25"/></g>',
@@ -67,6 +73,7 @@ const GLYPHS = {
   external: '<path d="M7 3.5H4.5a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V9M9.5 3.5h3v3M12.5 3.5l-5 5"/>',
   copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/>',
   refresh: '<path d="M13.25 8a5.25 5.25 0 0 1-9.4 3.2M2.75 8a5.25 5.25 0 0 1 9.4-3.2M12.5 2v3h-3M3.5 14v-3h3"/>',
+  undo: '<path d="M6 9.25L2.75 6 6 2.75"/><path d="M2.75 6h7a3.5 3.5 0 0 1 0 7H7.5"/>',
   download: '<path d="M8 2.5v8M4.5 7.25L8 10.75l3.5-3.5M3 13.5h10"/>',
   edit: '<path d="M10.5 2.75l2.75 2.75L6 12.75 2.75 13.25l.5-3.25zM9 4.25L11.75 7"/>',
   trash:
