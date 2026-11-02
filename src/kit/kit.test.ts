@@ -6,6 +6,15 @@ import { KIT_CLASSES, kitCss } from './kit';
 const KNOWN = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared), 'tone', 'select-max']);
 
 describe('ui-kit.css', () => {
+  it('a pressed toggle chip or button: the raised step with an ink border; a pressed star is filled (0.21.0)', () => {
+    expect(kitCss).toMatch(
+      /\.ui-chip\[aria-pressed="true"\][^{]*\{[^}]*border-color: color-mix\(in srgb, var\(--ui-ib-text/,
+    );
+    expect(kitCss).toContain(
+      ':is(.ui-btn, .ui-chip)[aria-pressed="true"] > svg[data-icon="star"] { fill: currentColor; }',
+    );
+  });
+
   it('defines every class it lists', () => {
     for (const c of KIT_CLASSES) expect(kitCss, c).toContain(`.${c}`);
   });

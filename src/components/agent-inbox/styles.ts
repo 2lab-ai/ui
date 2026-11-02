@@ -344,8 +344,8 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   .ib-group-head { min-height: 44px; }
   /* The face's small controls keep their look and get a 44px reach (an invisible hit area, as the kit's chip). */
   .ib-star, .ib-tldr-x, .ib-link { position: relative; }
-  .ib-star::after, .ib-tldr-x::after { content: ''; position: absolute; inset: -10px; }
-  .ib-link::after { content: ''; position: absolute; inset: -10px 0; }
+  /* Vertical reach only (as the kit's chip): a wider box would take presses meant for the title or summary. */
+  .ib-star::after, .ib-tldr-x::after, .ib-link::after { content: ''; position: absolute; inset: -10px 0; }
 }
 /* Reduced motion: the global rule only shortens durations, so infinite loops stop here; the ring stays whole. */
 @media (prefers-reduced-motion: reduce) {
