@@ -1270,7 +1270,7 @@ describe('face row order (0.17.0)', () => {
   });
 });
 
-describe('linked issues, PRs and wikis on the face (0.18.0)', () => {
+describe('linked issues, PRs and wikis on the face (0.19.0)', () => {
   const LINKS: InboxCard['links'] = [
     {
       kind: 'issue',
