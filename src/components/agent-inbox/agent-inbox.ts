@@ -88,7 +88,7 @@ export interface InboxTldr {
 
 /** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
 export interface InboxMetric {
-  /** The words. `''` draws an icon-only metric (0.21.0): its mark and/or effort gauge, named by `label` / `title`. */
+  /** The words. `''` draws an icon-only metric (0.22.0): its mark and/or effort gauge, named by `label` / `title`. */
   text: string;
   glyph?: InboxGlyph;
   tone?: InboxMetricTone;
@@ -97,12 +97,12 @@ export interface InboxMetric {
   /** Accessible name when the text alone says too little (`2` → `지시 첨부 2개`); an icon-only metric's name. */
   label?: string;
   /**
-   * 0.21.0 — an effort level (`low` · `medium` · `high` · `xhigh` · `max` · `ultra`), drawn after the mark as a 5-bar
+   * 0.22.0 — an effort level (`low` · `medium` · `high` · `xhigh` · `max` · `ultra`), drawn after the mark as a 5-bar
    * gauge: 1–5 bars, `xhigh` red, `max` a gold foil, `ultra` a holographic foil (the model picker's effort effects).
    * An unknown level draws no gauge.
    */
   effort?: string;
-  /** 0.21.0 — the mark's colour, a hex colour (`#rgb` … `#rrggbbaa`): a model's own colour. Anything else is ignored. */
+  /** 0.22.0 — the mark's colour, a hex colour (`#rgb` … `#rrggbbaa`): a model's own colour. Anything else is ignored. */
   color?: string;
 }
 
@@ -781,7 +781,7 @@ function renderArtifacts(c: InboxCard, t: Strings): string {
 }
 
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-/** Bars a level fills (0.21.0 — the effort gauge). */
+/** Bars a level fills (0.22.0 — the effort gauge). */
 const EFFORT_BARS: Readonly<Record<string, number>> = { low: 1, medium: 2, high: 3, xhigh: 4, max: 5, ultra: 5 };
 // The foils of the model picker's max and ultra words (core/effort.ts), as SVG paints; the same ids in every gauge
 // draw the same gradient.
@@ -852,7 +852,7 @@ function renderMetrics(c: InboxCard, t: Strings): string {
     const text = str(m.text);
     const glyph = hostGlyph(m.glyph);
     const gauge = effortGauge(m.effort);
-    // An icon-only metric (0.21.0) needs something to draw.
+    // An icon-only metric (0.22.0) needs something to draw.
     if (!text && !glyph && !gauge) continue;
     const tone = METRIC_TONES.includes(m.tone as InboxMetricTone) ? (m.tone as InboxMetricTone) : '';
     const title = str(m.title);

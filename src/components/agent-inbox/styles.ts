@@ -284,7 +284,7 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-metric.is-host[data-tone="done"] { color: var(--ib-done-fg); }
 .ib-metric.is-host[data-tone="fail"] { color: var(--ib-fail-fg); }
 .ib-metric.is-host[data-tone="wait"] { color: var(--ib-wait-fg); }
-/* 0.21.0 — the model as icons: the maker's mark in the model's colour, then the effort gauge (rising bars). */
+/* 0.22.0 — the model as icons: the maker's mark in the model's colour, then the effort gauge (rising bars). */
 .ib-metric.is-model { gap: 3px; }
 .ib-metric.is-model > svg:first-child:not(.ib-eff) { color: var(--ib-model-hue, currentColor); }
 .ib-metric .ib-eff { width: 13px; height: 13px; }
