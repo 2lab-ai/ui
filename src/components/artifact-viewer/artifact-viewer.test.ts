@@ -16,6 +16,7 @@ import {
   artifactItems,
   artifactLayout,
   extraActions,
+  FIT_SIZE,
   MARKDOWN_VIEW_CHARS,
   MAX_EXTRA_ACTIONS,
   mediaSrc,
@@ -28,6 +29,7 @@ import {
   viewerActions,
   viewerBodyHtml,
   viewerBodyKind,
+  viewerFit,
   viewerStrings,
 } from './logic';
 import { peekCss, peekPageCss, styles } from './styles';
@@ -1306,5 +1308,88 @@ describe('sound', () => {
     tap(navBtn(off, 'next'));
     await spy.settle();
     expect(spy.calls).toEqual([]);
+  });
+});
+
+// 0.20.0 — the dialog fits what it shows, and ‹ n / m › opens a list of every file (soma-work 2026-11-02).
+describe('fit and jump (0.20.0)', () => {
+  const jump = (el: UiArtifactViewer) => q<HTMLSelectElement>(el, 'select.av-jump');
+  const change = (s: HTMLSelectElement, i: number) => {
+    s.selectedIndex = i;
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  it('viewerFit: a page, a picture, a video and a PDF fill the screen; a document is tall; audio and a card are small', () => {
+    expect(['html', 'pdf', 'image', 'video'].map((b) => viewerFit(b as never))).toEqual([
+      'fill',
+      'fill',
+      'fill',
+      'fill',
+    ]);
+    expect(['markdown', 'text'].map((b) => viewerFit(b as never))).toEqual(['doc', 'doc']);
+    expect(['audio', 'fallback'].map((b) => viewerFit(b as never))).toEqual(['compact', 'compact']);
+    expect(FIT_SIZE).toEqual({ fill: 'full', doc: 'xl', compact: 'lg' });
+  });
+
+  it('the dialog takes the size of the shown file, and follows a step to another kind', () => {
+    const el = mount({ items: files() });
+    el.open(2); // landing.html
+    expect(dialog(el).getAttribute('size')).toBe('full');
+    expect(dialog(el).getAttribute('data-fit')).toBe('fill');
+    el.prev(); // notes.md
+    expect(dialog(el).getAttribute('size')).toBe('xl');
+    expect(dialog(el).getAttribute('data-fit')).toBe('doc');
+    el.open(0); // checkout.png
+    expect(dialog(el).getAttribute('size')).toBe('full');
+    el.open(4); // memo.wav
+    expect(dialog(el).getAttribute('size')).toBe('lg');
+    expect(dialog(el).getAttribute('data-fit')).toBe('compact');
+    el.open(6); // bundle.zip — the calm card
+    expect(dialog(el).getAttribute('data-fit')).toBe('compact');
+  });
+
+  it('the position is a list of every file: picking one shows it (ui-view), the list follows steps', () => {
+    const el = mount({ items: files() });
+    const views = record<ArtifactViewDetail>(el, 'ui-view');
+    el.open(1);
+    const s = jump(el)!;
+    expect(s).not.toBeNull();
+    expect(s.closest('.av-pos')).not.toBeNull();
+    expect(s.getAttribute('aria-label')).toBe('Go to file');
+    const opts = Array.from(s.options).map((o) => o.textContent);
+    expect(opts).toEqual([
+      '1. checkout.png',
+      '2. notes.md',
+      '3. landing.html',
+      '4. retry.ts',
+      '5. memo.wav',
+      '6. demo.mp4',
+      '7. bundle.zip',
+    ]);
+    expect(s.selectedIndex).toBe(1);
+    change(s, 5);
+    expect(el.index).toBe(5);
+    expect(views.at(-1)).toEqual({ id: 'clip', index: 5, cancelable: false });
+    expect(q(el, '.av-pos [aria-hidden="true"]')?.textContent).toBe('6 / 7');
+    expect(q(el, '.av-live')?.textContent).toBe('demo.mp4 — 6 / 7');
+    el.prev();
+    expect(jump(el)!.selectedIndex).toBe(4);
+    // Arrow keys on the list are the list's: they never step the viewer.
+    expect(key(jump(el)!, 'ArrowRight').defaultPrevented).toBe(false);
+    expect(el.index).toBe(4);
+  });
+
+  it('names are escaped; a single file has no list; Korean names the list', () => {
+    const el = mount({ items: [{ id: 'x', name: XSS, text: 'a' }, ...files().slice(0, 1)] }, { lang: 'ko' });
+    el.open(0);
+    const s = jump(el)!;
+    expect(s.getAttribute('aria-label')).toBe('파일로 이동');
+    expect(s.options[0].textContent).toBe(`1. ${XSS}`);
+    expect(s.querySelector('img')).toBeNull();
+    el.close();
+    vi.advanceTimersByTime(DIALOG_EXIT_MS + 50);
+    const one = mount({ items: files().slice(0, 1) });
+    one.open(0);
+    expect(jump(one)).toBeNull();
   });
 });

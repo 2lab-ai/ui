@@ -485,12 +485,18 @@ export const doc: ComponentDoc = {
       'Previous / next file, held at the first and last. A zoomed image keeps the arrows for scrolling; fields, media and frames keep theirs',
     ],
     ['Home / End', 'First / last file'],
+    [
+      'Enter / Space on ‹ n / m ›',
+      'Open the list of every file (the browser’s listbox; ↑ / ↓ move in it, Enter shows the file picked)',
+    ],
     ['Esc', 'Close the viewer (ui-close); focus goes back to the tile. With the peek open, put the peek away'],
   ],
   a11y: [
     'The files are a role="list" named by the title (or “Files”). Each tile is one native button named “checkout-flow.png, Image, 180 KB · 2m ago, from Build agent”, with aria-haspopup="dialog".',
     'The viewer is the shared <ui-dialog>: a native <dialog> opened with showModal() (focus trap, inert page, top layer), named by its header — kind, file name and meta. Focus goes back to the tile that opened it.',
     'Previous / Next are labelled buttons, disabled at the ends (no wrap). The position reads “File 3 of 8” while the visual “3 / 8” is hidden from screen readers. A polite live region says each step (“retry.ts — 5 / 8”), not the open — the dialog’s name says that.',
+    'The position is a native <select> named “Go to file” (0.20.0): one option per file (“3. retry.ts”), the shown one selected — the browser draws the listbox, the arrow keys move in it (they never step the viewer), a phone gets its own picker.',
+    'The dialog fits the file (0.20.0): a page, a picture, a video and a PDF fill the screen (size full, edge to edge on a phone); a markdown or text document takes the full height at a reading width; audio and a calm card are a small dialog. `data-fit` on the inner <ui-dialog> says which.',
     'Zoom is a toggle (aria-pressed); the full image carries the file name as alt. Tile thumbnails are decorative — the button already names the file.',
     'The peek is pointer-only and aria-hidden (mouse and pen): the same content is one press away for everyone else. It waits 350ms, survives the trip onto it (200ms grace) and Esc dismisses it (WCAG 1.4.13).',
     'An HTML page renders from srcdoc in a sandbox="" frame (no scripts, no forms, its own origin, no referrer). Markdown is escaped before it is marked up; every name, meta line and title is escaped; media and links pass safeSrc / safeLink.',

@@ -28,6 +28,7 @@ import {
   artifactItems,
   artifactLayout,
   extraActionsHtml,
+  FIT_SIZE,
   PEEK_DELAY_MS,
   PEEK_GRACE_MS,
   PEEK_WARM_MS,
@@ -37,6 +38,7 @@ import {
   viewerActions,
   viewerBodyHtml,
   viewerBodyKind,
+  viewerFit,
   viewerStrings,
 } from './logic';
 import { styles } from './styles';
@@ -167,6 +169,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     r.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
     r.addEventListener('pointerover', (e) => this.#onOver(e as PointerEvent));
     r.addEventListener('pointerout', (e) => this.#onOut(e as PointerEvent));
+    r.addEventListener('change', (e) => this.#onChange(e));
     r.addEventListener('ui-close', (e) => this.#onInnerClose(e as CustomEvent<DialogCloseDetail>));
     r.addEventListener('ui-closed', (e) => this.#onInnerClosed(e as CustomEvent<DialogClosedDetail>));
     r.addEventListener('slotchange', (e) => {
@@ -403,7 +406,12 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     const n = items.length;
     const i = this.#index;
     const preview = Array.from(this.children).some((c) => c.getAttribute('slot') === 'preview');
-    const body = preview ? 'host' : viewerBodyKind(item, this.#broken);
+    const own = viewerBodyKind(item, this.#broken);
+    const body = preview ? 'host' : own;
+    // The dialog fits the file (0.20.0): a page, a picture, a video, a PDF fill the screen; a document is tall.
+    const fit = viewerFit(own);
+    if (this.#dialog.getAttribute('data-fit') !== fit) this.#dialog.setAttribute('data-fit', fit);
+    if (this.#dialog.getAttribute('size') !== FIT_SIZE[fit]) this.#dialog.setAttribute('size', FIT_SIZE[fit]);
     const acts = viewerActions(item, this.data ?? {});
     const header = `<span slot="header" class="av-vh" data-kind="${kind}"><span class="av-badge">${icon(
       fileKindIcon(kind),
@@ -427,9 +435,20 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
             'aria-label': t.prev,
             title: t.prev,
             disabled: i <= 0,
-          })}>${icon('chevron-left')}</button><span class="av-pos"><span aria-hidden="true">${i + 1} / ${n}</span><span class="sr-only">${esc(
-            t.pos(i + 1, n),
-          )}</span></span><button${attrs({
+          })}>${icon('chevron-left')}</button><span class="av-pos"><span aria-hidden="true">${i + 1} / ${n}</span>${icon(
+            'chevron-down',
+            { size: 12 },
+          )}<span class="sr-only">${esc(t.pos(i + 1, n))}</span><select${attrs({
+            class: 'av-jump',
+            'data-key': 'jump',
+            'aria-label': t.jump,
+            title: t.jump,
+          })}>${items
+            .map(
+              (it, k) =>
+                `<option value="${k}"${k === i ? ' selected' : ''}>${esc(`${k + 1}. ${fileDisplayName(it, lang)}`)}</option>`,
+            )
+            .join('')}</select></span><button${attrs({
             type: 'button',
             class: 'av-nb',
             'data-step': 1,
@@ -455,6 +474,9 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     const footer = nav || right ? `<div slot="footer" class="av-vf">${nav}${right}</div>` : '';
     this.#dialog.setAttribute('label', name);
     morphInto(this.#dialog, `${header}${live}${stage}${footer}`);
+    // A list the person picked from keeps its own selection: set it to the shown file (the attribute does not).
+    const jump = this.#dialog.querySelector<HTMLSelectElement>('select.av-jump');
+    if (jump && jump.selectedIndex !== i) jump.selectedIndex = i;
   }
 
   /** Strip edges fade only on the side that has more to scroll to. */
@@ -603,6 +625,14 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
         this.sound(action === 'download' ? 'tap' : 'navigate', undefined, e);
       else e.preventDefault();
     }
+  }
+
+  /** ‹ n / m ›'s list (0.20.0): the file picked is shown, like a step. */
+  #onChange(e: Event): void {
+    const s = e.target as HTMLSelectElement | null;
+    if (this.#index < 0 || !s?.classList?.contains('av-jump')) return;
+    const to = Math.trunc(Number(s.value));
+    if (Number.isFinite(to)) this.#go(to, e);
   }
 
   #onKey(e: KeyboardEvent): void {
