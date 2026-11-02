@@ -48,7 +48,8 @@ export const EFFORT_LABELS_KO: Record<string, string> = {
  */
 export function fitEffortLevel(levels: readonly string[], effort: string | undefined): string | undefined {
   if (!effort || levels.length === 0 || levels.includes(effort)) return effort;
-  const rank = (l: string): number => EFFORT_ORDER.indexOf(l);
+  // `none` and `minimal` (codex) rank below `low`, so a model that runs them is never pushed up past them.
+  const rank = (l: string): number => ['none', 'minimal', ...EFFORT_ORDER].indexOf(l);
   const known = levels.filter((l) => rank(l) >= 0).sort((a, b) => rank(a) - rank(b));
   if (known.length === 0) return levels[0];
   const below = known.filter((l) => rank(l) <= rank(effort));
@@ -76,7 +77,7 @@ export function effortTextCss(
   // Gold foil: amber → gold → a pale glint → gold → amber; the first and last stops match so the sweep loops.
   const goldDeep = mix(v('orange'), 55, v('yellow'));
   const gold = mix(v('yellow'), 80, text);
-  const glint = mix(v('yellow'), 62, card);
+  const glint = mix(v('yellow'), 85, card);
   const max = `linear-gradient(105deg, ${goldDeep} 0%, ${gold} 22%, ${glint} 34%, ${gold} 46%, ${goldDeep} 62%, ${gold} 82%, ${goldDeep} 100%)`;
   // Holographic foil: the theme's hues in spectrum order, each pulled a little toward ink so the word stays legible.
   const holo = (name: string): string => mix(v(name), 78, text);

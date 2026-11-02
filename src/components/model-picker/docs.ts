@@ -300,7 +300,7 @@ export const doc: ComponentDoc = {
       id: 'foil',
       title: 'Ultra and Max foil',
       description:
-        'A model that lists `ultra` offers six levels. XHigh is a red gradient, Max a gold foil and Ultra a holographic foil — on the trigger and in the segments (still under reduced motion). Switching to Grok, which stops at XHigh, carries Ultra over to XHigh.',
+        'A model that lists `ultra` offers six levels. XHigh is a red gradient, Max a gold foil and Ultra a holographic foil — on the trigger and in the segments (still under reduced motion). Switching to Grok, which runs Low and High here, carries Ultra over to High.',
       height: H,
       create: () =>
         make(
