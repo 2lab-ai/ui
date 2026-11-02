@@ -8,6 +8,7 @@ import { playSound } from '@2lab.ai/ui/sound/sound';
 import pkg from '../package.json';
 import { iconsPage, kitPage, wireKit } from './foundations';
 import { setSiteSound, soundButton, soundNow, soundPage, startSiteSound, wireSoundPage } from './sound';
+import { THUMB_CARD_W, THUMB_COLLAPSED, THUMB_W, thumbFit } from './thumb-fit';
 import './style.css';
 
 // Page-level component tokens (each preview stage switches with data-theme) and the light-DOM kit the demos use.
@@ -277,11 +278,47 @@ function mountDemo(): void {
   }
 }
 
+/**
+ * Places one tile's demo by `thumbFit` — the demo's unscaled box against the tile's. `settled`: called a frame
+ * after the demo rendered, the one time a too-narrow box means it collapsed rather than not drawn yet.
+ */
+function frameThumb(box: HTMLElement, settled = false): void {
+  const inner = box.firstElementChild as HTMLElement | null;
+  if (!inner) return;
+  // A part that sizes to its container (inline-size containment) has no width of its own and collapses when
+  // it shrink-wraps: give it a card's width instead.
+  if (settled && !inner.hasAttribute('data-fixed') && inner.offsetWidth < THUMB_COLLAPSED) {
+    inner.setAttribute('data-fixed', '');
+    inner.style.width = `${THUMB_CARD_W}px`;
+  }
+  const f = thumbFit({ w: box.clientWidth, h: box.clientHeight }, { w: inner.offsetWidth, h: inner.offsetHeight });
+  inner.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) scale(${f.scale.toFixed(3)})`;
+  box.toggleAttribute('data-cropped', f.cropped);
+  box.setAttribute('data-framed', '');
+}
+
+let thumbObserver: ResizeObserver | null = null;
+
 function mountThumbs(): void {
+  thumbObserver?.disconnect();
+  // A tile re-frames when it or its demo changes size (the grid's columns, a late render, fonts).
+  thumbObserver =
+    typeof ResizeObserver === 'function'
+      ? new ResizeObserver((entries) => {
+          const boxes = new Set<HTMLElement>();
+          for (const e of entries) {
+            const t = e.target as HTMLElement;
+            const box = t.matches('[data-thumb]') ? t : t.closest<HTMLElement>('[data-thumb]');
+            if (box) boxes.add(box);
+          }
+          for (const box of boxes) frameThumb(box);
+        })
+      : null;
   for (const box of Array.from(document.querySelectorAll<HTMLElement>('[data-thumb]'))) {
     const d = docBySlug(box.dataset.thumb!);
     const inner = box.firstElementChild as HTMLElement;
     if (!d || !d.demos[0] || !inner) continue;
+    inner.style.maxWidth = `${THUMB_W}px`;
     try {
       const el = d.demos[0].create();
       if (d.demos[0].frame ?? d.group !== 'Screens') {
@@ -293,6 +330,10 @@ function mountThumbs(): void {
     } catch (e) {
       console.error(e);
     }
+    frameThumb(box);
+    requestAnimationFrame(() => requestAnimationFrame(() => frameThumb(box, true)));
+    thumbObserver?.observe(box);
+    thumbObserver?.observe(inner);
   }
 }
 

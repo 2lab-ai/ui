@@ -512,12 +512,31 @@ ul.plain li {
   pointer-events: none;
 }
 .thumb > div {
+  /* Framed by site/thumb-fit.ts: the demo shrink-wraps (at most 560px), then scales to fill the tile —
+     whole and centred when it fits at a readable size, else top-anchored and cropped by the tile. */
   position: absolute;
-  left: 50%;
-  top: 18px;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: 560px;
+  transform-origin: top left;
+  visibility: hidden;
+}
+.thumb[data-framed] > div {
+  visibility: visible;
+}
+/* A screen (no card around it) lays out at the full width it was designed for. */
+.thumb > div:not(:has(> .pv-card)) {
   width: 560px;
-  transform: translateX(-50%) scale(0.56);
-  transform-origin: top center;
+}
+/* A cropped demo fades out at the tile's foot instead of being sliced by a hard line. */
+.thumb[data-cropped]::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 36px;
+  background: linear-gradient(to bottom, transparent, var(--s-canvas));
+  pointer-events: none;
 }
 .card .meta {
   padding: 14px 16px 16px;
