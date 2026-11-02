@@ -46,6 +46,8 @@ const BRIEF = [
   'ban',
   'dot',
   'circle-dashed',
+  // The dashboard's rewind action (it drew the ⏪ emoji before).
+  'undo',
 ];
 
 function parse(svg: string): SVGSVGElement {
