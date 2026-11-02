@@ -659,9 +659,15 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.columns[].cards[].rows',
-      type: "Array<'summary' | 'task' | 'agents' | 'usage' | 'artifacts'>",
+      type: "Array<'summary' | 'task' | 'links' | 'agents' | 'usage' | 'artifacts'>",
       description:
-        'The face’s rows between the head and the foot, in this order — only these: a row the list leaves out is not drawn even with its data (a user’s card layout). Unknown names and repeats are skipped. Default: every row, summary · task · agents · usage · artifacts.',
+        'The face’s rows between the head and the foot, in this order — only these: a row the list leaves out is not drawn even with its data (a user’s card layout). Unknown names and repeats are skipped. Default: every row, summary · task · links · agents · usage · artifacts.',
+    },
+    {
+      name: 'data.columns[].cards[].links',
+      type: "Array<{ kind: 'issue' | 'pr' | 'wiki'; href: string; text: string; status?: string; tone?: InboxMetricTone; title?: string }>",
+      description:
+        'The pages the work is linked to — issues (Jira, GitHub…) with their state, PRs with their merge state, wiki pages — as chips on the face (the `links` row). Each opens its http(s) URL in a new tab and sends ui-link; it never toggles the card. `status` is drawn after the reference in its `tone`. Up to six, then +N. Anything but an absolute http(s) URL is skipped.',
     },
     {
       name: 'data.columns[].cards[].badge',
@@ -782,6 +788,12 @@ export const doc: ComponentDoc = {
       name: 'ui-artifact',
       detail: '{ cardId: string; artifactId: string }',
       description: 'A file chip (`artifacts[] { id, name }`) was pressed — open the viewer. The card does not toggle.',
+    },
+    {
+      name: 'ui-link',
+      detail: "{ cardId: string; href: string; kind: 'issue' | 'pr' | 'wiki' }",
+      description:
+        'A linked page’s chip (`links[]`) was pressed — the page opens in a new tab on its own. The card does not toggle.',
     },
     {
       name: 'ui-star',

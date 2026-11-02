@@ -41,14 +41,37 @@ export type InboxGlyph =
   | 'openai'
   | 'grok'
   | 'gemini'
-  | 'model';
+  | 'model'
+  // 0.18.0 — linked pages.
+  | 'issue'
+  | 'wiki';
 
 /** Colour of a host metric's text. `warn` tints only the glyph (amber text is under 4.5:1 on a light card). */
 export type InboxMetricTone = 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger';
 /** A row of the collapsed face between the head and the foot (`card.rows` orders them). */
-export type InboxRow = 'summary' | 'task' | 'agents' | 'usage' | 'artifacts';
+export type InboxRow = 'summary' | 'task' | 'links' | 'agents' | 'usage' | 'artifacts';
 /** The face's rows in their default order. */
-export const INBOX_ROWS: readonly InboxRow[] = ['summary', 'task', 'agents', 'usage', 'artifacts'];
+export const INBOX_ROWS: readonly InboxRow[] = ['summary', 'task', 'links', 'agents', 'usage', 'artifacts'];
+
+/** What a linked page is: an issue (Jira, GitHub…), a pull request, or a wiki / doc page. */
+export type InboxLinkKind = 'issue' | 'pr' | 'wiki';
+/**
+ * A page the work is linked to, drawn on the face as a chip that opens it in a new tab (and sends `ui-link`);
+ * a click on it never opens the card. Only http(s) links are drawn.
+ */
+export interface InboxLink {
+  kind: InboxLinkKind;
+  /** Absolute http(s) URL. */
+  href: string;
+  /** Short reference: `PROJ-12`, `#733`, a page title. */
+  text: string;
+  /** Its state in words (`진행 중`, `머지됨`). */
+  status?: string;
+  /** Colour of the status. */
+  tone?: InboxMetricTone;
+  /** Tooltip (the full title). */
+  title?: string;
+}
 
 /** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
 export interface InboxMetric {
@@ -130,6 +153,8 @@ export interface InboxCard {
    * drawn even with its data). Unknown names and repeats are skipped. Default: every row, in `INBOX_ROWS` order.
    */
   rows?: readonly InboxRow[];
+  /** Linked issues, PRs and wikis (the `links` row). */
+  links?: readonly InboxLink[];
   /** Model (agent) name, shown at the left of the open card's button row. */
   model?: string;
   /** The one decision this viewer can make here — the card's single ink button. */
@@ -247,6 +272,7 @@ const STRINGS = {
     steps: 'Tasks done / total',
     ctx: (p: number) => `Context window used — ${p}%`,
     arts: 'Files the run made',
+    links: 'Linked issues, PRs and wikis',
     earlier: (n: number) => `+${n} earlier`,
     announce: (w: number, r: number) => `${w} need${w === 1 ? 's' : ''} you, ${r} running`,
     changed: (title: string, word: string) => `${title}: ${word}.`,
@@ -277,6 +303,7 @@ const STRINGS = {
     steps: '완료한 task / 전체',
     ctx: (p: number) => `컨텍스트 ${p}% 사용`,
     arts: '모델이 만든 산출물',
+    links: '연결된 이슈 · PR · 위키',
     earlier: (n: number) => `이전 ${n}개 더`,
     announce: (w: number, r: number) => `응답이 필요한 세션 ${w}개, 실행 중 ${r}개`,
     changed: (title: string, word: string) => `${title}: ${word}.`,
@@ -368,6 +395,11 @@ const GEMINI_SVG =
   '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6z"/></svg>';
 const MODEL_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.8V4M9.5 1.8V4M6.5 12v2.2M9.5 12v2.2M1.8 6.5H4M1.8 9.5H4M12 6.5h2.2M12 9.5h2.2"/></svg>';
+// 0.18.0 — linked pages: an issue (a ringed dot) and a wiki (an open book).
+const ISSUE_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.8"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg>';
+const WIKI_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4.2C6.6 3 4.6 2.6 2 2.8v9.4c2.6-.2 4.6.2 6 1.4 1.4-1.2 3.4-1.6 6-1.4V2.8c-2.6-.2-4.6.2-6 1.4zM8 4.2v9.4"/></svg>';
 const STAR_SVG =
   '<svg viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>';
 const AGENTS_SVG =
@@ -422,6 +454,10 @@ function hostGlyph(name: unknown): string {
       return GEMINI_SVG;
     case 'model':
       return MODEL_SVG;
+    case 'issue':
+      return ISSUE_SVG;
+    case 'wiki':
+      return WIKI_SVG;
     default:
       return '';
   }
@@ -815,7 +851,44 @@ function renderRow(c: InboxCard, row: InboxRow, t: Strings): string {
       return renderUsage(c, t);
     case 'artifacts':
       return renderArtifacts(c, t);
+    case 'links':
+      return renderLinks(c, t);
   }
+}
+
+const MAX_LINKS = 6;
+const LINK_KINDS: readonly InboxLinkKind[] = ['issue', 'pr', 'wiki'];
+const LINK_GLYPH: Record<InboxLinkKind, string> = { issue: ISSUE_SVG, pr: PR_SVG, wiki: WIKI_SVG };
+
+/** The card's links that can be drawn: a known kind, a text, an absolute http(s) URL. */
+export function cardLinks(c: InboxCard): InboxLink[] {
+  return (Array.isArray(c.links) ? c.links : []).filter(
+    (l): l is InboxLink =>
+      !!l &&
+      typeof l === 'object' &&
+      LINK_KINDS.includes(l.kind) &&
+      !!str(l.text) &&
+      /^https?:\/\/[^\s]+$/i.test(str(l.href)),
+  );
+}
+
+function renderLinks(c: InboxCard, t: Strings): string {
+  const list = cardLinks(c);
+  if (!list.length) return '';
+  const shown = list.slice(0, MAX_LINKS);
+  const more = list.length - shown.length;
+  return `<div class="ib-links" role="list" aria-label="${escAttr(t.links)}">${shown
+    .map((l) => {
+      const status = str(l.status);
+      const tone = METRIC_TONES.includes(l.tone as InboxMetricTone) ? (l.tone as InboxMetricTone) : '';
+      const title = str(l.title) || [str(l.text), status].filter(Boolean).join(' ');
+      return `<a role="listitem" class="ib-link is-${l.kind}" href="${escAttr(str(l.href))}" target="_blank" rel="noopener noreferrer" data-link="${escAttr(
+        l.kind,
+      )}" title="${escAttr(title)}">${LINK_GLYPH[l.kind]}<span class="ib-link-text">${esc(str(l.text))}</span>${
+        status ? `<span class="ib-link-st"${tone ? ` data-tone="${tone}"` : ''}>${esc(status)}</span>` : ''
+      }</a>`;
+    })
+    .join('')}${more > 0 ? `<span class="ib-links-more">+${more}</span>` : ''}</div>`;
 }
 
 function renderFace(c: InboxCard, t: Strings = STRINGS.en): string {
@@ -1137,6 +1210,18 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const target = e.target as Element | null;
     // A host's slotted body is the host's: its buttons are never this element's actions.
     if (!target || target.getRootNode?.() !== this.root) return;
+    const link = target.closest?.('a[data-link]');
+    if (link) {
+      // The page opens in its own tab (the anchor's default); the card stays as it is.
+      const id = this.#cardOf(link);
+      if (id !== null)
+        this.emit('ui-link', {
+          cardId: id,
+          href: link.getAttribute('href') ?? '',
+          kind: link.getAttribute('data-link') ?? '',
+        });
+      return;
+    }
     const art = target.closest?.('[data-art]');
     if (art) {
       const id = this.#cardOf(art);
