@@ -3,6 +3,10 @@
  * The dashboard's own --mp-well / --mp-bar / --mp-bar-off pairs (dark #2e2e33 · #5a5a62 · #35353b, light #f1f1f3 ·
  * #c9c9d0 · #e6e6ea) are derived from the card and text tokens, so both themes follow any page palette.
  */
+import { EFFORT_FX_LEVELS, effortTextCss } from '../../core/effort';
+
+const fx = (level: string): string => `.mp-fx[data-effort="${level}"]`;
+
 export const styles = `
 :host { --mp-well: color-mix(in srgb, var(--ib-text) 6%, var(--ib-card)); --mp-bar: color-mix(in srgb, var(--ib-text) 24%, var(--ib-card));
   --mp-bar-off: color-mix(in srgb, var(--ib-text) 9%, var(--ib-card));
@@ -71,6 +75,13 @@ export const styles = `
 .mp-caption b { font-weight: 500; color: var(--ib-text); }
 .mp-keys { display: flex; flex: none; gap: 2px; }
 .mp-keys kbd { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 5px; background: var(--ib-card); box-shadow: 0 0 0 1px var(--ib-card-border); font-family: inherit; font-size: 10.5px; line-height: 1; color: var(--ib-muted); }
+/* Effort words (core/effort.ts): xhigh a red gradient, max a gold foil, ultra a holographic foil — on the trigger and
+   in the segments. A foiled word has no ink colour to dim, so an unchecked one fades instead; six levels tighten. */
+${effortTextCss(fx, (name) => `var(--${name})`, 'mp')}
+.mp-level .mp-fx:is(${EFFORT_FX_LEVELS.map(fx).join(', ')}) { font-weight: 600; }
+.mp-fx { transition: opacity 200ms ease; }
+.mp-seg-btn[aria-checked="false"]:not(:hover) .mp-fx:is(${EFFORT_FX_LEVELS.map(fx).join(', ')}) { opacity: 0.62; }
+.mp-seg-ctl[data-many] .mp-seg-btn { padding: 0 1px; font-size: 11px; letter-spacing: -0.02em; }
 @keyframes mp-pop { from { opacity: 0; transform: scale(0.6); } }
 @keyframes mp-fill { 0% { transform: scaleY(1); } 45% { transform: scaleY(1.6); } 100% { transform: scaleY(1); } }
 @container mp (max-width: 300px) {
