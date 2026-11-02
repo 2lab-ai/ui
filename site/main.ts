@@ -8,7 +8,7 @@ import { playSound } from '@2lab.ai/ui/sound/sound';
 import pkg from '../package.json';
 import { iconsPage, kitPage, wireKit } from './foundations';
 import { setSiteSound, soundButton, soundNow, soundPage, startSiteSound, wireSoundPage } from './sound';
-import { THUMB_CARD_W, THUMB_COLLAPSED, THUMB_W, thumbFit } from './thumb-fit';
+import { looksCollapsed, THUMB_CARD_W, THUMB_W, thumbFit } from './thumb-fit';
 import './style.css';
 
 // Page-level component tokens (each preview stage switches with data-theme) and the light-DOM kit the demos use.
@@ -257,7 +257,7 @@ function frameThumb(box: HTMLElement, settled = false): void {
   if (!inner) return;
   // A part that sizes to its container (inline-size containment) has no width of its own and collapses when
   // it shrink-wraps: give it a card's width instead.
-  if (settled && !inner.hasAttribute('data-fixed') && inner.offsetWidth < THUMB_COLLAPSED) {
+  if (settled && !inner.hasAttribute('data-fixed') && looksCollapsed({ w: inner.offsetWidth, h: inner.offsetHeight })) {
     inner.setAttribute('data-fixed', '');
     inner.style.width = `${THUMB_CARD_W}px`;
   }

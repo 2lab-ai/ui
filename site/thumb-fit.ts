@@ -12,11 +12,19 @@
 /** The width a demo lays out at before it is scaled (wide screens use all of it, small parts shrink-wrap). */
 export const THUMB_W = 560;
 /**
- * A shrink-wrapped demo narrower than this has collapsed (it sizes to its container, which has no width of its
- * own) — it lays out at `THUMB_CARD_W`, a card's width, instead.
+ * A shrink-wrapped demo narrower than this, and much taller than wide, has collapsed (it sizes to its container,
+ * which has no width of its own, so its text stacks a word per line) — it lays out at `THUMB_CARD_W`, a card's
+ * width, instead. A small part that is simply small (a trigger button) is wider than tall and keeps its size.
  */
 export const THUMB_COLLAPSED = 160;
 export const THUMB_CARD_W = 420;
+
+/** True when a shrink-wrapped box of this size is a collapsed container part rather than a small one. */
+export function looksCollapsed(box: Box): boolean {
+  const w = Number.isFinite(box.w) ? box.w : 0;
+  const h = Number.isFinite(box.h) ? box.h : 0;
+  return w < THUMB_COLLAPSED && h > Math.max(w, 1) * 2;
+}
 /** The smallest scale: below it the type is too small to read. */
 export const THUMB_MIN = 0.62;
 /** The inset a demo keeps from the tile's edges it does not run off. */
