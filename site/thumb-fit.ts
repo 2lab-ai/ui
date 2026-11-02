@@ -6,7 +6,8 @@
  * - never below `THUMB_MIN` (13px text stays about 8px or more — a fixed 0.56 drew 7px type);
  * - what fits whole sits centred in the tile, as large as it can be;
  * - what does not fit keeps its top edge (and its left edge when it is wider than the tile) and runs off the
- *   bottom (and right) — cropped with intent, not shrunk into a strip under an empty band.
+ *   bottom (and right) — cropped with intent, not shrunk into a strip under an empty band;
+ * - wide but short (a bar, a strip): centred in the height, cropped on the right only.
  */
 
 /** The width a demo lays out at before it is scaled (wide screens use all of it, small parts shrink-wrap). */
