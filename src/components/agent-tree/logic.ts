@@ -1,4 +1,5 @@
 import { fmtUsd } from '../../core/format';
+import { type ModelVendor, modelVendor } from '../../core/model-mark';
 
 /**
  * Where an agent is. `needs_you` waits for a person (a permission, a question); `waiting` waits for something else
@@ -28,6 +29,11 @@ export interface AgentTreeNode {
   name: string;
   /** A second line under the name — the model or the agent type. */
   role?: string;
+  /**
+   * 0.23.0 — the model the agent runs (an id or a name: `claude-sonnet-4-6`, `GPT-5.5`). Its maker's mark leads the
+   * row (a rich card's avatar tile, a compact row's mark before the name) in the maker's colour; the text is not shown.
+   */
+  model?: string;
   /** Also accepts completed (→ done), stopped / canceled (→ cancelled) and queued (→ waiting); anything else → unknown. */
   status: AgentTreeStatus | (string & {});
   /** Epoch ms. */
@@ -66,6 +72,8 @@ export interface AgentTreeNodeNorm {
   parentId: string | null;
   name: string;
   role: string;
+  /** The model's maker, when the host named a model (0.23.0). */
+  vendor?: ModelVendor;
   status: AgentTreeStatus;
   startedAt?: number;
   endedAt?: number;
@@ -169,6 +177,7 @@ export function normNode(v: unknown): AgentTreeNodeNorm | null {
     parentId: parent && parent !== id ? parent : null,
     name: str(n.name) || id,
     role: str(n.role),
+    vendor: str(n.model) ? modelVendor(str(n.model)) : undefined,
     status: normAgentStatus(n.status),
     startedAt: num(n.startedAt),
     endedAt: num(n.endedAt),

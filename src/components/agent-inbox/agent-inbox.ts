@@ -1,6 +1,7 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { fmtAgo, fmtDuration, fmtDurationIn, fmtInt, fmtUsd } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
+import { asModelVendor, MODEL_MAKER_COLOR, modelMarkSvg } from '../../core/model-mark';
 import { styles } from './styles';
 
 /** Where a run stands. `waiting` = it needs the person; `idle` = parked (sleeping, archived, never started). */
@@ -412,21 +413,17 @@ const ATTACH_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 7.5l-5.4 5.4a3.2 3.2 0 0 1-4.5-4.5l5.6-5.6a2.1 2.1 0 0 1 3 3L6.6 11.4a1.1 1.1 0 0 1-1.5-1.5L10.2 4.8"/></svg>';
 const CHEV_SVG =
   '<svg class="ib-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
-// 0.16.0 — kind and vendor marks (monochrome, currentColor; drawn at 14px).
+// 0.16.0 — kind and vendor marks (monochrome, currentColor; drawn at 14px). 0.23.0: the vendor marks are the shared
+// maker marks (core/model-mark).
 const EPIC_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8 14.2 5 8 8.2 1.8 5z"/><path d="M1.8 8 8 11.2 14.2 8M1.8 11 8 14.2 14.2 11"/></svg>';
 const TASK_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/><path d="M5.4 8.1l1.8 1.8 3.5-3.7"/></svg>';
-const CLAUDE_SVG =
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 1.6v4.2M8 10.2v4.2M1.6 8h4.2M10.2 8h4.2M3.5 3.5l3 3M9.5 9.5l3 3M12.5 3.5l-3 3M6.5 9.5l-3 3"/></svg>';
-const OPENAI_SVG =
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z"/><path d="M8 1.8v6.2l5.4 3.1M8 8l-5.4 3.1"/></svg>';
-const GROK_SVG =
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 13 13 3M5.2 3.6A5.2 5.2 0 0 1 12.4 10.8M10.8 12.4A5.2 5.2 0 0 1 3.6 5.2"/></svg>';
-const GEMINI_SVG =
-  '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6z"/></svg>';
-const MODEL_SVG =
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.8V4M9.5 1.8V4M6.5 12v2.2M9.5 12v2.2M1.8 6.5H4M1.8 9.5H4M12 6.5h2.2M12 9.5h2.2"/></svg>';
+const CLAUDE_SVG = modelMarkSvg('claude');
+const OPENAI_SVG = modelMarkSvg('openai');
+const GROK_SVG = modelMarkSvg('grok');
+const GEMINI_SVG = modelMarkSvg('gemini');
+const MODEL_SVG = modelMarkSvg('model');
 // 0.19.0 — linked pages: an issue (a ringed dot) and a wiki (an open book).
 const ISSUE_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.8"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg>';
@@ -857,10 +854,14 @@ function renderMetrics(c: InboxCard, t: Strings): string {
     const tone = METRIC_TONES.includes(m.tone as InboxMetricTone) ? (m.tone as InboxMetricTone) : '';
     const title = str(m.title);
     const label = str(m.label) || (text ? '' : title);
-    const color = HEX_COLOR.test(str(m.color)) ? str(m.color) : '';
-    const model = !text || !!gauge || !!color;
+    // 0.23.0 — a maker's mark with no host colour takes the maker's (Claude clay, Gemini blue); OpenAI's and xAI's
+    // black marks take the ink.
+    const vendor = m.glyph === 'model' ? undefined : asModelVendor(m.glyph);
+    const color = HEX_COLOR.test(str(m.color)) ? str(m.color) : vendor ? MODEL_MAKER_COLOR[vendor] : '';
+    const ink = !!vendor && !color;
+    const model = !text || !!gauge || !!color || !!vendor;
     out.push(
-      `<span class="ib-metric is-host${model ? ' is-model' : ''}"${!text ? ' role="img"' : ''}${
+      `<span class="ib-metric is-host${model ? ' is-model' : ''}${ink ? ' is-ink' : ''}"${!text ? ' role="img"' : ''}${
         color ? ` style="--ib-model-hue:${color}"` : ''
       }${tone ? ` data-tone="${tone}"` : ''}${title ? ` title="${escAttr(title)}"` : ''}${
         label ? ` aria-label="${escAttr(label)}"` : ''

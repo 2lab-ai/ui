@@ -1,6 +1,7 @@
 import { EFFORT_LABELS, EFFORT_LABELS_KO, EFFORT_SHORT, fitEffortLevel } from '../../core/effort';
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
+import { asModelVendor, type ModelVendor, modelMarkHtml, modelVendor } from '../../core/model-mark';
 import { morphInto } from '../../core/morph';
 import { styles } from './styles';
 
@@ -16,8 +17,13 @@ export interface PickerModel {
   id: string;
   /** Display name, e.g. `Opus 5.5 (1M)`. */
   label: string;
-  /** Compact name for the description line and the avatar letter (defaults: id / label). */
+  /** Compact name for the description line (defaults: id / label). */
   short?: string;
+  /**
+   * 0.23.0 — the model's maker, for the mark in its tile (`claude` · `openai` · `grok` · `gemini` · `model`). Missing:
+   * read from the id, then the label, then the short name.
+   */
+  vendor?: ModelVendor;
   /** Context window in tokens. */
   window?: number;
   /** The model's own auto-compact threshold in tokens. */
@@ -209,10 +215,24 @@ export function modelEffortLabel(level?: string, lang: 'en' | 'ko' = 'en'): stri
   return (lang === 'ko' ? EFFORT_LABELS_KO[level] : EFFORT_LABELS[level]) ?? level;
 }
 
-/** The avatar letter: first character of the short name (or label), upper-cased. */
+/**
+ * The avatar letter: first character of the short name (or label), upper-cased. Kept for hosts; the tile draws the
+ * maker's mark since 0.23.0 ({@link pickerVendor}).
+ */
 export function modelGlyph(m: { short?: string; label?: string; id?: string }): string {
   const src = String(m.short || m.label || m.id || '?');
   return (Array.from(src)[0] ?? '?').toUpperCase();
+}
+
+/** The maker of a picker model (0.23.0): the host's `vendor`, else read from the id, the label, the short name. */
+export function pickerVendor(m: { vendor?: unknown; id?: string; label?: string; short?: string }): ModelVendor {
+  const given = asModelVendor(m.vendor);
+  if (given) return given;
+  for (const s of [m.id, m.label, m.short]) {
+    const v = modelVendor(s);
+    if (v !== 'model') return v;
+  }
+  return 'model';
 }
 
 /** Below this much room on the chosen side the menu covers its trigger instead of turning into a short scroller. */
@@ -764,7 +784,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
       open ? 'true' : 'false'
     }" aria-controls="mp-menu" aria-label="${escAttr(t.trigger(name, level))}"${busy ? ' aria-busy="true"' : ''}${
       off ? ` aria-disabled="true"${why ? ` title="${escAttr(why)}" aria-describedby="mp-why"` : ''}` : ''
-    }><span class="mp-glyph" aria-hidden="true">${esc(modelGlyph(curOpt ? curOpt.model : { label: name }))}</span><span class="mp-name">${esc(
+    }>${modelMarkHtml(pickerVendor(curOpt ? curOpt.model : { label: name }), 'mp-glyph')}<span class="mp-name">${esc(
       name,
     )}</span>${
       level
@@ -816,7 +836,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
         isCur ? 'true' : 'false'
       }"${locked || !o.listed ? ' aria-disabled="true"' : ''}${i === active ? ' data-active=""' : ''}${
         i === lit ? ' data-lit=""' : ''
-      } aria-label="${escAttr(label)}"><span class="mp-glyph" aria-hidden="true">${esc(modelGlyph(m))}</span><span class="mp-title"><span class="mp-title-name">${esc(
+      } aria-label="${escAttr(label)}">${modelMarkHtml(pickerVendor(m), 'mp-glyph')}<span class="mp-title"><span class="mp-title-name">${esc(
         name,
       )}</span>${isCur ? `<span class="mp-check" aria-hidden="true">${CHECK}</span>` : ''}</span>${meters(o.meters)}<span class="mp-desc">${esc(desc)}</span></div>`;
     });

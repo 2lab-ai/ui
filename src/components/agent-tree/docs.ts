@@ -39,6 +39,7 @@ function session(t0: number): AgentTreeNode[] {
       id: 'main',
       name: 'Main',
       role: 'opus-5-5[1m]',
+      model: 'claude-opus-5-5[1m]',
       status: 'running',
       startedAt: t0,
       tokens: 412_800,
@@ -487,6 +488,12 @@ export const doc: ComponentDoc = {
       name: 'node.role',
       type: 'string',
       description: 'A second line under the name — the model, the agent type or its brief.',
+    },
+    {
+      name: 'node.model',
+      type: 'string',
+      description:
+        "0.23.0 — the model the agent runs, as an id or a name (`claude-sonnet-4-6`, `GPT-5.5`). The maker's mark, in the maker's colour, leads the agent: a rich card's avatar tile shows it in place of the initials (as in affectUI's agent fleet), and a compact row shows it before the name. The model text itself is not shown; put the name in `role` if you want it visible.",
     },
     {
       name: 'data.density',

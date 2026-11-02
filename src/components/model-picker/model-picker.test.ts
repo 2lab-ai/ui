@@ -165,10 +165,12 @@ describe('<ui-model-picker>', () => {
     expect(q(el, '.mp-trigger')).toBeNull();
   });
 
-  it('draws one trigger: avatar letter, model, “· effort”, chevron — closed and inert menu', () => {
+  it('draws one trigger: the maker’s mark, model, “· effort”, chevron — closed and inert menu', () => {
     const el = mount(BASE);
     const trig = q(el, '.mp-trigger')!;
-    expect(q(el, '.mp-trigger .mp-glyph')!.textContent).toBe('O');
+    // 0.23.0 — the tile is the maker's mark (Claude's starburst), not the letter O.
+    expect(q(el, '.mp-trigger .mp-glyph')!.textContent).toBe('');
+    expect(q(el, '.mp-trigger .mp-glyph')!.dataset.vendor).toBe('claude');
     expect(q(el, '.mp-name')!.textContent).toBe('Opus 5.5 (1M)');
     expect(q(el, '.mp-level')!.textContent).toBe('· Extra high');
     expect(trig.getAttribute('aria-haspopup')).toBe('dialog');
@@ -785,5 +787,38 @@ describe('effort levels: ultra, the effort follows the model, the strongest leve
     expect(q(el, '.mp-pop')!.getAttribute('aria-label')).toBe('Default for new sessions');
     const plain = mount(DATA);
     expect(q(plain, '.mp-head-t')!.textContent).toBe('This session model');
+  });
+});
+
+// 0.23.0 — the model as its maker's mark (2lab-ai/soma-work#813): the tile before a model's name is the maker's mark
+// in the maker's colour (affectUI's agent rows), not the name's first letter.
+describe("the maker's mark", () => {
+  it("draws each model's tile as its maker's mark — trigger and options; a host vendor wins; no letters", () => {
+    const el = mount({
+      models: [
+        ...MODELS,
+        { id: 'sol[1m]', label: 'GPT-5.6 Sol' },
+        { id: 'g3', label: 'Gemini 3 Pro' },
+        { id: 'mystery', label: 'Mystery 1', vendor: 'openai' },
+        { id: 'llama', label: 'Llama 4' },
+      ],
+      value: { model: 'opus', effort: 'high' },
+    });
+    const tile = q(el, '.mp-trigger .mp-glyph')!;
+    expect(tile.dataset.vendor).toBe('claude');
+    expect(tile.style.getPropertyValue('--model-hue')).toBe('#d97757');
+    expect(tile.querySelector('svg')).not.toBeNull();
+    expect(tile.textContent).toBe('');
+    const opts = qa(el, '.mp-opt .mp-glyph').map((g) => [g.dataset.vendor, g.style.getPropertyValue('--model-hue')]);
+    expect(opts).toEqual([
+      ['claude', '#d97757'],
+      ['claude', '#d97757'],
+      ['claude', '#d97757'],
+      ['grok', ''],
+      ['openai', ''],
+      ['gemini', '#4285f4'],
+      ['openai', ''],
+      ['model', ''],
+    ]);
   });
 });
