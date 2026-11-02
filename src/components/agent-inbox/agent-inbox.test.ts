@@ -1365,3 +1365,85 @@ describe('linked issues, PRs and wikis on the face (0.19.0)', () => {
     expect(card(el, 'notes').querySelectorAll('.ib-metric.is-host svg')).toHaveLength(2);
   });
 });
+
+// 0.20.0 — a TL;DR on the face (soma-work 2026-11-02: the Executive Summary's three lines), dismissible with ×.
+describe('face TL;DR row (0.20.0)', () => {
+  const faceOf = (el: UiAgentInbox, id: string) => card(el, id).querySelector<HTMLElement>('.ib-face')!;
+  const TLDR = {
+    lines: ['PR #771 merged — the viewer fills the screen.', 'CI green on main.', 'Next: deploy to dev.'],
+  };
+
+  it('draws the lines under the summary by default, labelled, each line escaped', () => {
+    const el = mount(
+      board({ ...RUN, summary: 'Why it is here', tldr: { lines: [...TLDR.lines, '<img src=x onerror=alert(1)>'] } }),
+    );
+    const box = card(el, 'notes').querySelector<HTMLElement>('.ib-tldr')!;
+    expect(box).not.toBeNull();
+    expect(box.querySelector('.ib-tldr-label')?.textContent).toBe('TL;DR');
+    const lines = Array.from(box.querySelectorAll('li')).map((li) => li.textContent);
+    expect(lines).toEqual([...TLDR.lines, '<img src=x onerror=alert(1)>']);
+    expect(box.querySelector('img')).toBeNull();
+    // Default order: summary, then the TL;DR, then the task.
+    const rows = Array.from(faceOf(el, 'notes').children).map((d) => d.className.split(' ')[0]);
+    expect(rows.indexOf('ib-tldr')).toBe(rows.indexOf('ib-summary') + 1);
+    expect(rows.indexOf('ib-task')).toBe(rows.indexOf('ib-tldr') + 1);
+  });
+
+  it('× sends ui-dismiss { cardId, what: "tldr" } and never toggles the card; the host owns the state', () => {
+    const el = mount(board({ ...RUN, tldr: TLDR }));
+    const x = card(el, 'notes').querySelector<HTMLButtonElement>('button.ib-tldr-x')!;
+    expect(x).not.toBeNull();
+    expect(x.getAttribute('data-dismiss')).toBe('tldr');
+    expect(x.getAttribute('aria-label')).toBe('Dismiss TL;DR');
+    const got: unknown[] = [];
+    const toggles = vi.fn();
+    el.addEventListener('ui-dismiss', (e) => got.push((e as CustomEvent).detail));
+    el.addEventListener('ui-toggle', toggles);
+    x.click();
+    expect(got).toEqual([{ cardId: 'notes', what: 'tldr' }]);
+    expect(toggles).not.toHaveBeenCalled();
+    expect(faceOf(el, 'notes').getAttribute('aria-expanded')).not.toBe('true');
+    // Enter on × is the button's (the face does not take it).
+    key(x, 'Enter');
+    expect(toggles).not.toHaveBeenCalled();
+    // Still drawn until the host drops it.
+    expect(card(el, 'notes').querySelector('.ib-tldr')).not.toBeNull();
+    el.data = board(RUN);
+    el.renderNow();
+    expect(card(el, 'notes').querySelector('.ib-tldr')).toBeNull();
+  });
+
+  it('focus on × goes to the card’s face when the host drops the box (review: astra P2)', () => {
+    const el = mount(board({ ...RUN, tldr: TLDR }));
+    card(el, 'notes').querySelector<HTMLButtonElement>('button.ib-tldr-x')!.focus();
+    el.data = board(RUN);
+    el.renderNow();
+    expect((el.shadowRoot!.activeElement as HTMLElement | null)?.classList.contains('ib-face')).toBe(true);
+  });
+
+  it('dismissible: false draws no ×; a host title replaces the label; at most five lines, blanks dropped', () => {
+    const el = mount(
+      board({
+        ...RUN,
+        tldr: { title: 'Executive Summary', dismissible: false, lines: ['1', ' ', '2', '3', '4', '5', '6'] },
+      }),
+    );
+    const box = card(el, 'notes').querySelector<HTMLElement>('.ib-tldr')!;
+    expect(box.querySelector('button')).toBeNull();
+    expect(box.querySelector('.ib-tldr-label')?.textContent).toBe('Executive Summary');
+    expect(Array.from(box.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('no row without lines, and rows can leave it out; Korean names the ×', () => {
+    const empty = mount(board({ ...RUN, tldr: { lines: [' ', ''] } }));
+    expect(card(empty, 'notes').querySelector('.ib-tldr')).toBeNull();
+    document.body.innerHTML = '';
+    const left = mount(board({ ...RUN, tldr: TLDR, rows: ['summary', 'task'] }));
+    expect(card(left, 'notes').querySelector('.ib-tldr')).toBeNull();
+    document.body.innerHTML = '';
+    const ko = mount(board({ ...RUN, tldr: TLDR }), { lang: 'ko' });
+    const x = card(ko, 'notes').querySelector<HTMLButtonElement>('button.ib-tldr-x')!;
+    expect(x.getAttribute('aria-label')).toBe('TL;DR 닫기');
+    expect(x.getAttribute('title')).toBe('TL;DR 닫기');
+  });
+});

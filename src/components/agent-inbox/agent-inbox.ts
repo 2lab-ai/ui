@@ -49,9 +49,9 @@ export type InboxGlyph =
 /** Colour of a host metric's text. `warn` tints only the glyph (amber text is under 4.5:1 on a light card). */
 export type InboxMetricTone = 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger';
 /** A row of the collapsed face between the head and the foot (`card.rows` orders them). */
-export type InboxRow = 'summary' | 'task' | 'links' | 'agents' | 'usage' | 'artifacts';
+export type InboxRow = 'summary' | 'tldr' | 'task' | 'links' | 'agents' | 'usage' | 'artifacts';
 /** The face's rows in their default order. */
-export const INBOX_ROWS: readonly InboxRow[] = ['summary', 'task', 'links', 'agents', 'usage', 'artifacts'];
+export const INBOX_ROWS: readonly InboxRow[] = ['summary', 'tldr', 'task', 'links', 'agents', 'usage', 'artifacts'];
 
 /** What a linked page is: an issue (Jira, GitHub…), a pull request, or a wiki / doc page. */
 export type InboxLinkKind = 'issue' | 'pr' | 'wiki';
@@ -71,6 +71,19 @@ export interface InboxLink {
   tone?: InboxMetricTone;
   /** Tooltip (the full title). */
   title?: string;
+}
+
+/** The most lines a TL;DR draws. */
+export const TLDR_MAX_LINES = 5;
+
+/** A short report on the face (0.20.0) — the run's TL;DR, a few plain lines the host wrote. */
+export interface InboxTldr {
+  /** Plain lines (no markup), drawn as a list; blanks are dropped, at most `TLDR_MAX_LINES`. */
+  lines: string[];
+  /** The label above the lines. Default `TL;DR`. */
+  title?: string;
+  /** A × at the box's top right that sends `ui-dismiss` `{ cardId, what: 'tldr' }`. Default true. */
+  dismissible?: boolean;
 }
 
 /** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
@@ -97,6 +110,11 @@ export interface InboxCard {
   title: string;
   /** One or two sentences: why the card is here / where it stands (clamped to two lines). */
   summary?: string;
+  /**
+   * A TL;DR box on the face (after the summary): the host's lines and, unless `dismissible: false`, a × that sends
+   * `ui-dismiss` `{ cardId, what: 'tldr' }` and never toggles the card. The host owns the state: drop `tldr` on it.
+   */
+  tldr?: InboxTldr;
   status: InboxStatus;
   /** Replaces the status word (e.g. `Sleeping`, `Archived`, `Retrying`). */
   statusText?: string;
@@ -281,6 +299,8 @@ const STRINGS = {
     artOpen: (name: string, _kind: ArtifactKind) => `Open ${name}`,
     starOff: 'Star',
     starOn: 'Unstar',
+    tldr: 'TL;DR',
+    tldrDismiss: 'Dismiss TL;DR',
   },
   ko: {
     status: {
@@ -312,6 +332,8 @@ const STRINGS = {
     artOpen: (name: string, _kind: ArtifactKind) => `${name} — 크게 보기`,
     starOff: '즐겨찾기',
     starOn: '즐겨찾기 해제',
+    tldr: 'TL;DR',
+    tldrDismiss: 'TL;DR 닫기',
   },
 };
 type Strings = InboxStrings;
@@ -402,6 +424,8 @@ const WIKI_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4.2C6.6 3 4.6 2.6 2 2.8v9.4c2.6-.2 4.6.2 6 1.4 1.4-1.2 3.4-1.6 6-1.4V2.8c-2.6-.2-4.6.2-6 1.4zM8 4.2v9.4"/></svg>';
 const STAR_SVG =
   '<svg viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>';
+const X_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>';
 const AGENTS_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.8"/><circle cx="12" cy="8" r="1.8"/><circle cx="12" cy="13" r="1.8"/><path d="M4 5.3v5.2c0 1.4 1.1 2.5 2.5 2.5h3.7M4 8h6.2"/></svg>';
 
@@ -839,10 +863,37 @@ export function faceRows(c: InboxCard): InboxRow[] {
   return out;
 }
 
+/** The TL;DR's lines as drawn: strings, trimmed, blanks dropped, at most `TLDR_MAX_LINES`. */
+export function tldrLines(tldr: InboxTldr | undefined): string[] {
+  const lines = tldr && typeof tldr === 'object' && Array.isArray(tldr.lines) ? tldr.lines : [];
+  return lines
+    .map((l) => (typeof l === 'string' ? l.trim() : ''))
+    .filter(Boolean)
+    .slice(0, TLDR_MAX_LINES);
+}
+
+/** The face's TL;DR box (0.20.0): a label, the lines, and the × that sends `ui-dismiss`. */
+function renderTldr(c: InboxCard, t: Strings): string {
+  const lines = tldrLines(c.tldr);
+  if (!lines.length) return '';
+  const label = str(c.tldr?.title).trim() || t.tldr;
+  const x =
+    c.tldr?.dismissible === false
+      ? ''
+      : `<button type="button" class="ib-tldr-x" data-dismiss="tldr" aria-label="${escAttr(t.tldrDismiss)}" title="${escAttr(
+          t.tldrDismiss,
+        )}" data-key="${escAttr(`d:${c.id}`)}">${X_SVG}</button>`;
+  return `<div class="ib-tldr"><div class="ib-tldr-head"><span class="ib-tldr-label">${esc(label)}</span>${x}</div><ul class="ib-tldr-lines">${lines
+    .map((l) => `<li>${esc(l)}</li>`)
+    .join('')}</ul></div>`;
+}
+
 function renderRow(c: InboxCard, row: InboxRow, t: Strings): string {
   switch (row) {
     case 'summary':
       return c.summary ? `<div class="ib-summary">${esc(c.summary)}</div>` : '';
+    case 'tldr':
+      return renderTldr(c, t);
     case 'task':
       return renderTask(c, t);
     case 'agents':
@@ -1227,6 +1278,13 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       const id = this.#cardOf(art);
       if (id !== null && this.emit('ui-artifact', { cardId: id, artifactId: art.getAttribute('data-art') ?? '' }))
         this.sound('navigate', { emphasis: 'subtle' }, e);
+      return;
+    }
+    const dismiss = target.closest?.('[data-dismiss]');
+    if (dismiss) {
+      const id = this.#cardOf(dismiss);
+      if (id !== null && this.emit('ui-dismiss', { cardId: id, what: dismiss.getAttribute('data-dismiss') ?? '' }))
+        this.sound('close', { emphasis: 'subtle' }, e);
       return;
     }
     const star = target.closest?.('[data-star]');
@@ -1792,7 +1850,12 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       this.#announce(counts, changes, t);
     }
     if (activeKey && (this.root.activeElement as HTMLElement | null)?.dataset?.key !== activeKey) {
-      const next = this.$$<HTMLElement>('[data-key]').find((el) => el.dataset.key === activeKey);
+      const keys = this.$$<HTMLElement>('[data-key]');
+      // A TL;DR × the host took away with its box (0.20.0): focus goes to that card's face, never to the page.
+      const fallback = activeKey.startsWith('d:') ? `f:${activeKey.slice(2)}` : '';
+      const next =
+        keys.find((el) => el.dataset.key === activeKey) ??
+        (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined);
       next?.focus({ preventScroll: true });
     }
     this.#tickIn(this.content);

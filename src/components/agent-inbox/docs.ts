@@ -97,6 +97,13 @@ function boardCards(now: number): InboxCard[] {
       id: 'digest',
       title: 'Weekly metrics digest',
       summary: 'Pulled numbers from three dashboards and posted the summary to #metrics.',
+      tldr: {
+        lines: [
+          'The week-43 digest is posted to #metrics.',
+          'Sign-ups rose 12%; churn held at 2.1%.',
+          'Next: add the retention chart next week.',
+        ],
+      },
       status: 'done',
       since: now - 13 * 60 * MIN,
       elapsedMs: 4 * MIN + 12_000,
@@ -658,10 +665,16 @@ export const doc: ComponentDoc = {
         'A star toggle at the head’s right end — a button of its own inside the face (aria-pressed): pressing it sends ui-star and never toggles the card. `disabled` keeps it visible and inert (a string is its tooltip). The host owns the state: set `on` from its answer.',
     },
     {
-      name: 'data.columns[].cards[].rows',
-      type: "Array<'summary' | 'task' | 'links' | 'agents' | 'usage' | 'artifacts'>",
+      name: 'data.columns[].cards[].tldr',
+      type: '{ lines: string[]; title?: string; dismissible?: boolean }',
       description:
-        'The face’s rows between the head and the foot, in this order — only these: a row the list leaves out is not drawn even with its data (a user’s card layout). Unknown names and repeats are skipped. Default: every row, summary · task · links · agents · usage · artifacts.',
+        'A TL;DR box on the face, after the summary (0.20.0): the host’s plain lines (blanks dropped, at most 5) under a label (`title`, default TL;DR), on a quiet tint of the status colour. Unless `dismissible: false`, a × at its top right sends ui-dismiss and never toggles the card. The host owns the state: drop `tldr` when the person dismissed it.',
+    },
+    {
+      name: 'data.columns[].cards[].rows',
+      type: "Array<'summary' | 'tldr' | 'task' | 'links' | 'agents' | 'usage' | 'artifacts'>",
+      description:
+        'The face’s rows between the head and the foot, in this order — only these: a row the list leaves out is not drawn even with its data (a user’s card layout). Unknown names and repeats are skipped. Default: every row, summary · tldr · task · links · agents · usage · artifacts.',
     },
     {
       name: 'data.columns[].cards[].links',
@@ -800,6 +813,12 @@ export const doc: ComponentDoc = {
       detail: '{ cardId: string; starred: boolean }',
       description:
         'The face’s star (`star`) was pressed — `starred` is the state asked for. Cancelable. The card does not toggle; nothing is sent for a disabled star.',
+    },
+    {
+      name: 'ui-dismiss',
+      detail: "{ cardId: string; what: 'tldr' }",
+      description:
+        'The × of the face’s TL;DR (`tldr`) was pressed. Cancelable. The card does not toggle and the box stays until the host drops `tldr`.',
     },
     {
       name: 'ui-group-toggle',

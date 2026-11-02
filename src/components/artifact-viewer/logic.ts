@@ -38,6 +38,7 @@ export const STRINGS = {
     scriptsOn: 'Runs its own scripts',
     noPreview: 'No preview',
     pos: (i: number, n: number) => `File ${i} of ${n}`,
+    jump: 'Go to file',
   },
   ko: {
     files: '파일',
@@ -51,6 +52,7 @@ export const STRINGS = {
     scriptsOn: '스크립트 켜짐',
     noPreview: '미리보기 없음',
     pos: (i: number, n: number) => `${n}개 중 ${i}번째`,
+    jump: '파일로 이동',
   },
 };
 export type ViewerStrings = (typeof STRINGS)['en'];
@@ -272,6 +274,23 @@ export interface ViewerBodyOptions {
 
 /** What the body shows for an item: a preview kind, or `fallback` (the calm card with the actions). */
 export type ViewerBodyKind = 'image' | 'markdown' | 'text' | 'html' | 'pdf' | 'audio' | 'video' | 'fallback';
+
+/**
+ * How much of the screen the viewer takes for a body (0.20.0): `fill` — a page, a picture, a video or a PDF gets the
+ * whole screen; `doc` — a document gets a reading width and the full height; `compact` — a player or a card gets a
+ * small dialog.
+ */
+export type ViewerFit = 'fill' | 'doc' | 'compact';
+
+/** The `<ui-dialog size>` each fit opens at. */
+export const FIT_SIZE: Readonly<Record<ViewerFit, 'full' | 'xl' | 'lg'>> = { fill: 'full', doc: 'xl', compact: 'lg' };
+
+/** The fit of a body kind. */
+export function viewerFit(body: ViewerBodyKind): ViewerFit {
+  if (body === 'html' || body === 'pdf' || body === 'image' || body === 'video') return 'fill';
+  if (body === 'markdown' || body === 'text') return 'doc';
+  return 'compact';
+}
 
 /** The body an item gets, from its kind and the content it carries. */
 export function viewerBodyKind(item: FileItem, broken: ReadonlySet<string> = new Set()): ViewerBodyKind {
