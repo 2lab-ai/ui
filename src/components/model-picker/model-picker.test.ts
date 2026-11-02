@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { effortTextCss } from '../../core/effort';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
+import { fitEffortLevel, MODEL_EFFORT_ORDER } from './index';
 import {
   anchorMoved,
   fmtModelPrice,
@@ -675,5 +677,111 @@ describe('sound', () => {
     click(q(el, '.mp-opt[data-k="sonnet"]'));
     await spy.settle();
     expect(spy.calls).toEqual([]);
+  });
+});
+
+describe('effort levels: ultra, the effort follows the model, the strongest levels stand out', () => {
+  const SOL: PickerModel = {
+    id: 'sol',
+    label: 'Sol 6.1 (1M)',
+    window: 1_000_000,
+    effortLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  };
+  const GROK: PickerModel = {
+    id: 'grok',
+    label: 'Grok 4.6',
+    window: 500_000,
+    effortLevels: ['low', 'medium', 'high', 'xhigh'],
+  };
+  const DATA: ModelPickerData = { models: [SOL, GROK], value: { model: 'sol', effort: 'ultra' } };
+
+  it('fitEffortLevel: kept when the model runs it, else the strongest not stronger, else the weakest', () => {
+    expect(fitEffortLevel(['low', 'high', 'max', 'ultra'], 'ultra')).toBe('ultra');
+    expect(fitEffortLevel(['low', 'medium', 'high', 'xhigh'], 'ultra')).toBe('xhigh');
+    expect(fitEffortLevel(['low', 'medium', 'high'], 'max')).toBe('high');
+    expect(fitEffortLevel(['high', 'xhigh'], 'low')).toBe('high');
+    expect(fitEffortLevel([], 'max')).toBe('max');
+    expect(fitEffortLevel(['low'], undefined)).toBeUndefined();
+    expect(MODEL_EFFORT_ORDER).toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
+  });
+
+  it('a model that lists ultra offers it, named in both languages; six levels tighten', () => {
+    const el = mount(DATA);
+    el.open = true;
+    const btns = qa(el, '.mp-seg-btn');
+    expect(btns.map((b) => b.getAttribute('data-effort'))).toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
+    expect(btns[5].textContent).toBe('Ultra');
+    expect(btns[5].getAttribute('aria-label')).toBe('Ultra');
+    expect(q(el, '.mp-seg-ctl')!.hasAttribute('data-many')).toBe(true);
+    expect(q(el, '.mp-level')!.textContent).toBe('· Ultra');
+    const ko = mount(DATA, { lang: 'ko' });
+    ko.open = true;
+    expect(q(ko, '.mp-seg-btn[data-effort="ultra"]')!.textContent).toBe('울트라');
+    expect(q(ko, '.mp-level')!.textContent).toBe('· 울트라');
+    // Five levels do not.
+    el.data = { ...DATA, value: { model: 'grok', effort: 'high' } };
+    el.renderNow();
+    expect(q(el, '.mp-seg-ctl')!.hasAttribute('data-many')).toBe(false);
+  });
+
+  it('switching to a model that does not run the level sends — and shows — the nearest level it runs', () => {
+    const el = mount(DATA);
+    const picked = vi.fn();
+    el.addEventListener('ui-change', (e) => picked((e as CustomEvent).detail));
+    el.open = true;
+    (q(el, '.mp-opt[data-k="grok"]') as HTMLElement).click();
+    expect(picked).toHaveBeenCalledWith({ model: 'grok', effort: 'xhigh', changed: 'model' });
+    expect(el.data!.value).toEqual({ model: 'grok', effort: 'xhigh' });
+    el.open = true;
+    expect(q(el, '.mp-seg-btn[aria-checked="true"]')!.getAttribute('data-effort')).toBe('xhigh');
+    expect(q(el, '.mp-level .mp-fx')!.getAttribute('data-effort')).toBe('xhigh');
+    // A level the new model runs is kept.
+    (q(el, '.mp-opt[data-k="sol"]') as HTMLElement).click();
+    expect(picked).toHaveBeenLastCalledWith({ model: 'sol', effort: 'xhigh', changed: 'model' });
+  });
+
+  it('every level word carries data-effort: the trigger the level that runs, each segment its own', () => {
+    const el = mount({ models: [SOL, GROK], value: { model: 'grok', effort: 'max', effectiveEffort: 'xhigh' } });
+    expect(q(el, '.mp-level .mp-fx')!.getAttribute('data-effort')).toBe('xhigh');
+    el.open = true;
+    expect(qa(el, '.mp-seg-btn .mp-fx').map((s) => s.getAttribute('data-effort'))).toEqual([
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ]);
+  });
+
+  it('xhigh is a red gradient, max a gold foil, ultra a holographic foil; still under reduced motion, plain in forced colours', () => {
+    const css = (customElements.get('ui-model-picker') as unknown as { styles: string[] }).styles.join('\n');
+    for (const l of ['xhigh', 'max', 'ultra']) expect(css).toContain(`.mp-fx[data-effort="${l}"]`);
+    expect(css).toMatch(
+      /\.mp-fx\[data-effort="xhigh"\] \{ background-image: linear-gradient\(90deg, color-mix\(in srgb, var\(--red\)/,
+    );
+    expect(css).toMatch(/\.mp-fx\[data-effort="max"\] \{[^}]*animation: mp-foil/);
+    expect(css).toMatch(
+      /\.mp-fx\[data-effort="ultra"\] \{[^}]*var\(--purple\)[^}]*var\(--green\)[^}]*animation: mp-foil/,
+    );
+    expect(css).toContain('background-clip: text');
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce\) \{ \.mp-fx\[data-effort="max"\], \.mp-fx\[data-effort="ultra"\] \{ animation: none; \}/,
+    );
+    expect(css).toMatch(/forced-colors: active\)[\s\S]*-webkit-text-fill-color: CanvasText/);
+    // No light-only colour: every stop comes from the theme tokens.
+    expect(
+      effortTextCss(
+        (l) => `.x[data-effort="${l}"]`,
+        (n) => `var(--${n})`,
+        'x',
+      ),
+    ).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  });
+
+  it('heading names a choice that is not one session’s (the menu head and the dialog)', () => {
+    const el = mount({ ...DATA, heading: 'Default for new sessions' });
+    expect(q(el, '.mp-head-t')!.textContent).toBe('Default for new sessions');
+    expect(q(el, '.mp-pop')!.getAttribute('aria-label')).toBe('Default for new sessions');
+    const plain = mount(DATA);
+    expect(q(plain, '.mp-head-t')!.textContent).toBe('This session model');
   });
 });
