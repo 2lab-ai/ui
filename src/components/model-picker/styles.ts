@@ -79,6 +79,7 @@ export const styles = `
    in the segments. A foiled word has no ink colour to dim, so an unchecked one fades instead; six levels tighten. */
 ${effortTextCss(fx, (name) => `var(--${name})`, 'mp')}
 .mp-level .mp-fx:is(${EFFORT_FX_LEVELS.map(fx).join(', ')}) { font-weight: 600; }
+.mp-fx { transition: opacity 200ms ease; }
 .mp-seg-btn[aria-checked="false"]:not(:hover) .mp-fx:is(${EFFORT_FX_LEVELS.map(fx).join(', ')}) { opacity: 0.62; }
 .mp-seg-ctl[data-many] .mp-seg-btn { padding: 0 1px; font-size: 11px; letter-spacing: -0.02em; }
 @keyframes mp-pop { from { opacity: 0; transform: scale(0.6); } }

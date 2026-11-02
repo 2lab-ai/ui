@@ -71,12 +71,12 @@ export function effortTextCss(
   const red = v('red');
   const text = v('ib-text');
   const card = v('ib-card');
-  // Red, one hue: deep (pulled to ink) → the red → light (pulled to the card), left to right.
-  const xhigh = `linear-gradient(90deg, ${mix(red, 72, text)} 0%, ${red} 55%, ${mix(red, 62, card)} 100%)`;
+  // Red, one hue: deep (pulled to ink) → the red → lighter (a fifth toward the card, so the tail stays legible).
+  const xhigh = `linear-gradient(90deg, ${mix(red, 72, text)} 0%, ${red} 55%, ${mix(red, 80, card)} 100%)`;
   // Gold foil: amber → gold → a pale glint → gold → amber; the first and last stops match so the sweep loops.
   const goldDeep = mix(v('orange'), 55, v('yellow'));
   const gold = mix(v('yellow'), 80, text);
-  const glint = mix(v('yellow'), 45, card);
+  const glint = mix(v('yellow'), 62, card);
   const max = `linear-gradient(105deg, ${goldDeep} 0%, ${gold} 22%, ${glint} 34%, ${gold} 46%, ${goldDeep} 62%, ${gold} 82%, ${goldDeep} 100%)`;
   // Holographic foil: the theme's hues in spectrum order, each pulled a little toward ink so the word stays legible.
   const holo = (name: string): string => mix(v(name), 78, text);
