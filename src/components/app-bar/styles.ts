@@ -116,9 +116,9 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 
 /* ── Toolbar: inline while it fits, else the row under the bar (wrapping) ── */
 ::slotted([slot="toolbar"]) { flex: none; min-width: 0; }
-/* The host's actions keep their width: squeezed, a chip shrank under its neighbour instead of the bar overflowing
-   and folding its links into the menu (0.21.0). */
-::slotted([slot="actions"]) { flex: none; }
+/* Unfolded, the host's actions keep their width: squeezed, a chip shrank under its neighbour instead of the bar
+   overflowing and folding its links into the menu (0.21.0). Folded, they may give way like the brand and account. */
+:host(:not([collapsed])) ::slotted([slot="actions"]) { flex: none; }
 .ab-row { display: none; min-width: 0; padding: 8px 20px; border-top: 1px solid var(--border); }
 :host([toolbar-row]) { height: auto; }
 :host([toolbar-row]) .ab-bar { height: 56px; }
@@ -140,7 +140,7 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
-:host([narrow]) .ab-account { justify-content: center; width: 34px; padding: 0; }
+:host([narrow]) .ab-account { flex: none; justify-content: center; width: 34px; padding: 0; }
 :host([narrow]) .ab-name, :host([narrow]) .ab-role { display: none; }
 :host([mark-only]) .ab-brand { min-width: 34px; }
 @media (max-width: 639px) {
@@ -163,7 +163,6 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
   a.ab-brand, .ab-link { min-height: 44px; }
   .ab-account { height: 44px; }
   .ab-icon-btn, :host([narrow]) .ab-account { width: 44px; height: 44px; }
-  :host([narrow]) .ab-account { flex: none; }
   :host([mark-only]) .ab-brand { min-width: 44px; }
 }
 

@@ -54,6 +54,10 @@ export function thumbFit(tile: Box, content: Box): ThumbFrame {
   // Too tall or too wide to fit whole: fill the width (readable), keep the top, crop the rest.
   const scale = Math.max(THUMB_MIN, Math.min(1, room.w / cw));
   const sw = cw * scale;
+  const sh = ch * scale;
   const x = sw <= room.w ? (tw - sw) / 2 : THUMB_PAD;
-  return { scale, x, y: THUMB_PAD, cropped: true };
+  // Wide but short (a bar, a strip): it runs off the right edge only, so it sits centred in the height — not a
+  // strip at the top of an empty tile.
+  const y = sh <= room.h ? (th - sh) / 2 : THUMB_PAD;
+  return { scale, x, y, cropped: true };
 }
