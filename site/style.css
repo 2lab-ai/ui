@@ -325,6 +325,8 @@ h3 {
 .pv-tools {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
+  max-width: 100%;
   align-items: center;
   gap: 8px;
   margin-left: auto;
