@@ -1850,7 +1850,12 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       this.#announce(counts, changes, t);
     }
     if (activeKey && (this.root.activeElement as HTMLElement | null)?.dataset?.key !== activeKey) {
-      const next = this.$$<HTMLElement>('[data-key]').find((el) => el.dataset.key === activeKey);
+      const keys = this.$$<HTMLElement>('[data-key]');
+      // A TL;DR × the host took away with its box (0.20.0): focus goes to that card's face, never to the page.
+      const fallback = activeKey.startsWith('d:') ? `f:${activeKey.slice(2)}` : '';
+      const next =
+        keys.find((el) => el.dataset.key === activeKey) ??
+        (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined);
       next?.focus({ preventScroll: true });
     }
     this.#tickIn(this.content);

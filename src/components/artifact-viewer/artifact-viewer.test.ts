@@ -1348,6 +1348,19 @@ describe('fit and jump (0.20.0)', () => {
     expect(dialog(el).getAttribute('data-fit')).toBe('compact');
   });
 
+  it('a host preview keeps the size it always had: xl, no data-fit (review: astra P2)', () => {
+    const el = mount({ items: files() });
+    const p = document.createElement('div');
+    p.slot = 'preview';
+    el.append(p);
+    el.open(4); // memo.wav — compact on its own
+    expect(dialog(el).getAttribute('size')).toBe('xl');
+    expect(dialog(el).hasAttribute('data-fit')).toBe(false);
+    p.remove();
+    el.next();
+    expect(dialog(el).getAttribute('data-fit')).toBe('fill'); // demo.mp4, the viewer's own body again
+  });
+
   it('the position is a list of every file: picking one shows it (ui-view), the list follows steps', () => {
     const el = mount({ items: files() });
     const views = record<ArtifactViewDetail>(el, 'ui-view');
