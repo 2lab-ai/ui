@@ -19,6 +19,7 @@ export type {
   InboxStatus,
   InboxStringOverrides,
   InboxStrings,
+  InboxTldr,
   InboxTone,
   LaneHold,
 } from './agent-inbox';
@@ -37,5 +38,7 @@ export {
   placeHolds,
   statusOf,
   statusTone,
+  TLDR_MAX_LINES,
+  tldrLines,
   UiAgentInbox,
 } from './agent-inbox';

@@ -153,6 +153,29 @@ export const styles = `
   margin-top: 6px; font-size: 13.5px; line-height: 1.45; color: var(--ib-text-2);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
 }
+/* The TL;DR box (0.20.0): the run's short report on a quiet tint of the status colour; × at its top right. */
+.ib-tldr {
+  margin-top: 8px; padding: 7px 8px 8px 10px; border-radius: 8px;
+  background: color-mix(in srgb, var(--st-color) 7%, var(--ib-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) 22%, transparent);
+}
+.ib-tldr-head { display: flex; align-items: center; gap: 6px; min-height: 20px; }
+.ib-tldr-label {
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.3;
+  color: color-mix(in srgb, var(--st-color) 55%, var(--ib-text));
+}
+.ib-tldr-x {
+  flex: none; display: inline-grid; place-items: center; inline-size: 22px; block-size: 22px; margin: -2px -3px -2px auto;
+  padding: 0; border: 0; border-radius: 6px; background: none; color: var(--ib-muted); cursor: pointer;
+  transition: background-color var(--dur-press) ease, color var(--dur-press) ease;
+}
+.ib-tldr-x svg { inline-size: 14px; block-size: 14px; }
+.ib-tldr-x:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+@media (hover: hover) and (pointer: fine) { .ib-tldr-x:hover { color: var(--ib-text); background: var(--ib-pill); } }
+.ib-tldr-lines { margin: 4px 0 0; padding: 0 0 0 16px; font-size: 13px; line-height: 1.45; color: var(--ib-text); }
+.ib-tldr-lines li { overflow-wrap: anywhere; }
+.ib-tldr-lines li + li { margin-top: 2px; }
+.ib-card[data-status="idle"] .ib-tldr-lines { color: var(--ib-text-2); }
 /* The task in progress. */
 .ib-task { margin-top: 8px; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--ib-text); background: var(--ib-pill); border-radius: 8px; padding: 5px 9px; }
 .ib-task-id { flex-shrink: 0; color: var(--ib-muted); font-variant-numeric: tabular-nums; font-size: 12px; }

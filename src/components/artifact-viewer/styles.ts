@@ -110,7 +110,11 @@ ${mdDocCss}
 ${peekRules}
 
 /* ── viewer (slotted into <ui-dialog>) ───────────────────────────────── */
-ui-dialog::part(panel) { height: min(860px, calc(100dvh - 48px)); }
+/* The panel fits the file (0.20.0): fill — the dialog's own full size (no height here, so its rule stands, edge to
+   edge on a phone); doc — the full height at a reading width; compact — as tall as its content. */
+ui-dialog:not([data-fit])::part(panel) { height: min(860px, calc(100dvh - 48px)); }
+ui-dialog[data-fit="doc"]::part(panel) { height: calc(var(--ui-vv-h, 100dvh) - 48px); }
+ui-dialog[data-fit="compact"]::part(panel) { height: auto; }
 ui-dialog::part(header) { align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--ib-card-border); }
 ui-dialog::part(title) { padding-top: 0; }
 ui-dialog::part(body) { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
@@ -192,7 +196,19 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
 /* footer: ‹ 3 / 7 ›, then Zoom / Open in new tab / Download */
 .av-vf { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .av-nav { display: flex; align-items: center; gap: 2px; margin-right: auto; }
-.av-pos { min-width: 48px; font-size: 12.5px; color: var(--ib-text-2); text-align: center; font-variant-numeric: tabular-nums; }
+/* ‹ n / m ›: a pill over a native list of every file (0.20.0) — the browser draws the listbox on a press, the arrow
+   keys move in it, a phone gets its own picker. The list is the whole pill, invisible; the pill shows its focus. */
+.av-pos {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 56px;
+  height: 32px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; color: var(--ib-text-2); text-align: center;
+  font-variant-numeric: tabular-nums; transition: background-color 150ms ease, color 150ms ease;
+}
+.av-pos > svg { display: block; flex: none; opacity: 0.7; }
+.av-jump {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0;
+  font: inherit; cursor: pointer; appearance: none;
+}
+.av-pos:has(.av-jump:focus-visible) { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 .av-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
 .av-nb, .av-act, .av-tg {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; height: 32px;
@@ -214,11 +230,12 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
   transform: scale(0.97);
 }
 @media (hover: hover) and (pointer: fine) {
-  .av-nb:not(:disabled):hover { background: var(--ib-pill); color: var(--ib-text); }
+  .av-nb:not(:disabled):hover, .av-pos:hover { background: var(--ib-pill); color: var(--ib-text); }
   .av-act:not(.is-primary):hover, .av-tg:hover { border-color: var(--ib-muted); }
 }
 @media (pointer: coarse) {
   .av-nb { width: 44px; height: 44px; }
+  .av-pos { height: 44px; }
   .av-act, .av-tg { height: 44px; }
 }
 @media (max-width: 639px) {
