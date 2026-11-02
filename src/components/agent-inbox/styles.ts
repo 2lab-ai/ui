@@ -198,6 +198,29 @@ button.ib-chip { font: inherit; font-size: 11.5px; cursor: zoom-in; transition: 
 button.ib-chip:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-arts-more { flex-shrink: 0; font-size: 11px; color: var(--ib-muted); }
+/* Linked issues, PRs and wikis (0.18.0): chips that open the page in a new tab, never the card. */
+.ib-links { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; min-width: 0; }
+.ib-link {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 220px; height: 24px; padding: 0 8px;
+  border: 1px solid var(--ib-card-border); border-radius: 999px; background: var(--ib-pill); color: var(--ib-text);
+  font-size: 11.5px; line-height: 1; text-decoration: none; --tint: var(--text-secondary);
+  transition: border-color 150ms ease, background-color 150ms ease, transform var(--dur-press) var(--ease-out);
+}
+.ib-link svg { width: 13px; height: 13px; flex-shrink: 0; color: var(--tint); }
+.ib-link.is-issue { --tint: var(--green); }
+.ib-link.is-pr { --tint: var(--purple); }
+.ib-link.is-wiki { --tint: var(--accent); }
+.ib-link-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.ib-link-st { flex-shrink: 0; white-space: nowrap; color: var(--ib-text-2); }
+.ib-link-st[data-tone="run"] { color: var(--ib-run-fg); }
+.ib-link-st[data-tone="done"] { color: var(--ib-done-fg); }
+.ib-link-st[data-tone="fail"] { color: var(--ib-fail-fg); }
+.ib-link-st[data-tone="wait"] { color: var(--ib-wait-fg); }
+.ib-link-st[data-tone="danger"] { color: var(--st-fail-text); font-weight: 600; }
+.ib-link:hover { border-color: var(--border-strong, var(--ib-card-border)); }
+.ib-link:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+.ib-link:active:not(:focus-visible) { transform: scale(0.97); }
+.ib-links-more { flex-shrink: 0; font-size: 11px; color: var(--ib-muted); }
 /* Foot: the status tag, then the metrics on the right (a narrow foot wraps them below). */
 .ib-foot { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; color: var(--ib-text-2); min-width: 0; }
 .ib-tag {
