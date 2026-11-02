@@ -58,6 +58,15 @@ export { clamp, fmtAgo, fmtClock, fmtDuration, fmtDurationIn, fmtInt, fmtTokens,
 export { attrs, cls, esc, escAttr, safeHref, safeLink, safeSrc } from './core/html';
 export type { LinkRenderer } from './core/markdown';
 export { markdownHtml, mdDocCss } from './core/markdown';
+export type { ModelVendor } from './core/model-mark';
+export {
+  asModelVendor,
+  MODEL_MAKER_COLOR,
+  MODEL_VENDORS,
+  modelMarkHtml,
+  modelMarkSvg,
+  modelVendor,
+} from './core/model-mark';
 export type { PopAlign, PopPlace, PopRect, PopSide } from './core/popover';
 export { parsePlacement, placePopover } from './core/popover';
 export { baseCss, DARK, LIGHT, SHARED, tokensCss } from './core/tokens';

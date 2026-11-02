@@ -23,7 +23,11 @@ export const styles = `
 .mp-level { flex: none; font-weight: 400; color: var(--ib-text-2); }
 .mp-chev { flex: none; width: 6px; height: 6px; margin: 0 1px 0 2px; border-right: 1.5px solid var(--ib-muted); border-bottom: 1.5px solid var(--ib-muted); transform: translateY(-2px) rotate(45deg); transition: transform 300ms var(--ease-out); }
 .mp-trigger[aria-expanded="true"] .mp-chev { transform: translateY(1px) rotate(225deg); }
-.mp-glyph { display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--ib-card); box-shadow: inset 0 0 0 1px var(--ib-card-border); font-size: 10.5px; font-weight: 600; line-height: 1; color: var(--ib-text); }
+.mp-glyph { display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--ib-card); box-shadow: inset 0 0 0 1px var(--ib-card-border); font-size: 10.5px; font-weight: 600; line-height: 1; color: var(--model-hue, var(--ib-text)); }
+/* 0.23.0 — the tile holds the maker's mark in the maker's colour (soma-work#813), not the name's first letter. */
+.mp-glyph svg { display: block; width: 14px; height: 14px; }
+.mp-trigger .mp-glyph svg { width: 12px; height: 12px; }
+@media (forced-colors: active) { .mp-glyph { color: CanvasText; } }
 .mp-note { max-width: 100%; font-size: 12px; line-height: 17px; color: var(--ib-text-2); overflow-wrap: anywhere; }
 .mp-note.is-error { color: var(--st-fail-text); }
 .mp-note:empty { display: none; }

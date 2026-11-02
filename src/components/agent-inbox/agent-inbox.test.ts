@@ -653,6 +653,35 @@ describe('host gaps', () => {
     expect(gauge.querySelectorAll('.ib-eff-bar.is-on').length).toBe(3);
   });
 
+  // 0.23.0 — the maker's colour by default (2lab-ai/soma-work#813): a vendor mark with no colour takes its maker's
+  // (Claude clay, Gemini blue); OpenAI's and xAI's black marks take the ink. A host colour still wins.
+  it("colours a vendor mark with its maker's colour when the host gives none; OpenAI and Grok take the ink", () => {
+    const el = mount(
+      board({
+        ...RUN,
+        metrics: [
+          { text: 'Opus 5.5', glyph: 'claude' },
+          { text: '', glyph: 'openai', label: '모델 GPT-5.5' },
+          { text: '', glyph: 'grok', label: '모델 Grok 4.6' },
+          { text: '', glyph: 'gemini', label: '모델 Gemini 3' },
+          { text: '', glyph: 'claude', color: '#8b6fd6', label: '모델 Sonnet' },
+          { text: '', glyph: 'model', label: '모델 llama' },
+        ],
+      }),
+    );
+    const ms = Array.from(card(el, 'notes').querySelectorAll<HTMLElement>('.ib-metric.is-host'));
+    expect(ms.map((m) => [m.style.getPropertyValue('--ib-model-hue'), m.classList.contains('is-ink')])).toEqual([
+      ['#d97757', false],
+      ['', true],
+      ['', true],
+      ['#4285f4', false],
+      ['#8b6fd6', false],
+      ['', false],
+    ]);
+    expect(ms[0].classList.contains('is-model')).toBe(true);
+    expect(ms[0].textContent).toBe('Opus 5.5');
+  });
+
   it('fills the effort gauge by level (low 1 … max 5, ultra 5 with its foil); no gauge for an unknown level', () => {
     const levels: Array<[string, number]> = [
       ['low', 1],
@@ -704,7 +733,8 @@ describe('host gaps', () => {
     );
     const ms = Array.from(card(el, 'notes').querySelectorAll<HTMLElement>('.ib-metric.is-model'));
     expect(ms.length).toBe(2);
-    expect(ms[0].getAttribute('style')).toBeNull();
+    // The injected value is refused: the mark keeps its maker's colour (0.23.0), nothing else reaches the style.
+    expect(ms[0].getAttribute('style')).toBe('--ib-model-hue:#4285f4');
     expect(ms[1].style.getPropertyValue('--ib-model-hue')).toBe('#abc');
   });
 
