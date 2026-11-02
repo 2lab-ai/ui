@@ -42,7 +42,7 @@ export type InboxGlyph =
   | 'grok'
   | 'gemini'
   | 'model'
-  // 0.18.0 — linked pages.
+  // 0.19.0 — linked pages.
   | 'issue'
   | 'wiki';
 
@@ -395,7 +395,7 @@ const GEMINI_SVG =
   '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6z"/></svg>';
 const MODEL_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.8V4M9.5 1.8V4M6.5 12v2.2M9.5 12v2.2M1.8 6.5H4M1.8 9.5H4M12 6.5h2.2M12 9.5h2.2"/></svg>';
-// 0.18.0 — linked pages: an issue (a ringed dot) and a wiki (an open book).
+// 0.19.0 — linked pages: an issue (a ringed dot) and a wiki (an open book).
 const ISSUE_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.8"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg>';
 const WIKI_SVG =

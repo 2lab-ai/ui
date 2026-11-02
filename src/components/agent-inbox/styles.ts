@@ -198,7 +198,7 @@ button.ib-chip { font: inherit; font-size: 11.5px; cursor: zoom-in; transition: 
 button.ib-chip:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-arts-more { flex-shrink: 0; font-size: 11px; color: var(--ib-muted); }
-/* Linked issues, PRs and wikis (0.18.0): chips that open the page in a new tab, never the card. */
+/* Linked issues, PRs and wikis (0.19.0): chips that open the page in a new tab, never the card. */
 .ib-links { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; min-width: 0; }
 .ib-link {
   display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 220px; height: 24px; padding: 0 8px;
