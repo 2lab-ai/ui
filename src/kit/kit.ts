@@ -228,7 +228,8 @@ export const kitCss = `/* @2lab.ai/ui kit — light-DOM classes. Reads the --ui-
 .ui-fab.is-extended.is-folded { gap: 0; padding: 0 17px; }
 .ui-fab.is-extended.is-folded > span { max-width: 0; opacity: 0; }
 
-/* ── Chip — a pill label or a toggle; "on" is the raised neutral chip ── */
+/* ── Chip — a pill label or a toggle; "on" is the raised neutral chip with an ink border (≥ 3:1 against its fill in
+   both themes — the fills alone differ by one step in dark) ── */
 .ui-chip {
   display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; max-width: 100%; min-width: 0; height: 24px;
   padding: 0 9px; border: 1px solid ${T('ib-card-border')}; border-radius: 999px; background: ${T('ib-pill')};
@@ -238,7 +239,7 @@ export const kitCss = `/* @2lab.ai/ui kit — light-DOM classes. Reads the --ui-
 .ui-chip > svg { flex: none; width: 12px; height: 12px; color: ${T('ib-muted')}; }
 button.ui-chip, a.ui-chip { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: ${BTN_T}, box-shadow ${COLOR_T}; }
 .ui-chip[aria-pressed="true"], .ui-chip[aria-selected="true"], .ui-chip[aria-checked="true"], .ui-chip.is-on {
-  background: ${T('ib-seg-on')}; border-color: color-mix(in srgb, ${T('ib-text')} 32%, ${T('ib-card-border')}); box-shadow: ${T('ib-shadow')};
+  background: ${T('ib-seg-on')}; border-color: color-mix(in srgb, ${T('ib-text')} 40%, ${T('ib-card-border')}); box-shadow: ${T('ib-shadow')};
 }
 /* A pressed star is filled — the one glyph whose pressed state is its shape (a toggle's ★ / ☆), so a host never needs
    the text glyphs beside the set's icons. */
