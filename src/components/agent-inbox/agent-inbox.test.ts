@@ -1269,3 +1269,99 @@ describe('face row order (0.17.0)', () => {
     expect(rowsOf(odd, 'notes')).toEqual(['ib-usage', 'ib-agents']);
   });
 });
+
+describe('linked issues, PRs and wikis on the face (0.18.0)', () => {
+  const LINKS: InboxCard['links'] = [
+    {
+      kind: 'issue',
+      href: 'https://acme.atlassian.net/browse/PROJ-12',
+      text: 'PROJ-12',
+      status: '진행 중',
+      tone: 'run',
+      title: 'PROJ-12 — 결제 폼',
+    },
+    { kind: 'pr', href: 'https://github.com/acme/app/pull/733', text: '#733', status: '머지됨', tone: 'done' },
+    { kind: 'wiki', href: 'https://acme.atlassian.net/wiki/spaces/ENG/pages/1/Design', text: 'Design' },
+  ];
+  const rowsOf = (el: UiAgentInbox, id: string) =>
+    Array.from(card(el, id).querySelectorAll<HTMLElement>('.ib-face > div'))
+      .map((d) => d.className.split(' ')[0])
+      .filter((c) => c !== 'ib-head' && c !== 'ib-foot');
+
+  it('draws each link as a chip that opens its page in a new tab, with its kind mark and its status', () => {
+    const el = mount(board({ ...RUN, links: LINKS }));
+    const chips = Array.from(card(el, 'notes').querySelectorAll<HTMLAnchorElement>('.ib-links a.ib-link'));
+    expect(chips.map((a) => a.className)).toEqual(['ib-link is-issue', 'ib-link is-pr', 'ib-link is-wiki']);
+    expect(chips.map((a) => a.getAttribute('href'))).toEqual(LINKS!.map((l) => l.href));
+    for (const a of chips) {
+      expect(a.getAttribute('target')).toBe('_blank');
+      expect(a.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(a.querySelector('svg')).not.toBeNull();
+    }
+    expect(chips[0].querySelector('.ib-link-text')?.textContent).toBe('PROJ-12');
+    const st = chips[0].querySelector<HTMLElement>('.ib-link-st')!;
+    expect([st.textContent, st.getAttribute('data-tone')]).toEqual(['진행 중', 'run']);
+    expect(chips[1].querySelector('.ib-link-st')?.getAttribute('data-tone')).toBe('done');
+    expect(chips[2].querySelector('.ib-link-st')).toBeNull(); // a wiki has no status
+    expect(chips[0].getAttribute('title')).toBe('PROJ-12 — 결제 폼');
+  });
+
+  it('only http(s) links are drawn; the rest of the list survives a bad entry', () => {
+    const el = mount(
+      board({
+        ...RUN,
+        links: [
+          { kind: 'issue', href: 'javascript:alert(1)', text: 'x' },
+          { kind: 'pr', href: '/relative', text: 'y' },
+          { kind: 'nope' as never, href: 'https://e.test/a', text: 'z' },
+          { kind: 'wiki', href: 'https://e.test/w', text: '' },
+          ...LINKS!,
+        ],
+      }),
+    );
+    expect(card(el, 'notes').querySelectorAll('.ib-links a.ib-link')).toHaveLength(3);
+  });
+
+  it('a click on a link opens it and tells the host (ui-link); the card does not open', () => {
+    const el = mount(board({ ...RUN, links: LINKS }));
+    const seen: unknown[] = [];
+    el.addEventListener('ui-link', (e) => seen.push((e as CustomEvent).detail));
+    const a = card(el, 'notes').querySelector<HTMLAnchorElement>('a.ib-link.is-pr')!;
+    a.addEventListener('click', (e) => e.preventDefault()); // jsdom: no navigation
+    a.click();
+    expect(seen).toEqual([{ cardId: 'notes', href: 'https://github.com/acme/app/pull/733', kind: 'pr' }]);
+    expect(card(el, 'notes').classList.contains('is-open')).toBe(false);
+  });
+
+  it('without rows the links follow the task; rows can place them anywhere; many links end in +N', () => {
+    const full = mount(board({ ...RUN, summary: 'Why', links: LINKS }));
+    expect(rowsOf(full, 'notes')).toEqual(['ib-summary', 'ib-task', 'ib-links', 'ib-agents', 'ib-usage', 'ib-arts']);
+    document.body.innerHTML = '';
+    const placed = mount(board({ ...RUN, links: LINKS, rows: ['links', 'task'] }));
+    expect(rowsOf(placed, 'notes')).toEqual(['ib-links', 'ib-task']);
+    document.body.innerHTML = '';
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      kind: 'pr' as const,
+      href: `https://e.test/p/${i}`,
+      text: `#${i}`,
+    }));
+    const lots = mount(board({ ...RUN, links: many }));
+    expect(card(lots, 'notes').querySelectorAll('.ib-links a.ib-link')).toHaveLength(6);
+    expect(card(lots, 'notes').querySelector('.ib-links-more')?.textContent).toBe('+3');
+  });
+
+  it('no links, no row; issue and wiki marks are host glyphs too', () => {
+    const el = mount(
+      board({
+        ...RUN,
+        links: [],
+        metrics: [
+          { text: 'PROJ-1', glyph: 'issue' },
+          { text: 'Doc', glyph: 'wiki' },
+        ],
+      }),
+    );
+    expect(card(el, 'notes').querySelector('.ib-links')).toBeNull();
+    expect(card(el, 'notes').querySelectorAll('.ib-metric.is-host svg')).toHaveLength(2);
+  });
+});
