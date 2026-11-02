@@ -240,6 +240,9 @@ button.ui-chip, a.ui-chip { cursor: pointer; -webkit-tap-highlight-color: transp
 .ui-chip[aria-pressed="true"], .ui-chip[aria-selected="true"], .ui-chip[aria-checked="true"], .ui-chip.is-on {
   background: ${T('ib-seg-on')}; border-color: color-mix(in srgb, ${T('ib-text')} 32%, ${T('ib-card-border')}); box-shadow: ${T('ib-shadow')};
 }
+/* A pressed star is filled — the one glyph whose pressed state is its shape (a toggle's ★ / ☆), so a host never needs
+   the text glyphs beside the set's icons. */
+:is(.ui-btn, .ui-chip)[aria-pressed="true"] > svg[data-icon="star"] { fill: currentColor; }
 .ui-chip.is-quiet { background: transparent; }
 /* A toned chip: a tag in a colour the host picks per thing (an environment, a team) — not a status. Set --ui-tone
    inline (a palette token); the fill is its 14% tint, the word 70% toward the ink (≥ 4.5:1 in both themes). */
