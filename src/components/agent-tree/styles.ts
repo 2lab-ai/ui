@@ -28,8 +28,6 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
 
 /* Bar: title, then the totals — agents, running, needs you / failed (jump buttons), cost */
 .at-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; margin-bottom: 12px; }
-.at-spark { display: grid; flex: none; place-items: center; width: 16px; color: var(--accent); }
-.at-spark svg { width: 14px; height: 14px; }
 .at-title { flex: 0 0 auto; max-width: calc(100% - 24px); min-width: 0; overflow: hidden; color: var(--at-ink); font-size: 13px; font-weight: 500;
   line-height: 20px; white-space: nowrap; text-overflow: ellipsis; }
 .at-sum { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 10px; margin-left: auto;

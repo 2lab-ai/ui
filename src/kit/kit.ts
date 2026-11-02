@@ -238,7 +238,7 @@ export const kitCss = `/* @2lab.ai/ui kit — light-DOM classes. Reads the --ui-
 .ui-chip > svg { flex: none; width: 12px; height: 12px; color: ${T('ib-muted')}; }
 button.ui-chip, a.ui-chip { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: ${BTN_T}, box-shadow ${COLOR_T}; }
 .ui-chip[aria-pressed="true"], .ui-chip[aria-selected="true"], .ui-chip[aria-checked="true"], .ui-chip.is-on {
-  background: ${T('ib-seg-on')}; border-color: ${T('ib-card-border')}; box-shadow: ${T('ib-shadow')};
+  background: ${T('ib-seg-on')}; border-color: color-mix(in srgb, ${T('ib-text')} 32%, ${T('ib-card-border')}); box-shadow: ${T('ib-shadow')};
 }
 .ui-chip.is-quiet { background: transparent; }
 /* A toned chip: a tag in a colour the host picks per thing (an environment, a team) — not a status. Set --ui-tone

@@ -396,7 +396,9 @@ export class UiBarChart extends UiElement<BarChartData> {
     if (!xs.length) return;
     const width = this.$('.bc-bars')?.clientWidth ?? 0;
     let label = 0;
-    for (const x of xs) label = Math.max(label, x.firstElementChild?.getBoundingClientRect().width ?? 0);
+    // Layout px like `width` (clientWidth): a host that scales the chart (a gallery tile, a zoomed card) must not
+    // shrink the label and let the labels overlap.
+    for (const x of xs) label = Math.max(label, (x.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0);
     // Not laid out (or no layout engine): estimate from the longest label at 11px.
     if (!label) label = Math.max(...this.#model.bars.map((b) => b.label.length)) * 6.2;
     const stride = labelStride(xs.length, width, label + 8);

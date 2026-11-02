@@ -57,9 +57,6 @@ const ICON: Record<AgentTreeStatus, string> = {
   unknown: svg('<circle cx="8" cy="8" r="5" stroke-dasharray="2.2 2"/>'),
 };
 const CHEV = svg('<path d="M6 4l4 4-4 4"/>');
-const SPARK = svg(
-  '<path d="M8 1.6c.5 3.3 2.1 4.9 5.4 5.4-3.3.5-4.9 2.1-5.4 5.4C7.5 9.1 5.9 7.5 2.6 7 5.9 6.5 7.5 4.9 8 1.6Z" fill="currentColor" stroke="none"/>',
-);
 /** Statuses the bar lets you jump to. */
 const JUMP: AgentTreeStatus[] = ['needs_you', 'failed'];
 /** A worst status below a folded branch worth a tint and a word. */
@@ -308,7 +305,7 @@ export class UiAgentTree extends UiElement<AgentTreeData> {
           : '';
     if (total)
       sum += `<span class="at-sum-cost"><span class="at-amount"${m.total.live ? ' data-live' : ''}>${esc(total)}</span></span>`;
-    return `<header class="at-bar"><span class="at-spark">${SPARK}</span><h3 class="at-title" title="${escAttr(title)}">${esc(
+    return `<header class="at-bar"><h3 class="at-title" title="${escAttr(title)}">${esc(
       title,
     )}</h3><div class="at-sum">${sum}</div></header>`;
   }
