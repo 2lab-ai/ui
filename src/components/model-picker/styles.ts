@@ -43,7 +43,7 @@ export const styles = `
 .mp-cols, .mp-bars { display: grid; flex: none; grid-template-columns: repeat(3, 36px); gap: 8px; }
 .mp-cols { font-size: 10px; letter-spacing: -0.01em; }
 .mp-cols > span { display: flex; justify-content: center; white-space: nowrap; }
-.mp-wait { margin: 0 10px 4px; font-size: 12px; line-height: 17px; color: var(--st-wait); overflow-wrap: anywhere; }
+.mp-wait { margin: 0 10px 4px; font-size: 12px; line-height: 17px; color: color-mix(in srgb, var(--st-wait) calc(100% * var(--chroma)), var(--ib-text-2)); overflow-wrap: anywhere; }
 .mp-list { display: grid; gap: 1px; border-radius: 10px; outline: none; }
 .mp-opt { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "g t b" "g d d"; align-items: center; column-gap: 10px; min-height: 48px; padding: 6px 10px; border-radius: 10px; cursor: pointer; transition: background-color var(--dur-press) ease, opacity 220ms ease; }
 .mp-opt > .mp-glyph { grid-area: g; }
@@ -65,7 +65,7 @@ export const styles = `
 .mp-settings { margin-top: 6px; padding: 6px 10px 4px; border-top: 1px solid var(--ib-card-border); }
 .mp-effort-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 22px; }
 .mp-effort-label { flex: none; font-size: 12.5px; color: var(--ib-text-2); }
-.mp-effort-cap { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--st-wait); }
+.mp-effort-cap { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: color-mix(in srgb, var(--st-wait) calc(100% * var(--chroma)), var(--ib-text-2)); }
 .mp-seg-ctl { position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); margin-top: 4px; padding: 2px; border-radius: 9px; background: var(--ib-seg); box-shadow: inset 0 0 0 1px var(--ib-card-border); }
 .mp-thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / var(--n)); border-radius: 7px; background: var(--ib-seg-on); box-shadow: 0 0 0 1px var(--ib-card-border), 0 1px 2px color-mix(in srgb, #000 12%, transparent); transform: translateX(calc(var(--i) * 100%)); transition: transform var(--dur-move) var(--ease-out); }
 .mp-seg-btn { position: relative; min-width: 0; min-height: 26px; padding: 0 2px; font: inherit; font-size: 12px; font-weight: 500; color: var(--ib-muted); background: none; border: 0; border-radius: 7px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 200ms ease; }

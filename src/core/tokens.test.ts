@@ -22,9 +22,11 @@ const ratio = (a: string, b: string): number => {
 const spread = (h: string): number => Math.max(...rgb(h)) - Math.min(...rgb(h));
 
 describe('mono palette tokens', () => {
-  it('only overrides tokens the colour themes define', () => {
+  it('only overrides tokens the colour themes define, the same names in light and dark', () => {
     for (const k of Object.keys(MONO_LIGHT)) expect(LIGHT, k).toHaveProperty(k);
     for (const k of Object.keys(MONO_DARK)) expect(DARK, k).toHaveProperty(k);
+    // An OS-dark page with no data-theme matches both mono blocks: a name only one of them set would leak across.
+    expect(Object.keys(MONO_DARK).sort()).toEqual(Object.keys(MONO_LIGHT).sort());
   });
 
   it('drops --chroma from 1 (colour) to 0 (mono)', () => {
@@ -43,7 +45,7 @@ describe('mono palette tokens', () => {
   });
 
   it('keeps the four state colours (dark verbatim; light deepens only the amber)', () => {
-    for (const s of STATUS) expect(MONO_DARK[s], s).toBeUndefined();
+    for (const s of STATUS) expect([s, MONO_DARK[s] ?? DARK[s]]).toEqual([s, DARK[s]]);
     for (const s of STATUS.filter((x) => x !== 'st-wait')) expect(MONO_LIGHT[s], s).toBeUndefined();
     // The wait amber stays an amber: red well above blue.
     const [r, , b] = rgb(MONO_LIGHT['st-wait']);
@@ -88,59 +90,71 @@ describe('tokensCss — the page tokens', () => {
 });
 
 /**
- * The library-wide rule (the mono checklist as a test): a state colour mixed into a FILL or a TEXT is scaled by
- * --chroma, so mono leaves it on marks only. Mixes into a border / ring / outline are marks and stay; so do the
- * listed glyphs (an icon is a mark).
+ * The library-wide rule (the mono checklist as a test), read from what ships: every element's own `static styles`
+ * (helpers resolved, the shared plan / activity sheets included) and the kit. In mono a state shows its colour on a
+ * mark only — so a state colour mixed into a FILL or a TEXT at a fixed percentage is a bug (it must follow --chroma),
+ * and so is a state colour used as plain TEXT. Mixes into a border / ring / outline are marks and stay; an icon keeps
+ * its colour through a calc() form (its mix in colour, the raw state in mono).
  */
-describe('mono palette — every status fill and text tint follows --chroma', () => {
-  const STATE_MIX =
-    /color-mix\(in srgb, (?:\$\{T\(')?(?:var\(--(?:ui-)?)?(?:st-(?:wait|run|done|fail|fail-text)|st-color|ag-c|ag-t|tb-tone|sb-c|ab-tone|wc|c-ink|aq-pc|aq-st|aq-sc|aq-warn|tc-red|cb-fail|as-fail|as-fail-text|as-done)(?:'\)\})?(?:, var\(--[a-z0-9-]+\))?\)? \d+(?:\.\d+)?%/;
+describe('mono palette — every status fill and text tint follows --chroma (shipped CSS)', () => {
+  const STATE =
+    '(?:st-(?:wait|run|done|fail|fail-text)|st-color|ag-c|ag-t|tb-tone|sb-c|ab-tone|wc|c-ink|aq-pc|aq-st|aq-sc|aq-warn|tc-red|cb-fail|as-fail|as-fail-text|as-done)';
+  const STATE_MIX = new RegExp(
+    `color-mix\\(in srgb, var\\(--(?:ui-)?${STATE}(?:, var\\(--[a-z0-9-]+\\))?\\) \\d+(?:\\.\\d+)?%`,
+  );
+  // Plain text in a non-fail state colour (fail text is the mono ink token itself).
+  const STATE_TEXT = /^var\(--(?:ui-)?(?:st-(?:wait|run|done)|ag-t|aq-pc|as-done)(?:, var\(--[a-z0-9-]+\))?\)$/;
   const LINE = /^(border|border-[a-z-]+|box-shadow|outline|outline-color|stroke|--[a-z0-9-]*(line|ring|border|edge))$/;
-  const GLYPHS = [
-    '.cv-errbar > svg',
-    '.wl-tool[data-status="running"] .wl-mark',
-    '.wl-tool[data-status="success"] .wl-mark',
-  ];
+  // Selectors that draw a mark (icon, dot, spinner, tick…): their raw state colour is the point.
+  const MARK = /svg|icon|mark|spark|spin|glyph|dot|tick|\.sb-bi\b|\.ps-icon|\.tc-copy|\.ap-mark|\.at-icon|\.wl-ag-icon/;
 
-  const files = import.meta.glob('../components/*/styles.ts', {
-    query: '?raw',
-    import: 'default',
+  const mods = import.meta.glob(['../components/*/*.ts', '!../components/*/*.test.ts', '!../components/*/docs.ts'], {
     eager: true,
-  }) as Record<string, string>;
-  const sheets: Array<[string, string]> = [...Object.entries(files), ['ui-kit.css', kitCss]];
+  }) as Record<string, Record<string, unknown>>;
+  const sheets: Array<[string, string]> = [['ui-kit.css', kitCss]];
+  for (const [file, mod] of Object.entries(mods))
+    for (const v of Object.values(mod)) {
+      const css = (v as { styles?: unknown } | null)?.styles;
+      if (typeof v === 'function' && Array.isArray(css)) sheets.push([`${file} ${v.name}`, css.join('\n')]);
+    }
 
-  it('reads every component sheet and catches an unscaled mix', () => {
-    expect(Object.keys(files).length).toBeGreaterThan(30);
-    expect(STATE_MIX.test('color: color-mix(in srgb, var(--st-run) 70%, var(--ib-text))')).toBe(true);
-    // The kit's source form, a template hole (built by concatenation so it is not one here).
-    expect(STATE_MIX.test('background: color-mix(in srgb, $' + "{T('st-fail')} 16%, x)")).toBe(true);
-    expect(STATE_MIX.test('color: color-mix(in srgb, var(--ui-st-run) 70%, var(--ui-ib-text))')).toBe(true);
-    expect(STATE_MIX.test('color: color-mix(in srgb, var(--st-run) calc(70% * var(--chroma)), var(--ib-text))')).toBe(
-      false,
-    );
-  });
-
-  it('has no unscaled status mix outside borders and the listed glyphs', () => {
+  function offences(css: string): string[] {
     const bad: string[] = [];
-    for (const [file, css] of sheets) {
-      for (const rule of css.split('}')) {
-        const [selector = '', body = ''] = rule.split('{');
-        if (GLYPHS.some((g) => selector.includes(g))) continue;
-        for (const decl of body.split(';')) {
-          const at = decl.indexOf(':');
-          if (at < 0) continue;
-          const prop = decl.slice(0, at).trim();
-          if (LINE.test(prop)) continue;
-          if (STATE_MIX.test(decl))
-            bad.push(
-              `${file}: ${prop}: ${decl
-                .slice(at + 1)
-                .trim()
-                .slice(0, 90)}`,
-            );
-        }
+    for (const rule of css.split('}')) {
+      const [selector = '', body = ''] = rule.split('{');
+      for (const decl of body.split(';')) {
+        const at = decl.indexOf(':');
+        if (at < 0) continue;
+        const prop = decl.slice(0, at).trim();
+        const value = decl.slice(at + 1).trim();
+        if (LINE.test(prop)) continue;
+        if (STATE_MIX.test(decl)) bad.push(`${selector.trim()} { ${prop}: ${value.slice(0, 80)} }`);
+        else if (prop === 'color' && STATE_TEXT.test(value) && !MARK.test(selector))
+          bad.push(`${selector.trim()} { color: ${value} } — text in a state colour`);
       }
     }
+    return bad;
+  }
+
+  it('reads every element sheet (the shared plan / activity / meter ones too) and catches what it should', () => {
+    expect(sheets.length).toBeGreaterThan(40);
+    const all = sheets.map(([, css]) => css).join('\n');
+    expect(all).toContain('.pl-state[data-st="running"]');
+    expect(all).toContain('.sys-badge[data-kind="restart"]');
+    expect(all).toContain('.m[data-tone="done"]');
+    // Positive controls: an unscaled fill, an unscaled tint, plain state text; a border mix and an icon pass.
+    expect(offences('.x { background: color-mix(in srgb, var(--st-run) 14%, var(--ib-card)); }')).toHaveLength(1);
+    expect(offences('.x { color: color-mix(in srgb, var(--ui-st-done) 70%, var(--ui-ib-text)); }')).toHaveLength(1);
+    expect(offences('.x-word { color: var(--st-run); }')).toHaveLength(1);
+    expect(offences('.x { border-color: color-mix(in srgb, var(--st-run) 45%, var(--ib-card)); }')).toEqual([]);
+    expect(offences('.x-icon { color: var(--st-run); }')).toEqual([]);
+    expect(
+      offences('.x { background: color-mix(in srgb, var(--st-run) calc(14% * var(--chroma)), var(--ib-card)); }'),
+    ).toEqual([]);
+  });
+
+  it('has no unscaled status fill or tint, and no plain status text, in any shipped sheet', () => {
+    const bad = sheets.flatMap(([name, css]) => offences(css).map((o) => `${name}: ${o}`));
     expect(bad).toEqual([]);
   });
 });

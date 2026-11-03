@@ -262,9 +262,9 @@ export const activityCss = `
 }
 .sys-badge-icon { flex: none; width: 12px; height: 12px; color: var(--ib-muted); }
 .sys-badge[data-kind="restart"], .sys-badge[data-kind="retry"] {
-  background: color-mix(in srgb, var(--st-wait) 14%, var(--ib-card)); color: color-mix(in srgb, var(--st-wait) 70%, var(--ib-text));
+  background: color-mix(in srgb, var(--st-wait) calc(14% * var(--chroma)), color-mix(in srgb, var(--ib-card) calc(100% * var(--chroma)), var(--ib-pill))); color: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), color-mix(in srgb, var(--ib-text) calc(100% * var(--chroma)), var(--ib-text-2)));
 }
-.sys-badge[data-kind="restart"] .sys-badge-icon, .sys-badge[data-kind="retry"] .sys-badge-icon { color: currentColor; }
+.sys-badge[data-kind="restart"] .sys-badge-icon, .sys-badge[data-kind="retry"] .sys-badge-icon { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-wait)); }
 .skill-badges { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .skill-badge {
   display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; height: 24px; padding: 0 9px;
@@ -300,7 +300,7 @@ export const activityCss = `
 .raw-note { margin: 6px 0 0; color: var(--ib-muted); font-size: 12px; line-height: 1.45; }
 .raw-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; min-height: 28px; color: var(--ib-muted); font-size: 12.5px; line-height: 1.45; }
 .raw-line-icon { flex: none; width: 14px; height: 14px; }
-.raw[data-state="error"] .raw-line-icon { color: color-mix(in srgb, var(--st-fail) 70%, var(--ib-text)); }
+.raw[data-state="error"] .raw-line-icon { color: color-mix(in srgb, var(--st-fail) calc(70% + 30% * (1 - var(--chroma))), var(--ib-text)); }
 .raw-line .raw-retry { border-color: var(--ib-card-border); background: var(--ib-card); }
 .raw-spin {
   flex: none; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--ib-muted) 35%, transparent);

@@ -3,8 +3,11 @@
  * language: a status pill tinted 14% in its st-* tone with the word pulled toward ink, a tabular clock, neutral
  * buttons with one ink primary, a danger tone, and 44px targets on touch. The row wraps; actions keep to the end.
  */
-const tint = (tone: string) => `color-mix(in srgb, ${tone} 14%, var(--ib-card))`;
-const toneText = (tone: string) => `color-mix(in srgb, ${tone} 70%, var(--ib-text))`;
+// Mono (0.25.0, --chroma 0): the chip is the neutral pill in the secondary ink; its icon (--sb-c) keeps the state.
+const tint = (tone: string) =>
+  `color-mix(in srgb, ${tone} calc(14% * var(--chroma)), color-mix(in srgb, var(--ib-card) calc(100% * var(--chroma)), var(--ib-pill)))`;
+const toneText = (tone: string) =>
+  `color-mix(in srgb, ${tone} calc(70% * var(--chroma)), color-mix(in srgb, var(--ib-text) calc(100% * var(--chroma)), var(--ib-text-2)))`;
 const COLOR_T = 'var(--dur-press) ease';
 
 export const styles = `

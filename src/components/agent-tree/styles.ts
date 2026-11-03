@@ -99,7 +99,7 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
 .at-pill { display: inline-flex; flex: none; align-self: start; align-items: center; gap: 4px; height: 18px; padding: 0 6px 0 4px;
   border-radius: 4px; background: color-mix(in srgb, var(--c) calc(13% * var(--chroma)), transparent); color: var(--c-ink); font-size: 11px;
   font-weight: 500; line-height: 16px; white-space: nowrap; }
-.at-pill svg { width: 12px; height: 12px; stroke-width: 1.9; }
+.at-pill svg { width: 12px; height: 12px; stroke-width: 1.9; color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--c)); }
 .at-task { display: -webkit-box; overflow: hidden; margin: -2px -2px -3px; padding: 2px 2px 3px; color: var(--at-text);
   font-size: 12px; line-height: 16px; overflow-wrap: anywhere; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .at-reason { display: -webkit-box; overflow: hidden; padding: 5px 8px; border-radius: 6px;

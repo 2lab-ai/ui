@@ -129,14 +129,14 @@ const css = `
   font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
   transition: color 300ms ease;
 }
-.m[data-tone="done"] { --m-ink: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
-.m[data-tone="wait"] { --m-ink: color-mix(in srgb, var(--st-wait) 70%, var(--ib-text)); }
-.m[data-tone="fail"] { --m-ink: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text)); }
+.m[data-tone="done"] { --m-mark: var(--st-done); --m-ink: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }
+.m[data-tone="wait"] { --m-mark: var(--st-wait); --m-ink: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--ib-text)); }
+.m[data-tone="fail"] { --m-mark: var(--st-fail); --m-ink: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text)); }
 .m-glyph { position: relative; display: inline-block; flex: none; box-sizing: border-box; overflow: hidden; }
 .m-bar .m-glyph { width: var(--meter-w, 48px); height: 6px; border-radius: 3px; background: color-mix(in srgb, currentColor 18%, transparent); }
 .m-battery .m-glyph { width: 24px; height: 12px; padding: 1px; border: 1.5px solid currentColor; border-radius: 3px; overflow: visible; }
 .m-battery .m-glyph::after { content: ''; position: absolute; right: -4px; top: 2px; width: 2px; height: 4px; border-radius: 0 1px 1px 0; background: currentColor; }
-.m-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: currentColor; transition: width var(--dur-move) var(--ease-out), background-color 300ms ease; }
+.m-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--m-mark, currentColor)); transition: width var(--dur-move) var(--ease-out), background-color 300ms ease; }
 .m-battery .m-fill { border-radius: 1px; }
 .m-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 `;

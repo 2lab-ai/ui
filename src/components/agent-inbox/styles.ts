@@ -120,7 +120,7 @@ export const styles = `
   background: color-mix(in srgb, var(--st-color) calc(14% * var(--chroma)), var(--ib-card));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) 45%, transparent);
 }
-.ib-lead svg { width: 12px; height: 12px; }
+.ib-lead svg { width: 12px; height: 12px; color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-color)); }
 /* A glyph-only lead (0.16.0 — an epic's or a plain task's mark): the glyph in the status colour, no pill. */
 .ib-lead.is-icon { padding: 0; background: none; box-shadow: none; color: var(--st-color); }
 .ib-lead.is-icon svg { width: 14px; height: 14px; }

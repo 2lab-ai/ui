@@ -3,8 +3,9 @@
  * tinted pill with icon + word, accent only on the progress fill, one ink primary (Add), neutral bordered actions,
  * the two-press arm in its tone tint, the history region on the 0fr → 1fr recipe. Tints are color-mix() of tokens.
  */
-const tint = (tone: string) => `color-mix(in srgb, var(--st-${tone}) 14%, var(--ib-card))`;
-const ink = (tone: string) => `color-mix(in srgb, var(${tone}) 70%, var(--ib-text))`;
+// Mono (0.25.0, --chroma 0): no tint and ink words; a chip's icon keeps the state colour (--gc-c).
+const tint = (tone: string) => `color-mix(in srgb, var(--st-${tone}) calc(14% * var(--chroma)), var(--ib-card))`;
+const ink = (tone: string) => `color-mix(in srgb, var(${tone}) calc(70% * var(--chroma)), var(--ib-text))`;
 const TONES: Array<[name: string, base: string, text: string]> = [
   ['run', 'run', '--st-run'],
   ['wait', 'wait', '--st-wait'],
@@ -29,9 +30,9 @@ textarea { margin: 0; letter-spacing: inherit; }
 .gc-chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px 0 6px; border-radius: 999px;
   background: var(--ib-pill); color: var(--ib-text-2); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap;
   transition: color 300ms ease, background-color 300ms ease; }
-.gc-chip > svg { flex: none; }
+.gc-chip > svg { flex: none; color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--gc-c, currentColor)); }
 .gc-chip.is-quiet { height: auto; padding: 0; background: none; }
-${TONES.map(([k, base, text]) => `.gc-chip[data-tone="${k}"] { background: ${tint(base)}; color: ${ink(text)}; }`).join('\n')}
+${TONES.map(([k, base, text]) => `.gc-chip[data-tone="${k}"] { --gc-c: var(--st-${base}); background: ${tint(base)}; color: ${ink(text)}; }`).join('\n')}
 ${TONES.map(([k, , text]) => `.gc-chip.is-quiet[data-tone="${k}"] { background: none; color: ${ink(text)}; }`).join('\n')}
 
 /* Error: the fail tint, above everything it is about */

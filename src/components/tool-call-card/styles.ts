@@ -34,6 +34,7 @@ button { appearance: none; margin: 0; border: 0; background: none; text-align: l
   font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tc-status.is-in { animation: tc-in 360ms var(--tc-ease) both; }
 .tc[data-status="error"] .tc-status { color: var(--tc-red); }
+.tc[data-status="error"] .tc-status > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-fail)); }
 .tc-status > svg { width: 14px; height: 14px; flex: none; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .tc-spin { animation: tc-spin 800ms linear infinite; }
 .tc-spin circle { stroke: currentColor; stroke-width: 1.6; opacity: 0.25; }
