@@ -131,6 +131,8 @@ export const styles = `
 .aq-mark { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; max-width: 100%; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: background-color var(--dur-fade) var(--ease-out), color var(--dur-fade) var(--ease-out), border-color var(--dur-fade) var(--ease-out); }
 .aq-mark b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .aq-si { flex: none; width: 12px; height: 12px; }
+/* An account badge's icon keeps its state in mono (the badge's word has gone to ink). */
+.aq-stack .aq-mark .aq-si { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--aq-sc)); }
 /* No position here: the account card measures marks against .aq-workers (see updated()). */
 .aq-stack { --aq-sc: var(--ib-muted); --aq-st: var(--ib-text-2); display: inline-flex; align-items: center; max-width: 100%; }
 .aq-stack.is-warn { --aq-sc: var(--aq-warn); --aq-st: var(--aq-warn-text); }
@@ -200,6 +202,7 @@ export const styles = `
 .cron-tile-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .cron-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5; color: color-mix(in srgb, var(--st-color, var(--ib-text-2)) calc(100% * var(--chroma)), var(--ib-text-2)); background: color-mix(in srgb, var(--st-color, var(--ib-muted)) calc(14% * var(--chroma)), transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color, var(--ib-muted)) 45%, transparent); }
 .cron-badge svg { width: 12px; height: 12px; color: var(--st-color, var(--ib-text-2)); }
+.cron-group.is-waiting .cron-badge svg { color: color-mix(in srgb, var(--st-color) calc(100% * var(--chroma)), var(--st-wait)); }
 .cron-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ib-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cron-note { flex-shrink: 0; padding: 0 6px; border-radius: 999px; border: 1px solid var(--ib-card-border); font-size: 11px; color: var(--ib-muted); white-space: nowrap; }
 /* The host's live card for the job (slot="job:<id>") sits under its tile. */

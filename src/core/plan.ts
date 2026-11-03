@@ -462,6 +462,7 @@ export const planCss = `
 /* Fate badge (a step that left its plan) and status chip: glyph + word, never colour alone. */
 .pl-fate, .pl-state { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px 0 5px; border-radius: 6px; background: var(--ib-pill); color: var(--text-secondary); font-size: 11px; font-weight: 600; line-height: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; vertical-align: 1px; text-decoration: none; }
 .pl-fate > svg, .pl-state > svg { flex: none; width: 10px; height: 10px; }
+.pl-fate[data-fate="done"] > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-done)); }
 .pl-fate[data-fate="done"] { background: color-mix(in srgb, var(--st-done) calc(14% * var(--chroma)), color-mix(in srgb, var(--pl-bg, var(--surface)) calc(100% * var(--chroma)), var(--ib-pill))); color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--text)); }
 .pl-state { --pl-tone: var(--text-tertiary); border-radius: 999px; padding: 0 7px 0 5px; }
 .pl-state > svg { color: var(--pl-tone); }
