@@ -1779,6 +1779,9 @@ describe('styles', () => {
     expect(styles).toContain('@container cp (max-width: 400px) { .cp-mode-text { display: none; } }');
     const coarse = styles.match(/@media \(pointer: coarse\) \{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(coarse).toContain('.cp-mode { height: 44px;');
+    // Phones: the end group tightens so 4 tools + the switch + a worded send fit a 375px screen.
+    expect(coarse).toContain('.cp-end { gap: 6px; }');
+    expect(coarse).toContain('.cp-mode + .cp-send.has-label { padding: 0 12px 0 14px; }');
   });
 
   it('44px targets on coarse pointers', () => {

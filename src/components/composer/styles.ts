@@ -221,7 +221,9 @@ img.cp-thumb { display: block; }
   .cp-tool.is-icon { width: 44px; }
   .cp-send { width: 44px; height: 44px; }
   .cp-send.has-label { width: auto; padding: 0 16px 0 18px; }
-  .cp-mode { height: 44px; padding: 0 4px; }
+  .cp-mode { height: 44px; padding: 0 1px; }
+  .cp-end { gap: 6px; }
+  .cp-mode + .cp-send.has-label { padding: 0 12px 0 14px; }
   .cp-chip { height: 52px; }
   .cp-remove, .cp-play { width: 44px; height: 44px; }
   .cp-rec { height: 48px; }
