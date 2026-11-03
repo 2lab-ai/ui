@@ -689,9 +689,11 @@ export class UiComposer extends UiElement<ComposerData> {
     const mode = composerMode(this.data?.mode);
     if (!mode || mode.disabled || this.#s.disabled) return;
     const cur = this.#isOn(mode);
+    const asked = this.data?.mode;
     if (!this.emit<ComposerModeDetail>('ui-mode', { id: mode.id, on: !cur })) return;
     this.sound('toggle', { direction: cur ? 'back' : 'forward' }, e);
-    this.#modeOn = !cur;
+    // A host that answered inside its listener (a new data.mode) has the last word, even if it rendered already.
+    if (this.data?.mode === asked) this.#modeOn = !cur;
     this.#paint();
   }
 
