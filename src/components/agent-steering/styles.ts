@@ -67,6 +67,7 @@ svg { display: block; flex: none; }
 .as-meta-in > *::before { content: "·"; flex: none; width: 13px; margin-right: -4px; text-align: center; color: var(--as-faint); }
 .as-meta svg { width: 12px; height: 12px; }
 .as-state[data-tone="run"] { color: var(--as-accent); }
+.as-state[data-tone="run"] svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-run)); }
 .as-state[data-tone="done"] { color: color-mix(in srgb, var(--as-done) calc(100% * var(--chroma)), var(--text-secondary)); }
 .as-state[data-tone="done"] svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--as-done)); }
 .as-state[data-tone="fail"] svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--as-fail)); }

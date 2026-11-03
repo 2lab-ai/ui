@@ -162,6 +162,7 @@ label .kp-sub { margin-left: 4px; }
 .kp-unsaved, .kp-saved { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .kp-unsaved { color: var(--ib-text-2); }
 .kp-saved { color: ${ink('--st-done')}; font-size: 12.5px; }
+.kp-saved > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-done)); }
 .kp-acts { display: inline-flex; flex: none; align-items: center; gap: 8px; margin-left: auto; }
 .kp-save { min-width: 72px; }
 

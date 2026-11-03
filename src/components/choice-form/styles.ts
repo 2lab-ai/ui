@@ -185,7 +185,7 @@ input { letter-spacing: inherit; }
   background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text));
   font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; }
 .cf-error:last-child { margin-bottom: 0; }
-.cf-error-icon { flex: none; margin-top: 2px; }
+.cf-error-icon { flex: none; margin-top: 2px; color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-fail)); }
 /* Locked (canAnswer): a quiet line with a lock — the form stays readable, every control is held */
 .cf-lock { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; padding: 0 2px; color: var(--ib-muted); font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; }
 .cf-lock:last-child { margin-bottom: 0; }

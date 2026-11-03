@@ -17,7 +17,7 @@ export const styles = `
 .el-status { display: inline-flex; align-items: center; gap: 4px; margin: 0; min-height: 18px; font-size: 12.5px;
   color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); animation: el-rise var(--dur-fade) var(--ease-out) both; }
 .el-status:empty { display: none; }
-.el-status svg { width: 12px; height: 12px; }
+.el-status svg { width: 12px; height: 12px; color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-done)); }
 .el-alert, .el-notice { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px;
   line-height: 1.45; overflow-wrap: anywhere; animation: el-rise var(--dur-fade) var(--ease-out) both; }
 .el-alert { border: 1px solid color-mix(in srgb, var(--st-fail) 35%, var(--ib-card-border)); background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card));

@@ -375,6 +375,7 @@ ${TONES.map(([k, dot]) => `.ui-status.is-pill[data-tone="${k}"] { background: ${
 .ui-status-line:empty { display: none; }
 .ui-status-line > svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 ${TONES.map(([k, , text]) => `.ui-status-line[data-tone="${k}"] { color: ${toneText(text)}; }`).join('\n')}
+${TONES.map(([k, dot]) => `.ui-status-line[data-tone="${k}"] > svg { color: ${pick('currentColor', dot)}; }`).join('\n')}
 
 /* ── Avatar: a glyph tile with a hairline (letter, svg or img) ── */
 .ui-avatar {

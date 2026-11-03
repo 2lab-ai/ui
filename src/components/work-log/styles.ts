@@ -73,6 +73,9 @@ export const styles = `
 .wl-row:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 .wl-head { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ib-muted); font-size: 11px; line-height: 1.4; }
 .wl-k-icon { flex: none; width: 12px; height: 12px; }
+/* Mono (0.25.0): a final / error entry's kind icon keeps its state; the head's words go ink. */
+.wl-entry[data-kind="final"] .wl-k-icon { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-done)); }
+.wl-entry[data-kind="error"] .wl-k-icon { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-fail)); }
 .wl-label { font-weight: 650; letter-spacing: 0.02em; }
 .wl-time { flex: none; margin-left: auto; color: var(--ib-muted); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .wl-row-chev { flex: none; width: 12px; height: 12px; color: var(--ib-muted); transition: transform var(--dur-press) var(--ease-out); }
