@@ -63,7 +63,7 @@ describe('ui-kit.css — page parts (inputs, switch, card, notice, row)', () => 
   it('tints notices and run rows per tone with color-mix', () => {
     for (const t of ['run', 'wait', 'done', 'fail']) {
       expect(kitCss).toContain(
-        `.ui-notice[data-tone="${t}"] { --ui-tone: var(--ui-st-${t}); border-color: color-mix(in srgb, var(--ui-st-${t}) 35%, var(--ui-ib-card-border)); background: color-mix(in srgb, var(--ui-st-${t}) 16%, var(--ui-ib-card));`,
+        `.ui-notice[data-tone="${t}"] { --ui-tone: var(--ui-st-${t}); border-color: color-mix(in srgb, var(--ui-st-${t}) 35%, var(--ui-ib-card-border)); background: color-mix(in srgb, var(--ui-st-${t}) calc(16% * var(--ui-chroma, 1)), var(--ui-ib-card));`,
       );
       expect(kitCss).toContain(`.ui-row[data-tone="${t}"] { --ui-tone: var(--ui-st-${t}); }`);
     }

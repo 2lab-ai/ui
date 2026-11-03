@@ -190,9 +190,15 @@ describe('<ui-meter>', () => {
   it('styles: the fill rides --dur-move, the tones are color-mixed toward ink, the bar width is --meter-w', () => {
     const css = (document.createElement('ui-meter') as UiMeter).shadowRoot!.querySelector('style')!.textContent ?? '';
     expect(css).toContain('transition: width var(--dur-move) var(--ease-out)');
-    expect(css).toContain('.m[data-tone="done"] { --m-ink: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }');
+    // 0.25.0: the word follows --chroma (ink in mono); the fill — a bar, a mark — keeps the state colour (--m-mark).
     expect(css).toContain(
-      '.m[data-tone="fail"] { --m-ink: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text)); }',
+      '.m[data-tone="done"] { --m-mark: var(--st-done); --m-ink: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }',
+    );
+    expect(css).toContain(
+      '.m[data-tone="fail"] { --m-mark: var(--st-fail); --m-ink: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text)); }',
+    );
+    expect(css).toContain(
+      'background: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--m-mark, currentColor));',
     );
     expect(css).toContain('width: var(--meter-w, 48px)');
     expect(css).not.toMatch(/@keyframes|infinite/);

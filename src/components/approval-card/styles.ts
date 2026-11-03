@@ -15,7 +15,7 @@ export const styles = `
   --ac-kbd-on-ink: color-mix(in srgb, var(--surface) 72%, transparent);
   --ac-box: color-mix(in srgb, var(--text) 24%, var(--surface));
   --ac-box-hover: color-mix(in srgb, var(--text) 40%, var(--surface));
-  --ac-low: color-mix(in srgb, var(--st-wait) 74%, var(--text));
+  --ac-low: color-mix(in srgb, var(--st-wait) calc(74% * var(--chroma)), var(--text));
   --ac-neutral: color-mix(in srgb, var(--text) 7%, transparent);
   --ac-ease: var(--ease-out);
   min-width: 0; font-size: 13px; line-height: 1.45; letter-spacing: -0.006em; }
@@ -50,8 +50,8 @@ input { letter-spacing: inherit; }
 .ac-risk { display: inline-flex; align-items: center; height: 22px; margin-top: 1px; padding: 0 7px; border-radius: 6px;
   background: var(--ac-neutral); color: var(--ac-text); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; }
 .ac-risk-word { white-space: pre; }
-.ac-risk[data-risk="medium"] { background: color-mix(in srgb, var(--st-wait) 14%, transparent); color: var(--ac-low); }
-.ac-risk[data-risk="high"] { background: color-mix(in srgb, var(--st-fail) 12%, transparent); color: var(--st-fail-text); }
+.ac-risk[data-risk="medium"] { background: color-mix(in srgb, var(--st-wait) calc(14% * var(--chroma)), transparent); color: var(--ac-low); }
+.ac-risk[data-risk="high"] { background: color-mix(in srgb, var(--st-fail) calc(12% * var(--chroma)), transparent); color: var(--st-fail-text); }
 
 /* Preview: the input as a shell block, a diff, rows, or text — scrolls past 360px */
 .ac-preview { display: grid; gap: 12px; max-height: 360px; overflow-y: auto; overscroll-behavior: contain; margin-top: 14px;
@@ -80,7 +80,7 @@ input { letter-spacing: inherit; }
 .ac-rules { display: grid; gap: 4px; font-size: 12.5px; line-height: 18px; }
 .ac-rules-label { color: var(--ac-muted); }
 .ac-rule { color: var(--ac-text); overflow-wrap: anywhere; }
-.ac-rule code { margin-right: 6px; padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--st-fail) 10%, transparent);
+.ac-rule code { margin-right: 6px; padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--st-fail) calc(10% * var(--chroma)), transparent);
   color: var(--st-fail-text); font-family: var(--mono); font-size: 11.5px; letter-spacing: 0; }
 .ac-rule b { color: var(--ac-ink); font-weight: 500; }
 .ac-note { margin: 0; color: var(--ac-muted); font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; }
@@ -148,7 +148,7 @@ input { letter-spacing: inherit; }
 /* Under the foot: why the answers are locked, or why the last answer failed (+ Retry) */
 .ac-lock { margin: 10px 0 0; color: var(--ac-muted); font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; }
 .ac-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 7px 7px 7px 11px; border-radius: 9px;
-  background: color-mix(in srgb, var(--st-fail) 7%, var(--surface));
+  background: color-mix(in srgb, var(--st-fail) calc(7% * var(--chroma)), var(--surface));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-fail) 24%, transparent); }
 .ac-error-text { flex: 1; min-width: 0; margin: 0; color: var(--st-fail-text); font-size: 12.5px; line-height: 18px;
   overflow-wrap: anywhere; }
@@ -161,7 +161,7 @@ input { letter-spacing: inherit; }
 .ac-row { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 12px 14px; }
 .ac-row.is-enter { animation: ac-in 420ms var(--ac-ease) 120ms both; }
 .ac-mark { display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: color-mix(in srgb, var(--st-done) 14%, transparent); color: var(--st-done); }
+  background: color-mix(in srgb, var(--st-done) calc(14% * var(--chroma)), transparent); color: var(--st-done); }
 .ac-row:not([data-outcome="approved"]):not([data-outcome="answered"]) .ac-mark { background: var(--ac-neutral); color: var(--ac-text); }
 .ac-mark svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round;
   stroke-linejoin: round; }

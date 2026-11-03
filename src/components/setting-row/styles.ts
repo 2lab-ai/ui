@@ -4,8 +4,9 @@
  * query, so the row follows the box it is given). Modified = an ink dot hung in the left padding, not a coloured
  * rail. Status words rise in once (opacity + 2px, fade duration) when they change; nothing moves on first paint.
  */
-const done = 'color-mix(in srgb, var(--st-done) 70%, var(--ib-text))';
-const fail = 'color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text))';
+// Mono (0.25.0, --chroma 0): the word is ink; its icon keeps the state colour.
+const done = 'color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text))';
+const fail = 'color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text))';
 
 export const styles = `
 :host { display: block; min-width: 0; }
@@ -58,8 +59,9 @@ export const styles = `
 .sr-control > .sr-live:not(:empty) { margin-top: 6px; }
 .sr-msg { display: inline-flex; align-items: flex-start; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
 .sr-msg > svg, .sr-spin { flex: none; margin-top: 3px; }
-.sr-msg[data-state="saved"] { color: ${done}; }
-.sr-msg[data-state="error"] { color: ${fail}; }
+.sr-msg[data-state="saved"] { --sr-c: var(--st-done); color: ${done}; }
+.sr-msg[data-state="error"] { --sr-c: var(--st-fail); color: ${fail}; }
+.sr-msg > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--sr-c, currentColor)); }
 .sr-spin {
   width: 11px; height: 11px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%;
   opacity: 0.7; animation: sr-spin 0.9s linear infinite;

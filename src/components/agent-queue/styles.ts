@@ -10,7 +10,7 @@ export const styles = `
   --aq-now: var(--ui-aq-now, color-mix(in oklch, var(--green) 55%, var(--accent)));
   --aq-wk: var(--ui-aq-wk, var(--purple));
   --aq-warn: var(--st-wait);
-  --aq-warn-text: color-mix(in srgb, var(--st-wait) 75%, var(--text));
+  --aq-warn-text: color-mix(in srgb, var(--st-wait) calc(75% * var(--chroma)), var(--text));
   /* Chip numbers are text: the window colours pulled toward --text so they hold 4.5:1 on the card. */
   --aq-now-text: color-mix(in srgb, var(--aq-now) 70%, var(--text));
   --aq-wk-text: color-mix(in srgb, var(--aq-wk) 80%, var(--text));
@@ -20,12 +20,14 @@ export const styles = `
 /* ── Shared grammar: pill, countdown, column head ── */
 .aq-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; min-width: 0; }
 .aq-name { font-size: 12px; color: var(--ib-muted); white-space: nowrap; }
-.aq-pill { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--aq-pc, var(--ib-text-2)); background: color-mix(in srgb, var(--aq-pc, var(--ib-muted)) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aq-pc, var(--ib-muted)) 45%, transparent); }
+.aq-pill { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--aq-pc, var(--ib-text-2)) calc(100% * var(--chroma)), var(--ib-text-2)); background: color-mix(in srgb, var(--aq-pc, var(--ib-muted)) calc(14% * var(--chroma)), transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aq-pc, var(--ib-muted)) 45%, transparent); }
 .aq-pill.is-ok { --aq-pc: var(--st-done); }
 .aq-pill.is-run { --aq-pc: var(--st-run); }
 .aq-pill.is-paused, .aq-pill.is-low, .aq-pill.is-wait { --aq-pc: var(--aq-warn); color: var(--aq-warn-text); }
 .aq-pill.is-empty { --aq-pc: var(--st-fail); color: var(--st-fail-text); }
 .aq-pill.is-unknown { --aq-pc: var(--ib-muted); }
+/* Mono (0.25.0): the pill's word is the secondary ink; its icon keeps the state colour. */
+.aq-pill .aq-si { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--aq-pc, currentColor)); }
 .aq-left, .aq-ago { font-variant-numeric: tabular-nums; }
 .aq-col-head { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--ib-muted); }
 .aq-col-head b { color: var(--ib-text); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -129,13 +131,15 @@ export const styles = `
 .aq-mark { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; max-width: 100%; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: background-color var(--dur-fade) var(--ease-out), color var(--dur-fade) var(--ease-out), border-color var(--dur-fade) var(--ease-out); }
 .aq-mark b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .aq-si { flex: none; width: 12px; height: 12px; }
+/* An account badge's icon keeps its state in mono (the badge's word has gone to ink). */
+.aq-stack .aq-mark .aq-si { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--aq-sc)); }
 /* No position here: the account card measures marks against .aq-workers (see updated()). */
 .aq-stack { --aq-sc: var(--ib-muted); --aq-st: var(--ib-text-2); display: inline-flex; align-items: center; max-width: 100%; }
 .aq-stack.is-warn { --aq-sc: var(--aq-warn); --aq-st: var(--aq-warn-text); }
 .aq-stack.is-fail { --aq-sc: var(--st-fail); --aq-st: var(--st-fail-text); }
 .aq-stack.is-out { --aq-st: var(--ib-muted); }
 /* Opaque fills and a card-coloured ring: each badge reads cut over the one before it. */
-.aq-stack .aq-mark { color: var(--aq-st); background: color-mix(in srgb, var(--aq-sc) 16%, var(--ib-card)); border-color: color-mix(in srgb, var(--aq-sc) 55%, var(--ib-card)); box-shadow: 0 0 0 2px var(--ib-card); }
+.aq-stack .aq-mark { color: var(--aq-st); background: color-mix(in srgb, var(--aq-sc) calc(16% * var(--chroma)), var(--ib-card)); border-color: color-mix(in srgb, var(--aq-sc) 55%, var(--ib-card)); box-shadow: 0 0 0 2px var(--ib-card); }
 .aq-stack .aq-mark + .aq-mark { margin-left: -8px; }
 .aq-stack.is-out .aq-mark { background: var(--ib-card); border-style: dashed; }
 .aq-mark[aria-expanded="true"], .aq-stack .aq-mark[aria-expanded="true"] { border-color: var(--ib-text-2); }
@@ -196,8 +200,9 @@ export const styles = `
 .cron-group.is-running .cron-tile { --st-color: var(--st-run); }
 .cron-group.is-waiting .cron-tile { --st-color: var(--aq-warn-text); }
 .cron-tile-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.cron-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5; color: var(--st-color, var(--ib-text-2)); background: color-mix(in srgb, var(--st-color, var(--ib-muted)) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color, var(--ib-muted)) 45%, transparent); }
-.cron-badge svg { width: 12px; height: 12px; }
+.cron-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5; color: color-mix(in srgb, var(--st-color, var(--ib-text-2)) calc(100% * var(--chroma)), var(--ib-text-2)); background: color-mix(in srgb, var(--st-color, var(--ib-muted)) calc(14% * var(--chroma)), transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color, var(--ib-muted)) 45%, transparent); }
+.cron-badge svg { width: 12px; height: 12px; color: var(--st-color, var(--ib-text-2)); }
+.cron-group.is-waiting .cron-badge svg { color: color-mix(in srgb, var(--st-color) calc(100% * var(--chroma)), var(--st-wait)); }
 .cron-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ib-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cron-note { flex-shrink: 0; padding: 0 6px; border-radius: 999px; border: 1px solid var(--ib-card-border); font-size: 11px; color: var(--ib-muted); white-space: nowrap; }
 /* The host's live card for the job (slot="job:<id>") sits under its tile. */
@@ -217,7 +222,7 @@ export const styles = `
 @keyframes cr-pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: no-preference) { .cr-tick.is-run { animation: cr-pulse 1.6s ease-in-out infinite; } }
 .cron-status { font-size: 12px; color: var(--ib-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cron-status.is-run { color: var(--st-run); font-weight: 600; }
+.cron-status.is-run { color: color-mix(in srgb, var(--st-run) calc(100% * var(--chroma)), var(--ib-text-2)); font-weight: 600; }
 .cron-status.is-wait { color: var(--aq-warn-text); font-weight: 600; }
 .cron-status.is-fail { color: var(--st-fail-text); }
 

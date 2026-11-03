@@ -291,7 +291,10 @@ describe('<ui-tabs>', () => {
       // The mark is drawn, not read: the tab's name is its label and meta.
       expect(tabs[0].textContent).toBe('MainOpus 5.5 (1M)');
       expect(styles).toContain('.tb-mark {');
-      expect(styles).toContain('color: var(--model-hue, currentColor)');
+      // The maker's colour in the colour themes; the tab's own ink under the mono palette (--chroma 0, 0.25.0).
+      expect(styles).toContain(
+        'color: color-mix(in srgb, var(--model-hue, currentColor) calc(100% * var(--chroma)), currentColor)',
+      );
       expect(styles).toMatch(/forced-colors: active\) \{[^}]*\.tb-mark \{ color: CanvasText; \}/);
     });
 

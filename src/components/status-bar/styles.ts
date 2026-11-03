@@ -3,8 +3,11 @@
  * language: a status pill tinted 14% in its st-* tone with the word pulled toward ink, a tabular clock, neutral
  * buttons with one ink primary, a danger tone, and 44px targets on touch. The row wraps; actions keep to the end.
  */
-const tint = (tone: string) => `color-mix(in srgb, ${tone} 14%, var(--ib-card))`;
-const toneText = (tone: string) => `color-mix(in srgb, ${tone} 70%, var(--ib-text))`;
+// Mono (0.25.0, --chroma 0): the chip is the neutral pill in the secondary ink; its icon (--sb-c) keeps the state.
+const tint = (tone: string) =>
+  `color-mix(in srgb, ${tone} calc(14% * var(--chroma)), color-mix(in srgb, var(--ib-card) calc(100% * var(--chroma)), var(--ib-pill)))`;
+const toneText = (tone: string) =>
+  `color-mix(in srgb, ${tone} calc(70% * var(--chroma)), color-mix(in srgb, var(--ib-text) calc(100% * var(--chroma)), var(--ib-text-2)))`;
 const COLOR_T = 'var(--dur-press) ease';
 
 export const styles = `
@@ -45,7 +48,7 @@ export const styles = `
 .sb-bi svg { width: 14px; height: 14px; }
 .sb-btn.is-primary { background: var(--ib-text); border-color: var(--ib-text); color: var(--ib-card); }
 .sb-btn.is-danger { color: var(--st-fail-text); border-color: color-mix(in srgb, var(--st-fail) 40%, var(--ib-card-border)); }
-.sb-btn.is-danger.is-primary { background: var(--st-fail); border-color: var(--st-fail); color: var(--ib-card); }
+.sb-btn.is-danger.is-primary { background: color-mix(in srgb, var(--st-fail) calc(100% * var(--chroma)), var(--ib-text)); border-color: color-mix(in srgb, var(--st-fail) calc(100% * var(--chroma)), var(--ib-text)); color: var(--ib-card); }
 .sb-btn.is-danger:not(.is-primary)[data-armed] { background: ${tint('var(--st-fail)')}; border-color: var(--st-fail); color: ${toneText('var(--st-fail-text)')}; }
 /* Quiet: borderless and muted, for a lesser action beside the others; the danger word keeps its colour */
 .sb-btn.is-quiet { border-color: transparent; background: transparent; color: var(--ib-text-2); }
@@ -75,7 +78,7 @@ export const styles = `
   .sb-btn.is-danger:hover:not(:disabled) { border-color: var(--st-fail); background: ${tint('var(--st-fail)')}; }
   .sb-btn.is-quiet:hover:not(:disabled) { border-color: transparent; background: var(--ib-pill); color: var(--ib-text); }
   .sb-btn.is-quiet.is-danger:hover:not(:disabled) { background: ${tint('var(--st-fail)')}; color: var(--st-fail-text); }
-  .sb-btn.is-danger.is-primary:hover:not(:disabled) { background: var(--st-fail); opacity: 0.88; }
+  .sb-btn.is-danger.is-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--st-fail) calc(100% * var(--chroma)), var(--ib-text)); opacity: 0.88; }
   .sb-link:hover { text-decoration: underline; }
 }
 /* 44px targets on touch and narrow screens. */

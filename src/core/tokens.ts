@@ -10,6 +10,18 @@ export type TokenSet = Record<string, string>;
 export const LIGHT: TokenSet = tokens.light;
 export const DARK: TokenSet = tokens.dark;
 export const SHARED: TokenSet = tokens.shared;
+/**
+ * The mono palette (0.25.0): overrides of LIGHT / DARK, applied with `data-palette="mono"` beside `data-theme`.
+ * Colour is kept for the four task states only, and only as a mark. The decorative hues (accent, green, yellow,
+ * red, purple, orange, the spark) and the focus ring turn neutral; error text is ink; and `chroma` drops to 0.
+ *
+ * `--chroma` (1 in the colour themes, 0 in mono) scales every status colour a component mixes into a fill or a
+ * text tint: `color-mix(in srgb, var(--st-run) calc(16% * var(--chroma)), var(--ib-card))` is today's 16% wash
+ * in light and dark and the plain card in mono. A status colour on an icon, a dot, a bar or a border is not
+ * scaled — in mono that mark is the one place a state shows its colour.
+ */
+export const MONO_LIGHT: TokenSet = tokens['mono-light'];
+export const MONO_DARK: TokenSet = tokens['mono-dark'];
 
 function hostVars(set: TokenSet): string {
   return Object.entries(set)
@@ -47,9 +59,16 @@ button { cursor: pointer; }
 }
 `;
 
-/** Optional page-level tokens (`@2lab.ai/ui/tokens.css`): `data-theme="dark|light"` on any ancestor switches. */
-export const tokensCss = `/* @2lab.ai/ui design tokens */
+/**
+ * Optional page-level tokens (`@2lab.ai/ui/tokens.css`): `data-theme="dark|light"` on any ancestor switches, and
+ * `data-palette="mono"` on the same element turns that theme into its mono pair (light·mono / dark·mono). The mono
+ * blocks only override; they follow the colour blocks so they win at their higher specificity.
+ */
+export const tokensCss = `/* @2lab.ai/ui design tokens — data-theme="dark|light" on any ancestor switches; data-palette="mono" beside it turns the theme mono */
 :root, [data-theme="light"] { ${pageVars(SHARED)} ${pageVars(LIGHT)} color-scheme: light; }
 [data-theme="dark"] { ${pageVars(DARK)} color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${pageVars(DARK)} color-scheme: dark; } }
+[data-palette="mono"]:not([data-theme="dark"]) { ${pageVars(MONO_LIGHT)} }
+[data-palette="mono"][data-theme="dark"] { ${pageVars(MONO_DARK)} }
+@media (prefers-color-scheme: dark) { :root[data-palette="mono"]:not([data-theme="light"]) { ${pageVars(MONO_DARK)} } }
 `;

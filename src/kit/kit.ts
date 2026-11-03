@@ -37,10 +37,21 @@ export const KIT_CLASSES = [
 ] as const;
 
 const T = (name: string): string => `var(--ui-${name})`;
-/** Text in a status colour, pulled toward ink so it reads ≥ 4.5:1 on the card and on its own tint (both themes). */
-const toneText = (tone: string): string => `color-mix(in srgb, ${tone} 70%, ${T('ib-text')})`;
-/** The status tint behind a pill: 16% of the status colour into the card (the board's tag recipe). */
-const toneTint = (tone: string): string => `color-mix(in srgb, ${tone} 16%, ${T('ib-card')})`;
+/**
+ * The mono palette's knob (0.25.0): 1 in the colour themes, 0 under data-palette="mono" — a status colour mixed into
+ * a fill or a text is scaled by it, so mono keeps a state's colour on its mark (dot, ring, border) alone.
+ */
+const CHROMA = 'var(--ui-chroma, 1)';
+/** `colour` in the colour themes, `mono` under the mono palette (exactly `colour` while --ui-chroma is 1). */
+const pick = (colour: string, mono: string): string => `color-mix(in srgb, ${colour} calc(100% * ${CHROMA}), ${mono})`;
+/** Text in a status colour, pulled toward ink so it reads ≥ 4.5:1 on the card and on its own tint (both themes); the secondary ink in mono. */
+const toneText = (tone: string): string =>
+  `color-mix(in srgb, ${tone} calc(70% * ${CHROMA}), ${pick(T('ib-text'), T('ib-text-2'))})`;
+/** The status tint behind a pill: 16% of the status colour into the card (the board's tag recipe); the neutral pill in mono. */
+const toneTint = (tone: string): string =>
+  `color-mix(in srgb, ${tone} calc(16% * ${CHROMA}), ${pick(T('ib-card'), T('ib-pill'))})`;
+/** A banner's tint: as toneTint in colour, but the card itself in mono — a banner keeps only its status border. */
+const bannerTint = (tone: string): string => `color-mix(in srgb, ${tone} calc(16% * ${CHROMA}), ${T('ib-card')})`;
 const COLOR_T = `var(--ui-dur-press) ease`;
 const PRESS_T = `transform ${T('dur-press')} ${T('ease-out')}`;
 const BTN_T = `background-color ${COLOR_T}, border-color ${COLOR_T}, color ${COLOR_T}, opacity ${COLOR_T}, ${PRESS_T}`;
@@ -127,7 +138,7 @@ select.ui-input.is-sm { padding-right: 26px; }
 .ui-notice a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 ${TONES.map(
   ([k, dot, text]) =>
-    `.ui-notice[data-tone="${k}"] { --ui-tone: ${dot}; border-color: color-mix(in srgb, ${dot} 35%, ${T('ib-card-border')}); background: ${toneTint(dot)}; color: ${toneText(text)}; }\n.ui-notice[data-tone="${k}"] strong { color: inherit; }`,
+    `.ui-notice[data-tone="${k}"] { --ui-tone: ${dot}; border-color: color-mix(in srgb, ${dot} 35%, ${T('ib-card-border')}); background: ${bannerTint(dot)}; color: ${toneText(text)}; }\n.ui-notice[data-tone="${k}"] strong { color: inherit; }`,
 ).join('\n')}
 
 /* ── Row: a list row — leading glyph in the tone, a <div> with <strong> title and <small> meta, trailing .is-end ── */
@@ -185,7 +196,7 @@ export const kitCss = `/* @2lab.ai/ui kit — light-DOM classes. Reads the --ui-
 .ui-btn.is-primary { background: ${T('ib-text')}; border-color: ${T('ib-text')}; color: ${T('ib-card')}; }
 .ui-btn.is-quiet { background: transparent; border-color: transparent; color: ${T('ib-text-2')}; }
 .ui-btn.is-danger { color: ${T('st-fail-text')}; border-color: color-mix(in srgb, ${T('st-fail')} 40%, ${T('ib-card-border')}); }
-.ui-btn.is-danger.is-primary { background: ${T('st-fail')}; border-color: ${T('st-fail')}; color: ${T('ib-card')}; }
+.ui-btn.is-danger.is-primary { background: ${pick(T('st-fail'), T('ib-text'))}; border-color: ${pick(T('st-fail'), T('ib-text'))}; color: ${T('ib-card')}; }
 .ui-btn.is-sm { min-height: 28px; padding: 3px 10px; border-radius: 7px; font-size: 12.5px; }
 .ui-btn.is-lg { min-height: 40px; padding: 8px 16px; border-radius: 10px; font-size: 14px; }
 .ui-btn.is-block { display: flex; width: 100%; }
@@ -364,6 +375,7 @@ ${TONES.map(([k, dot]) => `.ui-status.is-pill[data-tone="${k}"] { background: ${
 .ui-status-line:empty { display: none; }
 .ui-status-line > svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 ${TONES.map(([k, , text]) => `.ui-status-line[data-tone="${k}"] { color: ${toneText(text)}; }`).join('\n')}
+${TONES.map(([k, dot]) => `.ui-status-line[data-tone="${k}"] > svg { color: ${pick('currentColor', dot)}; }`).join('\n')}
 
 /* ── Avatar: a glyph tile with a hairline (letter, svg or img) ── */
 .ui-avatar {
@@ -425,7 +437,7 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
   .ui-btn.is-primary:hover:not(:disabled):not([aria-disabled="true"]) { border-color: ${T('ib-text')}; opacity: 0.88; }
   .ui-btn.is-quiet:hover:not(:disabled):not([aria-disabled="true"]) { border-color: transparent; background: ${T('ib-pill')}; color: ${T('ib-text')}; }
   .ui-btn.is-danger:hover:not(:disabled):not([aria-disabled="true"]) { border-color: ${T('st-fail')}; background: ${toneTint(T('st-fail'))}; }
-  .ui-btn.is-danger.is-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: ${T('st-fail')}; opacity: 0.88; }
+  .ui-btn.is-danger.is-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: ${pick(T('st-fail'), T('ib-text'))}; opacity: 0.88; }
   .ui-icon-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: ${T('ib-pill')}; color: ${T('ib-text')}; }
   .ui-icon-btn.is-bordered:hover:not(:disabled):not([aria-disabled="true"]) { border-color: ${T('ib-muted')}; }
   .ui-fab:hover { opacity: 0.9; }

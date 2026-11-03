@@ -109,7 +109,7 @@ function page(
       name === 'ui-navigate'
         ? `ui-navigate → ${(d as AppBarNavigate).id} (${(d as AppBarNavigate).href || 'no href'})`
         : name === 'ui-theme-change'
-          ? `ui-theme-change → ${(d as AppBarThemeChange).theme}`
+          ? `ui-theme-change → ${(d as AppBarThemeChange).theme}${(d as AppBarThemeChange).palette === 'mono' ? ' · mono' : ''}`
           : name);
   // A client-side router would take every link over: the demo marks the page current instead of leaving.
   bar.addEventListener('ui-navigate', (e) => {
@@ -126,6 +126,8 @@ function page(
   bar.addEventListener('ui-theme-change', (e) => {
     const d = (e as CustomEvent<AppBarThemeChange>).detail;
     win.dataset.theme = d.theme;
+    if (d.palette === 'mono') win.dataset.palette = 'mono';
+    else delete win.dataset.palette;
     line.textContent = say('ui-theme-change', d);
   });
   // The demo's speaker only reports: the site's own speaker (top right) turns sound on for the whole page.
@@ -153,6 +155,7 @@ const WORKBENCH: AppBarData = {
   status: { tone: 'done', label: 'Live', live: true },
   account: { name: 'Mina Park', role: 'Admin', href: '/account' },
   theme: 'light',
+  palette: 'color',
   sound: false,
 };
 
@@ -210,6 +213,12 @@ export const doc: ComponentDoc = {
       type: "'light' | 'dark'",
       description:
         'The page’s current theme. When set, the toggle shows: a sun while dark, a moon while light. Clicking sends ui-theme-change and, unless cancelled, the toggle shows the new theme at once.',
+    },
+    {
+      name: 'data.palette',
+      type: "'color' | 'mono'",
+      description:
+        'The page’s current palette (0.25.0). When set beside theme, the toggle cycles four themes — light → dark → light·mono → dark·mono → light — names the next one in its label, and ui-theme-change carries the palette. Unset: light ⇄ dark.',
     },
     {
       name: 'data.sound',
@@ -299,9 +308,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-theme-change',
-      detail: "{ theme: 'light' | 'dark' }",
+      detail: "{ theme: 'light' | 'dark'; palette?: 'color' | 'mono' }",
       description:
-        'The toggle asks for the other theme. Apply it to the page; preventDefault() keeps the toggle as it was.',
+        'The toggle asks for the next theme (and palette, when the bar has one). Apply it to the page — data-theme, and data-palette="mono" beside it for the mono pair; preventDefault() keeps the toggle as it was.',
     },
     {
       name: 'ui-sound-change',
@@ -350,6 +359,8 @@ export const doc: ComponentDoc = {
     status: { tone: 'run', label: 'Connecting…', live: true },
     account: { name: 'Mina Park', role: 'Admin', href: '/account' },
     theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+    // With a palette the toggle walks light → dark → light·mono → dark·mono (0.25.0).
+    palette: document.documentElement.dataset.palette === 'mono' ? 'mono' : 'color',
     sound: localStorage.getItem('sound') === 'on',
   };
   // Client-side routing: take the link over.
@@ -360,6 +371,8 @@ export const doc: ComponentDoc = {
   // The host owns the page theme.
   bar.addEventListener('ui-theme-change', (e) => {
     document.documentElement.dataset.theme = e.detail.theme;
+    if (e.detail.palette === 'mono') document.documentElement.dataset.palette = 'mono';
+    else delete document.documentElement.dataset.palette;
   });
   // …and the interface-sound choice (off until the person turns it on).
   bar.addEventListener('ui-sound-change', async (e) => {

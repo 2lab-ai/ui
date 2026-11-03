@@ -250,7 +250,9 @@ describe('<ui-context-window> host gaps', () => {
   });
 
   it('keeps warn text at ≥4.5:1 in light, on the surface and on the warn tint', () => {
-    const m = /--cw-warn: color-mix\(in srgb, var\(--st-wait\) (\d+)%, var\(--text\)\)/.exec(styles);
+    const m = /--cw-warn: color-mix\(in srgb, var\(--st-wait\) calc\((\d+)% \* var\(--chroma\)\), var\(--text\)\)/.exec(
+      styles,
+    );
     expect(m).not.toBeNull();
     const pct = Number(m![1]) / 100;
     const rgb = (h: string) => [1, 3, 5].map((i) => Number.parseInt(h.slice(i, i + 2), 16));
