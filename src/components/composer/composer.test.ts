@@ -6,6 +6,7 @@ import type {
   ComposerData,
   ComposerFilesDetail,
   ComposerInputDetail,
+  ComposerModeDetail,
   ComposerOverCapDetail,
   ComposerRecordDetail,
   ComposerRejectDetail,
@@ -22,6 +23,7 @@ import {
   composerEnterAction,
   composerEnterMode,
   composerLevel,
+  composerMode,
   composerPastedName,
   composerRecorderMime,
   composerRows,
@@ -1066,6 +1068,146 @@ describe('<ui-composer> host tools', () => {
   });
 });
 
+describe('<ui-composer> mode switch (0.26.0)', () => {
+  const PLAN = { id: 'plan', label: 'Plan first', text: 'Plan', on: false, submitLabel: 'Start plan' };
+  const sw = (el: UiComposer) => q<HTMLButtonElement>(el, '.cp-mode');
+
+  it('logic: composerMode needs an id; on only when exactly true; text trimmed; submitLabel kept even empty', () => {
+    expect(composerMode(undefined)).toBeNull();
+    expect(composerMode([])).toBeNull();
+    expect(composerMode({ label: 'x' })).toBeNull();
+    expect(composerMode({ id: 7 })).toEqual({ id: '7', label: '7', on: false });
+    expect(composerMode({ id: 'p', on: 'yes', text: '  ', disabled: 1 })).toEqual({
+      id: 'p',
+      label: 'p',
+      on: false,
+      disabled: true,
+    });
+    expect(composerMode({ ...PLAN, on: true, text: ' Plan ', submitLabel: '' })).toEqual({
+      ...PLAN,
+      on: true,
+      submitLabel: '',
+    });
+  });
+
+  it('sits in the end group right before send, a role="switch" named by its label; none without data.mode', () => {
+    expect(sw(mount({ submitLabel: 'Start task' }))).toBeNull();
+    const el = mount({ submitLabel: 'Start task', hint: true, maxLength: 100, mode: PLAN });
+    const end = q(el, '.cp-end')!;
+    expect(Array.from(end.children).map((c) => c.className.split(' ')[0])).toEqual([
+      'cp-hint',
+      'cp-count',
+      'cp-mode',
+      'cp-send',
+    ]);
+    const b = sw(el)!;
+    expect(b.getAttribute('role')).toBe('switch');
+    expect(b.getAttribute('aria-checked')).toBe('false');
+    expect(b.getAttribute('aria-label')).toBe('Plan first');
+    expect(b.getAttribute('title')).toBe('Plan first');
+    expect(b.querySelector('.cp-mode-text')!.textContent).toBe('Plan');
+    expect(b.querySelector('.cp-mode-text')!.getAttribute('aria-hidden')).toBe('true');
+    expect(b.querySelector('.cp-mode-sun [data-icon="sun"]')).toBeTruthy();
+    expect(b.querySelector('.cp-mode-moon [data-icon="moon"]')).toBeTruthy();
+    expect(sendBtn(el).getAttribute('data-mode')).toBe('off');
+    expect(sendBtn(el).textContent).toBe('Start task');
+  });
+
+  it('on: the send button takes mode.submitLabel and the night; unset keeps submitLabel; empty leaves the arrow', () => {
+    const el = mount({ submitLabel: 'Start task', mode: { ...PLAN, on: true } });
+    expect(sw(el)!.getAttribute('aria-checked')).toBe('true');
+    expect(sendBtn(el).getAttribute('data-mode')).toBe('on');
+    expect(sendBtn(el).textContent).toBe('Start plan');
+    set(el, { mode: { id: 'plan', label: 'Plan first', on: true } });
+    expect(sendBtn(el).textContent).toBe('Start task');
+    set(el, { mode: { ...PLAN, on: true, submitLabel: '' } });
+    expect(sendBtn(el).textContent).toBe('');
+    expect(sendBtn(el).getAttribute('aria-label')).toBe(T.send);
+    expect(sendBtn(el).querySelector('[data-icon="arrow-up"]')).toBeTruthy();
+  });
+
+  it('ui-mode asks for the flip and the switch, label and night change at once; a flip only after first paint', () => {
+    const el = mount({ submitLabel: 'Start task', mode: PLAN });
+    expect(sendBtn(el).hasAttribute('data-flip')).toBe(false);
+    const ev = events<ComposerModeDetail>(el, 'ui-mode');
+    sw(el)!.click();
+    expect(ev).toEqual([{ id: 'plan', on: true }]);
+    expect(sw(el)!.getAttribute('aria-checked')).toBe('true');
+    expect(sendBtn(el).getAttribute('data-mode')).toBe('on');
+    expect(sendBtn(el).hasAttribute('data-flip')).toBe(true);
+    expect(q(el, '.cp-send-text')!.getAttribute('data-mk')).toBe('send-text:on');
+    expect(sendBtn(el).textContent).toBe('Start plan');
+    sw(el)!.click();
+    expect(ev[1]).toEqual({ id: 'plan', on: false });
+    expect(sendBtn(el).textContent).toBe('Start task');
+    expect(q(el, '.cp-send-text')!.getAttribute('data-mk')).toBe('send-text:off');
+    // Mounted on: the night is there from the start, with no entrance.
+    const night = mount({ submitLabel: 'Start task', mode: { ...PLAN, on: true } });
+    expect(sendBtn(night).getAttribute('data-mode')).toBe('on');
+    expect(sendBtn(night).hasAttribute('data-flip')).toBe(false);
+  });
+
+  it('the label node is replaced on a flip (its entrance runs) and kept otherwise', () => {
+    const el = mount({ submitLabel: 'Start task', mode: PLAN });
+    const before = q(el, '.cp-send-text');
+    type(el, 'Hello');
+    set(el, { maxLength: 10 });
+    expect(q(el, '.cp-send-text')).toBe(before);
+    sw(el)!.click();
+    expect(q(el, '.cp-send-text')).not.toBe(before);
+  });
+
+  it('a cancelled ui-mode keeps it; a new data.mode is the truth again; a host answering in its listener stays in charge', () => {
+    const el = mount({ mode: PLAN });
+    events(el, 'ui-mode', true);
+    sw(el)!.click();
+    expect(sw(el)!.getAttribute('aria-checked')).toBe('false');
+    const host = mount({ mode: PLAN });
+    sw(host)!.click();
+    expect(sw(host)!.getAttribute('aria-checked')).toBe('true');
+    set(host, { mode: { ...PLAN, on: false } });
+    expect(sw(host)!.getAttribute('aria-checked')).toBe('false');
+    const owner = mount({ mode: PLAN });
+    owner.addEventListener('ui-mode', (e) => {
+      const { on } = (e as CustomEvent<ComposerModeDetail>).detail;
+      owner.data = { ...owner.data, mode: { ...PLAN, on } };
+    });
+    sw(owner)!.click();
+    expect(sw(owner)!.getAttribute('aria-checked')).toBe('true');
+    sw(owner)!.click();
+    expect(sw(owner)!.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('disabled (its own flag or the composer’s) does not flip; the recorder row hides it', () => {
+    const el = mount({ mode: { ...PLAN, disabled: true } });
+    const ev = events(el, 'ui-mode');
+    expect(sw(el)!.disabled).toBe(true);
+    sw(el)!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const ro = mount({ mode: PLAN, disabled: 'Ended' });
+    expect(sw(ro)!.disabled).toBe(true);
+    sw(ro)!.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(ev).toEqual([]);
+    expect(sw(ro)!.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('escapes label and text; lang="ko" draws the same switch', () => {
+    const el = mount({ mode: { id: 'x', label: XSS, text: XSS, on: true, submitLabel: XSS } });
+    expect(el.shadowRoot!.querySelector('img')).toBeNull();
+    expect(sw(el)!.getAttribute('aria-label')).toBe(XSS);
+    expect(q(el, '.cp-mode-text')!.textContent).toBe(XSS);
+    expect(sendBtn(el).textContent).toBe(XSS);
+    const ko = mount(
+      {
+        submitLabel: '작업 시작',
+        mode: { id: 'plan', label: '계획 먼저', text: '계획', on: true, submitLabel: '계획 시작' },
+      },
+      { lang: 'ko' },
+    );
+    expect(sw(ko)!.getAttribute('aria-label')).toBe('계획 먼저');
+    expect(sendBtn(ko).textContent).toBe('계획 시작');
+  });
+});
+
 // ── Voice recorder ──
 
 describe('<ui-composer> voice recorder', () => {
@@ -1624,6 +1766,19 @@ describe('styles', () => {
     expect(styles).toContain('animation: cp-spin 0.9s linear infinite');
     expect(styles).toMatch(/\.cp-send \{[^}]*background: var\(--ib-text\); color: var\(--ib-card\)/);
     expect(styles).toContain('color-mix(in srgb');
+  });
+
+  it('mode switch: tokens only, night pulled to ink by --chroma, entrances only after a flip, hover gated', () => {
+    expect(styles).toMatch(
+      /--cp-night-a: color-mix\(in srgb, var\(--st-run\) calc\(70% \* var\(--chroma\)\),\s+color-mix\(in srgb, var\(--purple\) calc\(30% \* var\(--chroma\)\), var\(--ib-text\)\)\);/,
+    );
+    expect(styles).toContain('.cp-send[data-mode="on"]::before { opacity: 1; }');
+    expect(styles).toContain('.cp-send[data-flip] .cp-send-text { animation: cp-rise');
+    expect(styles).toContain('.cp-send[data-flip][data-mode="on"]::after { animation: cp-sweep');
+    expect(styles).toContain('.cp-mode[aria-checked="true"] .cp-mode-thumb { transform: translateX(20px);');
+    expect(styles).toContain('@container cp (max-width: 400px) { .cp-mode-text { display: none; } }');
+    const coarse = styles.match(/@media \(pointer: coarse\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(coarse).toContain('.cp-mode { height: 44px;');
   });
 
   it('44px targets on coarse pointers', () => {
