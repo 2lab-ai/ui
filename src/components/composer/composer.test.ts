@@ -1163,6 +1163,17 @@ describe('<ui-composer> mode switch (0.26.0)', () => {
     expect(sendBtn(el).textContent).toBe('Start plan');
   });
 
+  it('a host that answers ui-mode and renders at once keeps its answer — even a refusal (trinity R1, astra)', () => {
+    const el = mount({ mode: PLAN });
+    el.addEventListener('ui-mode', () => {
+      el.data = { ...el.data, mode: { ...PLAN, on: false } }; // the host says no
+      el.renderNow();
+    });
+    sw(el)!.click();
+    expect(sw(el)!.getAttribute('aria-checked')).toBe('false');
+    expect(sendBtn(el).getAttribute('data-mode')).toBe('off');
+  });
+
   it('the label node is replaced on a flip (its entrance runs) and kept otherwise', () => {
     const el = mount({ submitLabel: 'Start task', mode: PLAN });
     const before = q(el, '.cp-send-text');
