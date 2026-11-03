@@ -223,6 +223,7 @@ export const doc: ComponentDoc = {
     'shared-panel: one role="tabpanel" every tab aria-controls, labelled by the selected tab. panel-focus="none" removes the panel’s tabindex — give the slotted child one (and a name) so the panel content stays reachable.',
     'meta is read as part of the tab’s name (“Main opus-5-5”); keep the status word in title when a tone dot carries it.',
     'Status dots are decoration next to a text label — put the state in the label or title when it matters.',
+    'A model mark (`model`) is aria-hidden: it is drawn, not read, so name the model in meta or title when the reader needs it. It sits between the status dot and an `icon`; set one leading glyph, not both, unless both mean something.',
     'The underline is aria-hidden; selection is also carried by the ink label colour, not colour alone.',
     'Reduced motion: the underline jumps, the panel does not fade, the running dot stops pulsing.',
     'Sound (opt-in, @2lab.ai/ui/sound): choosing another tab plays a subtle select, forward to a later tab and back to an earlier one. Silent until the page turns sound on.',
