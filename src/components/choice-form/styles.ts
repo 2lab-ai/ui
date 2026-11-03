@@ -182,10 +182,10 @@ input { letter-spacing: inherit; }
 .cf-hint { flex: 1 1 auto; min-width: 0; color: var(--ib-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .cf-actions { display: flex; gap: 6px; margin-left: auto; }
 .cf-error { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; padding: 8px 10px; border-radius: 8px;
-  background: color-mix(in srgb, var(--st-fail) 14%, var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text));
+  background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text));
   font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; }
 .cf-error:last-child { margin-bottom: 0; }
-.cf-error-icon { flex: none; margin-top: 2px; }
+.cf-error-icon { flex: none; margin-top: 2px; color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-fail)); }
 /* Locked (canAnswer): a quiet line with a lock — the form stays readable, every control is held */
 .cf-lock { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; padding: 0 2px; color: var(--ib-muted); font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; }
 .cf-lock:last-child { margin-bottom: 0; }
@@ -198,8 +198,8 @@ input { letter-spacing: inherit; }
 .cf-done-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 0 2px; font-size: 13.5px; font-weight: 600;
   line-height: 20px; }
 .cf-done-mark { display: inline-grid; flex: none; place-items: center; width: 20px; height: 20px; border-radius: 50%;
-  background: color-mix(in srgb, var(--st-done) 16%, var(--ib-card)); color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
-.cf-done-word { color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
+  background: color-mix(in srgb, var(--st-done) calc(16% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-done) calc(70% + 30% * (1 - var(--chroma))), var(--ib-text)); }
+.cf-done-word { color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }
 .cf-done-title { min-width: 0; color: var(--ib-text); overflow-wrap: anywhere; }
 .cf-done-title::before { content: "·"; margin-right: 8px; color: var(--ib-muted); font-weight: 400; }
 .cf-sum { display: grid; gap: 6px; margin: 10px 0 0; }

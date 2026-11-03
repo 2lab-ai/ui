@@ -32,14 +32,14 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
   line-height: 20px; white-space: nowrap; text-overflow: ellipsis; }
 .at-sum { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 10px; margin-left: auto;
   color: var(--at-muted); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.at-sum-run { color: color-mix(in srgb, var(--st-run) 82%, var(--text)); }
+.at-sum-run { color: color-mix(in srgb, var(--st-run) calc(82% * var(--chroma)), var(--text)); }
 .at-sum-btn { position: relative; display: inline-flex; align-items: center; gap: 4px; height: 22px; margin: -3px 0;
   padding: 0 7px 0 5px; border-radius: 5px; font-size: 12px; font-weight: 500;
   transition: background-color 160ms ease, filter 160ms ease; }
 .at-sum-btn svg { width: 12px; height: 12px; stroke-width: 1.8; }
-.at-sum-btn[data-jump="needs_you"] { background: color-mix(in srgb, var(--st-wait) 15%, transparent);
-  color: color-mix(in srgb, var(--st-wait) 70%, var(--text)); }
-.at-sum-btn[data-jump="failed"] { background: color-mix(in srgb, var(--st-fail) 12%, transparent); color: var(--st-fail-text); }
+.at-sum-btn[data-jump="needs_you"] { background: color-mix(in srgb, var(--st-wait) calc(15% * var(--chroma)), transparent);
+  color: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--text)); }
+.at-sum-btn[data-jump="failed"] { background: color-mix(in srgb, var(--st-fail) calc(12% * var(--chroma)), transparent); color: var(--st-fail-text); }
 @media (hover: hover) { .at-sum-btn:hover { filter: saturate(1.25) brightness(0.97); } }
 .at-sum-cost { min-width: 44px; color: var(--at-ink); font-weight: 500; text-align: right; }
 
@@ -51,9 +51,9 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
 .at-tree, .at-kids { display: grid; gap: var(--at-gap); }
 .at-kids { position: relative; padding: var(--at-gap) 0 0 var(--at-step); }
 .at-item { position: relative; min-width: 0; outline: none;
-  --c: var(--text-tertiary); --c-ink: color-mix(in srgb, var(--c) 80%, var(--text)); }
+  --c: var(--text-tertiary); --c-ink: color-mix(in srgb, var(--c) calc(80% * var(--chroma)), var(--text)); }
 .at-item.is-running { --c: var(--st-run); }
-.at-item.is-needs_you { --c: var(--st-wait); --c-ink: color-mix(in srgb, var(--st-wait) 70%, var(--text)); }
+.at-item.is-needs_you { --c: var(--st-wait); --c-ink: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--text)); }
 .at-item.is-failed { --c: var(--st-fail); --c-ink: var(--st-fail-text); }
 .at-item.is-done { --c: var(--st-done); }
 .at-item.is-waiting { --c: var(--text-secondary); }
@@ -86,9 +86,9 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
 .at-avatar { display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--at-card);
   box-shadow: var(--at-shadow); color: var(--at-text); font-size: 10px; font-weight: 600; line-height: 1; letter-spacing: 0; }
 /* 0.23.0 — the agent's model as its maker's mark (soma-work#813): the avatar tile, or a mark before the name. */
-.at-avatar.is-mark { color: var(--model-hue, var(--at-ink)); }
+.at-avatar.is-mark { color: color-mix(in srgb, var(--model-hue, var(--at-ink)) calc(100% * var(--chroma)), var(--at-ink)); }
 .at-avatar.is-mark svg { display: block; width: 14px; height: 14px; }
-.at-mark { display: inline-grid; flex: none; align-self: center; place-items: center; color: var(--model-hue, var(--at-ink)); }
+.at-mark { display: inline-grid; flex: none; align-self: center; place-items: center; color: color-mix(in srgb, var(--model-hue, var(--at-ink)) calc(100% * var(--chroma)), var(--at-ink)); }
 .at-mark svg { display: block; width: 13px; height: 13px; }
 @media (forced-colors: active) { .at-mark, .at-avatar.is-mark { color: CanvasText; } }
 .at-who { display: grid; flex: 1 1 auto; min-width: 0; }
@@ -97,13 +97,13 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
 .at-role { min-width: 0; overflow: hidden; color: var(--at-muted); font-size: 11px; line-height: 14px; white-space: nowrap;
   text-overflow: ellipsis; }
 .at-pill { display: inline-flex; flex: none; align-self: start; align-items: center; gap: 4px; height: 18px; padding: 0 6px 0 4px;
-  border-radius: 4px; background: color-mix(in srgb, var(--c) 13%, transparent); color: var(--c-ink); font-size: 11px;
+  border-radius: 4px; background: color-mix(in srgb, var(--c) calc(13% * var(--chroma)), transparent); color: var(--c-ink); font-size: 11px;
   font-weight: 500; line-height: 16px; white-space: nowrap; }
-.at-pill svg { width: 12px; height: 12px; stroke-width: 1.9; }
+.at-pill svg { width: 12px; height: 12px; stroke-width: 1.9; color: color-mix(in srgb, var(--c-ink) calc(100% * var(--chroma)), var(--c)); }
 .at-task { display: -webkit-box; overflow: hidden; margin: -2px -2px -3px; padding: 2px 2px 3px; color: var(--at-text);
   font-size: 12px; line-height: 16px; overflow-wrap: anywhere; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .at-reason { display: -webkit-box; overflow: hidden; padding: 5px 8px; border-radius: 6px;
-  background: color-mix(in srgb, var(--c) 10%, transparent); color: var(--c-ink); font-size: 12px; line-height: 16px;
+  background: color-mix(in srgb, var(--c) calc(10% * var(--chroma)), transparent); color: var(--c-ink); font-size: 12px; line-height: 16px;
   overflow-wrap: anywhere; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .at-card .at-meta { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 20px; color: var(--at-muted);
   font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -155,8 +155,12 @@ svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width
   color: var(--at-text); font-size: 10.5px; font-weight: 600; line-height: 16px; }
 .at-more svg { width: 10px; height: 10px; }
 .at-more > svg:first-child:not(:last-child) { width: 10px; height: 10px; margin-right: 1px; }
-.at-more[data-worst], .at-fold[data-worst] { background: color-mix(in srgb, var(--wc) 14%, transparent);
-  color: color-mix(in srgb, var(--wc) 75%, var(--text)); }
+/* Mono (0.25.0): the worst state's glyph on a folded branch / the summary's jump keeps its colour; the count goes ink. */
+.at-more[data-worst] > svg:first-child, .at-fold[data-worst] > svg:first-child { color: color-mix(in srgb, var(--wc) calc(75% + 25% * (1 - var(--chroma))), var(--text)); }
+.at-sum-btn[data-jump="needs_you"] > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-wait)); }
+.at-sum-btn[data-jump="failed"] > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-fail)); }
+.at-more[data-worst], .at-fold[data-worst] { background: color-mix(in srgb, var(--wc) calc(14% * var(--chroma)), transparent);
+  color: color-mix(in srgb, var(--wc) calc(75% * var(--chroma)), var(--text)); }
 [data-worst="needs_you"] { --wc: var(--st-wait); }
 [data-worst="failed"] { --wc: var(--st-fail); }
 [data-worst="running"] { --wc: var(--st-run); }

@@ -10,6 +10,7 @@ import {
   appBarMenuItems,
   appBarTarget,
   appBarToolbarRow,
+  nextAppBarTheme,
   type UiAppBar,
 } from './app-bar';
 import { styles } from './styles';
@@ -401,6 +402,56 @@ describe('events', () => {
     btn.click();
     expect(got).toEqual([{ theme: 'light' }, { theme: 'dark' }]);
     expect(el.data!.theme).toBe('dark');
+  });
+
+  // 0.25.0 — the mono palette: with a palette the toggle walks four themes.
+  it('nextAppBarTheme: light → dark → light·mono → dark·mono → light; without a palette light ⇄ dark', () => {
+    expect(nextAppBarTheme('light', 'color')).toEqual({ theme: 'dark', palette: 'color' });
+    expect(nextAppBarTheme('dark', 'color')).toEqual({ theme: 'light', palette: 'mono' });
+    expect(nextAppBarTheme('light', 'mono')).toEqual({ theme: 'dark', palette: 'mono' });
+    expect(nextAppBarTheme('dark', 'mono')).toEqual({ theme: 'light', palette: 'color' });
+    expect(nextAppBarTheme('light')).toEqual({ theme: 'dark' });
+    expect(nextAppBarTheme('dark')).toEqual({ theme: 'light' });
+  });
+
+  it('with a palette the toggle cycles four themes, names the next one, and sends the palette', () => {
+    const el = mount({ ...DATA, theme: 'light', palette: 'color' });
+    const got = record(el, 'ui-theme-change');
+    const btn = q(el, '.ab-theme')!;
+    const seen: Array<[string | null, string | undefined]> = [];
+    for (let i = 0; i < 4; i++) {
+      seen.push([btn.getAttribute('aria-label'), q(el, '.ab-theme svg')!.dataset.icon]);
+      btn.click();
+      el.renderNow();
+    }
+    expect(got).toEqual([
+      { theme: 'dark', palette: 'color' },
+      { theme: 'light', palette: 'mono' },
+      { theme: 'dark', palette: 'mono' },
+      { theme: 'light', palette: 'color' },
+    ]);
+    expect(seen).toEqual([
+      ['Switch to dark theme', 'moon'],
+      ['Switch to light mono theme', 'sun'],
+      ['Switch to dark mono theme', 'moon'],
+      ['Switch to light theme', 'sun'],
+    ]);
+    expect(el.data).toMatchObject({ theme: 'light', palette: 'color' });
+  });
+
+  it('names the mono themes in Korean', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color' }, { lang: 'ko' });
+    expect(q(el, '.ab-theme')!.getAttribute('aria-label')).toBe('라이트 모노 테마로 전환');
+    el.data = { ...DATA, theme: 'light', palette: 'mono' };
+    el.renderNow();
+    expect(q(el, '.ab-theme')!.getAttribute('aria-label')).toBe('다크 모노 테마로 전환');
+  });
+
+  it('an unknown palette is ignored: light ⇄ dark, no palette in the event', () => {
+    const el = mount({ ...DATA, palette: 'sepia' as never });
+    const got = record(el, 'ui-theme-change');
+    q(el, '.ab-theme')!.click();
+    expect(got).toEqual([{ theme: 'light' }]);
   });
 
   it('a cancelled ui-theme-change keeps the toggle as it was', () => {

@@ -15,6 +15,7 @@ import {
   statusTone,
   type UiAgentInbox,
 } from './agent-inbox';
+import { styles as monoStyles } from './styles';
 
 const NOW = Date.UTC(2026, 9, 27, 9, 0, 0);
 const MIN = 60_000;
@@ -1580,5 +1581,42 @@ describe('face TL;DR row (0.20.0)', () => {
     const x = card(ko, 'notes').querySelector<HTMLButtonElement>('button.ib-tldr-x')!;
     expect(x.getAttribute('aria-label')).toBe('TL;DR 닫기');
     expect(x.getAttribute('title')).toBe('TL;DR 닫기');
+  });
+});
+
+// 0.25.0 — the mono palette (--chroma 0): a state shows its colour on its mark only.
+describe('mono palette rules', () => {
+  const css = monoStyles.replace(/\s+/g, ' ');
+  it('the status tag: the card and ink in colour, the neutral pill and secondary ink in mono; the icon keeps the tone', () => {
+    expect(css).toContain(
+      '--ib-tone-base: color-mix(in srgb, var(--ib-card) calc(100% * var(--chroma)), var(--ib-pill));',
+    );
+    expect(css).toContain(
+      '--ib-tone-ink: color-mix(in srgb, var(--ib-text) calc(100% * var(--chroma)), var(--ib-text-2));',
+    );
+    for (const t of ['run', 'wait', 'done'])
+      expect(css).toContain(
+        `--ib-${t}-bg: color-mix(in srgb, var(--st-${t}) calc(16% * var(--chroma)), var(--ib-tone-base));`,
+      );
+    expect(css).toContain(
+      '.ib-tag[data-tone="run"], .ib-metric.is-host[data-tone="run"] { --ib-tone-c: var(--st-run); }',
+    );
+    expect(css).toContain(
+      '.ib-tag-icon, .ib-metric.is-host[data-tone] > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--ib-tone-c, currentColor)); }',
+    );
+  });
+
+  it('the TL;DR: no wash in mono, and its status border grows from 22% to 70%', () => {
+    expect(css).toContain('background: color-mix(in srgb, var(--st-color) calc(7% * var(--chroma)), var(--ib-card));');
+    expect(css).toContain(
+      'box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) calc(22% + 48% * (1 - var(--chroma))), transparent);',
+    );
+    expect(css).toContain('color: color-mix(in srgb, var(--st-color) calc(55% * var(--chroma)), var(--ib-text));');
+  });
+
+  it("the model mark: the maker's colour in colour, the metric's ink in mono", () => {
+    expect(css).toContain(
+      'color: color-mix(in srgb, var(--ib-model-hue, currentColor) calc(100% * var(--chroma)), currentColor);',
+    );
   });
 });

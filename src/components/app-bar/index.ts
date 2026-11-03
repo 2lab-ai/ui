@@ -5,6 +5,7 @@ export type {
   AppBarData,
   AppBarLink,
   AppBarNavigate,
+  AppBarPalette,
   AppBarSoundChange,
   AppBarStatus,
   AppBarTheme,
@@ -21,5 +22,6 @@ export {
   appBarLinks,
   appBarMenuItems,
   appBarTarget,
+  nextAppBarTheme,
   UiAppBar,
 } from './app-bar';

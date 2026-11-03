@@ -74,10 +74,10 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
   flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ab-tone);
   transition: background-color 300ms ease, box-shadow 300ms ease;
 }
-.ab-status[data-tone="run"] { --ab-tone: var(--st-run); color: color-mix(in srgb, var(--st-run) 70%, var(--ib-text)); }
-.ab-status[data-tone="wait"] { --ab-tone: var(--st-wait); color: color-mix(in srgb, var(--st-wait) 70%, var(--ib-text)); }
-.ab-status[data-tone="done"] { --ab-tone: var(--st-done); color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
-.ab-status[data-tone="fail"] { --ab-tone: var(--st-fail); color: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text)); }
+.ab-status[data-tone="run"] { --ab-tone: var(--st-run); color: color-mix(in srgb, var(--st-run) calc(70% * var(--chroma)), var(--ib-text)); }
+.ab-status[data-tone="wait"] { --ab-tone: var(--st-wait); color: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--ib-text)); }
+.ab-status[data-tone="done"] { --ab-tone: var(--st-done); color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }
+.ab-status[data-tone="fail"] { --ab-tone: var(--st-fail); color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text)); }
 .ab-status[data-tone="idle"] .ab-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ab-tone); }
 .ab-status[data-live] .ab-dot { animation: ab-pulse 1.6s ease-in-out infinite; }
 

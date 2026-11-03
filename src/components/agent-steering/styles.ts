@@ -17,7 +17,7 @@ export const styles = `
   --as-accent-bg: color-mix(in srgb, var(--accent) 11%, transparent);
   --as-ring: color-mix(in srgb, var(--accent) 16%, transparent);
   --as-done: var(--st-done); --as-fail: var(--st-fail); --as-fail-text: var(--st-fail-text);
-  --as-wait: color-mix(in srgb, var(--st-wait) 78%, var(--text));
+  --as-wait: color-mix(in srgb, var(--st-wait) calc(78% * var(--chroma)), var(--text));
   --as-shadow: 0 0 0 1px var(--as-line), 0 1px 2px color-mix(in srgb, var(--text) 5%, transparent);
   --as-ease: cubic-bezier(0.32, 0.72, 0.24, 1);
   min-width: 0; font-size: 13px; line-height: 20px; }
@@ -67,7 +67,10 @@ svg { display: block; flex: none; }
 .as-meta-in > *::before { content: "·"; flex: none; width: 13px; margin-right: -4px; text-align: center; color: var(--as-faint); }
 .as-meta svg { width: 12px; height: 12px; }
 .as-state[data-tone="run"] { color: var(--as-accent); }
-.as-state[data-tone="done"] { color: var(--as-done); }
+.as-state[data-tone="run"] svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-run)); }
+.as-state[data-tone="done"] { color: color-mix(in srgb, var(--as-done) calc(100% * var(--chroma)), var(--text-secondary)); }
+.as-state[data-tone="done"] svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--as-done)); }
+.as-state[data-tone="fail"] svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--as-fail)); }
 .as-state[data-tone="fail"] { color: var(--as-fail-text); font-weight: 500; }
 .as-msg { color: var(--as-wait); overflow-wrap: anywhere; }
 .as-row[data-state="failed"] .as-msg { color: var(--as-fail-text); }

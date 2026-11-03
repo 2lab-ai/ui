@@ -73,6 +73,9 @@ export const styles = `
 .wl-row:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 .wl-head { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ib-muted); font-size: 11px; line-height: 1.4; }
 .wl-k-icon { flex: none; width: 12px; height: 12px; }
+/* Mono (0.25.0): a final / error entry's kind icon keeps its state; the head's words go ink. */
+.wl-entry[data-kind="final"] .wl-k-icon { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-done)); }
+.wl-entry[data-kind="error"] .wl-k-icon { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-fail)); }
 .wl-label { font-weight: 650; letter-spacing: 0.02em; }
 .wl-time { flex: none; margin-left: auto; color: var(--ib-muted); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .wl-row-chev { flex: none; width: 12px; height: 12px; color: var(--ib-muted); transition: transform var(--dur-press) var(--ease-out); }
@@ -83,9 +86,9 @@ export const styles = `
 .wl-entry[data-kind="instruction"] .wl-row[aria-expanded="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .wl-entry[data-kind="instruction"] .wl-head { color: color-mix(in srgb, var(--accent) 70%, var(--ib-text)); }
 .wl-entry[data-kind="final"] .wl-row { border-left-color: var(--st-done); }
-.wl-entry[data-kind="final"] .wl-head { color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
+.wl-entry[data-kind="final"] .wl-head { color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }
 .wl-entry[data-kind="notice"] .wl-text { color: var(--ib-muted); }
-.wl-entry[data-kind="error"] .wl-row { border-left-color: var(--st-fail); background: color-mix(in srgb, var(--st-fail) 8%, transparent); }
+.wl-entry[data-kind="error"] .wl-row { border-left-color: var(--st-fail); background: color-mix(in srgb, var(--st-fail) calc(8% * var(--chroma)), transparent); }
 .wl-entry[data-kind="error"] .wl-head, .wl-entry[data-kind="error"] .wl-text { color: var(--st-fail-text); }
 .wl-entry[data-kind="system"] .wl-row { padding: 3px 8px; border-left-color: var(--ib-card-border); }
 .wl-entry[data-kind="system"] .wl-head { gap: 8px; color: var(--ib-text-2); font-size: 12px; }
@@ -105,9 +108,10 @@ export const styles = `
 }
 .wl-mark { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
 .wl-mark svg { width: 12px; height: 12px; }
-.wl-tool[data-status="running"] .wl-mark { color: color-mix(in srgb, var(--st-run) 70%, var(--ib-text)); }
-.wl-tool[data-status="success"] .wl-mark { color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
-.wl-tool[data-status="error"] .wl-mark, .wl-tool[data-status="error"] .wl-tool-name { color: var(--st-fail-text); }
+.wl-tool[data-status="running"] .wl-mark { color: color-mix(in srgb, var(--st-run) calc(70% + 30% * (1 - var(--chroma))), var(--ib-text)); }
+.wl-tool[data-status="success"] .wl-mark { color: color-mix(in srgb, var(--st-done) calc(70% + 30% * (1 - var(--chroma))), var(--ib-text)); }
+.wl-tool[data-status="error"] .wl-tool-name { color: var(--st-fail-text); }
+.wl-tool[data-status="error"] .wl-mark { color: color-mix(in srgb, var(--st-fail-text) calc(100% * var(--chroma)), var(--st-fail)); }
 .wl-tool[data-status="interrupted"] .wl-mark { color: var(--ib-muted); }
 .wl-tool-name { flex: none; color: var(--ib-text); font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
 .wl-tool-sum { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -140,7 +144,7 @@ export const styles = `
   grid-column: 3; grid-row: 1; display: inline-flex; align-items: baseline; gap: 8px; color: var(--ib-text-2); font-size: 12px;
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.wl-ag-st { color: color-mix(in srgb, var(--ag-c) 70%, var(--ib-text)); font-weight: 600; }
+.wl-ag-st { color: color-mix(in srgb, var(--ag-c) calc(70% * var(--chroma)), var(--ib-text)); font-weight: 600; }
 .wl-ag-act { grid-column: 2 / 4; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ib-muted); font-size: 12px; }
 .wl-ag-open { grid-column: 2 / 4; display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-size: 12px; font-weight: 500; }
 .wl-ag-open svg { width: 12px; height: 12px; }
