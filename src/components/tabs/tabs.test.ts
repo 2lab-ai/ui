@@ -262,6 +262,39 @@ describe('<ui-tabs>', () => {
       expect(styles).toContain('.tb-meta { color: var(--ib-muted);');
     });
 
+    it('model: the maker’s mark before the label in the maker’s colour, out of the tab’s name (soma-work#813)', () => {
+      const el = mount({
+        tabs: [
+          { id: 'main', label: 'Main', meta: 'Opus 5.5 (1M)', model: 'claude-opus-5-5[1m]', pinned: true },
+          { id: 'a1', label: 'A1', meta: 'grok-elon', model: 'grok-4' },
+          { id: 'a2', label: 'A2', meta: 'astra', model: 'gpt-5.5' },
+          { id: 'a3', label: 'A3', meta: 'log only' },
+          { id: 'a4', label: 'A4', model: '<img src=x onerror=alert(1)>' },
+        ],
+      });
+      const tabs = qa(el, '.tb-tab');
+      const mark = (i: number) => tabs[i].querySelector<HTMLElement>('.tb-mark');
+      expect(mark(0)?.dataset.vendor).toBe('claude');
+      expect(mark(0)?.style.getPropertyValue('--model-hue')).toBe('#d97757');
+      expect(mark(0)?.getAttribute('aria-hidden')).toBe('true');
+      expect(mark(0)?.querySelector('svg')).not.toBeNull();
+      // After the status dot, before the label.
+      expect(mark(0)?.nextElementSibling?.classList.contains('tb-label')).toBe(true);
+      expect(mark(1)?.dataset.vendor).toBe('grok');
+      expect(mark(1)?.style.getPropertyValue('--model-hue')).toBe('');
+      expect(mark(2)?.dataset.vendor).toBe('openai');
+      // No model, no mark — never a guess.
+      expect(mark(3)).toBeNull();
+      // Host text never reaches the markup: an unknown model is the generic chip.
+      expect(mark(4)?.dataset.vendor).toBe('model');
+      expect(tabs[4].querySelector('img')).toBeNull();
+      // The mark is drawn, not read: the tab's name is its label and meta.
+      expect(tabs[0].textContent).toBe('MainOpus 5.5 (1M)');
+      expect(styles).toContain('.tb-mark {');
+      expect(styles).toContain('color: var(--model-hue, currentColor)');
+      expect(styles).toMatch(/forced-colors: active\) \{[^}]*\.tb-mark \{ color: CanvasText; \}/);
+    });
+
     it('pinned: the leading run is sticky with its own part, the last one carries the fade; later ones are not', () => {
       const el = mount(AGENTS);
       const tabs = qa(el, '.tb-tab');
