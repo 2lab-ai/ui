@@ -1147,6 +1147,22 @@ describe('<ui-composer> mode switch (0.26.0)', () => {
     expect(sendBtn(night).hasAttribute('data-flip')).toBe(false);
   });
 
+  it('a host that answers ui-mode in its listener with a fresh data object still gets the entrance (the dashboard)', async () => {
+    const el = mount({ submitLabel: 'Start task', mode: PLAN });
+    el.addEventListener('ui-mode', (e) => {
+      const { on } = (e as CustomEvent<ComposerModeDetail>).detail;
+      el.data = { submitLabel: 'Start task', mode: { ...PLAN, on } }; // a new object every paint
+    });
+    const before = q(el, '.cp-send-text');
+    sw(el)!.click();
+    expect(sendBtn(el).hasAttribute('data-flip')).toBe(true);
+    expect(q(el, '.cp-send-text')).not.toBe(before);
+    expect(q(el, '.cp-send-text')!.getAttribute('data-mk')).toBe('send-text:on');
+    await new Promise((r) => setTimeout(r, 0)); // the host's queued render
+    expect(sendBtn(el).getAttribute('data-mode')).toBe('on');
+    expect(sendBtn(el).textContent).toBe('Start plan');
+  });
+
   it('the label node is replaced on a flip (its entrance runs) and kept otherwise', () => {
     const el = mount({ submitLabel: 'Start task', mode: PLAN });
     const before = q(el, '.cp-send-text');
