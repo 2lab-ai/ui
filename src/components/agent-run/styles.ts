@@ -84,6 +84,9 @@ ${planCss}
 .ap-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; }
 .ap-pill[data-kind="rule"] { background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), transparent); color: var(--st-fail-text); }
 .ap-pill[data-kind="question"] { background: color-mix(in srgb, var(--st-wait) calc(16% * var(--chroma)), transparent); color: var(--ar-wait-text); }
+/* Mono (0.25.0): the pill's dot keeps the state; its word goes ink. */
+.ap-pill[data-kind="rule"]::before { background: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-fail)); }
+.ap-pill[data-kind="question"]::before { background: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--st-wait)); }
 .ap-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; max-height: 320px; overflow: auto; margin: 12px 0 0; padding: 10px 12px; border-radius: 9px; background: var(--ib-col); box-shadow: inset 0 0 0 1px var(--ib-card-border); font-size: 12.5px; line-height: 18px; }
 .ap-detail { display: contents; }
 .ap-detail dt { color: var(--ib-muted); }
