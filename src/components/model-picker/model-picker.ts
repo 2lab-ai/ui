@@ -88,7 +88,9 @@ const WATCH_MS = 150;
 const STRINGS = {
   en: {
     model: 'Model',
-    trigger: (name: string, level: string) => `Model ${name}${level ? `, effort ${level}` : ''} — change`,
+    /** A read-only trigger (`off`) is named by what it shows, without the action word it cannot do (#16). */
+    trigger: (name: string, level: string, off: boolean) =>
+      `Model ${name}${level ? `, effort ${level}` : ''}${off ? '' : ' — change'}`,
     dialog: 'Model and effort for this session',
     head: 'This session model',
     cols: ['Window', 'Compact', 'Cost'],
@@ -110,7 +112,8 @@ const STRINGS = {
   },
   ko: {
     model: '모델',
-    trigger: (name: string, level: string) => `모델 ${name}${level ? `, 추론 강도 ${level}` : ''} — 바꾸기`,
+    trigger: (name: string, level: string, off: boolean) =>
+      `모델 ${name}${level ? `, 추론 강도 ${level}` : ''}${off ? '' : ' — 바꾸기'}`,
     dialog: '이 세션의 모델 · 추론 강도',
     head: '이 세션 모델',
     cols: ['창', '압축', '비용'],
@@ -782,7 +785,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
 
     const trigger = `<button type="button" class="mp-trigger" part="trigger" data-key="mp-trigger" aria-haspopup="dialog" aria-expanded="${
       open ? 'true' : 'false'
-    }" aria-controls="mp-menu" aria-label="${escAttr(t.trigger(name, level))}"${busy ? ' aria-busy="true"' : ''}${
+    }" aria-controls="mp-menu" aria-label="${escAttr(t.trigger(name, level, off))}"${busy ? ' aria-busy="true"' : ''}${
       off ? ` aria-disabled="true"${why ? ` title="${escAttr(why)}" aria-describedby="mp-why"` : ''}` : ''
     }>${modelMarkHtml(pickerVendor(curOpt ? curOpt.model : { label: name }), 'mp-glyph')}<span class="mp-name">${esc(
       name,
