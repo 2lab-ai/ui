@@ -232,7 +232,7 @@ export const doc: ComponentDoc = {
     ['Esc', 'Close and return focus to the trigger'],
   ],
   a11y: [
-    'Trigger: aria-haspopup="dialog", aria-expanded, aria-controls; its label reads “Model <name>, effort <level> — change”; aria-busy while a write runs. Read-only uses aria-disabled and keeps focus, so the reason is read as its description.',
+    'Trigger: aria-haspopup="dialog", aria-expanded, aria-controls; its label reads “Model <name>, effort <level> — change”; aria-busy while a write runs. Read-only uses aria-disabled and keeps focus, so the reason is read as its description; its label drops “— change”, since it cannot change anything.',
     'The menu is role="dialog"; closed it is inert and hidden. The list is a listbox with aria-activedescendant (focus stays on the list); the current model is aria-selected; locked rows and a model outside the list are aria-disabled.',
     'Each option’s aria-label states name, description, window and price — the column head, meters and tray caption are aria-hidden.',
     'Effort is a radiogroup with one tab stop (roving tabindex); aria-disabled + aria-busy while an effort write runs.',

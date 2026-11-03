@@ -1,5 +1,6 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { attrs, esc } from '../../core/html';
+import { modelMarkHtml, modelVendor } from '../../core/model-mark';
 import { morphInto } from '../../core/morph';
 import { lastEnabled, rovingIndex } from '../../core/roving';
 import { type IconName, icon } from '../../icons/icons';
@@ -14,6 +15,12 @@ export interface TabItem {
   label: string;
   /** A glyph from `@2lab.ai/ui/icons` before the label. */
   icon?: IconName;
+  /**
+   * The model this tab's agent runs (an id or a name: `claude-opus-5-5[1m]`, `grok-4`): its maker's mark leads the
+   * tab, in the maker's colour (0.24.0, soma-work#813). The mark is drawn, not read — say the model in `meta` or
+   * `title` when the reader needs it. No model, no mark.
+   */
+  model?: string;
   /** A small status dot before the label (an agent's state). `run` pulses. */
   tone?: TabTone;
   /** A count after the label. */
@@ -174,6 +181,7 @@ export class UiTabs extends UiElement<TabsData> {
             : `<span class="tb-badge">${esc(t.badge)}</span>`;
         const meta =
           t.meta === undefined || t.meta === null || t.meta === '' ? '' : `<span class="tb-meta">${esc(t.meta)}</span>`;
+        const mark = typeof t.model === 'string' && t.model ? modelMarkHtml(modelVendor(t.model), 'tb-mark') : '';
         const pin = i < pinned;
         const parts = ['tab', i === sel && 'selected', pin && 'pinned', i === end && 'end'].filter(Boolean).join(' ');
         return `<button${attrs({
@@ -194,7 +202,7 @@ export class UiTabs extends UiElement<TabsData> {
           'data-mk': t.id,
           'data-key': t.id,
           'data-i': i,
-        })}>${tone}${t.icon ? icon(t.icon) : ''}<span class="tb-label">${esc(t.label)}</span>${meta}${badge}</button>`;
+        })}>${tone}${mark}${t.icon ? icon(t.icon) : ''}<span class="tb-label">${esc(t.label)}</span>${meta}${badge}</button>`;
       })
       .join('');
     const ind = this.#ind;

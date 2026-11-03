@@ -36,9 +36,17 @@ const AGENTS: TabsData = {
   label: 'Agents',
   value: 'main',
   tabs: [
-    { id: 'main', label: 'Main', meta: 'opus-5-5', tone: 'run', pinned: true, title: 'Running' },
-    { id: 'a1', label: 'A1', meta: 'Explore', tone: 'done', title: 'Done' },
-    { id: 'a2', label: 'A2', meta: 'Review', tone: 'run', title: 'Running' },
+    {
+      id: 'main',
+      label: 'Main',
+      meta: 'Opus 5.5',
+      model: 'claude-opus-5-5',
+      tone: 'run',
+      pinned: true,
+      title: 'Running',
+    },
+    { id: 'a1', label: 'A1', meta: 'Explore', model: 'gpt-5.5', tone: 'done', title: 'Done' },
+    { id: 'a2', label: 'A2', meta: 'Review', model: 'grok-4', tone: 'run', title: 'Running' },
     { id: 'a3', label: 'A3', meta: 'Fix', tone: 'wait', badge: 1, title: 'Needs you' },
     { id: 'a4', label: 'A4', meta: 'Docs', tone: 'fail', title: 'Failed' },
     { id: 'a5', label: 'A5', meta: 'Bench', tone: 'rest', title: 'Idle' },
@@ -138,10 +146,10 @@ export const doc: ComponentDoc = {
   props: [
     {
       name: 'data.tabs',
-      type: "Array<{ id: string; label: string; meta?: string; icon?: IconName; tone?: 'run' | 'wait' | 'done' | 'fail' | 'rest'; badge?: string | number; pinned?: boolean; end?: boolean; disabled?: boolean; title?: string }>",
+      type: "Array<{ id: string; label: string; meta?: string; model?: string; icon?: IconName; tone?: 'run' | 'wait' | 'done' | 'fail' | 'rest'; badge?: string | number; pinned?: boolean; end?: boolean; disabled?: boolean; title?: string }>",
       required: true,
       description:
-        'The tabs, in order. `id` is the slot name of its panel and what ui-change carries. `tone` draws a status dot (run pulses); `badge` a count; `meta` a muted second label (part of the tab’s name). `pinned` (the leading run of tabs) sticks at the start edge while the rest scroll under it, with a fade once they do. `end` puts that tab and the ones after it at the far end of the list.',
+        'The tabs, in order. `id` is the slot name of its panel and what ui-change carries. `tone` draws a status dot (run pulses); `badge` a count; `meta` a muted second label (part of the tab’s name); `model` leads the tab with its maker’s mark in the maker’s colour (drawn, not read — no model, no mark). `pinned` (the leading run of tabs) sticks at the start edge while the rest scroll under it, with a fade once they do. `end` puts that tab and the ones after it at the far end of the list.',
     },
     {
       name: 'data.value',

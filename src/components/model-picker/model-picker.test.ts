@@ -525,6 +525,21 @@ describe('<ui-model-picker>', () => {
     expect(el.hasAttribute('open')).toBe(false);
   });
 
+  it('read-only: the trigger is named by its model and effort, never as a change action (#16)', () => {
+    const el = mount({ ...BASE, disabled: 'Read-only — not your session' });
+    expect(q(el, '.mp-trigger')!.getAttribute('aria-label')).toBe('Model Opus 5.5 (1M), effort Extra high');
+    expect(q(el, '#mp-why')!.textContent).toBe('Read-only — not your session');
+    const ko = mount({ ...BASE, disabled: '읽기 전용 — 내 세션이 아님' }, { lang: 'ko' });
+    expect(q(ko, '.mp-trigger')!.getAttribute('aria-label')).toBe('모델 Opus 5.5 (1M), 추론 강도 매우 높음');
+    // Disabled without a reason: still no action word.
+    const bare = mount({ ...BASE, disabled: true });
+    expect(q(bare, '.mp-trigger')!.getAttribute('aria-label')).toBe('Model Opus 5.5 (1M), effort Extra high');
+    // Enabled again: the action word comes back.
+    bare.data = { ...BASE, disabled: false };
+    bare.renderNow();
+    expect(q(bare, '.mp-trigger')!.getAttribute('aria-label')).toBe('Model Opus 5.5 (1M), effort Extra high — change');
+  });
+
   it('a press outside closes it; a press inside does not', () => {
     const el = mount(BASE);
     openByKey(el);
