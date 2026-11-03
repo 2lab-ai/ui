@@ -3,12 +3,25 @@
  * attachment chips, an error line and the toolbar inside it. Ported from the dashboard's new-task and panel composer
  * (`.nt-compose`, `.nt-att`, `.nt-recorder`, `.nt-toolbar`) in the library language: ink send button instead of the
  * gradient, press 0.97, tints by color-mix() of status tokens instead of rgba literals, spinner 0.9s.
+ *
+ * Mode switch (0.26.0): a day / night track beside the send button. Off is day — the thumb holds a sun on a warm track;
+ * on is night — the thumb slides over with a little overshoot, the sun turns away as the moon turns in, two stars come
+ * out, and the send button goes with it: a night-sky layer fades in under its label, the new label rises into place,
+ * a light band sweeps across once and a soft ring spreads. Night is --st-run and --purple over the ink, each share
+ * scaled by --chroma, so the mono palette keeps it ink.
  */
 export const styles = `
 :host { --cp-fail-bg: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card));
   --cp-fail-text: color-mix(in srgb, var(--st-fail) calc(70% * var(--chroma)), var(--ib-text));
   --cp-warn-text: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--ib-text));
   --cp-hover: var(--ib-pill);
+  --cp-night-a: color-mix(in srgb, var(--st-run) calc(70% * var(--chroma)),
+    color-mix(in srgb, var(--purple) calc(30% * var(--chroma)), var(--ib-text)));
+  --cp-night-b: color-mix(in srgb, var(--purple) calc(70% * var(--chroma)),
+    color-mix(in srgb, var(--st-run) calc(30% * var(--chroma)), var(--ib-text)));
+  --cp-day: color-mix(in srgb, var(--st-wait) calc(20% * var(--chroma)), var(--ib-pill));
+  --cp-sun: color-mix(in srgb, var(--st-wait) calc(100% * var(--chroma)), var(--ib-text));
+  --cp-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   min-width: 0; }
 [hidden] { display: none !important; }
 button { appearance: none; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit;
@@ -89,12 +102,59 @@ img.cp-thumb { display: block; }
   transition: color 150ms ease; }
 .cp-count[data-tone="warn"] { color: var(--cp-warn-text); }
 .cp-count[data-tone="over"] { color: var(--cp-fail-text); font-weight: 600; }
-.cp-send { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; width: 32px;
-  height: 32px; border-radius: 8px; background: var(--ib-text); color: var(--ib-card); font-size: 13px; font-weight: 600;
-  white-space: nowrap; transition: background-color 150ms ease, opacity 150ms ease, transform var(--dur-press) var(--ease-out); }
+.cp-send { position: relative; isolation: isolate; display: inline-flex; flex: none; align-items: center; justify-content: center;
+  gap: 6px; width: 32px; height: 32px; border-radius: 8px; background: var(--ib-text); color: var(--ib-card); font-size: 13px;
+  font-weight: 600; white-space: nowrap; overflow: hidden;
+  transition: background-color 150ms ease, opacity 150ms ease, transform var(--dur-press) var(--ease-out); }
+/* Night: the sky layer under the label fades in with the switch; the stars in it are two dots of the card colour. */
+.cp-send::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle at 6px 9px, color-mix(in srgb, var(--ib-card) 60%, transparent) 0.6px, transparent 1.4px),
+    radial-gradient(circle at calc(100% - 7px) calc(100% - 8px), color-mix(in srgb, var(--ib-card) 45%, transparent) 0.5px, transparent 1.2px),
+    linear-gradient(120deg, var(--cp-night-a), var(--cp-night-b));
+  transition: opacity 420ms var(--ease-out); }
+.cp-send[data-mode="on"]::before { opacity: 1; }
+.cp-send::after { content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 25%, color-mix(in srgb, var(--ib-card) 55%, transparent) 50%, transparent 75%);
+  transform: translateX(-110%); }
+.cp-send[data-flip][data-mode="on"] { animation: cp-ring 900ms var(--ease-out) 1; }
+.cp-send[data-flip][data-mode="on"]::after { animation: cp-sweep 760ms var(--ease-out) 120ms 1 both; }
+.cp-send[data-flip] .cp-send-text { animation: cp-rise 380ms var(--ease-out) both; }
 .cp-send.has-label { width: auto; padding: 0 12px 0 14px; }
 .cp-send[aria-disabled="true"] { opacity: 0.3; cursor: default; }
 .cp-send[aria-busy="true"] { opacity: 1; cursor: progress; }
+
+/* The mode switch: day (off, the sun) / night (on, the moon). The button is the hit area; the track is drawn. */
+.cp-mode { display: inline-flex; flex: none; align-items: center; gap: 7px; height: 32px; padding: 0 2px; border-radius: 999px;
+  color: var(--text-secondary); font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  transition: color 240ms ease, transform var(--dur-press) var(--ease-out); }
+.cp-mode[aria-checked="true"] { color: var(--ib-text); }
+.cp-mode:disabled { opacity: 0.4; cursor: default; }
+.cp-mode-track { position: relative; display: block; flex: none; width: 46px; height: 26px; border-radius: 999px; overflow: hidden;
+  background: var(--cp-day); box-shadow: inset 0 0 0 1px var(--ib-card-border);
+  transition: background-color 420ms var(--ease-out), box-shadow 420ms var(--ease-out); }
+.cp-mode-track::before { content: ''; position: absolute; inset: 0; border-radius: inherit; opacity: 0;
+  background: linear-gradient(120deg, var(--cp-night-a), var(--cp-night-b)); transition: opacity 420ms var(--ease-out); }
+.cp-mode[aria-checked="true"] .cp-mode-track { box-shadow: inset 0 0 0 1px transparent; }
+.cp-mode[aria-checked="true"] .cp-mode-track::before { opacity: 1; }
+.cp-mode-stars { position: absolute; inset: 0; opacity: 0; transform: translateY(3px) scale(0.6);
+  background: radial-gradient(circle at 26% 34%, var(--ib-card) 0.8px, transparent 1.6px),
+    radial-gradient(circle at 44% 70%, color-mix(in srgb, var(--ib-card) 70%, transparent) 0.6px, transparent 1.3px),
+    radial-gradient(circle at 15% 66%, color-mix(in srgb, var(--ib-card) 50%, transparent) 0.5px, transparent 1.1px);
+  transition: opacity 300ms ease, transform 420ms var(--ease-out); }
+.cp-mode[aria-checked="true"] .cp-mode-stars { opacity: 1; transform: none; transition-delay: 140ms; }
+.cp-mode-thumb { position: absolute; top: 3px; left: 3px; display: grid; place-items: center; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--ib-card); box-shadow: var(--ib-shadow), 0 0 0 1px var(--ib-card-border);
+  transition: transform 460ms var(--cp-spring), background-color 420ms var(--ease-out), box-shadow 420ms var(--ease-out); }
+.cp-mode[aria-checked="true"] .cp-mode-thumb { transform: translateX(20px);
+  background: color-mix(in srgb, var(--ib-card) 92%, var(--cp-night-a)); box-shadow: var(--ib-shadow); }
+.cp-mode-sun, .cp-mode-moon { position: absolute; display: grid; place-items: center;
+  transition: transform 460ms var(--ease-out), opacity 260ms ease; }
+.cp-mode-sun { color: var(--cp-sun); }
+.cp-mode-moon { color: var(--cp-night-a); opacity: 0; transform: rotate(-120deg) scale(0.4); }
+.cp-mode[aria-checked="true"] .cp-mode-sun { opacity: 0; transform: rotate(120deg) scale(0.4); }
+.cp-mode[aria-checked="true"] .cp-mode-moon { opacity: 1; transform: none; }
+.cp-mode-text { min-width: 0; }
+
 .cp-spin { display: block; flex: none; width: 14px; height: 14px; border: 1.5px solid color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor; border-radius: 50%; animation: cp-spin 0.9s linear infinite; }
 
@@ -130,6 +190,9 @@ img.cp-thumb { display: block; }
   .cp-remove:not(:disabled):hover { background: var(--cp-hover); color: var(--ib-text); }
   .cp-play:hover { background: color-mix(in srgb, var(--ib-text) 10%, var(--ib-pill)); }
   .cp-send:not([aria-disabled="true"]):hover { background: color-mix(in srgb, var(--ib-text) 86%, var(--ib-card)); }
+  .cp-send[data-mode="on"]:not([aria-disabled="true"]):hover::before { filter: brightness(1.12); }
+  .cp-mode:not(:disabled):hover { color: var(--ib-text); }
+  .cp-mode:not(:disabled):hover .cp-mode-track { box-shadow: inset 0 0 0 1px var(--ib-muted); }
   .cp-rec-btn:not(.is-done):hover { background: color-mix(in srgb, var(--st-fail) calc(22% * var(--chroma)), var(--ib-card)); color: var(--ib-text); }
   .cp-rec-btn.is-done:hover { background: color-mix(in srgb, var(--ib-text) 86%, var(--ib-card)); }
 }
@@ -137,14 +200,20 @@ img.cp-thumb { display: block; }
 .cp-remove:active:not(:disabled):not(:focus-visible),
 .cp-play:active:not(:focus-visible),
 .cp-rec-btn:active:not(:focus-visible),
+.cp-mode:active:not(:disabled):not(:focus-visible),
 .cp-send:active:not([aria-disabled="true"]):not(:focus-visible) { transform: scale(0.97); }
 
 @keyframes cp-in { from { opacity: 0; transform: scale(0.95); } }
 @keyframes cp-fade { from { opacity: 0; } }
 @keyframes cp-spin { to { transform: rotate(360deg); } }
 @keyframes cp-rec { 50% { opacity: 0.3; } }
+@keyframes cp-rise { from { opacity: 0; transform: translateY(70%); filter: blur(2px); } }
+@keyframes cp-sweep { 0% { opacity: 1; transform: translateX(-110%); } 100% { opacity: 1; transform: translateX(110%); } }
+@keyframes cp-ring { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cp-night-a) 45%, transparent); }
+  to { box-shadow: 0 0 0 10px color-mix(in srgb, var(--cp-night-a) 0%, transparent); } }
 
 @container cp (max-width: 440px) { .cp-hint { display: none; } }
+@container cp (max-width: 400px) { .cp-mode-text { display: none; } }
 @media (pointer: coarse) {
   .cp-field { font-size: 16px; }
   .cp-bar { min-height: 52px; }
@@ -152,6 +221,9 @@ img.cp-thumb { display: block; }
   .cp-tool.is-icon { width: 44px; }
   .cp-send { width: 44px; height: 44px; }
   .cp-send.has-label { width: auto; padding: 0 16px 0 18px; }
+  .cp-mode { height: 44px; padding: 0 1px; }
+  .cp-end { gap: 6px; }
+  .cp-mode + .cp-send.has-label { padding: 0 12px 0 14px; }
   .cp-chip { height: 52px; }
   .cp-remove, .cp-play { width: 44px; height: 44px; }
   .cp-rec { height: 48px; }

@@ -21,6 +21,20 @@ export interface ComposerTool {
   disabled?: boolean;
 }
 
+/** The switch beside the send button (`ComposerData.mode`): off is day (the sun), on is night (the moon). */
+export interface ComposerMode {
+  /** Echoed as `detail.id` in `ui-mode`. */
+  id: string;
+  /** The switch's accessible name and tooltip — what “on” does. Start it with `text` when there is one. */
+  label: string;
+  on: boolean;
+  /** A short word beside the track (e.g. “Plan”). Hidden on narrow cards; the label still names the switch. */
+  text?: string;
+  /** The send button's text while on (e.g. “Start plan”). Unset: `submitLabel`; `''`: the arrow alone. */
+  submitLabel?: string;
+  disabled?: boolean;
+}
+
 export interface ComposerData {
   /**
    * Fills the field (a restored draft, a resend). Applied when it differs from the value applied last — not on every
@@ -64,6 +78,12 @@ export interface ComposerData {
   tools?: ComposerTool[];
   /** Text on the send button (e.g. “Start task”). Without it the button is a 32px arrow-up icon named “Send”. */
   submitLabel?: string;
+  /**
+   * A two-state switch right beside the send button that changes what sending does (e.g. “Plan first”), drawn as a
+   * day / night track: off is the sun, on is the moon. While it is on the send button takes the night colour and
+   * `mode.submitLabel`. A press flips it at once and sends `ui-mode`; the flip lasts until `data.mode` changes.
+   */
+  mode?: ComposerMode;
   /** Show the key hint (desktop only): “Enter to send · Shift+Enter for a new line”, or the newline mode's. */
   hint?: boolean;
   /**
@@ -127,6 +147,11 @@ export interface ComposerToolDetail {
   id: string;
   /** Toggles only: the state the press asks for. */
   pressed?: boolean;
+}
+export interface ComposerModeDetail {
+  id: string;
+  /** The state the press asks for. */
+  on: boolean;
 }
 
 export const COMPOSER_DEFAULTS = {
@@ -213,6 +238,24 @@ export function composerTools(raw: unknown): ComposerTool[] {
     out.push(tool);
   }
   return out;
+}
+
+/** The host's mode switch made safe: it needs an id; label and text are strings; `on` only when exactly true. */
+export function composerMode(raw: unknown): ComposerMode | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const id = o.id === undefined || o.id === null ? '' : String(o.id);
+  if (!id) return null;
+  const mode: ComposerMode = {
+    id,
+    label: o.label === undefined || o.label === null ? id : String(o.label),
+    on: o.on === true,
+  };
+  const text = o.text === undefined || o.text === null ? '' : String(o.text).trim();
+  if (text) mode.text = text;
+  if (typeof o.submitLabel === 'string') mode.submitLabel = o.submitLabel;
+  if (o.disabled) mode.disabled = true;
+  return mode;
 }
 
 /** Autosize bounds: whole rows, 1 ≤ min ≤ max ≤ 40. */

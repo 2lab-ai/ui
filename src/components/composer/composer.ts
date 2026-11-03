@@ -9,6 +9,8 @@ import {
   type ComposerData,
   type ComposerFilesDetail,
   type ComposerInputDetail,
+  type ComposerMode,
+  type ComposerModeDetail,
   type ComposerOverCapDetail,
   type ComposerRecordDetail,
   type ComposerRejectDetail,
@@ -23,6 +25,7 @@ import {
   composerEnterAction,
   composerEnterMode,
   composerLevel,
+  composerMode,
   composerPastedName,
   composerRecorderMime,
   composerSettings,
@@ -121,6 +124,13 @@ export class UiComposer extends UiElement<ComposerData> {
   /** Local toggle state of host tools until `data.tools` changes. */
   #pressed = new Map<string, boolean>();
   #toolsRef: unknown;
+  /** The mode switch's local state after a press, until `data.mode` changes (null: the host's `on`). */
+  #modeOn: boolean | null = null;
+  #modeRef: unknown;
+  /** The on-state last drawn (null before the first paint), and whether it has flipped since: the send button's
+   * night entrance plays only after a flip, never on first paint. */
+  #modeShown: boolean | null = null;
+  #modeFlipped = false;
   #rec: Rec | null = null;
   #recGen = 0;
   #recPending = false;
@@ -518,6 +528,9 @@ export class UiComposer extends UiElement<ComposerData> {
       case 'tool':
         this.#tool(id, e);
         break;
+      case 'mode':
+        this.#mode(e);
+        break;
       case 'send':
         this.#submit(e);
         break;
@@ -669,6 +682,23 @@ export class UiComposer extends UiElement<ComposerData> {
 
   #isPressed(tool: ComposerTool): boolean {
     return this.#pressed.get(tool.id) ?? !!tool.pressed;
+  }
+
+  /** The mode switch flips at once, asks with `ui-mode`, and plays toggle by its new state. */
+  #mode(e: Event): void {
+    const mode = composerMode(this.data?.mode);
+    if (!mode || mode.disabled || this.#s.disabled) return;
+    const cur = this.#isOn(mode);
+    const asked = this.data?.mode;
+    if (!this.emit<ComposerModeDetail>('ui-mode', { id: mode.id, on: !cur })) return;
+    this.sound('toggle', { direction: cur ? 'back' : 'forward' }, e);
+    // A host that answered inside its listener (a new data.mode) has the last word, even if it rendered already.
+    if (this.data?.mode === asked) this.#modeOn = !cur;
+    this.#paint();
+  }
+
+  #isOn(mode: ComposerMode): boolean {
+    return this.#modeOn ?? mode.on;
   }
 
   /**
@@ -961,6 +991,11 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#toolsRef = d.tools;
       this.#pressed.clear();
     }
+    if (d.mode !== this.#modeRef) {
+      // The host answered (or replaced) its mode: its `on` is the truth again.
+      this.#modeRef = d.mode;
+      this.#modeOn = null;
+    }
     const touch = isTouch();
     const showHint = !!d.hint && !this.#rec;
     const describedBy = [
@@ -1059,17 +1094,35 @@ export class UiComposer extends UiElement<ComposerData> {
     const count = s.maxLength
       ? `<span class="cp-count" id="cp-count" data-tone="${composerCounterTone(this.value.length, s.maxLength)}">${this.#countText(s)}</span>`
       : '';
-    const sendLabel = str(d.submitLabel).trim();
+    const mode = composerMode(d.mode);
+    const on = !!mode && this.#isOn(mode);
+    if (this.#modeShown !== null && this.#modeShown !== on) this.#modeFlipped = true;
+    this.#modeShown = on;
+    const sendLabel = str(on && mode?.submitLabel !== undefined ? mode.submitLabel : d.submitLabel).trim();
     const name = sendLabel || t.send;
     const inner = sendLabel
-      ? `<span class="cp-send-text">${esc(sendLabel)}</span>${s.busy ? '<span class="cp-spin" aria-hidden="true"></span>' : icon('arrow-right', { size: 14 })}`
+      ? `<span class="cp-send-text" data-mk="send-text:${on ? 'on' : 'off'}">${esc(sendLabel)}</span>${s.busy ? '<span class="cp-spin" aria-hidden="true"></span>' : icon('arrow-right', { size: 14 })}`
       : s.busy
         ? '<span class="cp-spin" aria-hidden="true"></span>'
         : icon('arrow-up', { size: 16 });
     const send = `<button type="button" class="cp-send${sendLabel ? ' has-label' : ''}" data-mk="send" data-act="send" data-key="send"${
       sendLabel ? '' : ` aria-label="${escAttr(name)}" title="${escAttr(name)}"`
-    } aria-disabled="${!this.#sendable(s)}"${s.busy ? ' aria-busy="true"' : ''}>${inner}</button>`;
-    return `<div class="cp-bar"${this.#barEnter ? ' data-enter' : ''}><div class="cp-tools">${tools}</div><div class="cp-end">${hint}${count}${send}</div></div>`;
+    }${mode ? ` data-mode="${on ? 'on' : 'off'}"` : ''}${this.#modeFlipped ? ' data-flip' : ''} aria-disabled="${!this.#sendable(s)}"${
+      s.busy ? ' aria-busy="true"' : ''
+    }>${inner}</button>`;
+    const modeSwitch = mode ? this.#modeSwitch(mode, on, off) : '';
+    return `<div class="cp-bar"${this.#barEnter ? ' data-enter' : ''}><div class="cp-tools">${tools}</div><div class="cp-end">${hint}${count}${modeSwitch}${send}</div></div>`;
+  }
+
+  /** Day / night: a track whose thumb carries the sun (off) or the moon (on); two stars come out at night. */
+  #modeSwitch(mode: ComposerMode, on: boolean, off: boolean): string {
+    const text = mode.text ? `<span class="cp-mode-text" aria-hidden="true">${esc(mode.text)}</span>` : '';
+    return `<button type="button" role="switch" class="cp-mode" data-mk="mode" data-act="mode" data-key="mode" aria-checked="${on}" aria-label="${escAttr(
+      mode.label,
+    )}" title="${escAttr(mode.label)}"${off || mode.disabled ? ' disabled' : ''}><span class="cp-mode-track" aria-hidden="true"><span class="cp-mode-stars"></span><span class="cp-mode-thumb"><span class="cp-mode-sun">${icon(
+      'sun',
+      { size: 14 },
+    )}</span><span class="cp-mode-moon">${icon('moon', { size: 13 })}</span></span></span>${text}</button>`;
   }
 
   #recorderBar(rec: Rec, t: ComposerStrings): string {
