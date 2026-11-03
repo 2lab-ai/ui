@@ -18,7 +18,7 @@ export const styles = `
   background: color-mix(in srgb, var(--st-fail) calc(7% * var(--chroma)), var(--ib-card)); color: var(--ib-text); font-size: 12.5px; line-height: 1.4;
 }
 .cv-errbar[hidden] { display: none; }
-.cv-errbar > svg, .cv-fail > svg { flex: none; width: 16px; height: 16px; color: color-mix(in srgb, var(--st-fail) 75%, var(--ib-text)); }
+.cv-errbar > svg, .cv-fail > svg { flex: none; width: 16px; height: 16px; color: color-mix(in srgb, var(--st-fail) calc(75% + 25% * (1 - var(--chroma))), var(--ib-text)); }
 .cv-err-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .cv-err-detail { color: var(--ib-muted); }
 .cv-state { display: grid; justify-items: center; gap: 8px; max-width: 340px; color: var(--ib-muted); font-size: 13px; line-height: 1.45; text-align: center; }

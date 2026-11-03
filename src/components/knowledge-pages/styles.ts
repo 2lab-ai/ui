@@ -6,8 +6,10 @@ import { mdDocCss } from '../../core/markdown';
  * arms in the fail tint; alerts are tone tints (icon + words). Below a 640px container width the two columns stack
  * and only one shows (`data-view`), with a back button. Tints are color-mix() of tokens — no literals.
  */
-const tint = (tone: string, pct = 14) => `color-mix(in srgb, var(--st-${tone}) ${pct}%, var(--ib-card))`;
-const ink = (tone: string) => `color-mix(in srgb, var(${tone}) 70%, var(--ib-text))`;
+// Mono (0.25.0, --chroma 0): no tint and ink words; an alert keeps a border and its icon in the state colour.
+const tint = (tone: string, pct = 14) =>
+  `color-mix(in srgb, var(--st-${tone}) calc(${pct}% * var(--chroma)), var(--ib-card))`;
+const ink = (tone: string) => `color-mix(in srgb, var(${tone}) calc(70% * var(--chroma)), var(--ib-text))`;
 
 export const styles = `
 ${mdDocCss}
@@ -171,9 +173,10 @@ label .kp-sub { margin-left: 4px; }
 .kp-guard-acts { display: inline-flex; flex: none; gap: 6px; margin-left: auto; }
 .kp-alerts { display: flex; flex: none; flex-direction: column; gap: 8px; padding: 12px 20px 0; }
 .kp-alert { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; border-radius: 10px; font-size: 12.5px; line-height: 18px; }
-.kp-alert.is-fail { background: ${tint('fail')}; color: ${ink('--st-fail-text')}; }
-.kp-alert.is-wait { background: ${tint('wait')}; color: ${ink('--st-wait')}; }
-.kp-alert-i { flex: none; margin-top: 2px; }
+.kp-alert.is-fail { --kp-c: var(--st-fail); background: ${tint('fail')}; color: ${ink('--st-fail-text')}; }
+.kp-alert.is-wait { --kp-c: var(--st-wait); background: ${tint('wait')}; color: ${ink('--st-wait')}; }
+.kp-alert.is-fail, .kp-alert.is-wait { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--kp-c) calc(55% * (1 - var(--chroma))), transparent); }
+.kp-alert-i { flex: none; margin-top: 2px; color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--kp-c, currentColor)); }
 .kp-alert-b { display: flex; flex: 1; flex-direction: column; gap: 6px; min-width: 0; }
 .kp-alert-t { overflow-wrap: anywhere; white-space: pre-wrap; }
 .kp-alert-s { color: var(--ib-text-2); }

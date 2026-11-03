@@ -430,9 +430,9 @@ export const planCss = `
 .pl-marker { position: relative; z-index: 1; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--pl-bg, var(--surface)); box-shadow: inset 0 0 0 1px var(--ib-card-border); color: var(--text-secondary); }
 .pl-step[data-step="done"] > .pl-marker { background: var(--ib-pill); box-shadow: none; color: var(--text); }
 .pl-step[data-step="running"] > .pl-marker { box-shadow: none; color: var(--st-run); }
-.pl-step[data-step="failed"] > .pl-marker { background: color-mix(in srgb, var(--st-fail) 16%, var(--pl-bg, var(--surface))); box-shadow: none; color: var(--st-fail-text); }
+.pl-step[data-step="failed"] > .pl-marker { background: color-mix(in srgb, var(--st-fail) calc(16% * var(--chroma)), var(--pl-bg, var(--surface))); box-shadow: none; color: color-mix(in srgb, var(--st-fail-text) calc(100% * var(--chroma)), var(--st-fail)); }
 .pl-step[data-step="skipped"] > .pl-marker { box-shadow: none; border: 1px dashed var(--text-tertiary); color: var(--text-tertiary); }
-.pl-step[data-step="paused"] > .pl-marker { background: color-mix(in srgb, var(--st-wait) 16%, var(--pl-bg, var(--surface))); box-shadow: none; color: color-mix(in srgb, var(--st-wait) 70%, var(--text)); }
+.pl-step[data-step="paused"] > .pl-marker { background: color-mix(in srgb, var(--st-wait) calc(16% * var(--chroma)), var(--pl-bg, var(--surface))); box-shadow: none; color: color-mix(in srgb, var(--st-wait) calc(70% + 30% * (1 - var(--chroma))), var(--text)); }
 .pl-step[data-step="dropped"] > .pl-marker { color: var(--text-tertiary); }
 .pl-marker svg { width: 10px; height: 10px; }
 .pl-marker .pl-spin { width: 11px; height: 11px; }
@@ -462,14 +462,14 @@ export const planCss = `
 /* Fate badge (a step that left its plan) and status chip: glyph + word, never colour alone. */
 .pl-fate, .pl-state { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px 0 5px; border-radius: 6px; background: var(--ib-pill); color: var(--text-secondary); font-size: 11px; font-weight: 600; line-height: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; vertical-align: 1px; text-decoration: none; }
 .pl-fate > svg, .pl-state > svg { flex: none; width: 10px; height: 10px; }
-.pl-fate[data-fate="done"] { background: color-mix(in srgb, var(--st-done) 14%, var(--pl-bg, var(--surface))); color: color-mix(in srgb, var(--st-done) 70%, var(--text)); }
+.pl-fate[data-fate="done"] { background: color-mix(in srgb, var(--st-done) calc(14% * var(--chroma)), color-mix(in srgb, var(--pl-bg, var(--surface)) calc(100% * var(--chroma)), var(--ib-pill))); color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--text)); }
 .pl-state { --pl-tone: var(--text-tertiary); border-radius: 999px; padding: 0 7px 0 5px; }
 .pl-state > svg { color: var(--pl-tone); }
 .pl-state > .pl-spin { width: 9px; height: 9px; border-width: 1.5px; }
-.pl-state[data-st="running"] { --pl-tone: var(--st-run); background: color-mix(in srgb, var(--st-run) 14%, var(--pl-bg, var(--surface))); color: color-mix(in srgb, var(--st-run) 70%, var(--text)); }
-.pl-state[data-st="paused"] { --pl-tone: var(--st-wait); background: color-mix(in srgb, var(--st-wait) 16%, var(--pl-bg, var(--surface))); color: color-mix(in srgb, var(--st-wait) 70%, var(--text)); }
-.pl-state[data-st="done"] { --pl-tone: var(--st-done); background: color-mix(in srgb, var(--st-done) 14%, var(--pl-bg, var(--surface))); color: color-mix(in srgb, var(--st-done) 70%, var(--text)); }
-.pl-state[data-st="failed"] { --pl-tone: var(--st-fail-text); background: color-mix(in srgb, var(--st-fail) 14%, var(--pl-bg, var(--surface))); color: var(--st-fail-text); }
+.pl-state[data-st="running"] { --pl-tone: var(--st-run); background: color-mix(in srgb, var(--st-run) calc(14% * var(--chroma)), color-mix(in srgb, var(--pl-bg, var(--surface)) calc(100% * var(--chroma)), var(--ib-pill))); color: color-mix(in srgb, var(--st-run) calc(70% * var(--chroma)), var(--text)); }
+.pl-state[data-st="paused"] { --pl-tone: var(--st-wait); background: color-mix(in srgb, var(--st-wait) calc(16% * var(--chroma)), color-mix(in srgb, var(--pl-bg, var(--surface)) calc(100% * var(--chroma)), var(--ib-pill))); color: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--text)); }
+.pl-state[data-st="done"] { --pl-tone: var(--st-done); background: color-mix(in srgb, var(--st-done) calc(14% * var(--chroma)), color-mix(in srgb, var(--pl-bg, var(--surface)) calc(100% * var(--chroma)), var(--ib-pill))); color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--text)); }
+.pl-state[data-st="failed"] { --pl-tone: color-mix(in srgb, var(--st-fail-text) calc(100% * var(--chroma)), var(--st-fail)); background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), color-mix(in srgb, var(--pl-bg, var(--surface)) calc(100% * var(--chroma)), var(--ib-pill))); color: var(--st-fail-text); }
 
 /* Sub-steps: a smaller rail inside the step's text column. */
 .pl-subs { margin-top: 3px; }
@@ -500,9 +500,9 @@ export const planCss = `
 .pl-foot-st { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: var(--text); font-variant-numeric: tabular-nums; }
 .pl-foot-icon { display: inline-grid; place-items: center; width: 14px; height: 14px; color: var(--text-tertiary); }
 .pl-foot[data-phase="running"] .pl-foot-icon { color: var(--st-run); }
-.pl-foot[data-phase="paused"] .pl-foot-icon { color: color-mix(in srgb, var(--st-wait) 70%, var(--text)); }
+.pl-foot[data-phase="paused"] .pl-foot-icon { color: color-mix(in srgb, var(--st-wait) calc(70% + 30% * (1 - var(--chroma))), var(--text)); }
 .pl-foot[data-phase="done"] .pl-foot-icon { color: var(--st-done); }
-.pl-foot[data-phase="failed"] .pl-foot-icon { color: var(--st-fail-text); }
+.pl-foot[data-phase="failed"] .pl-foot-icon { color: color-mix(in srgb, var(--st-fail-text) calc(100% * var(--chroma)), var(--st-fail)); }
 .pl-foot-icon svg { width: 12px; height: 12px; }
 .pl-foot-icon .pl-spin { width: 11px; height: 11px; }
 .pl-foot-time { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -25,7 +25,7 @@ export const styles = `
 .ps-icon { display: inline-grid; place-items: center; width: 14px; height: 14px; color: var(--ag-c); }
 .ps-icon svg { width: 12px; height: 12px; }
 .ps-icon .ar-spin { width: 10px; height: 10px; }
-.ps-word { font-weight: 650; color: var(--ag-t); }
+.ps-word { font-weight: 650; color: color-mix(in srgb, var(--ag-t) calc(100% * var(--chroma)), var(--text)); }
 .ps-time { display: inline-flex; align-items: center; gap: 5px; min-width: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ps-clock { display: inline-grid; flex: none; color: var(--text-tertiary); }
 .ps-clock svg { width: 13px; height: 13px; }

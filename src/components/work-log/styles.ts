@@ -105,9 +105,10 @@ export const styles = `
 }
 .wl-mark { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
 .wl-mark svg { width: 12px; height: 12px; }
-.wl-tool[data-status="running"] .wl-mark { color: color-mix(in srgb, var(--st-run) 70%, var(--ib-text)); }
-.wl-tool[data-status="success"] .wl-mark { color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
-.wl-tool[data-status="error"] .wl-mark, .wl-tool[data-status="error"] .wl-tool-name { color: var(--st-fail-text); }
+.wl-tool[data-status="running"] .wl-mark { color: color-mix(in srgb, var(--st-run) calc(70% + 30% * (1 - var(--chroma))), var(--ib-text)); }
+.wl-tool[data-status="success"] .wl-mark { color: color-mix(in srgb, var(--st-done) calc(70% + 30% * (1 - var(--chroma))), var(--ib-text)); }
+.wl-tool[data-status="error"] .wl-tool-name { color: var(--st-fail-text); }
+.wl-tool[data-status="error"] .wl-mark { color: color-mix(in srgb, var(--st-fail-text) calc(100% * var(--chroma)), var(--st-fail)); }
 .wl-tool[data-status="interrupted"] .wl-mark { color: var(--ib-muted); }
 .wl-tool-name { flex: none; color: var(--ib-text); font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
 .wl-tool-sum { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

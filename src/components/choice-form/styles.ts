@@ -198,7 +198,7 @@ input { letter-spacing: inherit; }
 .cf-done-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 0 2px; font-size: 13.5px; font-weight: 600;
   line-height: 20px; }
 .cf-done-mark { display: inline-grid; flex: none; place-items: center; width: 20px; height: 20px; border-radius: 50%;
-  background: color-mix(in srgb, var(--st-done) calc(16% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }
+  background: color-mix(in srgb, var(--st-done) calc(16% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-done) calc(70% + 30% * (1 - var(--chroma))), var(--ib-text)); }
 .cf-done-word { color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }
 .cf-done-title { min-width: 0; color: var(--ib-text); overflow-wrap: anywhere; }
 .cf-done-title::before { content: "·"; margin-right: 8px; color: var(--ib-muted); font-weight: 400; }
