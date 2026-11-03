@@ -1,7 +1,13 @@
 import type { ComponentDoc } from '../../docs/types';
 import type { UiComposer } from './composer';
 import './composer';
-import type { ComposerData, ComposerRejectDetail, ComposerSubmitDetail, ComposerToolDetail } from './logic';
+import type {
+  ComposerData,
+  ComposerModeDetail,
+  ComposerRejectDetail,
+  ComposerSubmitDetail,
+  ComposerToolDetail,
+} from './logic';
 
 function make(data: ComposerData, attrs: Record<string, string> = {}): UiComposer {
   const el = document.createElement('ui-composer');
@@ -216,6 +222,12 @@ export const doc: ComponentDoc = {
         'Text on the send button (e.g. “Start task”, with an arrow). Without it the button is a 32px ink arrow-up icon named “Send”.',
     },
     {
+      name: 'data.mode',
+      type: '{ id; label; on; text?; submitLabel?; disabled? }',
+      description:
+        'A switch right beside the send button that changes what sending does (“Plan first”), drawn as day and night: off is the sun on a warm track, on is the moon on a night track with two stars. While it is on the send button takes the night colour and `mode.submitLabel` (unset: `submitLabel`; empty: the arrow alone). A press flips it at once → `ui-mode`. The night entrance (the label rising, one light sweep, a soft ring) plays only after a flip, never on first paint. `text` hides on cards under 400px; `label` always names the switch, so start it with `text`.',
+    },
+    {
       name: 'data.hint',
       type: 'boolean',
       default: 'false',
@@ -301,8 +313,15 @@ export const doc: ComponentDoc = {
       description:
         'A host tool was pressed. For toggles `pressed` is the state asked for and the chip flips at once; preventDefault() keeps it as it was. The local flip lasts until `data.tools` changes.',
     },
+    {
+      name: 'ui-mode',
+      detail: '{ id: string; on: boolean }',
+      description:
+        'The mode switch was pressed; `on` is the state asked for. It flips at once (switch, send label, night); preventDefault() keeps it as it was. The local flip lasts until `data.mode` changes — answer with a new `data.mode`.',
+    },
   ],
   keyboard: [
+    ['Space / Enter on the mode switch', 'Flip it (a native button with role="switch")'],
     ['Enter', 'Send (desktop); a new line with enter="newline". Never during an IME composition'],
     ['Shift+Enter / Alt+Enter', 'New line'],
     ['⌘/Ctrl+Enter', 'Send (also on touch screens)'],
@@ -315,11 +334,12 @@ export const doc: ComponentDoc = {
     'Icon-only buttons carry aria-label and a tooltip; remove buttons say “Remove {name}”; a voice note’s play button says Play / Stop {name}.',
     'The error line is role="alert"; attaching and removing files is announced in a polite status region that the patched markup never re-creates.',
     'Send uses aria-disabled (it stays in the tab order) and aria-busy while busy; host toggles use aria-pressed.',
+    'The mode switch is a button with role="switch" and aria-checked, named by data.mode.label (also its tooltip); its short text is aria-hidden, so the name holds when narrow cards hide it. Day and night differ in position and glyph, not colour alone.',
     'Recording moves focus to Done; the recorder row is a group named “Recording” with a role="timer" clock; ending it returns focus to the field.',
     'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom. The camera tool (data.camera) shows only there.',
     'Upload progress (data.progress) is a role="progressbar" named “Uploading” with aria-valuenow in percent.',
     'Reduced motion: chip, error and recorder enters switch at once; the drop wash keeps a short fade; the send spinner keeps turning.',
-    'Sound (opt-in, @2lab.ai/ui/sound): sending taps once ui-submit is not prevented; a tool plays select (a toggle tool toggle, by its new state); starting a voice note taps, Done taps subtly, Cancel or Esc closes subtly; removing an attachment closes subtly and a refused file plays a subtle error; keystrokes play type while typing sounds are on. Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): sending taps once ui-submit is not prevented; a tool plays select (a toggle tool toggle, by its new state); the mode switch plays toggle by its new state; starting a voice note taps, Done taps subtly, Cancel or Esc closes subtly; removing an attachment closes subtly and a refused file plays a subtle error; keystrokes play type while typing sounds are on. Silent until the page turns sound on.',
   ],
   usage: `<ui-composer></ui-composer>
 <script type="module">
@@ -415,6 +435,28 @@ export const doc: ComponentDoc = {
       },
     },
     {
+      id: 'mode',
+      title: 'Mode switch — plan first',
+      description:
+        'data.mode beside the send button: day (off) sends “Start task”; flip it and night falls — the moon turns in, two stars come out, and the send button goes night with “Start plan” rising into place. The host answers ui-mode with a new data.mode.',
+      height: 300,
+      create: () => {
+        const el = make({
+          ...NEW_TASK,
+          mode: { id: 'plan', label: 'Plan first', text: 'Plan', on: false, submitLabel: 'Start plan' },
+        });
+        const line = statusLine();
+        el.addEventListener('ui-mode', (e) => {
+          const { on } = (e as CustomEvent<ComposerModeDetail>).detail;
+          const d = el.data ?? {};
+          if (d.mode) el.data = { ...d, mode: { ...d.mode, on } };
+          line.textContent = `ui-mode · plan → ${on ? 'on (Start plan)' : 'off (Start task)'}`;
+        });
+        echoSubmit(el, line);
+        return frame(el, line);
+      },
+    },
+    {
       id: 'limits',
       title: 'Limits',
       description:
@@ -446,7 +488,8 @@ export const doc: ComponentDoc = {
             placeholder: '무엇을 할까요? 할 일을 쓰거나 파일을 끌어다 놓으세요.',
             hint: true,
             maxLength: 4000,
-            tools: [{ id: 'plan', label: '계획 먼저', icon: 'list', showLabel: true, pressed: false }],
+            submitLabel: '작업 시작',
+            mode: { id: 'plan', label: '계획 먼저', text: '계획', on: true, submitLabel: '계획 시작' },
           },
           { lang: 'ko' },
         );
