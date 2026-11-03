@@ -36,6 +36,9 @@ export const styles = `
 .tb-tab[aria-selected="true"] { color: var(--ib-text); }
 .tb-tab[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 .tb-tab:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -2px; }
+.tb-mark { display: inline-grid; flex: none; place-items: center; color: var(--model-hue, currentColor); }
+.tb-mark svg { display: block; width: 13px; height: 13px; }
+@media (forced-colors: active) { .tb-mark { color: CanvasText; } }
 .tb-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--tb-tone, var(--ib-muted)); }
 .tb-dot[data-tone="run"] { --tb-tone: var(--st-run); animation: tb-pulse 1.6s ease-in-out infinite; }
 .tb-dot[data-tone="wait"] { --tb-tone: var(--st-wait); }
