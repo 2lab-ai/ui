@@ -60,6 +60,8 @@ export interface AppBarBrand {
 }
 
 export type AppBarTheme = 'light' | 'dark';
+/** The palette beside the theme (0.25.0): the colour themes, or their restrained mono pair (status colour on marks only). */
+export type AppBarPalette = 'color' | 'mono';
 export type AppBarCollapse = 'auto' | 'always' | 'never';
 
 export interface AppBarData {
@@ -71,6 +73,11 @@ export interface AppBarData {
   account?: AppBarAccount;
   /** The page's current theme. When set, the theme toggle shows (a sun while dark, a moon while light). */
   theme?: AppBarTheme;
+  /**
+   * The page's current palette (0.25.0). When set beside `theme`, the toggle cycles four themes — light → dark →
+   * light·mono → dark·mono → light — and `ui-theme-change` carries the palette too. Unset: light ⇄ dark, as before.
+   */
+  palette?: AppBarPalette;
   /**
    * The page's interface-sound choice (`@2lab.ai/ui/sound`). When set, a speaker toggle shows before the theme toggle
    * (pressed while on) and sends `ui-sound-change`; the host keeps the choice and calls `setSound`.
@@ -91,9 +98,21 @@ export interface AppBarNavigate {
   href: string;
 }
 
-/** `ui-theme-change` detail: the theme the person asked for. */
+/** `ui-theme-change` detail: the theme the person asked for (and its palette, when the bar was given one). */
 export interface AppBarThemeChange {
   theme: AppBarTheme;
+  palette?: AppBarPalette;
+}
+
+/** One step of the theme cycle: light → dark → light·mono → dark·mono → light, or light ⇄ dark without a palette. */
+export function nextAppBarTheme(
+  theme: AppBarTheme,
+  palette?: AppBarPalette,
+): { theme: AppBarTheme; palette?: AppBarPalette } {
+  const next: AppBarTheme = theme === 'dark' ? 'light' : 'dark';
+  if (!palette) return { theme: next };
+  // The palette turns over on the way back to light: dark → light·mono, dark·mono → light.
+  return { theme: next, palette: theme === 'dark' ? (palette === 'mono' ? 'color' : 'mono') : palette };
 }
 
 /** `ui-sound-change` detail: whether the person turned interface sound on. */
@@ -108,6 +127,8 @@ const STRINGS = {
     account: 'Account',
     toLight: 'Switch to light theme',
     toDark: 'Switch to dark theme',
+    toLightMono: 'Switch to light mono theme',
+    toDarkMono: 'Switch to dark mono theme',
     soundOn: 'Turn sound on',
     soundOff: 'Turn sound off',
   },
@@ -117,6 +138,8 @@ const STRINGS = {
     account: '계정',
     toLight: '라이트 테마로 전환',
     toDark: '다크 테마로 전환',
+    toLightMono: '라이트 모노 테마로 전환',
+    toDarkMono: '다크 모노 테마로 전환',
     soundOn: '소리 켜기',
     soundOff: '소리 끄기',
   },
@@ -244,6 +267,10 @@ function badgeText(b: unknown): string {
 
 function themeOf(v: unknown): AppBarTheme | undefined {
   return v === 'light' || v === 'dark' ? v : undefined;
+}
+
+function paletteOf(v: unknown): AppBarPalette | undefined {
+  return v === 'color' || v === 'mono' ? v : undefined;
 }
 
 /**
@@ -550,14 +577,15 @@ export class UiAppBar extends UiElement<AppBarData> {
   #toggleTheme(e: Event): void {
     const cur = themeOf(this.data?.theme);
     if (!cur) return;
-    const next: AppBarTheme = cur === 'dark' ? 'light' : 'dark';
-    if (!this.emit<AppBarThemeChange>('ui-theme-change', { theme: next })) return;
-    this.sound('toggle', { direction: next === 'dark' ? 'forward' : 'back' }, e);
+    const pal = paletteOf(this.data?.palette);
+    const next = nextAppBarTheme(cur, pal);
+    if (!this.emit<AppBarThemeChange>('ui-theme-change', next)) return;
+    this.sound('toggle', { direction: next.theme === 'dark' ? 'forward' : 'back' }, e);
     // Optimistic on the latest data: a listener that already set the theme wins.
     const now = this.data;
-    if (now && themeOf(now.theme) === cur) {
+    if (now && themeOf(now.theme) === cur && paletteOf(now.palette) === pal) {
       this.#swapped = true;
-      this.data = { ...now, theme: next };
+      this.data = { ...now, ...next };
     }
   }
 
@@ -647,7 +675,7 @@ export class UiAppBar extends UiElement<AppBarData> {
       this.#status(d.status),
       this.#account(d.account, t),
       this.#sound(d.sound, t),
-      this.#theme(d.theme, t),
+      this.#theme(d.theme, d.palette, t),
     ].join('');
   }
 
@@ -727,13 +755,20 @@ export class UiAppBar extends UiElement<AppBarData> {
     )}" data-act="sound" data-key="sound"><span class="ab-glyph" data-mk="${glyph}">${icon(glyph)}</span></button>`;
   }
 
-  #theme(theme: AppBarTheme | undefined, t: Strings): string {
+  #theme(theme: AppBarTheme | undefined, palette: AppBarPalette | undefined, t: Strings): string {
     const cur = themeOf(theme);
     if (!cur) return '';
     const glyph = cur === 'dark' ? 'sun' : 'moon';
-    return `<button type="button" class="ab-icon-btn ab-theme" aria-label="${escAttr(
-      cur === 'dark' ? t.toLight : t.toDark,
-    )}" data-act="theme" data-key="theme"><span class="${cls('ab-glyph', this.#swapped && 'is-in')}" data-mk="${glyph}">${icon(glyph)}</span></button>`;
+    const next = nextAppBarTheme(cur, paletteOf(palette));
+    const label =
+      next.palette === 'mono'
+        ? next.theme === 'dark'
+          ? t.toDarkMono
+          : t.toLightMono
+        : next.theme === 'dark'
+          ? t.toDark
+          : t.toLight;
+    return `<button type="button" class="ab-icon-btn ab-theme" aria-label="${escAttr(label)}" data-act="theme" data-key="theme"><span class="${cls('ab-glyph', this.#swapped && 'is-in')}" data-mk="${glyph}">${icon(glyph)}</span></button>`;
   }
 }
 

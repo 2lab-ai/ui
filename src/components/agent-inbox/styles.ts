@@ -5,14 +5,18 @@
  */
 export const styles = `
 :host {
-  --ib-run-bg: color-mix(in srgb, var(--st-run) 16%, var(--ib-card));
-  --ib-run-fg: color-mix(in srgb, var(--st-run) 70%, var(--ib-text));
-  --ib-wait-bg: color-mix(in srgb, var(--st-wait) 16%, var(--ib-card));
-  --ib-wait-fg: color-mix(in srgb, var(--st-wait) 70%, var(--ib-text));
-  --ib-done-bg: color-mix(in srgb, var(--st-done) 16%, var(--ib-card));
-  --ib-done-fg: color-mix(in srgb, var(--st-done) 70%, var(--ib-text));
-  --ib-fail-bg: color-mix(in srgb, var(--st-fail) 16%, var(--ib-card));
-  --ib-fail-fg: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text));
+  /* Mono (--chroma 0, 0.25.0): a tone keeps no tint — the tag is the neutral pill in the secondary ink, and only
+     its icon (and a host metric's glyph) carries the status colour. In the colour themes both bases are exact. */
+  --ib-tone-base: color-mix(in srgb, var(--ib-card) calc(100% * var(--chroma)), var(--ib-pill));
+  --ib-tone-ink: color-mix(in srgb, var(--ib-text) calc(100% * var(--chroma)), var(--ib-text-2));
+  --ib-run-bg: color-mix(in srgb, var(--st-run) calc(16% * var(--chroma)), var(--ib-tone-base));
+  --ib-run-fg: color-mix(in srgb, var(--st-run) calc(70% * var(--chroma)), var(--ib-tone-ink));
+  --ib-wait-bg: color-mix(in srgb, var(--st-wait) calc(16% * var(--chroma)), var(--ib-tone-base));
+  --ib-wait-fg: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--ib-tone-ink));
+  --ib-done-bg: color-mix(in srgb, var(--st-done) calc(16% * var(--chroma)), var(--ib-tone-base));
+  --ib-done-fg: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-tone-ink));
+  --ib-fail-bg: color-mix(in srgb, var(--st-fail) calc(16% * var(--chroma)), var(--ib-tone-base));
+  --ib-fail-fg: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-tone-ink));
   --ib-rest-bg: var(--ib-pill);
   --ib-rest-fg: var(--ib-text-2);
 }
@@ -112,8 +116,8 @@ export const styles = `
 .ib-lead {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5;
-  color: color-mix(in srgb, var(--st-color) 70%, var(--ib-text));
-  background: color-mix(in srgb, var(--st-color) 14%, var(--ib-card));
+  color: color-mix(in srgb, var(--st-color) calc(70% * var(--chroma)), var(--ib-text));
+  background: color-mix(in srgb, var(--st-color) calc(14% * var(--chroma)), var(--ib-card));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) 45%, transparent);
 }
 .ib-lead svg { width: 12px; height: 12px; }
@@ -154,16 +158,17 @@ export const styles = `
   margin-top: 6px; font-size: 13.5px; line-height: 1.45; color: var(--ib-text-2);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
 }
-/* The TL;DR box (0.20.0): the run's short report on a quiet tint of the status colour; × at its top right. */
+/* The TL;DR box (0.20.0): the run's short report on a quiet tint of the status colour; × at its top right. In mono
+   (0.25.0) no tint: the card's own surface inside a border in the status colour. */
 .ib-tldr {
   margin-top: 8px; padding: 7px 8px 8px 10px; border-radius: 8px;
-  background: color-mix(in srgb, var(--st-color) 7%, var(--ib-card));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) 22%, transparent);
+  background: color-mix(in srgb, var(--st-color) calc(7% * var(--chroma)), var(--ib-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-color) calc(22% + 48% * (1 - var(--chroma))), transparent);
 }
 .ib-tldr-head { display: flex; align-items: center; gap: 6px; min-height: 20px; }
 .ib-tldr-label {
   font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.3;
-  color: color-mix(in srgb, var(--st-color) 55%, var(--ib-text));
+  color: color-mix(in srgb, var(--st-color) calc(55% * var(--chroma)), var(--ib-text));
 }
 .ib-tldr-x {
   flex: none; display: inline-grid; place-items: center; inline-size: 22px; block-size: 22px; margin: -2px -3px -2px auto;
@@ -256,8 +261,14 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-tag[data-tone="done"] { background: var(--ib-done-bg); color: var(--ib-done-fg); }
 .ib-tag[data-tone="fail"] { background: var(--ib-fail-bg); color: var(--ib-fail-fg); }
 .ib-tag[data-tone="rest"] { background: var(--ib-rest-bg); color: var(--ib-rest-fg); }
+.ib-tag[data-tone="run"], .ib-metric.is-host[data-tone="run"] { --ib-tone-c: var(--st-run); }
+.ib-tag[data-tone="wait"], .ib-metric.is-host[data-tone="wait"] { --ib-tone-c: var(--st-wait); }
+.ib-tag[data-tone="done"], .ib-metric.is-host[data-tone="done"] { --ib-tone-c: var(--st-done); }
+.ib-tag[data-tone="fail"], .ib-metric.is-host[data-tone="fail"] { --ib-tone-c: var(--st-fail); }
 .ib-tag-text { overflow: hidden; text-overflow: ellipsis; }
-.ib-tag-icon { flex-shrink: 0; display: inline-flex; align-items: center; color: currentColor; }
+/* The icon is the text colour in the colour themes; in mono it alone keeps the tone (the text has gone to ink). */
+.ib-tag-icon, .ib-metric.is-host[data-tone] > svg { color: color-mix(in srgb, currentColor calc(100% * var(--chroma)), var(--ib-tone-c, currentColor)); }
+.ib-tag-icon { flex-shrink: 0; display: inline-flex; align-items: center; }
 .ib-tag-icon svg { width: 12px; height: 12px; }
 .ib-ago { color: inherit; }
 .ib-ago::before { content: "·"; margin: 0 6px; }
@@ -286,7 +297,7 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-metric.is-host[data-tone="wait"] { color: var(--ib-wait-fg); }
 /* 0.22.0 — the model as icons: the maker's mark in the model's colour, then the effort gauge (rising bars). */
 .ib-metric.is-model { gap: 3px; }
-.ib-metric.is-model > svg:first-child:not(.ib-eff) { color: var(--ib-model-hue, currentColor); }
+.ib-metric.is-model > svg:first-child:not(.ib-eff) { color: color-mix(in srgb, var(--ib-model-hue, currentColor) calc(100% * var(--chroma)), currentColor); }
 /* 0.23.0 — OpenAI's and xAI's marks are black: the ink, not the muted metric colour (white in dark mode). */
 .ib-metric.is-model.is-ink > svg:first-child:not(.ib-eff) { color: var(--ib-text); }
 .ib-metric .ib-eff { width: 13px; height: 13px; }

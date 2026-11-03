@@ -169,7 +169,7 @@ function componentPage(d: ComponentDoc): string {
       <div class="seg pv-tabs" role="tablist" aria-label="Examples">${demos}</div>
       <div class="pv-tools">
         <div class="seg" aria-label="Width"><button data-width="desk" aria-pressed="true">Desktop</button><button data-width="mobile" aria-pressed="false">Mobile</button></div>
-        <div class="seg" aria-label="Preview theme"><button data-pv-theme="light" aria-pressed="${themeNow() === 'light'}">Light</button><button data-pv-theme="dark" aria-pressed="${themeNow() === 'dark'}">Dark</button></div>
+        <div class="seg" aria-label="Preview theme"><button data-pv-theme="light" aria-pressed="${themeNow() === 'light'}">Light</button><button data-pv-theme="dark" aria-pressed="${themeNow() === 'dark'}">Dark</button><button data-pv-theme="light" data-pv-palette="mono" aria-pressed="false">Light mono</button><button data-pv-theme="dark" data-pv-palette="mono" aria-pressed="false">Dark mono</button></div>
         <button class="icon-btn" id="replay" aria-label="Replay example">${ICON.replay}</button>
       </div>
     </div>
@@ -215,7 +215,7 @@ function themingPage(): string {
   return `<div class="crumb">Getting started</div><h1>Theming</h1>
   <p class="lede">Components follow <code>prefers-color-scheme</code> out of the box. Pin one with <code>theme="light|dark"</code>, or theme the whole page with <code>--ui-*</code> custom properties.</p>
   <h2>Three ways</h2>
-  <ul class="plain"><li><b>Nothing</b> — each element follows the OS theme.</li><li><b>Attribute</b> — <code>&lt;ui-agent-inbox theme="dark"&gt;</code>.</li><li><b>Page tokens</b> — load <code>@2lab.ai/ui/tokens.css</code> and set <code>data-theme="dark"</code> on any ancestor, or override single tokens.</li></ul>
+  <ul class="plain"><li><b>Nothing</b> — each element follows the OS theme.</li><li><b>Attribute</b> — <code>&lt;ui-agent-inbox theme="dark"&gt;</code>.</li><li><b>Page tokens</b> — load <code>@2lab.ai/ui/tokens.css</code> and set <code>data-theme="dark"</code> on any ancestor, or override single tokens.</li><li><b>Mono</b> — add <code>data-palette="mono"</code> beside <code>data-theme</code> for the restrained pair: decorative hues go grey, and the four task states keep their colour on icons, dots and borders only (no tinted fills). Components scale every status fill by <code>--ui-chroma</code> (1 in colour, 0 in mono).</li></ul>
   ${codeBlock(`:root {\n  --ui-accent: #7c3aed;\n  --ui-st-run: #7c3aed;\n}\n[data-theme="dark"] {\n  --ui-surface: #111113;\n}`, 'ov')}
   <p class="desc">Set <code>--ui-*</code> on an ancestor (<code>:root</code>, a wrapper), not on the element itself. Inside, each element defines <code>--border: var(--ui-border, …)</code> on its host, so a page that maps <code>--ui-border: var(--border)</code> on that same element makes a cycle and every token goes blank. On a wrapper the values arrive already resolved:</p>
   ${codeBlock(`/* the page already has --surface, --border, --text … */\n.tool-calls {\n  --ui-surface: var(--surface);\n  --ui-border: var(--border);\n  --ui-text: var(--text);\n}`, 'map')}
@@ -411,7 +411,11 @@ document.addEventListener('click', (e) => {
   if (th) {
     for (const b of Array.from(document.querySelectorAll('[data-pv-theme]')))
       b.setAttribute('aria-pressed', String(b === th));
-    document.getElementById('stage')?.setAttribute('data-theme', th.dataset.pvTheme!);
+    const stage = document.getElementById('stage');
+    stage?.setAttribute('data-theme', th.dataset.pvTheme!);
+    // 0.25.0 — the mono pair: data-palette="mono" beside data-theme (status colour on marks only).
+    if (th.dataset.pvPalette === 'mono') stage?.setAttribute('data-palette', 'mono');
+    else stage?.removeAttribute('data-palette');
     return;
   }
   if (t.closest('#replay')) {

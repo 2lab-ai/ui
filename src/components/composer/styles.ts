@@ -5,9 +5,9 @@
  * gradient, press 0.97, tints by color-mix() of status tokens instead of rgba literals, spinner 0.9s.
  */
 export const styles = `
-:host { --cp-fail-bg: color-mix(in srgb, var(--st-fail) 14%, var(--ib-card));
-  --cp-fail-text: color-mix(in srgb, var(--st-fail) 70%, var(--ib-text));
-  --cp-warn-text: color-mix(in srgb, var(--st-wait) 70%, var(--ib-text));
+:host { --cp-fail-bg: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card));
+  --cp-fail-text: color-mix(in srgb, var(--st-fail) calc(70% * var(--chroma)), var(--ib-text));
+  --cp-warn-text: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--ib-text));
   --cp-hover: var(--ib-pill);
   min-width: 0; }
 [hidden] { display: none !important; }
@@ -106,7 +106,7 @@ img.cp-thumb { display: block; }
   animation: cp-rec 1.2s ease-in-out infinite; }
 .cp-rec-time { flex: none; min-width: 34px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .cp-meter { flex: 1; min-width: 24px; height: 4px; border-radius: 999px; overflow: hidden;
-  background: color-mix(in srgb, var(--st-fail) 24%, var(--ib-card)); }
+  background: color-mix(in srgb, var(--st-fail) calc(24% * var(--chroma)), var(--ib-card)); }
 .cp-level { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--cp-fail-text);
   transform: scaleX(0); transform-origin: left center; transition: transform 80ms linear; }
 .cp-rec-btn { flex: none; height: 28px; padding: 0 10px; border-radius: 6px; color: var(--text-secondary); font-size: 12.5px;
@@ -130,7 +130,7 @@ img.cp-thumb { display: block; }
   .cp-remove:not(:disabled):hover { background: var(--cp-hover); color: var(--ib-text); }
   .cp-play:hover { background: color-mix(in srgb, var(--ib-text) 10%, var(--ib-pill)); }
   .cp-send:not([aria-disabled="true"]):hover { background: color-mix(in srgb, var(--ib-text) 86%, var(--ib-card)); }
-  .cp-rec-btn:not(.is-done):hover { background: color-mix(in srgb, var(--st-fail) 22%, var(--ib-card)); color: var(--ib-text); }
+  .cp-rec-btn:not(.is-done):hover { background: color-mix(in srgb, var(--st-fail) calc(22% * var(--chroma)), var(--ib-card)); color: var(--ib-text); }
   .cp-rec-btn.is-done:hover { background: color-mix(in srgb, var(--ib-text) 86%, var(--ib-card)); }
 }
 .cp-tool:active:not(:disabled):not(:focus-visible),

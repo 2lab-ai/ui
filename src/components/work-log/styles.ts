@@ -83,9 +83,9 @@ export const styles = `
 .wl-entry[data-kind="instruction"] .wl-row[aria-expanded="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .wl-entry[data-kind="instruction"] .wl-head { color: color-mix(in srgb, var(--accent) 70%, var(--ib-text)); }
 .wl-entry[data-kind="final"] .wl-row { border-left-color: var(--st-done); }
-.wl-entry[data-kind="final"] .wl-head { color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); }
+.wl-entry[data-kind="final"] .wl-head { color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); }
 .wl-entry[data-kind="notice"] .wl-text { color: var(--ib-muted); }
-.wl-entry[data-kind="error"] .wl-row { border-left-color: var(--st-fail); background: color-mix(in srgb, var(--st-fail) 8%, transparent); }
+.wl-entry[data-kind="error"] .wl-row { border-left-color: var(--st-fail); background: color-mix(in srgb, var(--st-fail) calc(8% * var(--chroma)), transparent); }
 .wl-entry[data-kind="error"] .wl-head, .wl-entry[data-kind="error"] .wl-text { color: var(--st-fail-text); }
 .wl-entry[data-kind="system"] .wl-row { padding: 3px 8px; border-left-color: var(--ib-card-border); }
 .wl-entry[data-kind="system"] .wl-head { gap: 8px; color: var(--ib-text-2); font-size: 12px; }
@@ -140,7 +140,7 @@ export const styles = `
   grid-column: 3; grid-row: 1; display: inline-flex; align-items: baseline; gap: 8px; color: var(--ib-text-2); font-size: 12px;
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.wl-ag-st { color: color-mix(in srgb, var(--ag-c) 70%, var(--ib-text)); font-weight: 600; }
+.wl-ag-st { color: color-mix(in srgb, var(--ag-c) calc(70% * var(--chroma)), var(--ib-text)); font-weight: 600; }
 .wl-ag-act { grid-column: 2 / 4; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ib-muted); font-size: 12px; }
 .wl-ag-open { grid-column: 2 / 4; display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-size: 12px; font-weight: 500; }
 .wl-ag-open svg { width: 12px; height: 12px; }

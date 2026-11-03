@@ -45,7 +45,7 @@ export const styles = `
 .sb-bi svg { width: 14px; height: 14px; }
 .sb-btn.is-primary { background: var(--ib-text); border-color: var(--ib-text); color: var(--ib-card); }
 .sb-btn.is-danger { color: var(--st-fail-text); border-color: color-mix(in srgb, var(--st-fail) 40%, var(--ib-card-border)); }
-.sb-btn.is-danger.is-primary { background: var(--st-fail); border-color: var(--st-fail); color: var(--ib-card); }
+.sb-btn.is-danger.is-primary { background: color-mix(in srgb, var(--st-fail) calc(100% * var(--chroma)), var(--ib-text)); border-color: color-mix(in srgb, var(--st-fail) calc(100% * var(--chroma)), var(--ib-text)); color: var(--ib-card); }
 .sb-btn.is-danger:not(.is-primary)[data-armed] { background: ${tint('var(--st-fail)')}; border-color: var(--st-fail); color: ${toneText('var(--st-fail-text)')}; }
 /* Quiet: borderless and muted, for a lesser action beside the others; the danger word keeps its colour */
 .sb-btn.is-quiet { border-color: transparent; background: transparent; color: var(--ib-text-2); }
@@ -75,7 +75,7 @@ export const styles = `
   .sb-btn.is-danger:hover:not(:disabled) { border-color: var(--st-fail); background: ${tint('var(--st-fail)')}; }
   .sb-btn.is-quiet:hover:not(:disabled) { border-color: transparent; background: var(--ib-pill); color: var(--ib-text); }
   .sb-btn.is-quiet.is-danger:hover:not(:disabled) { background: ${tint('var(--st-fail)')}; color: var(--st-fail-text); }
-  .sb-btn.is-danger.is-primary:hover:not(:disabled) { background: var(--st-fail); opacity: 0.88; }
+  .sb-btn.is-danger.is-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--st-fail) calc(100% * var(--chroma)), var(--ib-text)); opacity: 0.88; }
   .sb-link:hover { text-decoration: underline; }
 }
 /* 44px targets on touch and narrow screens. */
