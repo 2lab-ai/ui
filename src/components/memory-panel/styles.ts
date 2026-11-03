@@ -1,7 +1,7 @@
 /** Ported from the soma-work dashboard settings › 기억 › 개인 메모리 (.prd/affectui/re-memory-panel.md D1–D17, `.mm-*`). */
 export const styles = `
 :host { --mm-fold: 320ms; --mm-warn: var(--yellow); --mm-danger-bg: color-mix(in srgb, var(--red) 11%, transparent);
-  --mm-mark: color-mix(in srgb, var(--st-wait) 32%, transparent); --mm-well: var(--surface-raised); }
+  --mm-mark: color-mix(in srgb, var(--st-wait) calc(32% * var(--chroma)), transparent); --mm-well: var(--surface-raised); }
 .mm { container: mm / inline-size; position: relative; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-secondary); font-size: 13px; }
 .mm h3, .mm p { margin: 0; }
 .mm ol { margin: 0; padding: 0; }

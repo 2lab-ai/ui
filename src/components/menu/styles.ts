@@ -46,7 +46,7 @@ export const styles = `
 .mn-item:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -2px; }
 .mn-item[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 .mn-item.is-danger, .mn-item.is-danger .mn-icon { color: var(--st-fail-text); }
-.mn-item.is-danger:focus { background: color-mix(in srgb, var(--st-fail) 10%, var(--ib-card)); }
+.mn-item.is-danger:focus { background: color-mix(in srgb, var(--st-fail) calc(10% * var(--chroma)), var(--ib-card)); }
 .mn-check, .mn-icon { display: inline-grid; flex: none; place-items: center; width: 16px; height: 18px; }
 .mn-check { color: var(--accent); }
 .mn-icon { color: var(--ib-muted); }

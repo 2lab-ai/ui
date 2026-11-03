@@ -27,7 +27,7 @@ code { padding: 1px 5px; border-radius: 5px; background: var(--ib-pill); box-sha
 /* Error: the fail tint, an alert glyph and the words */
 .ac-error { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 16px; padding: 10px 12px; border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--st-fail) 35%, var(--ib-card-border));
-  background: color-mix(in srgb, var(--st-fail) 14%, var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text));
+  background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text));
   font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; animation: ac-rise var(--dur-fade) var(--ease-out) both; }
 .ac-error svg { flex: none; width: 14px; height: 14px; margin-top: 2px; color: var(--st-fail); }
 

@@ -15,7 +15,7 @@ export const styles = `
 .cv-errbar {
   flex: none; display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 5px 5px 5px 12px; min-height: 40px;
   border: 1px solid color-mix(in srgb, var(--st-fail) 35%, var(--ib-card-border)); border-radius: 12px;
-  background: color-mix(in srgb, var(--st-fail) 7%, var(--ib-card)); color: var(--ib-text); font-size: 12.5px; line-height: 1.4;
+  background: color-mix(in srgb, var(--st-fail) calc(7% * var(--chroma)), var(--ib-card)); color: var(--ib-text); font-size: 12.5px; line-height: 1.4;
 }
 .cv-errbar[hidden] { display: none; }
 .cv-errbar > svg, .cv-fail > svg { flex: none; width: 16px; height: 16px; color: color-mix(in srgb, var(--st-fail) 75%, var(--ib-text)); }
@@ -153,7 +153,7 @@ export const styles = `
   animation: cv-sweep 1.4s linear infinite;
 }
 .cv-prog-time, .cv-pct { flex: none; white-space: nowrap; }
-.cv-over { flex: 0 1 auto; min-width: 0; overflow: hidden; color: color-mix(in srgb, var(--st-wait) 70%, var(--ib-text)); text-overflow: ellipsis; white-space: nowrap; }
+.cv-over { flex: 0 1 auto; min-width: 0; overflow: hidden; color: color-mix(in srgb, var(--st-wait) calc(70% * var(--chroma)), var(--ib-text)); text-overflow: ellipsis; white-space: nowrap; }
 .cv-over[hidden], .cv-pct[hidden] { display: none; }
 @container cvturn (max-width: 340px) { .cv-sys .cv-name, .cv-prog-verb { display: none; } }
 @container cvturn (max-width: 280px) { .cv-pct, .cv-over { display: none; } }

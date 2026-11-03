@@ -15,13 +15,13 @@ export const styles = `
   transition: border-color 150ms ease; font-variant-numeric: tabular-nums; }
 .el-select:disabled { opacity: 0.55; cursor: not-allowed; }
 .el-status { display: inline-flex; align-items: center; gap: 4px; margin: 0; min-height: 18px; font-size: 12.5px;
-  color: color-mix(in srgb, var(--st-done) 70%, var(--ib-text)); animation: el-rise var(--dur-fade) var(--ease-out) both; }
+  color: color-mix(in srgb, var(--st-done) calc(70% * var(--chroma)), var(--ib-text)); animation: el-rise var(--dur-fade) var(--ease-out) both; }
 .el-status:empty { display: none; }
 .el-status svg { width: 12px; height: 12px; }
 .el-alert, .el-notice { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px;
   line-height: 1.45; overflow-wrap: anywhere; animation: el-rise var(--dur-fade) var(--ease-out) both; }
-.el-alert { border: 1px solid color-mix(in srgb, var(--st-fail) 35%, var(--ib-card-border)); background: color-mix(in srgb, var(--st-fail) 14%, var(--ib-card));
-  color: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text)); }
+.el-alert { border: 1px solid color-mix(in srgb, var(--st-fail) 35%, var(--ib-card-border)); background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card));
+  color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text)); }
 .el-alert svg { flex: none; margin-top: 2px; color: var(--st-fail); }
 .el-notice { border: 1px solid var(--ib-card-border); background: var(--ib-card); color: var(--ib-text-2); }
 .el-notice svg { flex: none; margin-top: 2px; color: var(--ib-muted); }
@@ -47,7 +47,7 @@ export const styles = `
   color: var(--ib-muted); font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease, transform var(--dur-press) var(--ease-out); }
 .el-link svg { width: 12px; height: 12px; }
-.el-link.is-armed { background: color-mix(in srgb, var(--st-fail) 14%, var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text)); }
+.el-link.is-armed { background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text)); }
 .el-link:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .el-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; min-height: 32px; padding: 5px 12px;
@@ -63,7 +63,7 @@ textarea { display: block; box-sizing: border-box; width: 100%; min-height: 64px
 textarea::placeholder { color: var(--text-tertiary); }
 textarea:disabled { opacity: 0.6; }
 .el-hint { margin: 0; font-size: 12px; color: var(--ib-muted); }
-.el-hint.is-error { color: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text)); }
+.el-hint.is-error { color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text)); }
 
 .el-add { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--ib-card-border); }
 .el-add-label { font-size: 12.5px; font-weight: 600; color: var(--ib-text-2); }
@@ -84,7 +84,7 @@ textarea:disabled { opacity: 0.6; }
   .el-btn:hover:not(:disabled) { border-color: var(--ib-muted); }
   .el-btn.is-primary:hover:not(:disabled) { border-color: var(--ib-text); opacity: 0.88; }
   .el-link:hover:not(:disabled) { background: var(--ib-pill); color: var(--ib-text); }
-  .el-link.is-armed:hover:not(:disabled) { background: color-mix(in srgb, var(--st-fail) 20%, var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) 70%, var(--ib-text)); }
+  .el-link.is-armed:hover:not(:disabled) { background: color-mix(in srgb, var(--st-fail) calc(20% * var(--chroma)), var(--ib-card)); color: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-text)); }
   .el-select:hover:not(:disabled), textarea:hover:not(:disabled):not(:focus) { border-color: var(--ib-muted); }
 }
 @container el (max-width: 420px) {

@@ -7,7 +7,7 @@ import { planCss } from '../../core/plan';
  * The plan's look is the shared `planCss` (src/core/plan.ts); only its placement inside the run is here.
  */
 export const styles = `
-:host { --ar-wait-text: color-mix(in srgb, var(--st-wait) 74%, var(--text)); }
+:host { --ar-wait-text: color-mix(in srgb, var(--st-wait) calc(74% * var(--chroma)), var(--text)); }
 .ar { --ar-pad: 16px; container: ar / inline-size; position: relative; overflow: hidden; overflow: clip; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--text); font-size: 13px; line-height: 1.45; }
 
 /* ── Head: title · subtitle · status pill · started + live elapsed · Stop ── */
@@ -16,7 +16,7 @@ export const styles = `
 .ar-title:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; border-radius: 4px; }
 .ar-sub { margin: 2px 0 0; font-size: 12px; line-height: 17px; color: var(--text-secondary); overflow-wrap: anywhere; }
 .ps-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-width: 0; margin-top: 10px; font-size: 12.5px; color: var(--text-secondary); }
-.ps-chip { --ag-c: var(--text-tertiary); --ag-t: var(--ag-c); display: inline-flex; align-items: center; gap: 5px; min-width: 0; height: 24px; padding: 0 10px 0 8px; border-radius: 99px; background: color-mix(in srgb, var(--ag-c) 13%, transparent); white-space: nowrap; }
+.ps-chip { --ag-c: var(--text-tertiary); --ag-t: var(--ag-c); display: inline-flex; align-items: center; gap: 5px; min-width: 0; height: 24px; padding: 0 10px 0 8px; border-radius: 99px; background: color-mix(in srgb, var(--ag-c) calc(13% * var(--chroma)), transparent); white-space: nowrap; }
 .ps-chip.is-running { --ag-c: var(--st-run); }
 .ps-chip.is-waiting { --ag-c: var(--st-wait); --ag-t: var(--ar-wait-text); }
 .ps-chip.is-done { --ag-c: var(--st-done); }
@@ -64,7 +64,7 @@ ${planCss}
 .ar-needs { padding-top: 4px; }
 .ar-needs-head { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 0; font-size: 13px; font-weight: 650; line-height: 18px; color: var(--text); }
 .ar-needs-head:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; border-radius: 6px; }
-.pn-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--st-wait) 24%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-wait) 55%, transparent); color: var(--text); font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.pn-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--st-wait) calc(24% * var(--chroma)), transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-wait) 55%, transparent); color: var(--text); font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
 .pn-count.is-pop { animation: pn-pop var(--dur-move) var(--ease-out) both; }
 @keyframes pn-pop { from { opacity: 0; transform: scale(0.6); } }
 .ap-list { display: flex; flex-direction: column; gap: 10px; }
@@ -82,8 +82,8 @@ ${planCss}
 .ap-qbody { margin-top: 4px; font-size: 13px; line-height: 18px; color: var(--ib-text-2); white-space: pre-line; overflow-wrap: anywhere; }
 .ap-pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; margin-top: 1px; padding: 0 9px 0 8px; border-radius: 999px; background: var(--ib-pill); color: var(--ib-text-2); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; }
 .ap-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; }
-.ap-pill[data-kind="rule"] { background: color-mix(in srgb, var(--st-fail) 14%, transparent); color: var(--st-fail-text); }
-.ap-pill[data-kind="question"] { background: color-mix(in srgb, var(--st-wait) 16%, transparent); color: var(--ar-wait-text); }
+.ap-pill[data-kind="rule"] { background: color-mix(in srgb, var(--st-fail) calc(14% * var(--chroma)), transparent); color: var(--st-fail-text); }
+.ap-pill[data-kind="question"] { background: color-mix(in srgb, var(--st-wait) calc(16% * var(--chroma)), transparent); color: var(--ar-wait-text); }
 .ap-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; max-height: 320px; overflow: auto; margin: 12px 0 0; padding: 10px 12px; border-radius: 9px; background: var(--ib-col); box-shadow: inset 0 0 0 1px var(--ib-card-border); font-size: 12.5px; line-height: 18px; }
 .ap-detail { display: contents; }
 .ap-detail dt { color: var(--ib-muted); }
@@ -120,7 +120,7 @@ ${planCss}
 .ap-resolved { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 12px; border-radius: 11px; background: var(--ib-card); box-shadow: 0 0 0 1px var(--ib-card-border); }
 .ap-resolved.is-enter { animation: ap-in var(--dur-move) var(--ease-out) both; }
 @keyframes ap-in { from { opacity: 0; transform: translateY(4px); } }
-.ap-mark { display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--st-done) 16%, transparent); color: var(--st-done); font-size: 12px; font-weight: 700; }
+.ap-mark { display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--st-done) calc(16% * var(--chroma)), transparent); color: var(--st-done); font-size: 12px; font-weight: 700; }
 .ap-mark svg { width: 12px; height: 12px; }
 .ap-resolved[data-decision="deny"] .ap-mark, .ap-resolved[data-decision="explain"] .ap-mark { background: var(--ib-pill); color: var(--ib-text-2); }
 .ap-row-title { flex: 1 1 auto; min-width: 0; overflow: hidden; font-size: 13.5px; font-weight: 500; color: var(--ib-text); white-space: nowrap; text-overflow: ellipsis; }

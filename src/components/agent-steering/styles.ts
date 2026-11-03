@@ -17,7 +17,7 @@ export const styles = `
   --as-accent-bg: color-mix(in srgb, var(--accent) 11%, transparent);
   --as-ring: color-mix(in srgb, var(--accent) 16%, transparent);
   --as-done: var(--st-done); --as-fail: var(--st-fail); --as-fail-text: var(--st-fail-text);
-  --as-wait: color-mix(in srgb, var(--st-wait) 78%, var(--text));
+  --as-wait: color-mix(in srgb, var(--st-wait) calc(78% * var(--chroma)), var(--text));
   --as-shadow: 0 0 0 1px var(--as-line), 0 1px 2px color-mix(in srgb, var(--text) 5%, transparent);
   --as-ease: cubic-bezier(0.32, 0.72, 0.24, 1);
   min-width: 0; font-size: 13px; line-height: 20px; }

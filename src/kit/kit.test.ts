@@ -73,7 +73,7 @@ describe('ui-kit.css', () => {
     for (const t of ['run', 'wait', 'done', 'fail']) {
       expect(kitCss).toContain(`.ui-status[data-tone="${t}"]`);
       expect(kitCss).toContain(
-        `.ui-status.is-pill[data-tone="${t}"] { background: color-mix(in srgb, var(--ui-st-${t}) 16%, var(--ui-ib-card)); }`,
+        `.ui-status.is-pill[data-tone="${t}"] { background: color-mix(in srgb, var(--ui-st-${t}) calc(16% * var(--ui-chroma, 1)), color-mix(in srgb, var(--ui-ib-card) calc(100% * var(--ui-chroma, 1)), var(--ui-ib-pill))); }`,
       );
       expect(kitCss).toContain(`.ui-status-line[data-tone="${t}"]`);
     }
@@ -117,7 +117,7 @@ describe('ui-kit.css', () => {
     expect(count).toContain('font-size: 11px');
     for (const t of ['run', 'wait', 'done', 'fail'])
       expect(kitCss).toContain(
-        `.ui-count[data-tone="${t}"] { background: color-mix(in srgb, var(--ui-st-${t}) 16%, var(--ui-ib-card));`,
+        `.ui-count[data-tone="${t}"] { background: color-mix(in srgb, var(--ui-st-${t}) calc(16% * var(--ui-chroma, 1)), color-mix(in srgb, var(--ui-ib-card) calc(100% * var(--ui-chroma, 1)), var(--ui-ib-pill)));`,
       );
     expect(kitCss).toContain(
       '.ui-count[data-pop] { animation: ui-count-pop var(--ui-dur-move) var(--ui-ease-out) both; }',

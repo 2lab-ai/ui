@@ -8,7 +8,7 @@ export const styles = `
   --tc-hover: color-mix(in srgb, var(--text) 3.5%, var(--surface));
   --tc-code: color-mix(in srgb, var(--surface-raised) 60%, var(--surface));
   --tc-ring: var(--surface);
-  --tc-red: var(--st-fail-text); --tc-red-bg: color-mix(in srgb, var(--st-fail) 7%, var(--surface));
+  --tc-red: var(--st-fail-text); --tc-red-bg: color-mix(in srgb, var(--st-fail) calc(7% * var(--chroma)), var(--surface));
   --tc-red-line: color-mix(in srgb, var(--st-fail) 24%, transparent);
   --tc-key: var(--text); --tc-str: color-mix(in srgb, var(--green) 62%, var(--accent)); --tc-num: var(--orange);
   --tc-lit: var(--purple); --tc-shine: var(--text);
