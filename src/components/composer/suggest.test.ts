@@ -403,12 +403,14 @@ describe('<ui-composer> trigger menu — placement', () => {
   });
 
   /** A layout: the card 380–505 in a 760px viewport, a 100px probe at 0,0, the menu's rows 602px tall. */
-  function layout(el: UiComposer, rowsHeight = 602): void {
+  function layout(el: UiComposer, rowsHeight = 602, cardLeft = 40, cardRight = 760, popWidth = 0): void {
     const rect = (top: number, bottom: number, left: number, right: number) =>
       ({ top, bottom, left, right, width: right - left, height: bottom - top, x: left, y: top }) as DOMRect;
     const card = q(el, '.cp-card')!;
     const probe = q(el, '.cp-sg-probe')!;
-    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(rect(380, 505, 40, 760));
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(rect(380, 505, cardLeft, cardRight));
+    // The menu's laid-out width (its CSS min-width can make it wider than the card); 0: as wide as the card.
+    Object.defineProperty(pop(el), 'offsetWidth', { configurable: true, get: () => popWidth || cardRight - cardLeft });
     vi.spyOn(probe, 'getBoundingClientRect').mockReturnValue(rect(0, 0, 0, 100));
     Object.defineProperty(pop(el), 'scrollHeight', { configurable: true, get: () => rowsHeight });
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(760);
@@ -427,6 +429,15 @@ describe('<ui-composer> trigger menu — placement', () => {
     // Re-measured (the viewport watcher, a re-filter): no flip between two sizes.
     for (let i = 0; i < 3; i++) type(el, '/');
     expect(pop(el).getAttribute('style')).toBe(first);
+  });
+
+  it('a card narrower than the menu’s 240px minimum at the right edge: the menu stays inside the viewport', () => {
+    const el = mount();
+    // A 180px card ending 10px from the right edge of an 800px viewport; the menu lays out at its 240px minimum.
+    layout(el, 120, 610, 790, 240);
+    type(el, '/');
+    const left = Number.parseInt(pop(el).style.left, 10);
+    expect(left + 240).toBeLessThanOrEqual(800 - 8);
   });
 
   it('a short list is as tall as its rows, right over the card', () => {

@@ -1144,7 +1144,9 @@ export class UiComposer extends UiElement<ComposerData> {
     pop.style.width = `${Math.round(r.width / k)}px`;
     const vw = document.documentElement.clientWidth || window.innerWidth;
     const h = Math.min(pop.scrollHeight, SG_MAX_HEIGHT) * k;
-    const p = placePopover(r, r.width, h, vw, window.innerHeight, 'top', 'start', 6);
+    // Its laid-out width: the CSS minimum (240px) can make it wider than a narrow card — clamp with what it is.
+    const w = Math.max(r.width, pop.offsetWidth * k);
+    const p = placePopover(r, w, h, vw, window.innerHeight, 'top', 'start', 6);
     pop.style.left = `${Math.round((p.left - o.left) / k)}px`;
     pop.style.top = `${Math.round((p.top - o.top) / k)}px`;
     pop.style.maxHeight = `${Math.floor(Math.min(h, p.maxHeight) / k)}px`;
