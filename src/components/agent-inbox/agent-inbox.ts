@@ -175,7 +175,7 @@ export interface InboxCard {
   star?: { on: boolean; title?: string; disabled?: boolean | string };
   /**
    * A name pill at the right end of the head (the owner in an all-users board). `hue` 0–7 picks its colour. `self`
-   * (0.27.0) marks the viewer's own card: a ring with an arc orbiting it (the ring alone under reduced motion), and
+   * (0.28.0) marks the viewer's own card: a ring with an arc orbiting it (the ring alone under reduced motion), and
    * "(you)" read after the name.
    */
   badge?: { text: string; hue?: number; title?: string; self?: boolean };
@@ -916,7 +916,7 @@ function renderBadge(c: InboxCard, t: Strings): string {
   if (!b || !text) return '';
   const h = Math.floor(Number(b.hue));
   const hue = Number.isFinite(h) ? ((h % BADGE_HUES) + BADGE_HUES) % BADGE_HUES : 0;
-  // The viewer's own (0.27.0): the moving ring is the look; "(you)" after the name is what a screen reader hears.
+  // The viewer's own (0.28.0): the moving ring is the look; "(you)" after the name is what a screen reader hears.
   const self = b.self === true;
   const title = str(b.title) || (self ? `${text} ${t.badgeSelf}` : text);
   return `<span class="ib-badge${self ? ' is-self' : ''}" data-hue="${hue}" title="${escAttr(title)}">${esc(text)}${
