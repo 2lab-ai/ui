@@ -428,15 +428,19 @@ describe('<ui-dialog>', () => {
     // focus() without preventScroll does the same. Chromium scrolls the box (overflow: hidden is a scroll container) to
     // show it; the shrinking transform then clamps that scroll with it, so the sheet stayed pinned at its open place.
     // Here the browser's scroll is played by hand.
+    const transitionEnd = (t: EventTarget, propertyName: string) =>
+      t.dispatchEvent(Object.assign(new Event('transitionend', { bubbles: true }), { propertyName }));
+
     it('the box is back at 0 when show() returns', () => {
       const native = HTMLDialogElement.prototype.showModal;
       vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
         native.call(this);
         this.scrollTop = 520;
+        this.scrollLeft = 30;
       });
       const el = mount();
       el.show();
-      expect(dlg(el).scrollTop).toBe(0);
+      expect([dlg(el).scrollTop, dlg(el).scrollLeft]).toEqual([0, 0]);
     });
 
     it('an [autofocus] field focused on the way in does not scroll the box either', () => {
@@ -449,7 +453,7 @@ describe('<ui-dialog>', () => {
       expect(box.scrollTop).toBe(0);
     });
 
-    it('a later scroll of the box goes back at once; the body keeps its own', () => {
+    it('a later scroll of the box while the panel enters goes back at once; the body keeps its own', () => {
       const el = mount();
       el.show();
       const box = dlg(el);
@@ -460,6 +464,36 @@ describe('<ui-dialog>', () => {
       body.scrollTop = 40;
       body.dispatchEvent(new Event('scroll'));
       expect(body.scrollTop).toBe(40);
+    });
+
+    it('once the panel is in, a vertical scroll of the box stays (a control below a short visible area); sideways never', () => {
+      const el = mount();
+      el.show();
+      const box = dlg(el);
+      transitionEnd(q(el, '.dg-panel')!, 'opacity'); // not the move: still entering
+      box.scrollTop = 30;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+      transitionEnd(q(el, '.dg-panel')!, 'transform');
+      box.scrollTop = 55;
+      box.scrollLeft = 20;
+      box.dispatchEvent(new Event('scroll'));
+      expect([box.scrollTop, box.scrollLeft]).toEqual([55, 0]);
+    });
+
+    it('without a transitionend (reduced motion, a missed event) the way in ends after a second', () => {
+      const now = vi.spyOn(performance, 'now').mockReturnValue(10_000);
+      const el = mount();
+      el.show();
+      const box = dlg(el);
+      now.mockReturnValue(10_999);
+      box.scrollTop = 40;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+      now.mockReturnValue(11_001);
+      box.scrollTop = 40;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(40);
     });
 
     it('the box stays a scroll container: overscroll-behavior on it fences the page behind (scrim, head)', () => {

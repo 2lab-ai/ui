@@ -442,18 +442,23 @@ describe('<ui-drawer>', () => {
       }
     };
 
-    it('docked and as a sheet: the box is back at 0 when show() returns', () => {
-      for (const mode of ['dock', 'sheet']) {
+    it('docked and as a sheet: the box is back at x 0 when show() returns (a left drawer in RTL too)', () => {
+      for (const [mode, left] of [
+        ['dock', 440],
+        ['sheet', 440],
+        ['dock', -440],
+      ] as const) {
         document.body.innerHTML = '';
-        scrollsOnOpen(440, 12);
+        scrollsOnOpen(left, 12);
         const el = mount({ mode });
         el.show();
-        expect([dlg(el).scrollLeft, dlg(el).scrollTop], mode).toEqual([0, 0]);
+        // Sideways is the slide's; the 12px down is a real reveal (a short visible area) and stays.
+        expect([dlg(el).scrollLeft, dlg(el).scrollTop], `${mode} ${left}`).toEqual([0, 12]);
         vi.restoreAllMocks();
       }
     });
 
-    it('an [autofocus] field focused on the way in does not scroll the box either', () => {
+    it('an [autofocus] field focused on the way in does not scroll the box sideways either', () => {
       const el = mount({ mode: 'sheet' }, '<input autofocus>');
       const box = dlg(el);
       vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {
@@ -463,7 +468,7 @@ describe('<ui-drawer>', () => {
       expect(box.scrollLeft).toBe(0);
     });
 
-    it('a later scroll of the box (a host focusing a control mid-slide) goes back at once; the body keeps its own', () => {
+    it('a later sideways scroll of the box (a host focusing a control mid-slide) goes back at once; the body keeps its own', () => {
       const el = mount({ mode: 'dock' });
       el.show();
       const box = dlg(el);
@@ -474,6 +479,16 @@ describe('<ui-drawer>', () => {
       body.scrollTop = 50;
       body.dispatchEvent(new Event('scroll'));
       expect(body.scrollTop).toBe(50);
+    });
+
+    it('a vertical scroll of the box stays: a control focused in a head or foot taller than a short visible area', () => {
+      const el = mount({ mode: 'sheet' });
+      el.show();
+      vi.advanceTimersByTime(DRAWER_EXIT_MS);
+      const box = dlg(el);
+      box.scrollTop = 55;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(55);
     });
 
     it('the box stays a scroll container: overscroll-behavior on it fences the page behind (scrim, head, foot)', () => {
