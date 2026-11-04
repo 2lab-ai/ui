@@ -61,7 +61,7 @@ describe('ownerBadgeCss — a selector list', () => {
   });
 });
 
-describe('owner badge — public API (0.27.0)', () => {
+describe('owner badge — public API (0.28.0)', () => {
   it('the package entry exports the orbit, its names, the hues and the css, so a host can put its own pill on the board’s orbit', () => {
     // Read, not imported: the root registers every element (heavy under happy-dom); consumer-check loads it for real.
     const src = readFileSync(join(__dirname, '..', 'index.ts'), 'utf8');
