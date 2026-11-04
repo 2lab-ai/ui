@@ -40,9 +40,11 @@ export function syncOwnerBadgeOrbit(el: Element, names: readonly string[] = OWNE
 /**
  * The badge's look for `selector` (its layout — margins, the width cap — stays with the host), reading tokens
  * through `v(name)` (`var(--name)` inside a shadow root, `var(--ui-name)` on a page). `prefix` names the custom
- * properties and the keyframes so two copies never collide.
+ * properties and the keyframes so two copies never collide. A selector list (`.a, .b`) is wrapped in `:is()` so the
+ * state and pseudo-element suffixes apply to every member.
  */
-export function ownerBadgeCss(selector: string, v: (name: string) => string, prefix: string): string {
+export function ownerBadgeCss(selectorList: string, v: (name: string) => string, prefix: string): string {
+  const selector = selectorList.includes(',') ? `:is(${selectorList})` : selectorList;
   const hue = `--${prefix}-hue`;
   const H = `var(${hue})`;
   const card = v('ib-card');

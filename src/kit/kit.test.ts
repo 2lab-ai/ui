@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { syncOwnerBadgeOrbit as rootSync } from '../core/owner-badge';
 import tokens from '../core/tokens.json';
+import * as kitEntry from './index';
 import { KIT_CLASSES, kitCss } from './kit';
 
 // The kit's own knobs beside the tokens: `--ui-tone` (a tone's colour), `--ui-select-max` (a select chip's cap) and the
@@ -49,6 +51,12 @@ describe('ui-kit.css', () => {
       /prefers-reduced-motion: reduce\) \{ \.ui-owner-badge\.is-self \{ background:[^}]+\} \.ui-owner-badge\.is-self::before \{ animation: none; display: none; \}/,
     );
     expect(css).toMatch(/forced-colors: active\) \{ \.ui-owner-badge\.is-self \{ outline: 2px solid Highlight;/);
+  });
+
+  it('the kit entry (@2lab.ai/ui/kit) carries the orbit sync, so a kit-only host never loads the elements', () => {
+    expect(kitEntry.syncOwnerBadgeOrbit).toBe(rootSync);
+    expect(kitEntry.OWNER_BADGE_ORBITS).toEqual(['ib-badge-orbit', 'ui-owner-badge-orbit']);
+    expect(kitEntry.kitCss).toBe(kitCss);
   });
 
   it('.ui-effort: xhigh a red gradient, max and ultra a foil sweep — the picker’s own words and effects', () => {
