@@ -1,14 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { OWNER_BADGE_HUES, OWNER_BADGE_ORBIT_MS, ownerBadgeCss, ownerBadgePhase } from './owner-badge';
+import { OWNER_BADGE_HUES, OWNER_BADGE_ORBIT_MS, ownerBadgeCss, syncOwnerBadgeOrbit } from './owner-badge';
 
 describe('owner badge', () => {
-  it('ownerBadgePhase: a negative delay within one orbit, the same for the same instant', () => {
-    expect(ownerBadgePhase(0)).toBe('-0ms');
-    expect(ownerBadgePhase(OWNER_BADGE_ORBIT_MS + 100)).toBe('-100ms');
-    expect(ownerBadgePhase(5 * OWNER_BADGE_ORBIT_MS - 1)).toBe(`-${OWNER_BADGE_ORBIT_MS - 1}ms`);
-    expect(ownerBadgePhase(-100)).toBe(`-${OWNER_BADGE_ORBIT_MS - 100}ms`);
-    expect(ownerBadgePhase(1234.6)).toBe('-1235ms');
-    expect(ownerBadgePhase()).toMatch(/^-\d+ms$/);
+  it('syncOwnerBadgeOrbit: the orbit starts at the timeline origin; other animations and engines without WAAPI untouched', () => {
+    const anims = [
+      { animationName: 'ib-badge-orbit', startTime: null as number | null },
+      { animationName: 'ui-owner-badge-orbit', startTime: 1234 as number | null },
+      { animationName: 'ui-fade-in', startTime: 9 as number | null },
+    ];
+    let opts: unknown;
+    const el = {
+      getAnimations: (o: unknown) => {
+        opts = o;
+        return anims;
+      },
+    } as unknown as Element;
+    syncOwnerBadgeOrbit(el);
+    expect(opts).toEqual({ subtree: true }); // the arc is the pill's ::before
+    expect(anims.map((a) => a.startTime)).toEqual([0, 0, 9]);
+    expect(() => syncOwnerBadgeOrbit({} as Element)).not.toThrow();
+    expect(OWNER_BADGE_ORBIT_MS).toBe(2400);
   });
 
   it('ownerBadgeCss: one rule per hue, every colour a token mix, names under the prefix', () => {
@@ -20,7 +31,7 @@ describe('owner badge', () => {
     expect(bare).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(bare).not.toMatch(/\b(rgba?|hsla?)\(/i);
     expect(css).toContain('@keyframes pf-orbit');
-    expect(css).toContain('var(--pf-phase, 0ms)');
+    expect(css).toContain('animation: pf-orbit 2400ms linear infinite;');
     // The arc sits under the tint and the text: both pseudo-elements below the pill's content.
     expect(css).toMatch(/\.x\.is-self::after \{[^}]*z-index: -1;/);
     expect(css).toMatch(/\.x\.is-self::before \{[^}]*z-index: -1;/);
@@ -30,7 +41,7 @@ describe('owner badge', () => {
 describe('owner badge — public API (0.27.0)', () => {
   it('the package entry exports the phase, the orbit and the css, so a host can put its own pill on the board’s orbit', async () => {
     const root = await import('../index');
-    expect(root.ownerBadgePhase).toBe(ownerBadgePhase);
+    expect(root.syncOwnerBadgeOrbit).toBe(syncOwnerBadgeOrbit);
     expect(root.OWNER_BADGE_ORBIT_MS).toBe(OWNER_BADGE_ORBIT_MS);
     expect(root.OWNER_BADGE_HUES).toBe(OWNER_BADGE_HUES);
     expect(root.ownerBadgeCss).toBe(ownerBadgeCss);
