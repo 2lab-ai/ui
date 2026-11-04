@@ -141,7 +141,7 @@ export const styles = `
 @media (hover: hover) and (pointer: fine) { .ib-star:not([aria-disabled="true"]):hover { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); } }
 /* Owner badge: right end of the head, keeps its width up to its cap so the title truncates first. Its look — eight
    hues, each a tint of the card with text mixed toward ink (≥ 4.5:1 in both themes), and the viewer's own pill
-   (.is-self: a ring with an orbiting arc, 0.27.0) — is core/owner-badge.ts, shared with the kit's .ui-owner-badge. */
+   (.is-self: a ring with an orbiting arc, 0.28.0) — is core/owner-badge.ts, shared with the kit's .ui-owner-badge. */
 .ib-badge { flex: 0 0 auto; margin-left: auto; max-inline-size: min(45%, 168px); }
 ${ownerBadgeCss('.ib-badge', (name) => `var(--${name})`, 'ib-badge')}
 .ib-title { flex: 1 1 auto; font-size: 15px; font-weight: 600; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

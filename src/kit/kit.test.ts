@@ -5,7 +5,7 @@ import * as kitEntry from './index';
 import { KIT_CLASSES, kitCss } from './kit';
 
 // The kit's own knobs beside the tokens: `--ui-tone` (a tone's colour), `--ui-select-max` (a select chip's cap) and the
-// owner badge's hue (0.27.0).
+// owner badge's hue (0.28.0).
 const KNOWN = new Set([
   ...Object.keys(tokens.light),
   ...Object.keys(tokens.shared),
@@ -36,7 +36,7 @@ describe('ui-kit.css', () => {
     for (const m of css.matchAll(/var\(--ui-([a-z0-9-]+)/g)) expect(KNOWN.has(m[1]), m[1]).toBe(true);
   });
 
-  it('.ui-owner-badge (0.27.0): the board’s name pill on a page — eight hues, .is-self orbits, still under reduced motion', () => {
+  it('.ui-owner-badge (0.28.0): the board’s name pill on a page — eight hues, .is-self orbits, still under reduced motion', () => {
     const css = kitCss.replace(/\s+/g, ' ');
     expect(css).toContain('.ui-owner-badge { display: inline-block; max-inline-size: 168px; vertical-align: middle; }');
     expect(css).toMatch(

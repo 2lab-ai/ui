@@ -807,7 +807,7 @@ describe('host gaps', () => {
     expect(card(el, 'notes').querySelector('.ib-metric.is-warn, .ib-metric.is-danger')).toBeNull();
   });
 
-  it('badge.self (0.27.0): the viewer’s own pill gets the moving ring, "(you)" for a screen reader, the shared orbit', () => {
+  it('badge.self (0.28.0): the viewer’s own pill gets the moving ring, "(you)" for a screen reader, the shared orbit', () => {
     // happy-dom has no Web Animations: each connected element gets an orbit animation (its ::before) and a fade,
     // recorded here. A detached element has none — as in a browser, where a CSS animation exists only once connected.
     type Anim = { animationName: string; startTime: number | null };
