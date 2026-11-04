@@ -38,3 +38,17 @@ export {
 } from './logic';
 export type { ComposerLang, ComposerStrings } from './strings';
 export { composerStrings } from './strings';
+export type {
+  ComposerSuggestDetail,
+  ComposerSuggestion,
+  ComposerSuggestToken,
+  ComposerTrigger,
+} from './suggest';
+export {
+  COMPOSER_SUGGEST_MAX,
+  composerSuggestApply,
+  composerSuggestFilter,
+  composerSuggestScore,
+  composerSuggestToken,
+  composerTriggers,
+} from './suggest';

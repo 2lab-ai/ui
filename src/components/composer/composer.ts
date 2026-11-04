@@ -3,6 +3,7 @@ import { type FileKind, fileExt, fileKind, fileKindIcon, fmtBytes } from '../../
 import { fmtClock, fmtInt } from '../../core/format';
 import { esc, escAttr, safeSrc } from '../../core/html';
 import { morphInto } from '../../core/morph';
+import { placePopover, watchViewport } from '../../core/popover';
 import { icon } from '../../icons/icons';
 import { typedKey } from '../../sound/sound';
 import {
@@ -34,6 +35,15 @@ import {
 } from './logic';
 import { type ComposerStrings, composerStrings } from './strings';
 import { styles } from './styles';
+import {
+  type ComposerSuggestDetail,
+  type ComposerSuggestion,
+  type ComposerSuggestToken,
+  composerSuggestApply,
+  composerSuggestFilter,
+  composerSuggestToken,
+  composerTriggers,
+} from './suggest';
 
 /** One attached file. `url` is its object URL (images: thumbnail, audio: playback), made lazily, revoked on leave. */
 interface Entry {
@@ -87,6 +97,18 @@ const stopTracks = (stream: MediaStream | null | undefined): void => {
     }
   }
 };
+/** An open trigger menu: the token it is for, the rows that match it, the active row. */
+interface Suggest {
+  token: ComposerSuggestToken;
+  items: ComposerSuggestion[];
+  active: number;
+}
+const SG_LIST = 'cp-sg-list';
+/** The menu's tallest (px); taller lists scroll. */
+const SG_MAX_HEIGHT = 360;
+const sgRowId = (i: number): string => `cp-sg-${i}`;
+const plainKey = (e: KeyboardEvent): boolean => !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey;
+
 /** Whole seconds, so the m:ss clock counts up instead of rounding ahead. */
 const floorSec = (ms: number): number => Math.floor(Math.max(0, ms) / 1000) * 1000;
 
@@ -99,6 +121,11 @@ const floorSec = (ms: number): number => Math.floor(Math.max(0, ms) / 1000) * 10
  *
  * The tree is patched in place (`morphInto`), and nothing re-renders while typing, so focus, selection and an IME
  * composition survive host updates.
+ *
+ * Trigger menus (`data.triggers`): a `/` at the start of the message, or a `$` at the start of a word, opens a list
+ * of what the host offers there (commands, skills) — each row a name, one line on what it does and a typical use in
+ * grey. Typing after the character filters it; ↑↓ move, Enter or Tab picks (`ui-suggest`, then the name replaces the
+ * token), Esc closes, a click picks. The list sits outside the patched tree, so typing never re-renders the field.
  */
 export class UiComposer extends UiElement<ComposerData> {
   static override styles = [styles];
@@ -142,6 +169,13 @@ export class UiComposer extends UiElement<ComposerData> {
   #ro: ResizeObserver | null = null;
   #roWidth = -1;
   #roRaf = 0;
+  /** The trigger menu (outside the patched markup, like the live region) and its containing-block probe. */
+  readonly #sgPop: HTMLElement;
+  readonly #sgProbe: HTMLElement;
+  #sg: Suggest | null = null;
+  /** The token Esc closed the menu on: it stays closed until the token or its text changes. */
+  #sgDismissed = '';
+  #sgUnwatch: (() => void) | null = null;
 
   constructor() {
     super();
@@ -151,6 +185,33 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#live.setAttribute('role', 'status');
     this.#live.setAttribute('aria-live', 'polite');
     this.root.append(this.#live);
+    this.#sgProbe = document.createElement('div');
+    this.#sgProbe.className = 'cp-sg-probe';
+    this.#sgProbe.setAttribute('aria-hidden', 'true');
+    this.#sgPop = document.createElement('div');
+    this.#sgPop.className = 'cp-sg';
+    this.#sgPop.hidden = true;
+    this.root.append(this.#sgProbe, this.#sgPop);
+    // A press on a row never takes focus from the field; the click picks it, hovering makes it the active one.
+    this.#sgPop.addEventListener('mousedown', (e) => e.preventDefault());
+    this.#sgPop.addEventListener('click', (e) => {
+      const row = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-i]');
+      if (row) this.#sgPick(Number(row.dataset.i), e);
+    });
+    this.#sgPop.addEventListener('mousemove', (e) => {
+      const row = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-i]');
+      if (row && this.#sg && Number(row.dataset.i) !== this.#sg.active) this.#sgSetActive(Number(row.dataset.i), false);
+    });
+    // The caret moved without typing: the token under it may have changed.
+    this.root.addEventListener('keyup', (e) => {
+      const k = (e as KeyboardEvent).key;
+      if (e.target === this.#ta && (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'Home' || k === 'End'))
+        this.#sgEval();
+    });
+    this.root.addEventListener('focusout', (e) => {
+      const to = (e as FocusEvent).relatedTarget as Node | null;
+      if (e.target === this.#ta && !(to && this.#sgPop.contains(to))) this.#sgClose();
+    });
     this.root.addEventListener('click', (e) => this.#onClick(e));
     this.root.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
     this.root.addEventListener('input', (e) => this.#onInput(e));
@@ -182,7 +243,8 @@ export class UiComposer extends UiElement<ComposerData> {
     if (composerSettings(v).disabled) {
       if (this.#rec || this.#recPending) this.#stopRecording(false);
       this.pause();
-    }
+      this.#sgClose();
+    } else if (this.#sg) this.#sgEval();
   }
 
   override connectedCallback(): void {
@@ -206,6 +268,7 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#ro = null;
     if (this.#roRaf) cancelAnimationFrame(this.#roRaf);
     this.#roRaf = 0;
+    this.#sgClose();
   }
 
   // ── Public API ──
@@ -301,6 +364,8 @@ export class UiComposer extends UiElement<ComposerData> {
   }
 
   #setText(text: string): void {
+    this.#sgClose();
+    this.#sgDismissed = '';
     if (this.#ta) {
       this.#ta.value = text;
       this.#autosize();
@@ -505,6 +570,7 @@ export class UiComposer extends UiElement<ComposerData> {
 
   #onClick(e: Event): void {
     const target = e.target as HTMLElement | null;
+    if (target === this.#ta) this.#sgEval();
     const btn = target?.closest?.<HTMLElement>('[data-act]');
     if (!btn) {
       // A click on the card's empty space puts the caret in the field.
@@ -551,6 +617,7 @@ export class UiComposer extends UiElement<ComposerData> {
 
   #onKey(e: KeyboardEvent): void {
     if (e.defaultPrevented) return;
+    if (this.#sg && this.#ta && e.target === this.#ta && this.#sgKey(e)) return;
     if (e.key === 'Escape' && (this.#rec || this.#recPending)) {
       e.preventDefault();
       e.stopPropagation();
@@ -577,6 +644,7 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#paint();
     } else this.#syncInPlace();
     this.notify<ComposerInputDetail>('ui-input', { value: this.#ta.value });
+    this.#sgEval();
   }
 
   #syncInPlace(): void {
@@ -950,6 +1018,224 @@ export class UiComposer extends UiElement<ComposerData> {
     }
   }
 
+  // ── Trigger menus ──
+
+  /** The field's combobox attributes: a list it can open while there are triggers, the active row while open. */
+  #sgAria(d: ComposerData): string {
+    if (!composerTriggers(d.triggers).length) return '';
+    const sg = this.#sg;
+    return sg
+      ? ` aria-autocomplete="list" aria-expanded="true" aria-controls="${SG_LIST}" aria-activedescendant="${sgRowId(sg.active)}"`
+      : ' aria-autocomplete="list" aria-expanded="false"';
+  }
+
+  /** The token under the caret opens, filters or closes the menu. */
+  #sgEval(): void {
+    const ta = this.#ta;
+    const triggers = composerTriggers(this.data?.triggers);
+    if (!ta || !triggers.length || this.#s.disabled || ta.selectionStart !== ta.selectionEnd) {
+      this.#sgClose();
+      return;
+    }
+    const token = composerSuggestToken(ta.value, ta.selectionStart ?? ta.value.length, triggers);
+    // No token under the caret: Esc's dismissal is over — the same trigger typed again opens the menu.
+    if (!token) this.#sgDismissed = '';
+    const key = token ? `${token.trigger.char}|${token.start}|${token.query}` : '';
+    if (!token || key === this.#sgDismissed) {
+      this.#sgClose();
+      return;
+    }
+    this.#sgDismissed = '';
+    const items = composerSuggestFilter(token.trigger.items, token.query, token.trigger.char);
+    if (!items.length) {
+      this.#sgClose();
+      return;
+    }
+    const prev = this.#sg;
+    // The same text again (a host update): the active row stays; new text starts at the best match.
+    const same = !!prev && prev.token.trigger.char === token.trigger.char && prev.token.start === token.start;
+    const kept =
+      same && prev.token.query === token.query
+        ? items.findIndex((it) => it.value === prev.items[prev.active]?.value)
+        : -1;
+    // A row named exactly what was typed (`%` among `%model`, `%effort` …) is the active one: Enter sends it as is.
+    const typed = ta.value.slice(token.start, token.end);
+    const exact = items.findIndex((it) => it.value === typed);
+    const counted = prev?.items.length;
+    this.#sg = { token, items, active: kept >= 0 ? kept : Math.max(0, exact) };
+    this.#sgDraw();
+    if (counted !== items.length) this.#say(this.#t.suggestCount(items.length));
+  }
+
+  #sgClose(): void {
+    this.#sgUnwatch?.();
+    this.#sgUnwatch = null;
+    if (!this.#sg) return;
+    this.#sg = null;
+    this.#sgPop.hidden = true;
+    this.#sgPop.textContent = '';
+    const ta = this.#ta;
+    if (ta && ta.hasAttribute('aria-autocomplete')) {
+      ta.setAttribute('aria-expanded', 'false');
+      ta.removeAttribute('aria-controls');
+      ta.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  #sgDraw(): void {
+    const sg = this.#sg;
+    const ta = this.#ta;
+    if (!sg || !ta) return;
+    const t = this.#t;
+    const grouped = !sg.token.query && sg.items.some((it) => it.group);
+    let rows = '';
+    let group: string | undefined;
+    let inGroup = false;
+    sg.items.forEach((it, i) => {
+      if (grouped && (i === 0 || it.group !== group)) {
+        if (inGroup) rows += '</div>';
+        group = it.group;
+        inGroup = true;
+        rows += group
+          ? `<div class="cp-sg-group" role="group" aria-label="${escAttr(group)}"><div class="cp-sg-head" aria-hidden="true">${esc(group)}</div>`
+          : '<div class="cp-sg-group" role="group">';
+      }
+      const name = it.label || it.value;
+      const text =
+        it.description || it.example
+          ? `<span class="cp-sg-text">${it.description ? `<span class="cp-sg-desc">${esc(it.description)}</span>` : ''}${
+              it.example ? `<code class="cp-sg-ex">${esc(it.example)}</code>` : ''
+            }</span>`
+          : '';
+      rows += `<div class="cp-sg-row" role="option" id="${sgRowId(i)}" data-i="${i}" aria-selected="${i === sg.active}"><span class="cp-sg-name" title="${escAttr(
+        it.value,
+      )}">${esc(name)}</span>${text}</div>`;
+    });
+    if (inGroup) rows += '</div>';
+    const label = sg.token.trigger.label || t.suggestions;
+    this.#sgPop.innerHTML = `<div class="cp-sg-list" role="listbox" id="${SG_LIST}" aria-label="${escAttr(label)}">${rows}</div><div class="cp-sg-foot" aria-hidden="true">${esc(
+      t.suggestHint,
+    )}</div>`;
+    const opening = this.#sgPop.hidden;
+    this.#sgPop.hidden = false;
+    ta.setAttribute('aria-autocomplete', 'list');
+    ta.setAttribute('aria-expanded', 'true');
+    ta.setAttribute('aria-controls', SG_LIST);
+    ta.setAttribute('aria-activedescendant', sgRowId(sg.active));
+    this.#sgPlace();
+    this.#sgReveal();
+    if (opening && !this.#sgUnwatch) this.#sgUnwatch = watchViewport(() => this.#sgPlace());
+  }
+
+  /**
+   * Over the card (under it when there is no room above), as wide as the card, as tall as its rows up to
+   * SG_MAX_HEIGHT or the room there. The menu box is the scroller, so its scrollHeight is always the rows' full
+   * height — the placement is the same every time it is measured (a box whose child scrolls would read its own
+   * clamped height back and flip between two sizes). The probe maps viewport px into a transformed ancestor's.
+   */
+  #sgPlace(): void {
+    const card = this.$('.cp-card');
+    const pop = this.#sgPop;
+    if (!card || !this.#sg) return;
+    const r = card.getBoundingClientRect();
+    if (!r.width && !r.height) return;
+    const o = this.#sgProbe.getBoundingClientRect();
+    const k = o.width > 0 ? o.width / 100 : 1;
+    pop.style.width = `${Math.round(r.width / k)}px`;
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const h = Math.min(pop.scrollHeight, SG_MAX_HEIGHT) * k;
+    // Its laid-out width: the CSS minimum (240px) can make it wider than a narrow card — clamp with what it is.
+    const w = Math.max(r.width, pop.offsetWidth * k);
+    const p = placePopover(r, w, h, vw, window.innerHeight, 'top', 'start', 6);
+    pop.style.left = `${Math.round((p.left - o.left) / k)}px`;
+    pop.style.top = `${Math.round((p.top - o.top) / k)}px`;
+    pop.style.maxHeight = `${Math.floor(Math.min(h, p.maxHeight) / k)}px`;
+    pop.setAttribute('data-side', p.side);
+  }
+
+  #sgReveal(): void {
+    const row = this.#sgPop.querySelector<HTMLElement>(`#${sgRowId(this.#sg?.active ?? 0)}`);
+    row?.scrollIntoView?.({ block: 'nearest' });
+  }
+
+  #sgSetActive(i: number, reveal = true): void {
+    const sg = this.#sg;
+    if (!sg || !sg.items.length) return;
+    const n = sg.items.length;
+    sg.active = ((i % n) + n) % n;
+    for (const row of this.#sgPop.querySelectorAll<HTMLElement>('[role="option"]'))
+      row.setAttribute('aria-selected', String(Number(row.dataset.i) === sg.active));
+    this.#ta?.setAttribute('aria-activedescendant', sgRowId(sg.active));
+    if (reveal) this.#sgReveal();
+  }
+
+  /** Keys while the menu is open. True when the key was the menu's (handled, nothing else runs). */
+  #sgKey(e: KeyboardEvent): boolean {
+    const sg = this.#sg;
+    const ta = this.#ta;
+    if (!sg || !ta || e.isComposing || e.keyCode === 229) return false;
+    const take = () => {
+      e.preventDefault();
+      e.stopPropagation();
+      return true;
+    };
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowUp':
+        if (!plainKey(e)) return false;
+        this.#sgSetActive(sg.active + (e.key === 'ArrowDown' ? 1 : -1));
+        return take();
+      case 'Escape':
+        this.#sgDismissed = `${sg.token.trigger.char}|${sg.token.start}|${sg.token.query}`;
+        this.#sgClose();
+        return take();
+      case 'Tab':
+        if (!plainKey(e)) return false;
+        take();
+        this.#sgPick(sg.active, e);
+        return true;
+      case 'Enter': {
+        if (!plainKey(e)) {
+          // ⌘/Ctrl+Enter sends what is there; Shift+Enter is a new line. Either way the menu is done.
+          if (e.metaKey || e.ctrlKey) this.#sgClose();
+          return false;
+        }
+        const it = sg.items[sg.active];
+        // The name typed in full: Enter does what it always does (sends, or a new line).
+        if (!it || ta.value.slice(sg.token.start, sg.token.end) === it.value) {
+          this.#sgClose();
+          return false;
+        }
+        take();
+        this.#sgPick(sg.active, e);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Put row `i` in place of the token (unless the host cancels `ui-suggest`), caret after the space. */
+  #sgPick(i: number, e: Event): void {
+    const sg = this.#sg;
+    const ta = this.#ta;
+    const it = sg?.items[i];
+    if (!sg || !ta || !it || this.#s.disabled) return;
+    this.#sgClose();
+    const detail: ComposerSuggestDetail = { char: sg.token.trigger.char, value: it.value, query: sg.token.query };
+    if (!this.emit<ComposerSuggestDetail>('ui-suggest', detail)) return;
+    const next = composerSuggestApply(ta.value, sg.token, it.value);
+    ta.value = next.text;
+    ta.setSelectionRange(next.caret, next.caret);
+    ta.focus({ preventScroll: true });
+    this.#autosize();
+    if (this.#error) {
+      this.#error = '';
+      this.#paint();
+    } else this.#syncInPlace();
+    this.notify<ComposerInputDetail>('ui-input', { value: ta.value });
+    this.sound('select', undefined, e);
+  }
+
   // ── Render ──
 
   /** Patch the live tree: the field, chips (keyed) and buttons keep their nodes, so focus and IME survive. */
@@ -1010,7 +1296,7 @@ export class UiComposer extends UiElement<ComposerData> {
     const placeholder = d.placeholder === undefined ? t.placeholder : str(d.placeholder);
     const field = `<textarea class="cp-field" id="cp-field" data-mk="field" data-key="field" rows="${s.minRows}" dir="auto" autocomplete="off" aria-label="${escAttr(
       label,
-    )}"${placeholder ? ` placeholder="${escAttr(placeholder)}"` : ''}${describedBy ? ` aria-describedby="${describedBy}"` : ''}${
+    )}"${this.#sgAria(d)}${placeholder ? ` placeholder="${escAttr(placeholder)}"` : ''}${describedBy ? ` aria-describedby="${describedBy}"` : ''}${
       s.disabled ? ' readonly' : ''
     }${this.#height ? ` style="height:${this.#height}px"` : ''}></textarea>`;
     const files = this.#entries.length
