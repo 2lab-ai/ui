@@ -137,7 +137,7 @@ const SPECIMENS: KitSpecimen[] = [
   {
     title: 'Owner badge',
     cls: 'ui-owner-badge',
-    desc: 'The board’s name pill on your own surface (0.27.0): data-hue 0–7 picks the tint; .is-self is the viewer’s own — a ring with an arc orbiting it, the ring alone under reduced motion. Say “(you)” yourself (a .ui-sr-only span).',
+    desc: 'The board’s name pill on your own surface (0.28.0): data-hue 0–7 picks the tint; .is-self is the viewer’s own — a ring with an arc orbiting it, the ring alone under reduced motion. Say “(you)” yourself (a .ui-sr-only span).',
     html: `<div class="kit-row"><span class="ui-owner-badge is-self" data-hue="0" title="zhuge (you)">zhuge<span class="ui-sr-only"> (you)</span></span><span class="ui-owner-badge" data-hue="5">elon</span><span class="ui-owner-badge" data-hue="2">pang</span><span class="ui-owner-badge is-self" data-hue="6" title="z (you)">z<span class="ui-sr-only"> (you)</span></span></div>`,
   },
   {
