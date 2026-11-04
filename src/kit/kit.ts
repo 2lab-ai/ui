@@ -7,6 +7,7 @@
  */
 
 import { effortTextCss } from '../core/effort';
+import { ownerBadgeCss } from '../core/owner-badge';
 
 /** Every class the kit defines (base classes; modifiers are `is-*`). */
 export const KIT_CLASSES = [
@@ -23,6 +24,7 @@ export const KIT_CLASSES = [
   'ui-empty',
   'ui-status-line',
   'ui-avatar',
+  'ui-owner-badge',
   'ui-sr-only',
   'ui-expand',
   'ui-chev',
@@ -481,4 +483,10 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
    holographic foil (the same words and effects as <ui-model-picker>, core/effort.ts); other levels stay plain ── */
 .ui-effort { font-weight: 500; }
 ${effortTextCss((level) => `.ui-effort[data-effort="${level}"]`, T, 'ui-effort')}
+/* ── Owner badge (0.27.0): <ui-agent-inbox>'s name pill on a host page — data-hue 0–7 picks one of the eight tints;
+   .is-self is the viewer's own (a ring with an orbiting arc; the ring alone under reduced motion). Same look as the
+   board (core/owner-badge.ts); say "(you)" in its text or label yourself — the kit draws, it does not word ── */
+.ui-owner-badge { display: inline-block; max-inline-size: 168px; vertical-align: middle; }
+${ownerBadgeCss('.ui-owner-badge', T, 'ui-owner-badge')}
+
 ${pageKitCss}`;
