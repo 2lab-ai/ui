@@ -38,7 +38,7 @@ Surfaces — the page-level pieces around the agent (0.6.0):
 | File Card | `<ui-file-card>` | What a file is — kind glyph or thumbnail, name, size and age as a tile, row or chip |
 | Media Grid | `<ui-media-grid>` | What pictures came with the message — a row of tiles (compact for a card's row), “+N” on the last for the rest, one picture whole in a wide box; each tile a button named by its action that opens it (`ui-open` with the index among all), lazy images, “No preview” for one that fails |
 | Artifact Viewer | `<ui-artifact-viewer>` | What the agent made — a strip or grid of files, a hover peek, and a lightbox with previous / next, preview and Download; a trusted page runs its scripts, a PDF opens in the browser’s viewer, `ui-before-view` / `ui-closed` for a host’s own body |
-| Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, Enter to send |
+| Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, `/` and `$` menus (commands, skills), Enter to send |
 
 Page parts — the pages around the app: settings, memory, sign-in (0.9.0):
 

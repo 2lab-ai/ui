@@ -5,6 +5,7 @@
  */
 import { fileExt } from '../../core/files';
 import type { IconName } from '../../icons/icons';
+import type { ComposerTrigger } from './suggest';
 
 /** An extra tool the host puts in the toolbar, after the built-in attach / image / voice buttons. */
 export interface ComposerTool {
@@ -94,6 +95,11 @@ export interface ComposerData {
   /** Autosize bounds in text rows. Default 2 / 10. */
   minRows?: number;
   maxRows?: number;
+  /**
+   * Menus opened by a character typed at the start of the message or of a word: `/` for commands, `$` for skills.
+   * The text after the character filters the rows; ↑↓ move, Enter or Tab picks (`ui-suggest`), Esc closes.
+   */
+  triggers?: ComposerTrigger[];
 }
 
 export type ComposerRejectReason = 'count' | 'size' | 'type' | 'empty' | 'total';

@@ -8,6 +8,7 @@ import type {
   ComposerSubmitDetail,
   ComposerToolDetail,
 } from './logic';
+import type { ComposerSuggestDetail, ComposerTrigger } from './suggest';
 
 function make(data: ComposerData, attrs: Record<string, string> = {}): UiComposer {
   const el = document.createElement('ui-composer');
@@ -119,6 +120,47 @@ const NEW_TASK: ComposerData = {
   // A long instruction: Enter is a new line, ⌘/Ctrl+Enter starts the task.
   enter: 'newline',
 };
+
+/** A command list and a skill list, the shape soma-work's dashboard sends (realistic rows, no network). */
+const TRIGGERS: ComposerTrigger[] = [
+  {
+    char: '/',
+    at: 'start',
+    label: 'Commands',
+    items: [
+      {
+        value: '/new',
+        description: 'Start a fresh session in this thread',
+        example: '/new fix the flaky login test',
+        group: 'Session',
+      },
+      { value: '/model', description: 'Show or switch the model', example: '/model opus', group: 'Session' },
+      { value: '/effort', description: 'Show or set the thinking effort', example: '/effort high', group: 'Session' },
+      {
+        value: '/compact',
+        description: 'Summarise the conversation to free the context',
+        example: '/compact',
+        group: 'Context',
+      },
+      { value: '/cwd', description: 'Show the working folder', example: '/cwd', group: 'Context' },
+      { value: '/help', description: 'Every command, with what it does', example: '/help', group: 'Help' },
+    ],
+  },
+  {
+    char: '$',
+    label: 'Skills',
+    items: [
+      { value: '$local:autoz', description: 'Drive the whole pipeline on its own, no questions', group: 'Built-in' },
+      {
+        value: '$local:zcheck',
+        description: 'Post-implementation gate: CI, review comments, coverage',
+        group: 'Built-in',
+      },
+      { value: '$stv:debug', description: 'Follow the callstack to the cause of a bug', group: 'stv' },
+      { value: '$user:dev', description: 'Deploy to the dev environment', group: 'Mine' },
+    ],
+  },
+];
 
 export const doc: ComponentDoc = {
   slug: 'composer',
@@ -242,6 +284,12 @@ export const doc: ComponentDoc = {
         'What a plain Enter does. send — Enter sends, Shift+Enter is a new line. newline — for long instructions: Enter (and Shift+Enter) is a new line, ⌘/Ctrl+Enter sends. The enter attribute wins over data.enter; el.enter reads the mode in force.',
     },
     {
+      name: 'data.triggers',
+      type: "Array<{ char; at?: 'start' | 'word'; label?; items: Array<{ value; label?; description?; example?; group?; keywords? }> }>",
+      description:
+        'Menus a character opens: `/` for commands (`at: start` — only as the first thing in the message), `$` for skills (`at: word`, the default — at the start of any word). Each row shows its name, one line on what it does and a typical use in grey; rows group under `group` while nothing is typed after the character. The text after it filters: a name that starts with it first, then a part of a name (`autoz` finds `$local:autoz`), then names that contain it, aliases (`keywords`) and descriptions. Nothing matching closes the menu. Picking puts `value` and a space in place of the token → `ui-suggest`.',
+    },
+    {
       name: 'data.minRows / data.maxRows',
       type: 'number',
       default: '2 / 10',
@@ -319,6 +367,12 @@ export const doc: ComponentDoc = {
       description:
         'The mode switch was pressed; `on` is the state asked for. It flips at once (switch, send label, night); preventDefault() keeps it as it was. The local flip lasts until `data.mode` changes — answer with a new `data.mode`.',
     },
+    {
+      name: 'ui-suggest',
+      detail: '{ char: string; value: string; query: string }',
+      description:
+        'A row of a trigger menu was picked (Enter, Tab or a click); `query` is what had been typed after the character. Cancelable: unless prevented the composer puts `value` and a space in place of the token (ui-input follows) — prevent it to act on the pick yourself.',
+    },
   ],
   keyboard: [
     ['Space / Enter on the mode switch', 'Flip it (a native button with role="switch")'],
@@ -326,6 +380,13 @@ export const doc: ComponentDoc = {
     ['Shift+Enter / Alt+Enter', 'New line'],
     ['⌘/Ctrl+Enter', 'Send (also on touch screens)'],
     ['Enter on a touch screen', 'New line — the send button sends'],
+    ['/ (first thing) · $ (start of a word)', 'Open the trigger menu (data.triggers); typing filters it'],
+    ['↑ / ↓ (menu open)', 'Move the active row (wraps)'],
+    [
+      'Enter / Tab (menu open)',
+      'Pick the active row. Enter on a name already typed in full sends (or is a new line) as usual',
+    ],
+    ['Esc (menu open)', 'Close the menu; it stays closed until the text changes'],
     ['Esc (while recording)', 'Discard the recording'],
     ['Tab', 'Field → chip buttons (play, remove) → tools → send'],
   ],
@@ -338,8 +399,9 @@ export const doc: ComponentDoc = {
     'Recording moves focus to Done; the recorder row is a group named “Recording” with a role="timer" clock; ending it returns focus to the field.',
     'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom. The camera tool (data.camera) shows only there.',
     'Upload progress (data.progress) is a role="progressbar" named “Uploading” with aria-valuenow in percent.',
+    'Trigger menus: the field carries aria-autocomplete="list", aria-expanded, aria-controls and aria-activedescendant (focus never leaves the field); the list is a role="listbox" named by the trigger’s label, its rows role="option" with aria-selected, grouped in role="group" sections; the number of matches is announced in the polite status region. Pressing a row never takes focus from the field.',
     'Reduced motion: chip, error and recorder enters switch at once; the drop wash keeps a short fade; the send spinner keeps turning.',
-    'Sound (opt-in, @2lab.ai/ui/sound): sending taps once ui-submit is not prevented; a tool plays select (a toggle tool toggle, by its new state); the mode switch plays toggle by its new state; starting a voice note taps, Done taps subtly, Cancel or Esc closes subtly; removing an attachment closes subtly and a refused file plays a subtle error; keystrokes play type while typing sounds are on. Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): sending taps once ui-submit is not prevented; a tool plays select (a toggle tool toggle, by its new state); the mode switch plays toggle by its new state; starting a voice note taps, Done taps subtly, Cancel or Esc closes subtly; removing an attachment closes subtly and a refused file plays a subtle error; picking a trigger-menu row plays select; keystrokes play type while typing sounds are on. Silent until the page turns sound on.',
   ],
   usage: `<ui-composer></ui-composer>
 <script type="module">
@@ -454,6 +516,30 @@ export const doc: ComponentDoc = {
         });
         echoSubmit(el, line);
         return frame(el, line);
+      },
+    },
+    {
+      id: 'triggers',
+      title: 'Commands (/) and skills ($)',
+      description:
+        'Type / at the start for commands, or $ anywhere a word starts for skills: each row has what it does and, for commands, a typical use in grey. ↑↓ move, Enter or Tab picks, Esc closes. The line echoes ui-suggest.',
+      height: 460,
+      create: () => {
+        const el = make({
+          placeholder: 'Type / for commands, $ for skills…',
+          hint: true,
+          triggers: TRIGGERS,
+          minRows: 3,
+        });
+        const line = statusLine();
+        el.addEventListener('ui-suggest', (e) => {
+          const { value, query } = (e as CustomEvent<ComposerSuggestDetail>).detail;
+          line.textContent = `ui-suggest · ${value}${query ? ` (typed “${query}”)` : ''}`;
+        });
+        echoSubmit(el, line);
+        const box = frame(el, line);
+        box.style.paddingTop = '300px';
+        return box;
       },
     },
     {
