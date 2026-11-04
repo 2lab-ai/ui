@@ -34,6 +34,9 @@ const en = {
   empty: 'Empty file',
   more: (n: number) => ` (+${n} more)`,
   mic: 'Microphone unavailable',
+  suggestions: 'Suggestions',
+  suggestHint: '↑↓ to move · Enter or Tab to pick · Esc to close',
+  suggestCount: (n: number) => (n === 1 ? '1 suggestion' : `${n} suggestions`),
 };
 
 export type ComposerStrings = typeof en;
@@ -70,6 +73,9 @@ const ko: ComposerStrings = {
   empty: '빈 파일입니다',
   more: (n) => ` (외 ${n}개)`,
   mic: '마이크를 쓸 수 없습니다',
+  suggestions: '제안',
+  suggestHint: '↑↓ 이동 · Enter 또는 Tab 선택 · Esc 닫기',
+  suggestCount: (n) => `제안 ${n}개`,
 };
 
 export const composerStrings: Record<ComposerLang, ComposerStrings> = { en, ko };
