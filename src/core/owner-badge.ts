@@ -12,17 +12,21 @@
 /** Owner badge colour slots (`data-hue` 0–7). */
 export const OWNER_BADGE_HUES = 8;
 
-/** One orbit of the self arc. A rewritten pill takes the shared phase (`ownerBadgePhase`), so the arc never jumps. */
+/** One orbit of the self arc. */
 export const OWNER_BADGE_ORBIT_MS = 2400;
 
 /**
- * The animation delay that puts a pill drawn now on the document's shared orbit — every self pill on the page moves
- * in step, and one drawn again mid-orbit carries on from where the old one was. Set it as `--<prefix>-phase`.
+ * Puts a self pill's arc on the document's shared orbit: every orbit animation on `el` (its ::before) starts at the
+ * timeline's origin, so its turn is `document.timeline.currentTime % OWNER_BADGE_ORBIT_MS` wherever and whenever the
+ * pill was drawn — every self pill on the page moves in step (the board's and a host's), and one drawn again mid-orbit
+ * carries on from where the old one was. Call it after the pill is in the document. Nothing without the Web Animations
+ * API or under reduced motion (no arc, no animation); other animations on the pill are left alone.
  */
-export function ownerBadgePhase(
-  now: number = typeof performance !== 'undefined' ? performance.now() : Date.now(),
-): string {
-  return `-${Math.round(((now % OWNER_BADGE_ORBIT_MS) + OWNER_BADGE_ORBIT_MS) % OWNER_BADGE_ORBIT_MS)}ms`;
+export function syncOwnerBadgeOrbit(el: Element): void {
+  if (typeof el.getAnimations !== 'function') return;
+  for (const a of el.getAnimations({ subtree: true })) {
+    if (/-orbit$/.test((a as CSSAnimation).animationName || '')) a.startTime = 0;
+  }
 }
 
 /**
@@ -76,7 +80,6 @@ ${selector}.is-self::before {
   background: conic-gradient(from 0turn, transparent 0turn 0.35turn, ${mix(head, 30, 'transparent')} 0.65turn, ${head} 0.95turn, transparent 0.95turn);
   transform: translate(-50%, -50%) rotate(0turn);
   animation: ${prefix}-orbit ${OWNER_BADGE_ORBIT_MS}ms linear infinite;
-  animation-delay: var(--${prefix}-phase, 0ms);
 }
 @keyframes ${prefix}-orbit { to { transform: translate(-50%, -50%) rotate(1turn); } }
 /* Reduced motion: no arc; the ring alone, stronger, still says "yours". */

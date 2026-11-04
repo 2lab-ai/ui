@@ -3,14 +3,13 @@ import tokens from '../core/tokens.json';
 import { KIT_CLASSES, kitCss } from './kit';
 
 // The kit's own knobs beside the tokens: `--ui-tone` (a tone's colour), `--ui-select-max` (a select chip's cap) and the
-// owner badge's hue and orbit phase (0.27.0).
+// owner badge's hue (0.27.0).
 const KNOWN = new Set([
   ...Object.keys(tokens.light),
   ...Object.keys(tokens.shared),
   'tone',
   'select-max',
   'owner-badge-hue',
-  'owner-badge-phase',
 ]);
 
 describe('ui-kit.css', () => {
@@ -43,7 +42,7 @@ describe('ui-kit.css', () => {
     );
     for (let h = 1; h < 8; h++) expect(css).toContain(`.ui-owner-badge[data-hue="${h}"] { --ui-owner-badge-hue:`);
     expect(css).toMatch(
-      /\.ui-owner-badge\.is-self::before \{[^}]*animation: ui-owner-badge-orbit 2400ms linear infinite; animation-delay: var\(--ui-owner-badge-phase, 0ms\);/,
+      /\.ui-owner-badge\.is-self::before \{[^}]*animation: ui-owner-badge-orbit 2400ms linear infinite; \}/,
     );
     expect(css).toContain('@keyframes ui-owner-badge-orbit');
     expect(css).toMatch(

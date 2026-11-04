@@ -2,7 +2,7 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { fmtAgo, fmtDuration, fmtDurationIn, fmtInt, fmtUsd } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import { asModelVendor, MODEL_MAKER_COLOR, modelMarkSvg } from '../../core/model-mark';
-import { OWNER_BADGE_HUES, ownerBadgePhase } from '../../core/owner-badge';
+import { OWNER_BADGE_HUES, syncOwnerBadgeOrbit } from '../../core/owner-badge';
 import { styles } from './styles';
 
 /** Where a run stands. `waiting` = it needs the person; `idle` = parked (sleeping, archived, never started). */
@@ -1949,9 +1949,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       // Spinners share one phase, so a rewritten face never makes its ring jump.
       const phase = `-${Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) % 900)}ms`;
       for (const s of Array.from(sh.face.querySelectorAll<HTMLElement>('.ib-spin'))) s.style.animationDelay = phase;
-      // The viewer's own badge rides the page's shared orbit the same way: a rewrite never makes its arc jump.
+      // The viewer's own badge rides the document's shared orbit: a rewrite never makes its arc jump.
       const self = sh.face.querySelector<HTMLElement>('.ib-badge.is-self');
-      if (self) self.style.setProperty('--ib-badge-phase', ownerBadgePhase());
+      if (self) syncOwnerBadgeOrbit(self);
       this.#countUp(id, sh.face, countUp);
     }
     // `bodyMode: 'slot'`: the host's light-DOM body is projected here; the slot node itself never changes.

@@ -808,55 +808,72 @@ describe('host gaps', () => {
   });
 
   it('badge.self (0.27.0): the viewer’s own pill gets the moving ring, "(you)" for a screen reader, the shared orbit', () => {
-    const el = mount(
-      board(
-        { ...RUN, id: 'mine', badge: { text: 'zhuge', hue: 2, self: true } },
+    // happy-dom has no Web Animations: each element gets an orbit animation (its ::before) and a fade, recorded here.
+    type Anim = { animationName: string; startTime: number | null };
+    const anims = new Map<Element, Anim[]>();
+    const proto = HTMLElement.prototype as unknown as { getAnimations?: (this: Element) => Anim[] };
+    const had = Object.getOwnPropertyDescriptor(proto, 'getAnimations');
+    proto.getAnimations = function (this: Element) {
+      if (!anims.has(this))
+        anims.set(this, [
+          { animationName: 'ib-badge-orbit', startTime: null },
+          { animationName: 'ib-fade', startTime: 7 },
+        ]);
+      return anims.get(this)!;
+    };
+    try {
+      const el = mount(
+        board(
+          { ...RUN, id: 'mine', badge: { text: 'zhuge', hue: 2, self: true } },
+          { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
+          { ...RUN, id: 'truthy', badge: { text: 'pang', self: 'yes' as unknown as boolean } },
+          { ...RUN, id: 'titled', badge: { text: 'zhuge', self: true, title: 'Zhuge Liang — 내 작업' } },
+        ),
+      );
+      const mine = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+      expect(mine.classList.contains('is-self')).toBe(true);
+      expect(mine.getAttribute('data-hue')).toBe('2');
+      expect(mine.querySelector('.sr-only')?.textContent).toBe(' (you)');
+      expect(mine.textContent).toBe('zhuge (you)');
+      expect(mine.getAttribute('title')).toBe('zhuge (you)');
+      // On the document's shared orbit: the arc starts at the timeline's origin; any other animation is left alone.
+      expect(anims.get(mine)?.map((a) => a.startTime)).toEqual([0, 7]);
+      // Only `true` marks it; everyone else's pill stays still and says nothing more.
+      for (const id of ['theirs', 'truthy']) {
+        const b = card(el, id).querySelector<HTMLElement>('.ib-badge')!;
+        expect(b.classList.contains('is-self'), id).toBe(false);
+        expect(b.querySelector('.sr-only'), id).toBeNull();
+        expect(anims.has(b), id).toBe(false);
+      }
+      // The host's title wins over the default.
+      expect(card(el, 'titled').querySelector('.ib-badge')?.getAttribute('title')).toBe('Zhuge Liang — 내 작업');
+
+      // A rewritten face (new tokens) draws a new pill that takes the phase again — the arc carries on, never restarts.
+      el.data = board(
+        { ...RUN, id: 'mine', tokens: 99_999, badge: { text: 'zhuge', hue: 2, self: true } },
         { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
-        { ...RUN, id: 'truthy', badge: { text: 'pang', self: 'yes' as unknown as boolean } },
-        { ...RUN, id: 'titled', badge: { text: 'zhuge', self: true, title: 'Zhuge Liang — 내 작업' } },
-      ),
-    );
-    const mine = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
-    expect(mine.classList.contains('is-self')).toBe(true);
-    expect(mine.getAttribute('data-hue')).toBe('2');
-    expect(mine.querySelector('.sr-only')?.textContent).toBe(' (you)');
-    expect(mine.textContent).toBe('zhuge (you)');
-    expect(mine.getAttribute('title')).toBe('zhuge (you)');
-    // On the page's shared orbit: a negative delay within one turn.
-    expect(mine.style.getPropertyValue('--ib-badge-phase')).toMatch(/^-\d+ms$/);
-    expect(Number.parseInt(mine.style.getPropertyValue('--ib-badge-phase').slice(1), 10)).toBeLessThan(2400);
-    // Only `true` marks it; everyone else's pill stays still and says nothing more.
-    for (const id of ['theirs', 'truthy']) {
-      const b = card(el, id).querySelector<HTMLElement>('.ib-badge')!;
-      expect(b.classList.contains('is-self'), id).toBe(false);
-      expect(b.querySelector('.sr-only'), id).toBeNull();
-      expect(b.style.getPropertyValue('--ib-badge-phase'), id).toBe('');
+      );
+      el.renderNow();
+      const again = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+      expect(again).not.toBe(mine);
+      expect(anims.get(again)?.[0].startTime).toBe(0);
+
+      // Korean.
+      const ko = mount(board({ ...RUN, id: 'mine', badge: { text: 'zhuge', self: true } }), { lang: 'ko' });
+      const kb = card(ko, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+      expect(kb.querySelector('.sr-only')?.textContent).toBe(' (나)');
+      expect(kb.getAttribute('title')).toBe('zhuge (나)');
+    } finally {
+      if (had) Object.defineProperty(proto, 'getAnimations', had);
+      else delete proto.getAnimations;
     }
-    // The host's title wins over the default.
-    expect(card(el, 'titled').querySelector('.ib-badge')?.getAttribute('title')).toBe('Zhuge Liang — 내 작업');
-
-    // A rewritten face (new tokens) draws a new pill that takes the phase again — the arc carries on, never restarts.
-    el.data = board(
-      { ...RUN, id: 'mine', tokens: 99_999, badge: { text: 'zhuge', hue: 2, self: true } },
-      { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
-    );
-    el.renderNow();
-    const again = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
-    expect(again).not.toBe(mine);
-    expect(again.style.getPropertyValue('--ib-badge-phase')).toMatch(/^-\d+ms$/);
-
-    // Korean.
-    const ko = mount(board({ ...RUN, id: 'mine', badge: { text: 'zhuge', self: true } }), { lang: 'ko' });
-    const kb = card(ko, 'mine').querySelector<HTMLElement>('.ib-badge')!;
-    expect(kb.querySelector('.sr-only')?.textContent).toBe(' (나)');
-    expect(kb.getAttribute('title')).toBe('zhuge (나)');
   });
 
   it('badge.self styles: an orbiting arc under the tint, the ring alone under reduced motion, an outline in forced colours', () => {
     const css = monoStyles.replace(/\s+/g, ' ');
     expect(css).toMatch(/\.ib-badge\.is-self \{ position: relative; isolation: isolate;/);
     expect(css).toMatch(
-      /\.ib-badge\.is-self::before \{[^}]*conic-gradient\([^}]*animation: ib-badge-orbit 2400ms linear infinite; animation-delay: var\(--ib-badge-phase, 0ms\);/,
+      /\.ib-badge\.is-self::before \{[^}]*conic-gradient\([^}]*animation: ib-badge-orbit 2400ms linear infinite; \}/,
     );
     expect(css).toMatch(/\.ib-badge\.is-self::after \{[^}]*inset: 2px; z-index: -1;/);
     expect(css).toContain('@keyframes ib-badge-orbit { to { transform: translate(-50%, -50%) rotate(1turn); } }');
