@@ -26,3 +26,13 @@ describe('owner badge', () => {
     expect(css).toMatch(/\.x\.is-self::before \{[^}]*z-index: -1;/);
   });
 });
+
+describe('owner badge — public API (0.27.0)', () => {
+  it('the package entry exports the phase, the orbit and the css, so a host can put its own pill on the board’s orbit', async () => {
+    const root = await import('../index');
+    expect(root.ownerBadgePhase).toBe(ownerBadgePhase);
+    expect(root.OWNER_BADGE_ORBIT_MS).toBe(OWNER_BADGE_ORBIT_MS);
+    expect(root.OWNER_BADGE_HUES).toBe(OWNER_BADGE_HUES);
+    expect(root.ownerBadgeCss).toBe(ownerBadgeCss);
+  });
+});

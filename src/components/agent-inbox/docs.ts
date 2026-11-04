@@ -697,7 +697,7 @@ export const doc: ComponentDoc = {
       name: 'data.columns[].cards[].badge',
       type: '{ text, hue?, title?, self? }',
       description:
-        'A name pill at the right end of the head (the owner on an all-users board). `hue` 0–7 picks one of eight tints (≥ 4.5:1 in both themes); the title truncates first. 0.27.0 — `self: true` marks the viewer’s own card: a ring in the pill’s hue with an arc orbiting it (every self pill on the page on one shared orbit, so a rewritten face never makes it jump); the ring alone, stronger, under reduced motion; a system outline in forced colours. A screen reader hears the name then “(you)” / “(나)” (`strings.badgeSelf`), the default title says the same. The same pill on a host page is the kit’s `.ui-owner-badge`.',
+        'A name pill at the right end of the head (the owner on an all-users board). `hue` 0–7 picks one of eight tints (≥ 4.5:1 in both themes); the title truncates first. 0.27.0 — `self: true` marks the viewer’s own card: a ring in the pill’s hue with an arc orbiting it (every self pill on the page on one shared orbit, so a rewritten face never makes it jump); the ring alone, stronger, under reduced motion; a system outline in forced colours. A screen reader hears the name then “(you)” / “(나)” (`strings.badgeSelf`), the default title says the same. The same pill on a host page is the kit’s `.ui-owner-badge` — set `--ui-owner-badge-phase` to `ownerBadgePhase()` (exported) as you draw it and it orbits in step with the board’s.',
     },
     {
       name: 'data.columns[].cards[].metrics',

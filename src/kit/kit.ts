@@ -485,7 +485,9 @@ ${TONES.map(([k, dot, text]) => `.ui-count[data-tone="${k}"] { background: ${ton
 ${effortTextCss((level) => `.ui-effort[data-effort="${level}"]`, T, 'ui-effort')}
 /* ── Owner badge (0.27.0): <ui-agent-inbox>'s name pill on a host page — data-hue 0–7 picks one of the eight tints;
    .is-self is the viewer's own (a ring with an orbiting arc; the ring alone under reduced motion). Same look as the
-   board (core/owner-badge.ts); say "(you)" in its text or label yourself — the kit draws, it does not word ── */
+   board (core/owner-badge.ts); say "(you)" in its text or label yourself — the kit draws, it does not word. To orbit in
+   step with the board's pills (and carry on when you draw it again), set --ui-owner-badge-phase: ownerBadgePhase()
+   inline as you draw it ── */
 .ui-owner-badge { display: inline-block; max-inline-size: 168px; vertical-align: middle; }
 ${ownerBadgeCss('.ui-owner-badge', T, 'ui-owner-badge')}
 
