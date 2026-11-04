@@ -807,6 +807,67 @@ describe('host gaps', () => {
     expect(card(el, 'notes').querySelector('.ib-metric.is-warn, .ib-metric.is-danger')).toBeNull();
   });
 
+  it('badge.self (0.27.0): the viewer’s own pill gets the moving ring, "(you)" for a screen reader, the shared orbit', () => {
+    const el = mount(
+      board(
+        { ...RUN, id: 'mine', badge: { text: 'zhuge', hue: 2, self: true } },
+        { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
+        { ...RUN, id: 'truthy', badge: { text: 'pang', self: 'yes' as unknown as boolean } },
+        { ...RUN, id: 'titled', badge: { text: 'zhuge', self: true, title: 'Zhuge Liang — 내 작업' } },
+      ),
+    );
+    const mine = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+    expect(mine.classList.contains('is-self')).toBe(true);
+    expect(mine.getAttribute('data-hue')).toBe('2');
+    expect(mine.querySelector('.sr-only')?.textContent).toBe(' (you)');
+    expect(mine.textContent).toBe('zhuge (you)');
+    expect(mine.getAttribute('title')).toBe('zhuge (you)');
+    // On the page's shared orbit: a negative delay within one turn.
+    expect(mine.style.getPropertyValue('--ib-badge-phase')).toMatch(/^-\d+ms$/);
+    expect(Number.parseInt(mine.style.getPropertyValue('--ib-badge-phase').slice(1), 10)).toBeLessThan(2400);
+    // Only `true` marks it; everyone else's pill stays still and says nothing more.
+    for (const id of ['theirs', 'truthy']) {
+      const b = card(el, id).querySelector<HTMLElement>('.ib-badge')!;
+      expect(b.classList.contains('is-self'), id).toBe(false);
+      expect(b.querySelector('.sr-only'), id).toBeNull();
+      expect(b.style.getPropertyValue('--ib-badge-phase'), id).toBe('');
+    }
+    // The host's title wins over the default.
+    expect(card(el, 'titled').querySelector('.ib-badge')?.getAttribute('title')).toBe('Zhuge Liang — 내 작업');
+
+    // A rewritten face (new tokens) draws a new pill that takes the phase again — the arc carries on, never restarts.
+    el.data = board(
+      { ...RUN, id: 'mine', tokens: 99_999, badge: { text: 'zhuge', hue: 2, self: true } },
+      { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
+    );
+    el.renderNow();
+    const again = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+    expect(again).not.toBe(mine);
+    expect(again.style.getPropertyValue('--ib-badge-phase')).toMatch(/^-\d+ms$/);
+
+    // Korean.
+    const ko = mount(board({ ...RUN, id: 'mine', badge: { text: 'zhuge', self: true } }), { lang: 'ko' });
+    const kb = card(ko, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+    expect(kb.querySelector('.sr-only')?.textContent).toBe(' (나)');
+    expect(kb.getAttribute('title')).toBe('zhuge (나)');
+  });
+
+  it('badge.self styles: an orbiting arc under the tint, the ring alone under reduced motion, an outline in forced colours', () => {
+    const css = monoStyles.replace(/\s+/g, ' ');
+    expect(css).toMatch(/\.ib-badge\.is-self \{ position: relative; isolation: isolate;/);
+    expect(css).toMatch(
+      /\.ib-badge\.is-self::before \{[^}]*conic-gradient\([^}]*animation: ib-badge-orbit 2400ms linear infinite; animation-delay: var\(--ib-badge-phase, 0ms\);/,
+    );
+    expect(css).toMatch(/\.ib-badge\.is-self::after \{[^}]*inset: 2px; z-index: -1;/);
+    expect(css).toContain('@keyframes ib-badge-orbit { to { transform: translate(-50%, -50%) rotate(1turn); } }');
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce\) \{ \.ib-badge\.is-self \{ background: [^}]+\} \.ib-badge\.is-self::before \{ animation: none; display: none; \}/,
+    );
+    expect(css).toMatch(/forced-colors: active\) \{ \.ib-badge\.is-self \{ outline: 2px solid Highlight;/);
+    // Eight hues, as before.
+    for (let h = 1; h < 8; h++) expect(css).toContain(`.ib-badge[data-hue="${h}"] { --ib-badge-hue:`);
+  });
+
   it('escapes every host string of the face extras and groups', () => {
     const X = '<img src=x onerror=alert(1)>';
     const el = mount({
