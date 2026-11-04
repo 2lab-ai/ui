@@ -486,7 +486,7 @@ ${effortTextCss((level) => `.ui-effort[data-effort="${level}"]`, T, 'ui-effort')
 /* ── Owner badge (0.27.0): <ui-agent-inbox>'s name pill on a host page — data-hue 0–7 picks one of the eight tints;
    .is-self is the viewer's own (a ring with an orbiting arc; the ring alone under reduced motion). Same look as the
    board (core/owner-badge.ts); say "(you)" in its text or label yourself — the kit draws, it does not word. To orbit in
-   step with the board's pills (and carry on when you draw it again), call syncOwnerBadgeOrbit(el) after its last DOM move
+   step with the board's pills (and carry on when you draw it again), call syncOwnerBadgeOrbit(el) (@2lab.ai/ui/kit) after its last DOM move
    (once it is in the document), and again after you move it or show it again — or set its orbit animation's startTime to 0 yourself ── */
 .ui-owner-badge { display: inline-block; max-inline-size: 168px; vertical-align: middle; }
 ${ownerBadgeCss('.ui-owner-badge', T, 'ui-owner-badge')}

@@ -1,5 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { OWNER_BADGE_HUES, OWNER_BADGE_ORBIT_MS, ownerBadgeCss, syncOwnerBadgeOrbit } from './owner-badge';
+import {
+  OWNER_BADGE_HUES,
+  OWNER_BADGE_ORBIT_MS,
+  OWNER_BADGE_ORBITS,
+  ownerBadgeCss,
+  syncOwnerBadgeOrbit,
+} from './owner-badge';
 
 describe('owner badge', () => {
   it('syncOwnerBadgeOrbit: the orbit starts at the timeline origin; other animations and engines without WAAPI untouched', () => {
@@ -42,13 +50,35 @@ describe('owner badge', () => {
   });
 });
 
+describe('ownerBadgeCss — a selector list', () => {
+  it('wraps a list in :is() so .is-self and ::before apply to every member, never to the bare first one', () => {
+    const css = ownerBadgeCss('.a, .b', (n) => `var(--${n})`, 'pf');
+    expect(css).toContain(':is(.a, .b).is-self::before {');
+    expect(css).toContain(':is(.a, .b)[data-hue="3"] {');
+    expect(css).not.toMatch(/(^|\n)\.a, \.b\.is-self/);
+    // A single selector is used as it is (the board's and the kit's).
+    expect(ownerBadgeCss('.x', (n) => `var(--${n})`, 'pf')).toContain('\n.x.is-self::before {');
+  });
+});
+
 describe('owner badge — public API (0.27.0)', () => {
-  it('the package entry exports the phase, the orbit and the css, so a host can put its own pill on the board’s orbit', async () => {
-    const root = await import('../index');
-    expect(root.syncOwnerBadgeOrbit).toBe(syncOwnerBadgeOrbit);
-    expect(root.OWNER_BADGE_ORBIT_MS).toBe(OWNER_BADGE_ORBIT_MS);
-    expect(root.OWNER_BADGE_ORBITS).toEqual(['ib-badge-orbit', 'ui-owner-badge-orbit']);
-    expect(root.OWNER_BADGE_HUES).toBe(OWNER_BADGE_HUES);
-    expect(root.ownerBadgeCss).toBe(ownerBadgeCss);
+  it('the package entry exports the orbit, its names, the hues and the css, so a host can put its own pill on the board’s orbit', () => {
+    // Read, not imported: the root registers every element (heavy under happy-dom); consumer-check loads it for real.
+    const src = readFileSync(join(__dirname, '..', 'index.ts'), 'utf8');
+    const m = /export \{([^}]*)\} from '\.\/core\/owner-badge';/.exec(src);
+    expect(m).not.toBeNull();
+    const names = (m?.[1] ?? '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .sort();
+    expect(names).toEqual([
+      'OWNER_BADGE_HUES',
+      'OWNER_BADGE_ORBITS',
+      'OWNER_BADGE_ORBIT_MS',
+      'ownerBadgeCss',
+      'syncOwnerBadgeOrbit',
+    ]);
+    expect(OWNER_BADGE_ORBITS).toEqual(['ib-badge-orbit', 'ui-owner-badge-orbit']);
   });
 });
