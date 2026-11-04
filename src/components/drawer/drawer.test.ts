@@ -426,6 +426,14 @@ describe('<ui-drawer>', () => {
     expect(q(el, '#dr-title')?.textContent).toBe('Two');
   });
 
+  it('styles: the box clips and never scrolls, so the native focusing steps cannot cancel the slide in', () => {
+    // show() / showModal() focus the panel while it is still translateX(100%) past the box's edge. Chromium scrolls a
+    // scroll container (overflow: hidden is one) to bring it into view, by the panel's width; the transform then
+    // shrinks and clamps that scroll with it, so the panel stays pinned at its open place: no slide (and on a phone the
+    // layout viewport widens and narrows every frame). overflow: clip is no scroll container; hidden is the fallback.
+    expect(styles).toMatch(/\.dr \{[^}]*overflow: hidden; overflow: clip;/);
+  });
+
   it('styles: translateX(100%) on the drawer curve both ways, scrim 180ms, reduced motion, tokens only', () => {
     expect(styles).toMatch(
       /\.dr-panel \{[^}]*transform: translateX\(100%\);\s*transition: transform var\(--dur-move\) var\(--ease-drawer\);/,
