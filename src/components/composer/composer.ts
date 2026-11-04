@@ -365,6 +365,7 @@ export class UiComposer extends UiElement<ComposerData> {
 
   #setText(text: string): void {
     this.#sgClose();
+    this.#sgDismissed = '';
     if (this.#ta) {
       this.#ta.value = text;
       this.#autosize();
@@ -1037,6 +1038,8 @@ export class UiComposer extends UiElement<ComposerData> {
       return;
     }
     const token = composerSuggestToken(ta.value, ta.selectionStart ?? ta.value.length, triggers);
+    // No token under the caret: Esc's dismissal is over — the same trigger typed again opens the menu.
+    if (!token) this.#sgDismissed = '';
     const key = token ? `${token.trigger.char}|${token.start}|${token.query}` : '';
     if (!token || key === this.#sgDismissed) {
       this.#sgClose();
@@ -1055,8 +1058,11 @@ export class UiComposer extends UiElement<ComposerData> {
       same && prev.token.query === token.query
         ? items.findIndex((it) => it.value === prev.items[prev.active]?.value)
         : -1;
+    // A row named exactly what was typed (`%` among `%model`, `%effort` …) is the active one: Enter sends it as is.
+    const typed = ta.value.slice(token.start, token.end);
+    const exact = items.findIndex((it) => it.value === typed);
     const counted = prev?.items.length;
-    this.#sg = { token, items, active: Math.max(0, kept) };
+    this.#sg = { token, items, active: kept >= 0 ? kept : Math.max(0, exact) };
     this.#sgDraw();
     if (counted !== items.length) this.#say(this.#t.suggestCount(items.length));
   }
