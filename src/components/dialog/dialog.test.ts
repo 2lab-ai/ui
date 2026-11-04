@@ -423,6 +423,153 @@ describe('<ui-dialog>', () => {
     expect(phone).toContain('.dg-actions { order: 1; flex-basis: 100%; justify-content: flex-end; }');
   });
 
+  describe('the box never stays scrolled, so the phone sheet slides up instead of appearing in place', () => {
+    // showModal() runs the native focusing steps while the phone sheet is still translateY(100%) below the box, and a
+    // focus() without preventScroll does the same. Chromium scrolls the box (overflow: hidden is a scroll container) to
+    // show it; the shrinking transform then clamps that scroll with it, so the sheet stayed pinned at its open place.
+    // Here the browser's scroll is played by hand.
+    const transitionEnd = (t: EventTarget, propertyName: string) =>
+      t.dispatchEvent(Object.assign(new Event('transitionend', { bubbles: true }), { propertyName }));
+
+    it('the box is back at 0 when show() returns', () => {
+      const native = HTMLDialogElement.prototype.showModal;
+      vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
+        native.call(this);
+        this.scrollTop = 520;
+        this.scrollLeft = 30;
+      });
+      const el = mount();
+      el.show();
+      expect([dlg(el).scrollTop, dlg(el).scrollLeft]).toEqual([0, 0]);
+    });
+
+    it('an [autofocus] field focused on the way in does not scroll the box either', () => {
+      const el = mount({}, '<input autofocus>');
+      const box = dlg(el);
+      vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {
+        box.scrollTop = 300;
+      });
+      el.show();
+      expect(box.scrollTop).toBe(0);
+    });
+
+    it('a later scroll of the box while the panel enters goes back at once; the body keeps its own', () => {
+      const el = mount();
+      el.show();
+      const box = dlg(el);
+      box.scrollTop = 200;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+      const body = q(el, '.dg-body')!;
+      body.scrollTop = 40;
+      body.dispatchEvent(new Event('scroll'));
+      expect(body.scrollTop).toBe(40);
+    });
+
+    it('once the panel is in, a vertical scroll of the box stays (a control below a short visible area); sideways never', () => {
+      const el = mount();
+      el.show();
+      const box = dlg(el);
+      transitionEnd(q(el, '.dg-panel')!, 'opacity'); // not the move: still entering
+      box.scrollTop = 30;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+      transitionEnd(q(el, '.dg-panel')!, 'transform');
+      box.scrollTop = 55;
+      box.scrollLeft = 20;
+      box.dispatchEvent(new Event('scroll'));
+      expect([box.scrollTop, box.scrollLeft]).toEqual([55, 0]);
+    });
+
+    // A 180px box with an [autofocus] field at y 191–218: clipped by 38px.
+    const rects = (el: UiDialog, field: Element) => {
+      vi.spyOn(dlg(el), 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 180 } as DOMRect);
+      vi.spyOn(field, 'getBoundingClientRect').mockReturnValue({ top: 191, bottom: 218 } as DOMRect);
+    };
+
+    it('once in, the control focused on the way in is shown: the box alone scrolls by what it clips', () => {
+      const el = mount({}, '<input autofocus>');
+      const input = el.querySelector('input')!;
+      rects(el, input);
+      const reveal = vi.spyOn(input, 'scrollIntoView');
+      el.show();
+      expect(document.activeElement).toBe(input);
+      const body = q(el, '.dg-body')!;
+      body.scrollTop = 25; // the person scrolled the body during the slide
+      transitionEnd(q(el, '.dg-panel')!, 'opacity');
+      expect(dlg(el).scrollTop).toBe(0);
+      transitionEnd(q(el, '.dg-panel')!, 'transform');
+      expect(dlg(el).scrollTop).toBe(38);
+      expect(document.activeElement).toBe(input);
+      expect(body.scrollTop).toBe(25);
+      expect(reveal).not.toHaveBeenCalled(); // no walk up every scroller (the body, the page)
+      // The fallback timer finds the way in already over.
+      dlg(el).scrollTop = 0;
+      vi.advanceTimersByTime(1000);
+      expect(dlg(el).scrollTop).toBe(0);
+    });
+
+    it('without a transitionend the way in ends by a timer, which shows the focused control too; focus on the panel scrolls nothing', () => {
+      const el = mount({}, '<input autofocus>');
+      rects(el, el.querySelector('input')!);
+      el.show();
+      vi.advanceTimersByTime(999);
+      expect(dlg(el).scrollTop).toBe(0);
+      vi.advanceTimersByTime(1);
+      expect(dlg(el).scrollTop).toBe(38);
+      document.body.innerHTML = '';
+      const plain = mount();
+      rects(plain, q(plain, '.dg-panel')!);
+      plain.show();
+      vi.advanceTimersByTime(1000);
+      expect(dlg(plain).scrollTop).toBe(0);
+    });
+
+    it('a close turned back into an open (the sheet part-way out) holds the way in again', () => {
+      const el = mount();
+      el.show();
+      transitionEnd(q(el, '.dg-panel')!, 'transform');
+      el.hide();
+      el.show();
+      const box = dlg(el);
+      box.scrollTop = 30;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+    });
+
+    it('under reduced motion nothing moves, so nothing is held: the box keeps a scroll made at open', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+      const native = HTMLDialogElement.prototype.showModal;
+      vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
+        native.call(this);
+        this.scrollTop = 50;
+      });
+      const el = mount();
+      el.show();
+      expect(dlg(el).scrollTop).toBe(50);
+    });
+
+    it('without a transitionend (reduced motion, a missed event) the way in ends after a second', () => {
+      const now = vi.spyOn(performance, 'now').mockReturnValue(10_000);
+      const el = mount();
+      el.show();
+      const box = dlg(el);
+      now.mockReturnValue(10_999);
+      box.scrollTop = 40;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+      now.mockReturnValue(11_001);
+      box.scrollTop = 40;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(40);
+    });
+
+    it('the box stays a scroll container: overscroll-behavior on it fences the page behind (scrim, head)', () => {
+      expect(styles).toMatch(/\.dg \{[^}]*overflow: hidden;[^}]*overscroll-behavior: contain;/);
+      expect(styles).not.toContain('overflow: clip');
+    });
+  });
+
   it('size="full" goes edge to edge on phones: no rounding, no grab, safe areas inside (G7-2)', () => {
     const phone = styles.slice(styles.lastIndexOf('@media (max-width: 639px)'));
     expect(phone).toContain('.dg[data-size="full"] { place-items: stretch; }');
