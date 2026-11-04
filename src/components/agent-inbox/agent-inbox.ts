@@ -1832,6 +1832,11 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       }
     });
     this.#order = order;
+    // 6b. The viewer's own badges ride the document's shared orbit. Once everything is placed: a CSS animation exists
+    //     only on a connected element, and one restarts when its card is drawn, rewritten or moved (re-inserted), so
+    //     every self pill is put back on the orbit here — never a jump, wherever its card went.
+    for (const self of Array.from(this.content.querySelectorAll<HTMLElement>('.ib-badge.is-self')))
+      syncOwnerBadgeOrbit(self);
 
     // 7. Cards no longer drawn fade out where they were (inside a group that left, they go with it); then groups
     //    and columns that left go.
@@ -1949,9 +1954,6 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       // Spinners share one phase, so a rewritten face never makes its ring jump.
       const phase = `-${Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) % 900)}ms`;
       for (const s of Array.from(sh.face.querySelectorAll<HTMLElement>('.ib-spin'))) s.style.animationDelay = phase;
-      // The viewer's own badge rides the document's shared orbit: a rewrite never makes its arc jump.
-      const self = sh.face.querySelector<HTMLElement>('.ib-badge.is-self');
-      if (self) syncOwnerBadgeOrbit(self);
       this.#countUp(id, sh.face, countUp);
     }
     // `bodyMode: 'slot'`: the host's light-DOM body is projected here; the slot node itself never changes.

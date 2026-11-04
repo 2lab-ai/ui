@@ -19,8 +19,10 @@ export const OWNER_BADGE_ORBIT_MS = 2400;
  * Puts a self pill's arc on the document's shared orbit: every orbit animation on `el` (its ::before) starts at the
  * timeline's origin, so its turn is `document.timeline.currentTime % OWNER_BADGE_ORBIT_MS` wherever and whenever the
  * pill was drawn — every self pill on the page moves in step (the board's and a host's), and one drawn again mid-orbit
- * carries on from where the old one was. Call it after the pill is in the document. Nothing without the Web Animations
- * API or under reduced motion (no arc, no animation); other animations on the pill are left alone.
+ * carries on from where the old one was. Call it once the pill is in the document (a detached element has no CSS
+ * animation yet), and again whenever the browser may have restarted the arc: the pill was moved (re-inserted) or shown
+ * again after display: none. Nothing without the Web Animations API or under reduced motion (no arc, no animation);
+ * other animations on the pill are left alone.
  */
 export function syncOwnerBadgeOrbit(el: Element): void {
   if (typeof el.getAnimations !== 'function') return;

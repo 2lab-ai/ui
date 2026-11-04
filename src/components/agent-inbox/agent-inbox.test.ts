@@ -808,12 +808,14 @@ describe('host gaps', () => {
   });
 
   it('badge.self (0.27.0): the viewer’s own pill gets the moving ring, "(you)" for a screen reader, the shared orbit', () => {
-    // happy-dom has no Web Animations: each element gets an orbit animation (its ::before) and a fade, recorded here.
+    // happy-dom has no Web Animations: each connected element gets an orbit animation (its ::before) and a fade,
+    // recorded here. A detached element has none — as in a browser, where a CSS animation exists only once connected.
     type Anim = { animationName: string; startTime: number | null };
     const anims = new Map<Element, Anim[]>();
     const proto = HTMLElement.prototype as unknown as { getAnimations?: (this: Element) => Anim[] };
     const had = Object.getOwnPropertyDescriptor(proto, 'getAnimations');
     proto.getAnimations = function (this: Element) {
+      if (!this.isConnected) return [];
       if (!anims.has(this))
         anims.set(this, [
           { animationName: 'ib-badge-orbit', startTime: null },
@@ -856,6 +858,17 @@ describe('host gaps', () => {
       el.renderNow();
       const again = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
       expect(again).not.toBe(mine);
+      expect(anims.get(again)?.[0].startTime).toBe(0);
+
+      // The browser restarted the arc (the card moved, or was shown again): the next render puts it back on the
+      // orbit, even when nothing on the face changed.
+      anims.get(again)![0].startTime = 1234;
+      el.data = board(
+        { ...RUN, id: 'mine', tokens: 99_999, badge: { text: 'zhuge', hue: 2, self: true } },
+        { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
+      );
+      el.renderNow();
+      expect(card(el, 'mine').querySelector('.ib-badge')).toBe(again);
       expect(anims.get(again)?.[0].startTime).toBe(0);
 
       // Korean.
