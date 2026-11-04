@@ -481,6 +481,74 @@ describe('<ui-dialog>', () => {
       expect([box.scrollTop, box.scrollLeft]).toEqual([55, 0]);
     });
 
+    // A 180px box with an [autofocus] field at y 191–218: clipped by 38px.
+    const rects = (el: UiDialog, field: Element) => {
+      vi.spyOn(dlg(el), 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 180 } as DOMRect);
+      vi.spyOn(field, 'getBoundingClientRect').mockReturnValue({ top: 191, bottom: 218 } as DOMRect);
+    };
+
+    it('once in, the control focused on the way in is shown: the box alone scrolls by what it clips', () => {
+      const el = mount({}, '<input autofocus>');
+      const input = el.querySelector('input')!;
+      rects(el, input);
+      const reveal = vi.spyOn(input, 'scrollIntoView');
+      el.show();
+      expect(document.activeElement).toBe(input);
+      const body = q(el, '.dg-body')!;
+      body.scrollTop = 25; // the person scrolled the body during the slide
+      transitionEnd(q(el, '.dg-panel')!, 'opacity');
+      expect(dlg(el).scrollTop).toBe(0);
+      transitionEnd(q(el, '.dg-panel')!, 'transform');
+      expect(dlg(el).scrollTop).toBe(38);
+      expect(document.activeElement).toBe(input);
+      expect(body.scrollTop).toBe(25);
+      expect(reveal).not.toHaveBeenCalled(); // no walk up every scroller (the body, the page)
+      // The fallback timer finds the way in already over.
+      dlg(el).scrollTop = 0;
+      vi.advanceTimersByTime(1000);
+      expect(dlg(el).scrollTop).toBe(0);
+    });
+
+    it('without a transitionend the way in ends by a timer, which shows the focused control too; focus on the panel scrolls nothing', () => {
+      const el = mount({}, '<input autofocus>');
+      rects(el, el.querySelector('input')!);
+      el.show();
+      vi.advanceTimersByTime(999);
+      expect(dlg(el).scrollTop).toBe(0);
+      vi.advanceTimersByTime(1);
+      expect(dlg(el).scrollTop).toBe(38);
+      document.body.innerHTML = '';
+      const plain = mount();
+      rects(plain, q(plain, '.dg-panel')!);
+      plain.show();
+      vi.advanceTimersByTime(1000);
+      expect(dlg(plain).scrollTop).toBe(0);
+    });
+
+    it('a close turned back into an open (the sheet part-way out) holds the way in again', () => {
+      const el = mount();
+      el.show();
+      transitionEnd(q(el, '.dg-panel')!, 'transform');
+      el.hide();
+      el.show();
+      const box = dlg(el);
+      box.scrollTop = 30;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+    });
+
+    it('under reduced motion nothing moves, so nothing is held: the box keeps a scroll made at open', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+      const native = HTMLDialogElement.prototype.showModal;
+      vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
+        native.call(this);
+        this.scrollTop = 50;
+      });
+      const el = mount();
+      el.show();
+      expect(dlg(el).scrollTop).toBe(50);
+    });
+
     it('without a transitionend (reduced motion, a missed event) the way in ends after a second', () => {
       const now = vi.spyOn(performance, 'now').mockReturnValue(10_000);
       const el = mount();
