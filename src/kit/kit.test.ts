@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { syncOwnerBadgeOrbit as rootSync } from '../core/owner-badge';
 import tokens from '../core/tokens.json';
+import * as kitEntry from './index';
 import { KIT_CLASSES, kitCss } from './kit';
 
-// The kit's own knobs beside the tokens: `--ui-tone` (a tone's colour) and `--ui-select-max` (a select chip's cap).
-const KNOWN = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared), 'tone', 'select-max']);
+// The kit's own knobs beside the tokens: `--ui-tone` (a tone's colour), `--ui-select-max` (a select chip's cap) and the
+// owner badge's hue (0.27.0).
+const KNOWN = new Set([
+  ...Object.keys(tokens.light),
+  ...Object.keys(tokens.shared),
+  'tone',
+  'select-max',
+  'owner-badge-hue',
+]);
 
 describe('ui-kit.css', () => {
   it('a pressed toggle chip or button: the raised step with an ink border; a pressed star is filled (0.21.0)', () => {
@@ -25,6 +34,29 @@ describe('ui-kit.css', () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(css).not.toMatch(/\b(rgba?|hsla?)\(/i);
     for (const m of css.matchAll(/var\(--ui-([a-z0-9-]+)/g)) expect(KNOWN.has(m[1]), m[1]).toBe(true);
+  });
+
+  it('.ui-owner-badge (0.27.0): the board’s name pill on a page — eight hues, .is-self orbits, still under reduced motion', () => {
+    const css = kitCss.replace(/\s+/g, ' ');
+    expect(css).toContain('.ui-owner-badge { display: inline-block; max-inline-size: 168px; vertical-align: middle; }');
+    expect(css).toMatch(
+      /\.ui-owner-badge \{ padding: 2px 8px; border-radius: 999px;[^}]*--ui-owner-badge-hue: var\(--ui-accent\);/,
+    );
+    for (let h = 1; h < 8; h++) expect(css).toContain(`.ui-owner-badge[data-hue="${h}"] { --ui-owner-badge-hue:`);
+    expect(css).toMatch(
+      /\.ui-owner-badge\.is-self::before \{[^}]*animation: ui-owner-badge-orbit 2400ms linear infinite; \}/,
+    );
+    expect(css).toContain('@keyframes ui-owner-badge-orbit');
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce\) \{ \.ui-owner-badge\.is-self \{ background:[^}]+\} \.ui-owner-badge\.is-self::before \{ animation: none; display: none; \}/,
+    );
+    expect(css).toMatch(/forced-colors: active\) \{ \.ui-owner-badge\.is-self \{ outline: 2px solid Highlight;/);
+  });
+
+  it('the kit entry (@2lab.ai/ui/kit) carries the orbit sync, so a kit-only host never loads the elements', () => {
+    expect(kitEntry.syncOwnerBadgeOrbit).toBe(rootSync);
+    expect(kitEntry.OWNER_BADGE_ORBITS).toEqual(['ib-badge-orbit', 'ui-owner-badge-orbit']);
+    expect(kitEntry.kitCss).toBe(kitCss);
   });
 
   it('.ui-effort: xhigh a red gradient, max and ultra a foil sweep — the picker’s own words and effects', () => {

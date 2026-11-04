@@ -71,7 +71,7 @@ Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set �
 `@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab` — round, or
 `.is-extended` with a word that `.is-folded` folds away —, `.ui-chip` (`.is-sm`; `.is-toned` with an inline `--ui-tone` for a per-thing colour such as an environment tag — a tag, not a toggle: pressed and hover states stay the plain chip's), `.ui-select-chip` (a native `<select>` read as a label-sized chip,
 alone or in a `<label>` with a leading word), `.ui-spinner` (the working ring; a still ring with a dot under reduced motion), `.ui-status`,
-`.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-sr-only`, `.ui-expand`, `.ui-section-head` with a
+`.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-owner-badge` (the board's name pill; `.is-self` orbits — `syncOwnerBadgeOrbit(el)` keeps it in step with the board's), `.ui-sr-only`, `.ui-expand`, `.ui-section-head` with a
 `.ui-count` badge, and for page parts `.ui-input`, `.ui-switch`, `.ui-card`, `.ui-notice`, `.ui-row` — the row that is the page,
 `aria-current="page"`, keeps the hover fill). Korean prose (`lang="ko"`) breaks between words, never inside them, in every element and
 every kit class (`word-break: keep-all`).
