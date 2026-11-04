@@ -426,12 +426,60 @@ describe('<ui-drawer>', () => {
     expect(q(el, '#dr-title')?.textContent).toBe('Two');
   });
 
-  it('styles: the box clips and never scrolls, so the native focusing steps cannot cancel the slide in', () => {
-    // show() / showModal() focus the panel while it is still translateX(100%) past the box's edge. Chromium scrolls a
-    // scroll container (overflow: hidden is one) to bring it into view, by the panel's width; the transform then
-    // shrinks and clamps that scroll with it, so the panel stays pinned at its open place: no slide (and on a phone the
-    // layout viewport widens and narrows every frame). overflow: clip is no scroll container; hidden is the fallback.
-    expect(styles).toMatch(/\.dr \{[^}]*overflow: hidden; overflow: clip;/);
+  describe('the box never stays scrolled, so opening cannot pin the panel in place', () => {
+    // show() / showModal() run the native focusing steps on the panel while it is still translateX(100%) past the
+    // box's edge, and a focus() without preventScroll does the same. Chromium scrolls the box (overflow: hidden is a
+    // scroll container) by the panel's width to show it; the shrinking transform then clamps that scroll with it, so
+    // the panel stayed pinned at its open place for the whole slide. Here the browser's scroll is played by hand.
+    const scrollsOnOpen = (left: number, top = 0) => {
+      for (const m of ['show', 'showModal'] as const) {
+        const native = HTMLDialogElement.prototype[m];
+        vi.spyOn(HTMLDialogElement.prototype, m).mockImplementation(function (this: HTMLDialogElement) {
+          native.call(this);
+          this.scrollLeft = left;
+          this.scrollTop = top;
+        });
+      }
+    };
+
+    it('docked and as a sheet: the box is back at 0 when show() returns', () => {
+      for (const mode of ['dock', 'sheet']) {
+        document.body.innerHTML = '';
+        scrollsOnOpen(440, 12);
+        const el = mount({ mode });
+        el.show();
+        expect([dlg(el).scrollLeft, dlg(el).scrollTop], mode).toEqual([0, 0]);
+        vi.restoreAllMocks();
+      }
+    });
+
+    it('an [autofocus] field focused on the way in does not scroll the box either', () => {
+      const el = mount({ mode: 'sheet' }, '<input autofocus>');
+      const box = dlg(el);
+      vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {
+        box.scrollLeft = 300;
+      });
+      el.show();
+      expect(box.scrollLeft).toBe(0);
+    });
+
+    it('a later scroll of the box (a host focusing a control mid-slide) goes back at once; the body keeps its own', () => {
+      const el = mount({ mode: 'dock' });
+      el.show();
+      const box = dlg(el);
+      box.scrollLeft = 180;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollLeft).toBe(0);
+      const body = q(el, '.dr-body')!;
+      body.scrollTop = 50;
+      body.dispatchEvent(new Event('scroll'));
+      expect(body.scrollTop).toBe(50);
+    });
+
+    it('the box stays a scroll container: overscroll-behavior on it fences the page behind (scrim, head, foot)', () => {
+      expect(styles).toMatch(/\.dr \{[^}]*overflow: hidden;[^}]*overscroll-behavior: contain;/);
+      expect(styles).not.toContain('overflow: clip');
+    });
   });
 
   it('styles: translateX(100%) on the drawer curve both ways, scrim 180ms, reduced motion, tokens only', () => {
