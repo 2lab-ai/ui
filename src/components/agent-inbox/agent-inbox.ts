@@ -2,6 +2,7 @@ import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { fmtAgo, fmtDuration, fmtDurationIn, fmtInt, fmtUsd } from '../../core/format';
 import { esc, escAttr } from '../../core/html';
 import { asModelVendor, MODEL_MAKER_COLOR, modelMarkSvg } from '../../core/model-mark';
+import { OWNER_BADGE_HUES, syncOwnerBadgeOrbit } from '../../core/owner-badge';
 import { styles } from './styles';
 
 /** Where a run stands. `waiting` = it needs the person; `idle` = parked (sleeping, archived, never started). */
@@ -172,8 +173,12 @@ export interface InboxCard {
    * tooltip) keeps it visible and inert. The host owns the state: set `on` from its answer.
    */
   star?: { on: boolean; title?: string; disabled?: boolean | string };
-  /** A name pill at the right end of the head (the owner in an all-users board). `hue` 0–7 picks its colour. */
-  badge?: { text: string; hue?: number; title?: string };
+  /**
+   * A name pill at the right end of the head (the owner in an all-users board). `hue` 0–7 picks its colour. `self`
+   * (0.27.0) marks the viewer's own card: a ring with an arc orbiting it (the ring alone under reduced motion), and
+   * "(you)" read after the name.
+   */
+  badge?: { text: string; hue?: number; title?: string; self?: boolean };
   /** Host metrics after tasks and context (a PR badge, a media count). */
   metrics?: InboxMetric[];
   /**
@@ -311,6 +316,7 @@ const STRINGS = {
     starOn: 'Unstar',
     tldr: 'TL;DR',
     tldrDismiss: 'Dismiss TL;DR',
+    badgeSelf: '(you)',
   },
   ko: {
     status: {
@@ -345,6 +351,7 @@ const STRINGS = {
     starOn: '즐겨찾기 해제',
     tldr: 'TL;DR',
     tldrDismiss: 'TL;DR 닫기',
+    badgeSelf: '(나)',
   },
 };
 type Strings = InboxStrings;
@@ -496,7 +503,7 @@ function hostGlyph(name: unknown): string {
 const METRIC_TONES: readonly InboxMetricTone[] = ['run', 'done', 'fail', 'wait', 'warn', 'danger'];
 const DOTS: readonly AgentDot[] = ['running', 'done', 'failed', 'stopped', 'unknown'];
 /** Owner badge colour slots (`badge.hue`). */
-export const BADGE_HUES = 8;
+export const BADGE_HUES = OWNER_BADGE_HUES;
 const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
 
 const num = (v: unknown): number => {
@@ -805,7 +812,7 @@ const HOLO_DEFS = `<defs><linearGradient id="ib-eff-holo" x1="0" y1="1" x2="1" y
 /** The effort as a 5-bar gauge (rising bars, the level's count filled), or '' for an unknown level. */
 function effortGauge(level: unknown): string {
   const lv = typeof level === 'string' ? level : '';
-  const n = Object.prototype.hasOwnProperty.call(EFFORT_BARS, lv) ? EFFORT_BARS[lv] : 0;
+  const n = Object.hasOwn(EFFORT_BARS, lv) ? EFFORT_BARS[lv] : 0;
   if (!n) return '';
   const bars = [0, 1, 2, 3, 4]
     .map((i) => {
@@ -903,13 +910,18 @@ function renderStar(c: InboxCard, t: Strings): string {
   }</span></button>`;
 }
 
-function renderBadge(c: InboxCard): string {
+function renderBadge(c: InboxCard, t: Strings): string {
   const b = c.badge && typeof c.badge === 'object' ? c.badge : null;
   const text = b ? str(b.text) : '';
   if (!b || !text) return '';
   const h = Math.floor(Number(b.hue));
   const hue = Number.isFinite(h) ? ((h % BADGE_HUES) + BADGE_HUES) % BADGE_HUES : 0;
-  return `<span class="ib-badge" data-hue="${hue}" title="${escAttr(str(b.title) || text)}">${esc(text)}</span>`;
+  // The viewer's own (0.27.0): the moving ring is the look; "(you)" after the name is what a screen reader hears.
+  const self = b.self === true;
+  const title = str(b.title) || (self ? `${text} ${t.badgeSelf}` : text);
+  return `<span class="ib-badge${self ? ' is-self' : ''}" data-hue="${hue}" title="${escAttr(title)}">${esc(text)}${
+    self ? `<span class="sr-only"> ${esc(t.badgeSelf)}</span>` : ''
+  }</span>`;
 }
 
 /**
@@ -1004,7 +1016,7 @@ function renderLinks(c: InboxCard, t: Strings): string {
 }
 
 function renderFace(c: InboxCard, t: Strings = STRINGS.en): string {
-  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c)}${renderStar(c, t)}</div>${faceRows(
+  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c, t)}${renderStar(c, t)}</div>${faceRows(
     c,
   )
     .map((r) => renderRow(c, r, t))
@@ -1918,6 +1930,11 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
         (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined);
       next?.focus({ preventScroll: true });
     }
+    // 9. The viewer's own badges ride the document's shared orbit. Last, after every DOM move: a CSS animation exists
+    //    only on a connected element and restarts when its card is drawn, rewritten or moved (re-inserted — a reorder,
+    //    a column change, an exit re-appended to fade out), so every self pill is put back on the orbit here.
+    for (const self of Array.from(this.content.querySelectorAll<HTMLElement>('.ib-badge.is-self')))
+      syncOwnerBadgeOrbit(self);
     this.#tickIn(this.content);
     this.#syncTick();
     // The first paint with data never animates (a render before any data, or skeletons only, does not count).

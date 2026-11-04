@@ -807,6 +807,97 @@ describe('host gaps', () => {
     expect(card(el, 'notes').querySelector('.ib-metric.is-warn, .ib-metric.is-danger')).toBeNull();
   });
 
+  it('badge.self (0.27.0): the viewer’s own pill gets the moving ring, "(you)" for a screen reader, the shared orbit', () => {
+    // happy-dom has no Web Animations: each connected element gets an orbit animation (its ::before) and a fade,
+    // recorded here. A detached element has none — as in a browser, where a CSS animation exists only once connected.
+    type Anim = { animationName: string; startTime: number | null };
+    const anims = new Map<Element, Anim[]>();
+    const proto = HTMLElement.prototype as unknown as { getAnimations?: (this: Element) => Anim[] };
+    const had = Object.getOwnPropertyDescriptor(proto, 'getAnimations');
+    proto.getAnimations = function (this: Element) {
+      if (!this.isConnected) return [];
+      if (!anims.has(this))
+        anims.set(this, [
+          { animationName: 'ib-badge-orbit', startTime: null },
+          { animationName: 'ib-fade', startTime: 7 },
+        ]);
+      return anims.get(this)!;
+    };
+    try {
+      const el = mount(
+        board(
+          { ...RUN, id: 'mine', badge: { text: 'zhuge', hue: 2, self: true } },
+          { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
+          { ...RUN, id: 'truthy', badge: { text: 'pang', self: 'yes' as unknown as boolean } },
+          { ...RUN, id: 'titled', badge: { text: 'zhuge', self: true, title: 'Zhuge Liang — 내 작업' } },
+        ),
+      );
+      const mine = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+      expect(mine.classList.contains('is-self')).toBe(true);
+      expect(mine.getAttribute('data-hue')).toBe('2');
+      expect(mine.querySelector('.sr-only')?.textContent).toBe(' (you)');
+      expect(mine.textContent).toBe('zhuge (you)');
+      expect(mine.getAttribute('title')).toBe('zhuge (you)');
+      // On the document's shared orbit: the arc starts at the timeline's origin; any other animation is left alone.
+      expect(anims.get(mine)?.map((a) => a.startTime)).toEqual([0, 7]);
+      // Only `true` marks it; everyone else's pill stays still and says nothing more.
+      for (const id of ['theirs', 'truthy']) {
+        const b = card(el, id).querySelector<HTMLElement>('.ib-badge')!;
+        expect(b.classList.contains('is-self'), id).toBe(false);
+        expect(b.querySelector('.sr-only'), id).toBeNull();
+        expect(anims.has(b), id).toBe(false);
+      }
+      // The host's title wins over the default.
+      expect(card(el, 'titled').querySelector('.ib-badge')?.getAttribute('title')).toBe('Zhuge Liang — 내 작업');
+
+      // A rewritten face (new tokens) draws a new pill that takes the phase again — the arc carries on, never restarts.
+      el.data = board(
+        { ...RUN, id: 'mine', tokens: 99_999, badge: { text: 'zhuge', hue: 2, self: true } },
+        { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
+      );
+      el.renderNow();
+      const again = card(el, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+      expect(again).not.toBe(mine);
+      expect(anims.get(again)?.[0].startTime).toBe(0);
+
+      // The browser restarted the arc (the card moved, or was shown again): the next render puts it back on the
+      // orbit, even when nothing on the face changed.
+      anims.get(again)![0].startTime = 1234;
+      el.data = board(
+        { ...RUN, id: 'mine', tokens: 99_999, badge: { text: 'zhuge', hue: 2, self: true } },
+        { ...WAIT, id: 'theirs', badge: { text: 'elon', hue: 5 } },
+      );
+      el.renderNow();
+      expect(card(el, 'mine').querySelector('.ib-badge')).toBe(again);
+      expect(anims.get(again)?.[0].startTime).toBe(0);
+
+      // Korean.
+      const ko = mount(board({ ...RUN, id: 'mine', badge: { text: 'zhuge', self: true } }), { lang: 'ko' });
+      const kb = card(ko, 'mine').querySelector<HTMLElement>('.ib-badge')!;
+      expect(kb.querySelector('.sr-only')?.textContent).toBe(' (나)');
+      expect(kb.getAttribute('title')).toBe('zhuge (나)');
+    } finally {
+      if (had) Object.defineProperty(proto, 'getAnimations', had);
+      else delete proto.getAnimations;
+    }
+  });
+
+  it('badge.self styles: an orbiting arc under the tint, the ring alone under reduced motion, an outline in forced colours', () => {
+    const css = monoStyles.replace(/\s+/g, ' ');
+    expect(css).toMatch(/\.ib-badge\.is-self \{ position: relative; isolation: isolate;/);
+    expect(css).toMatch(
+      /\.ib-badge\.is-self::before \{[^}]*conic-gradient\([^}]*animation: ib-badge-orbit 2400ms linear infinite; \}/,
+    );
+    expect(css).toMatch(/\.ib-badge\.is-self::after \{[^}]*inset: 2px; z-index: -1;/);
+    expect(css).toContain('@keyframes ib-badge-orbit { to { transform: translate(-50%, -50%) rotate(1turn); } }');
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce\) \{ \.ib-badge\.is-self \{ background: [^}]+\} \.ib-badge\.is-self::before \{ animation: none; display: none; \}/,
+    );
+    expect(css).toMatch(/forced-colors: active\) \{ \.ib-badge\.is-self \{ outline: 2px solid Highlight;/);
+    // Eight hues, as before.
+    for (let h = 1; h < 8; h++) expect(css).toContain(`.ib-badge[data-hue="${h}"] { --ib-badge-hue:`);
+  });
+
   it('escapes every host string of the face extras and groups', () => {
     const X = '<img src=x onerror=alert(1)>';
     const el = mount({

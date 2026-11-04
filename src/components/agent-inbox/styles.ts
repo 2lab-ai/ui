@@ -3,6 +3,8 @@
  * .prd/affectui/re-agent-inbox.md D1–D10). The status-tag tints are derived from the status tokens with
  * color-mix, so one rule holds in light and dark (text on its tint ≥ 4.5:1 in both).
  */
+import { ownerBadgeCss } from '../../core/owner-badge';
+
 export const styles = `
 :host {
   /* Mono (--chroma 0, 0.25.0): a tone keeps no tint — the tag is the neutral pill in the secondary ink, and only
@@ -137,22 +139,11 @@ export const styles = `
 .ib-star[aria-disabled="true"] { cursor: default; opacity: 0.6; }
 .ib-star:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 @media (hover: hover) and (pointer: fine) { .ib-star:not([aria-disabled="true"]):hover { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); } }
-/* Owner badge: right end of the head, keeps its width up to its cap so the title truncates first. Eight hues,
-   each a tint of the card with text mixed toward ink (≥ 4.5:1 in both themes). */
-.ib-badge {
-  flex: 0 0 auto; margin-left: auto; max-inline-size: min(45%, 168px); padding: 2px 8px; border-radius: 999px;
-  font-size: 12px; font-weight: 600; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  --hue: var(--accent);
-  background: color-mix(in srgb, var(--hue) 18%, var(--ib-card));
-  color: color-mix(in srgb, var(--hue) 55%, var(--ib-text));
-}
-.ib-badge[data-hue="1"] { --hue: var(--yellow); }
-.ib-badge[data-hue="2"] { --hue: var(--green); }
-.ib-badge[data-hue="3"] { --hue: var(--red); }
-.ib-badge[data-hue="4"] { --hue: color-mix(in srgb, var(--accent) 50%, var(--green)); }
-.ib-badge[data-hue="5"] { --hue: var(--orange); }
-.ib-badge[data-hue="6"] { --hue: var(--purple); }
-.ib-badge[data-hue="7"] { --hue: color-mix(in srgb, var(--yellow) 55%, var(--green)); }
+/* Owner badge: right end of the head, keeps its width up to its cap so the title truncates first. Its look — eight
+   hues, each a tint of the card with text mixed toward ink (≥ 4.5:1 in both themes), and the viewer's own pill
+   (.is-self: a ring with an orbiting arc, 0.27.0) — is core/owner-badge.ts, shared with the kit's .ui-owner-badge. */
+.ib-badge { flex: 0 0 auto; margin-left: auto; max-inline-size: min(45%, 168px); }
+${ownerBadgeCss('.ib-badge', (name) => `var(--${name})`, 'ib-badge')}
 .ib-title { flex: 1 1 auto; font-size: 15px; font-weight: 600; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ib-summary {
   margin-top: 6px; font-size: 13.5px; line-height: 1.45; color: var(--ib-text-2);

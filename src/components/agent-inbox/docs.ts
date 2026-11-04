@@ -297,7 +297,7 @@ function dashboardColumns(now: number): InboxColumn[] {
     summary: 'Wants to run 0042_split_users on production. The dry run on staging passed.',
     status: 'waiting',
     since: now - 6 * MIN - 12_000,
-    badge: { text: 'zhuge', hue: 0, title: 'Zhuge Liang' },
+    badge: { text: 'zhuge', hue: 0, title: 'Zhuge Liang (you)', self: true },
     tokens: 1_284_310,
     costUsd: 4.53,
     steps: { done: 3, total: 5 },
@@ -366,7 +366,7 @@ function dashboardColumns(now: number): InboxColumn[] {
     status: 'done',
     since: now - 2 * 60 * MIN,
     elapsedMs: 4 * MIN + 12_000,
-    badge: { text: 'zhuge', hue: 0, title: 'Zhuge Liang' },
+    badge: { text: 'zhuge', hue: 0, title: 'Zhuge Liang (you)', self: true },
     tokens: 98_220,
     costUsd: 0.31,
     artifactsCount: 7,
@@ -695,9 +695,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.columns[].cards[].badge',
-      type: '{ text, hue?, title? }',
+      type: '{ text, hue?, title?, self? }',
       description:
-        'A name pill at the right end of the head (the owner on an all-users board). `hue` 0–7 picks one of eight tints (≥ 4.5:1 in both themes); the title truncates first.',
+        'A name pill at the right end of the head (the owner on an all-users board). `hue` 0–7 picks one of eight tints (≥ 4.5:1 in both themes); the title truncates first. 0.27.0 — `self: true` marks the viewer’s own card: a ring in the pill’s hue with an arc orbiting it (every self pill on the page on one shared orbit — the arc starts at the document timeline’s origin, set after each render for every self pill in the board — so a new, rewritten or moved card never makes it jump; a board the host hid and shows again — display: none on an ancestor restarts the arcs — is put back on the orbit by `el.renderNow()`); the ring alone, stronger, under reduced motion; a system outline in forced colours. A screen reader hears the name then “(you)” / “(나)” (`strings.badgeSelf`), the default title says the same. The same pill on a host page is the kit’s `.ui-owner-badge` — call `syncOwnerBadgeOrbit(el)` (exported) once it is in the document and it orbits in step with the board’s.',
     },
     {
       name: 'data.columns[].cards[].metrics',
