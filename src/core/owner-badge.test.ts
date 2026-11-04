@@ -7,6 +7,7 @@ describe('owner badge', () => {
       { animationName: 'ib-badge-orbit', startTime: null as number | null },
       { animationName: 'ui-owner-badge-orbit', startTime: 1234 as number | null },
       { animationName: 'ui-fade-in', startTime: 9 as number | null },
+      { animationName: 'host-orbit', startTime: 5 as number | null }, // a host's own: not ours
     ];
     let opts: unknown;
     const el = {
@@ -17,7 +18,10 @@ describe('owner badge', () => {
     } as unknown as Element;
     syncOwnerBadgeOrbit(el);
     expect(opts).toEqual({ subtree: true }); // the arc is the pill's ::before
-    expect(anims.map((a) => a.startTime)).toEqual([0, 0, 9]);
+    expect(anims.map((a) => a.startTime)).toEqual([0, 0, 9, 5]);
+    // A host that drew the badge under its own prefix names its orbit.
+    syncOwnerBadgeOrbit(el, ['host-orbit']);
+    expect(anims.map((a) => a.startTime)).toEqual([0, 0, 9, 0]);
     expect(() => syncOwnerBadgeOrbit({} as Element)).not.toThrow();
     expect(OWNER_BADGE_ORBIT_MS).toBe(2400);
   });
@@ -43,6 +47,7 @@ describe('owner badge — public API (0.27.0)', () => {
     const root = await import('../index');
     expect(root.syncOwnerBadgeOrbit).toBe(syncOwnerBadgeOrbit);
     expect(root.OWNER_BADGE_ORBIT_MS).toBe(OWNER_BADGE_ORBIT_MS);
+    expect(root.OWNER_BADGE_ORBITS).toEqual(['ib-badge-orbit', 'ui-owner-badge-orbit']);
     expect(root.OWNER_BADGE_HUES).toBe(OWNER_BADGE_HUES);
     expect(root.ownerBadgeCss).toBe(ownerBadgeCss);
   });

@@ -16,18 +16,24 @@ export const OWNER_BADGE_HUES = 8;
 export const OWNER_BADGE_ORBIT_MS = 2400;
 
 /**
+ * The orbit keyframes this package draws — the board's (`ib-badge`) and the kit's (`ui-owner-badge`). A host that calls
+ * `ownerBadgeCss` with its own prefix passes its own `<prefix>-orbit` to `syncOwnerBadgeOrbit`.
+ */
+export const OWNER_BADGE_ORBITS: readonly string[] = ['ib-badge-orbit', 'ui-owner-badge-orbit'];
+
+/**
  * Puts a self pill's arc on the document's shared orbit: every orbit animation on `el` (its ::before) starts at the
  * timeline's origin, so its turn is `document.timeline.currentTime % OWNER_BADGE_ORBIT_MS` wherever and whenever the
  * pill was drawn — every self pill on the page moves in step (the board's and a host's), and one drawn again mid-orbit
  * carries on from where the old one was. Call it once the pill is in the document (a detached element has no CSS
  * animation yet), and again whenever the browser may have restarted the arc: the pill was moved (re-inserted) or shown
  * again after display: none. Nothing without the Web Animations API or under reduced motion (no arc, no animation);
- * other animations on the pill are left alone.
+ * only the named orbits are touched — any other animation on the pill is left alone.
  */
-export function syncOwnerBadgeOrbit(el: Element): void {
+export function syncOwnerBadgeOrbit(el: Element, names: readonly string[] = OWNER_BADGE_ORBITS): void {
   if (typeof el.getAnimations !== 'function') return;
   for (const a of el.getAnimations({ subtree: true })) {
-    if (/-orbit$/.test((a as CSSAnimation).animationName || '')) a.startTime = 0;
+    if (names.includes((a as CSSAnimation).animationName)) a.startTime = 0;
   }
 }
 
