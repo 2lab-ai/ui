@@ -203,7 +203,43 @@ img.cp-thumb { display: block; }
 .cp-mode:active:not(:disabled):not(:focus-visible),
 .cp-send:active:not([aria-disabled="true"]):not(:focus-visible) { transform: scale(0.97); }
 
+/* Trigger menu (/ commands, $ skills): the menu's popover language — a card on the raised shadow, fixed (no ancestor's
+   clip cuts it), as wide as the composer card, over it (under it when there is no room). A row: the name in mono ink,
+   what it does in secondary text, a typical use in grey mono under it; the active row sits on the well. */
+.cp-sg-probe { position: fixed; left: 0; top: 0; width: 100px; height: 0; visibility: hidden; pointer-events: none; }
+.cp-sg { --cp-sg-well: color-mix(in srgb, var(--ib-text) 6%, var(--ib-card));
+  position: fixed; z-index: 150; left: 0; top: 0; box-sizing: border-box; display: flex; flex-direction: column;
+  min-width: 240px; max-width: calc(100vw - 16px); max-height: min(380px, calc(100vh - 16px)); overflow: hidden;
+  border-radius: 12px; background: var(--ib-card); color: var(--ib-text); text-align: left;
+  box-shadow: 0 0 0 1px var(--ib-card-border), var(--ib-shadow-raised); font-size: 13px; line-height: 18px;
+  transform-origin: bottom left; animation: cp-sg-in 160ms var(--ease-out) both; }
+.cp-sg[data-side="bottom"] { transform-origin: top left; animation-name: cp-sg-in-down; }
+.cp-sg-list { flex: 1 1 auto; min-height: 0; padding: 4px; overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-width: thin; }
+.cp-sg-group + .cp-sg-group { margin-top: 2px; padding-top: 2px; border-top: 1px solid var(--ib-card-border); }
+.cp-sg-head { padding: 6px 10px 3px; color: var(--ib-muted); font-size: 11.5px; font-weight: 500; line-height: 16px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cp-sg-row { display: flex; align-items: baseline; gap: 14px; min-height: 32px; padding: 6px 10px; border-radius: 8px;
+  cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-press) ease; }
+.cp-sg-row[aria-selected="true"] { background: var(--cp-sg-well); }
+.cp-sg-name { flex: none; min-width: 8.5em; max-width: 42%; overflow: hidden; color: var(--ib-text); font-family: var(--mono);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.cp-sg-text { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.cp-sg-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  color: var(--text-secondary); overflow-wrap: anywhere; }
+.cp-sg-ex { overflow: hidden; color: var(--text-tertiary); font-family: var(--mono); font-size: 11.5px; line-height: 16px;
+  white-space: nowrap; text-overflow: ellipsis; }
+.cp-sg-foot { flex: none; padding: 6px 12px; border-top: 1px solid var(--ib-card-border); color: var(--text-tertiary);
+  font-size: 11.5px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 479px) {
+  .cp-sg-row { flex-direction: column; align-items: stretch; gap: 2px; }
+  .cp-sg-name { max-width: none; }
+}
+
 @keyframes cp-in { from { opacity: 0; transform: scale(0.95); } }
+@keyframes cp-sg-in { from { opacity: 0; transform: translateY(4px) scale(0.98); } }
+@keyframes cp-sg-in-down { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
 @keyframes cp-fade { from { opacity: 0; } }
 @keyframes cp-spin { to { transform: rotate(360deg); } }
 @keyframes cp-rec { 50% { opacity: 0.3; } }
@@ -229,6 +265,8 @@ img.cp-thumb { display: block; }
   .cp-rec { height: 48px; }
   .cp-rec-btn { min-width: 44px; height: 44px; padding: 0 14px; }
   .cp-hint { display: none; }
+  .cp-sg-row { min-height: 44px; }
+  .cp-sg-foot { display: none; }
 }
 /* Reduced motion: everything switches at once (base styles), but the send spinner keeps turning. */
 @media (prefers-reduced-motion: reduce) {
