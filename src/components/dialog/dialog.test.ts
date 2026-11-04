@@ -423,12 +423,49 @@ describe('<ui-dialog>', () => {
     expect(phone).toContain('.dg-actions { order: 1; flex-basis: 100%; justify-content: flex-end; }');
   });
 
-  it('the box clips and never scrolls, so the phone sheet slides up instead of appearing in place', () => {
-    // showModal() focuses into the panel while the phone sheet is still translateY(100%) below the box. Chromium
-    // scrolls a scroll container (overflow: hidden is one) to bring it into view; the transform then clamps that
-    // scroll with it, so the sheet is pinned at its open place. overflow: clip is no scroll container; hidden is the
-    // fallback.
-    expect(styles).toMatch(/\.dg \{[^}]*overflow: hidden; overflow: clip;/);
+  describe('the box never stays scrolled, so the phone sheet slides up instead of appearing in place', () => {
+    // showModal() runs the native focusing steps while the phone sheet is still translateY(100%) below the box, and a
+    // focus() without preventScroll does the same. Chromium scrolls the box (overflow: hidden is a scroll container) to
+    // show it; the shrinking transform then clamps that scroll with it, so the sheet stayed pinned at its open place.
+    // Here the browser's scroll is played by hand.
+    it('the box is back at 0 when show() returns', () => {
+      const native = HTMLDialogElement.prototype.showModal;
+      vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
+        native.call(this);
+        this.scrollTop = 520;
+      });
+      const el = mount();
+      el.show();
+      expect(dlg(el).scrollTop).toBe(0);
+    });
+
+    it('an [autofocus] field focused on the way in does not scroll the box either', () => {
+      const el = mount({}, '<input autofocus>');
+      const box = dlg(el);
+      vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {
+        box.scrollTop = 300;
+      });
+      el.show();
+      expect(box.scrollTop).toBe(0);
+    });
+
+    it('a later scroll of the box goes back at once; the body keeps its own', () => {
+      const el = mount();
+      el.show();
+      const box = dlg(el);
+      box.scrollTop = 200;
+      box.dispatchEvent(new Event('scroll'));
+      expect(box.scrollTop).toBe(0);
+      const body = q(el, '.dg-body')!;
+      body.scrollTop = 40;
+      body.dispatchEvent(new Event('scroll'));
+      expect(body.scrollTop).toBe(40);
+    });
+
+    it('the box stays a scroll container: overscroll-behavior on it fences the page behind (scrim, head)', () => {
+      expect(styles).toMatch(/\.dg \{[^}]*overflow: hidden;[^}]*overscroll-behavior: contain;/);
+      expect(styles).not.toContain('overflow: clip');
+    });
   });
 
   it('size="full" goes edge to edge on phones: no rounding, no grab, safe areas inside (G7-2)', () => {

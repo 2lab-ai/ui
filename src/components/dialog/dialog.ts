@@ -98,6 +98,7 @@ export class UiDialog extends UiElement {
     // Neither bubbles: catch them on the way down.
     r.addEventListener('cancel', (e) => this.#onCancel(e), true);
     r.addEventListener('close', (e) => this.#onNativeClose(e), true);
+    r.addEventListener('scroll', (e) => this.#onBoxScroll(e), true);
   }
 
   /** Whether the dialog is open (false while it is on its way out). Setting it is `show()` / `hide()`. */
@@ -305,9 +306,29 @@ export class UiDialog extends UiElement {
     if (dlg.open) dlg.close(); // never left open non-modally underneath
     this.#syncViewport(); // sized to the visible area before the first frame
     dlg.showModal();
+    this.#unscroll();
     void dlg.offsetWidth; // the closed-state styles land first, so the change below transitions
     this.#setState(dlg, 'open');
     this.#focusFirst();
+    this.#unscroll();
+  }
+
+  /**
+   * The box never stays scrolled. Opening focuses into the panel while the phone sheet is still below the box — the
+   * native dialog focusing steps of showModal(), an [autofocus] field — and Chromium scrolls the box (a scroll
+   * container: overflow: hidden, so its overscroll-behavior fences the page behind) to show it. The shrinking
+   * transform then clamps that scroll with it, pinning the sheet at its open place: no slide. Put back at once — at
+   * open, and from the box's scroll event, which runs before the frame is painted.
+   */
+  #unscroll(): void {
+    const dlg = this.#dlg();
+    if (!dlg) return;
+    if (dlg.scrollTop) dlg.scrollTop = 0;
+    if (dlg.scrollLeft) dlg.scrollLeft = 0;
+  }
+
+  #onBoxScroll(e: Event): void {
+    if (e.target === this.#dlg()) this.#unscroll();
   }
 
   #leave(): void {

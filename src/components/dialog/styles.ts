@@ -4,16 +4,14 @@
  * closed → open transitions in, open → closing transitions out, and the element closes the dialog when the exit
  * is over. Phones get a bottom sheet unless `sheet="never"`. The box is the visual viewport (`--ui-vv-h` /
  * `--ui-vv-top`, written by the element while open; the layout viewport when they are not set), so a sheet ends
- * above the soft keyboard. The box clips (`overflow: clip`) and is never a scroll container: opening focuses into the
- * panel while the phone sheet is still below the box, and Chromium would scroll a scrollable box to show it —
- * pinning the sheet in place, cancelling the slide.
+ * above the soft keyboard.
  */
 export const styles = `
 :host { display: contents; }
 .dg {
   position: fixed; inset: var(--ui-vv-top, 0px) 0 auto; display: grid; place-items: center;
   width: 100%; height: var(--ui-vv-h, 100%); max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
-  background: transparent; overflow: hidden; overflow: clip; color: inherit; overscroll-behavior: contain;
+  background: transparent; overflow: hidden; color: inherit; overscroll-behavior: contain;
 }
 .dg:not([open]) { display: none; }
 .dg::backdrop { background: transparent; }

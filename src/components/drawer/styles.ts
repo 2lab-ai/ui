@@ -5,15 +5,13 @@
  * `data-resizing` turns transitions off while the edge is dragged, `data-instant` while the mode switches over (the
  * element then morphs the panel's box and fades the scrim with WAAPI, so the dock's scrim is hidden, not gone).
  * The box is the visual viewport (`--ui-vv-h` / `--ui-vv-top`, written by the element while open; the layout
- * viewport when they are not set), so the panel's foot stays above the soft keyboard in both modes. The box clips
- * (`overflow: clip`) and is never a scroll container: opening focuses the panel while it is still past the box's
- * edge, and Chromium would scroll a scrollable box to show it — pinning the panel in place, cancelling the slide.
+ * viewport when they are not set), so the panel's foot stays above the soft keyboard in both modes.
  */
 export const styles = `
 :host { display: contents; }
 .dr {
   position: fixed; inset: var(--ui-vv-top, 0px) 0 auto; width: 100%; height: var(--ui-vv-h, 100%); max-width: none; max-height: none; margin: 0; padding: 0;
-  border: 0; background: transparent; overflow: hidden; overflow: clip; color: inherit; overscroll-behavior: contain;
+  border: 0; background: transparent; overflow: hidden; color: inherit; overscroll-behavior: contain;
 }
 .dr:not([open]) { display: none; }
 .dr::backdrop { background: transparent; }
