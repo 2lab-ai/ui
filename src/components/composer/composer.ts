@@ -3,7 +3,7 @@ import { type FileKind, fileExt, fileKind, fileKindIcon, fmtBytes } from '../../
 import { fmtClock, fmtInt } from '../../core/format';
 import { esc, escAttr, safeSrc } from '../../core/html';
 import { morphInto } from '../../core/morph';
-import { positionFixed, watchViewport } from '../../core/popover';
+import { placePopover, watchViewport } from '../../core/popover';
 import { icon } from '../../icons/icons';
 import { typedKey } from '../../sound/sound';
 import {
@@ -104,6 +104,8 @@ interface Suggest {
   active: number;
 }
 const SG_LIST = 'cp-sg-list';
+/** The menu's tallest (px); taller lists scroll. */
+const SG_MAX_HEIGHT = 360;
 const sgRowId = (i: number): string => `cp-sg-${i}`;
 const plainKey = (e: KeyboardEvent): boolean => !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey;
 
@@ -1119,14 +1121,28 @@ export class UiComposer extends UiElement<ComposerData> {
     if (opening && !this.#sgUnwatch) this.#sgUnwatch = watchViewport(() => this.#sgPlace());
   }
 
-  /** Over the card (under it when there is no room above), as wide as the card. */
+  /**
+   * Over the card (under it when there is no room above), as wide as the card, as tall as its rows up to
+   * SG_MAX_HEIGHT or the room there. The menu box is the scroller, so its scrollHeight is always the rows' full
+   * height — the placement is the same every time it is measured (a box whose child scrolls would read its own
+   * clamped height back and flip between two sizes). The probe maps viewport px into a transformed ancestor's.
+   */
   #sgPlace(): void {
     const card = this.$('.cp-card');
+    const pop = this.#sgPop;
     if (!card || !this.#sg) return;
-    const k = this.#sgProbe.getBoundingClientRect().width / 100 || 1;
-    const w = card.getBoundingClientRect().width;
-    if (w) this.#sgPop.style.width = `${Math.round(w / k)}px`;
-    positionFixed(card, this.#sgPop, this.#sgProbe, 'top', 'start', 6);
+    const r = card.getBoundingClientRect();
+    if (!r.width && !r.height) return;
+    const o = this.#sgProbe.getBoundingClientRect();
+    const k = o.width > 0 ? o.width / 100 : 1;
+    pop.style.width = `${Math.round(r.width / k)}px`;
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const h = Math.min(pop.scrollHeight, SG_MAX_HEIGHT) * k;
+    const p = placePopover(r, r.width, h, vw, window.innerHeight, 'top', 'start', 6);
+    pop.style.left = `${Math.round((p.left - o.left) / k)}px`;
+    pop.style.top = `${Math.round((p.top - o.top) / k)}px`;
+    pop.style.maxHeight = `${Math.floor(Math.min(h, p.maxHeight) / k)}px`;
+    pop.setAttribute('data-side', p.side);
   }
 
   #sgReveal(): void {
