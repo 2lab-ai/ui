@@ -423,6 +423,14 @@ describe('<ui-dialog>', () => {
     expect(phone).toContain('.dg-actions { order: 1; flex-basis: 100%; justify-content: flex-end; }');
   });
 
+  it('the box clips and never scrolls, so the phone sheet slides up instead of appearing in place', () => {
+    // showModal() focuses into the panel while the phone sheet is still translateY(100%) below the box. Chromium
+    // scrolls a scroll container (overflow: hidden is one) to bring it into view; the transform then clamps that
+    // scroll with it, so the sheet is pinned at its open place. overflow: clip is no scroll container; hidden is the
+    // fallback.
+    expect(styles).toMatch(/\.dg \{[^}]*overflow: hidden; overflow: clip;/);
+  });
+
   it('size="full" goes edge to edge on phones: no rounding, no grab, safe areas inside (G7-2)', () => {
     const phone = styles.slice(styles.lastIndexOf('@media (max-width: 639px)'));
     expect(phone).toContain('.dg[data-size="full"] { place-items: stretch; }');
