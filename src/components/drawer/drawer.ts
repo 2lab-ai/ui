@@ -534,17 +534,17 @@ export class UiDrawer extends UiElement {
   }
 
   /**
-   * The box never stays scrolled. Opening focuses the panel while it is still past the box's edge — the native
-   * dialog focusing steps of show() / showModal(), an [autofocus] field — and Chromium scrolls the box (a scroll
-   * container: overflow: hidden, so its overscroll-behavior fences the page behind) to show it. The shrinking
+   * The box never stays scrolled sideways. Opening focuses the panel while it is still past the box's edge — the
+   * native dialog focusing steps of show() / showModal(), an [autofocus] field — and Chromium scrolls the box (a
+   * scroll container: overflow: hidden, so its overscroll-behavior fences the page behind) to show it. The shrinking
    * transform then clamps that scroll with it, pinning the panel at its open place: no slide. Put back at once — at
-   * open, and from the box's scroll event, which runs before the frame is painted.
+   * open, and from the box's scroll event, which runs before the frame is painted. Only sideways: the panel slides on
+   * x and never outgrows the box's width; a vertical scroll is real (a short visible area where the head and the foot
+   * outgrow the box) and stays the browser's.
    */
   #unscroll(): void {
     const dlg = this.#dlg();
-    if (!dlg) return;
-    if (dlg.scrollTop) dlg.scrollTop = 0;
-    if (dlg.scrollLeft) dlg.scrollLeft = 0;
+    if (dlg?.scrollLeft) dlg.scrollLeft = 0;
   }
 
   #onBoxScroll(e: Event): void {

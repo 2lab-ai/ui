@@ -37,6 +37,8 @@ export function dialogSize(value: string | null | undefined): DialogSize {
 export const DIALOG_EXIT_MS = 180;
 /** Under reduced motion only a 120ms opacity fade is left. */
 const REDUCED_EXIT_MS = 120;
+/** The panel's way in (the sheet's 320ms, a long task before its first frame) ends by this at the latest. */
+const ENTER_GUARD_MS = 1000;
 
 const STRINGS = {
   en: { close: 'Close' },
@@ -73,6 +75,8 @@ export class UiDialog extends UiElement {
   #reflecting = false;
   #timer = 0;
   #closeAt = 0;
+  /** While the panel enters (until its transform's transitionend, or ENTER_GUARD_MS): a box scroll down is not real. */
+  #enterUntil = 0;
   #returnTo: Element | null = null;
   #downOnScrim = false;
   #escHandled = false;
@@ -305,6 +309,7 @@ export class UiDialog extends UiElement {
     this.#setState(dlg, 'closed');
     if (dlg.open) dlg.close(); // never left open non-modally underneath
     this.#syncViewport(); // sized to the visible area before the first frame
+    this.#enterUntil = performance.now() + ENTER_GUARD_MS;
     dlg.showModal();
     this.#unscroll();
     void dlg.offsetWidth; // the closed-state styles land first, so the change below transitions
@@ -314,17 +319,19 @@ export class UiDialog extends UiElement {
   }
 
   /**
-   * The box never stays scrolled. Opening focuses into the panel while the phone sheet is still below the box — the
-   * native dialog focusing steps of showModal(), an [autofocus] field — and Chromium scrolls the box (a scroll
-   * container: overflow: hidden, so its overscroll-behavior fences the page behind) to show it. The shrinking
+   * The box's scroll is not the entering panel's. Opening focuses into the panel while the phone sheet is still below
+   * the box — the native dialog focusing steps of showModal(), an [autofocus] field — and Chromium scrolls the box (a
+   * scroll container: overflow: hidden, so its overscroll-behavior fences the page behind) to show it. The shrinking
    * transform then clamps that scroll with it, pinning the sheet at its open place: no slide. Put back at once — at
-   * open, and from the box's scroll event, which runs before the frame is painted.
+   * open, and from the box's scroll event, which runs before the frame is painted. Sideways always (the panel never
+   * outgrows the box's width); down only while the panel enters: once it is in, a vertical scroll is real (a short
+   * visible area where the head and the actions outgrow the box) and stays the browser's.
    */
   #unscroll(): void {
     const dlg = this.#dlg();
     if (!dlg) return;
-    if (dlg.scrollTop) dlg.scrollTop = 0;
     if (dlg.scrollLeft) dlg.scrollLeft = 0;
+    if (dlg.scrollTop && performance.now() < this.#enterUntil) dlg.scrollTop = 0;
   }
 
   #onBoxScroll(e: Event): void {
@@ -333,6 +340,7 @@ export class UiDialog extends UiElement {
 
   #leave(): void {
     if (this.#state !== 'open') return;
+    this.#enterUntil = 0;
     const dlg = this.#dlg();
     if (!dlg) {
       this.#state = 'closed';
@@ -444,7 +452,10 @@ export class UiDialog extends UiElement {
   }
 
   #onTransitionEnd(e: Event): void {
-    if (this.#state !== 'closing' || e.target !== this.$('.dg-panel')) return;
+    if (e.target !== this.$('.dg-panel')) return;
+    // In: from here a scroll of the box is the person's.
+    if (this.#state === 'open' && (e as TransitionEvent).propertyName === 'transform') this.#enterUntil = 0;
+    if (this.#state !== 'closing') return;
     // A transitionend this early belongs to the enter that was cut short.
     if (performance.now() - this.#closeAt < this.#exitMs() / 2) return;
     this.#finish();
