@@ -162,7 +162,7 @@ export function composerSuggestFilter(
 
 /**
  * The field after picking `value` for `token`: the token is replaced and one space follows (none added when a space
- * is already there). `caret` lands after that space.
+ * is already there). `caret` lands after that space, on the token's line.
  */
 export function composerSuggestApply(
   text: string,
@@ -172,7 +172,8 @@ export function composerSuggestApply(
   const s = str(text);
   const before = s.slice(0, token.start);
   const after = s.slice(token.end);
-  const insert = after.startsWith(' ') || after.startsWith('\n') ? value : `${value} `;
+  // A space already there is the separator (the caret goes past it); a new line is not — one space goes before it.
+  const insert = after.startsWith(' ') ? value : `${value} `;
   const caret = before.length + insert.length + (insert === value ? 1 : 0);
   return { text: before + insert + after, caret: Math.min(caret, before.length + insert.length + after.length) };
 }

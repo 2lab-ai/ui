@@ -102,6 +102,11 @@ describe('composerSuggestScore / composerSuggestFilter', () => {
 describe('composerSuggestApply', () => {
   it('replaces the token and adds one space', () => {
     expect(composerSuggestApply('/mo', { start: 0, end: 3 }, '/model')).toEqual({ text: '/model ', caret: 7 });
+    // A new line after the token is not the space: the caret stays on the token's line, after one space.
+    expect(composerSuggestApply('/mo\nnext', { start: 0, end: 3 }, '/model')).toEqual({
+      text: '/model \nnext',
+      caret: 7,
+    });
     expect(composerSuggestApply('run $au now', { start: 4, end: 7 }, '$local:autoz')).toEqual({
       text: 'run $local:autoz now',
       caret: 17,
@@ -254,6 +259,45 @@ describe('<ui-composer> trigger menu', () => {
     key(field(el), 'Enter', { metaKey: true });
     expect(picked).toEqual([]);
     expect(sent.map((d) => d.text)).toEqual(['/mo']);
+  });
+
+  it('after Esc, the same trigger typed again opens it (deleted and retyped, or the next message)', () => {
+    const el = mount();
+    type(el, '/');
+    key(field(el), 'Escape');
+    expect(isOpen(el)).toBe(false);
+    type(el, '');
+    type(el, '/');
+    expect(isOpen(el)).toBe(true);
+    key(field(el), 'Escape');
+    el.clear();
+    type(el, '/');
+    expect(isOpen(el)).toBe(true);
+  });
+
+  it('a row named exactly what was typed is the active one, so Enter sends it', () => {
+    const el = mount({
+      triggers: [
+        {
+          char: '%',
+          at: 'start',
+          items: [
+            { value: '%model', description: 'session model' },
+            { value: '%', description: 'session settings' },
+          ],
+        },
+      ],
+    });
+    const sent = events<ComposerSubmitDetail>(el, 'ui-submit');
+    type(el, '%');
+    expect(activeRow(el)?.querySelector('.cp-sg-name')?.textContent).toBe('%');
+    key(field(el), 'Enter');
+    expect(sent.map((d) => d.text)).toEqual(['%']);
+    // Moved off it with the arrows, Enter picks the row moved to.
+    type(el, '%');
+    key(field(el), 'ArrowUp');
+    key(field(el), 'Enter');
+    expect(el.value).toBe('%model ');
   });
 
   it('Esc closes the menu without reaching the page, and typing opens it again', () => {
