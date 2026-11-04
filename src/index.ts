@@ -67,7 +67,13 @@ export {
   modelMarkSvg,
   modelVendor,
 } from './core/model-mark';
-export { OWNER_BADGE_HUES, OWNER_BADGE_ORBIT_MS, ownerBadgeCss, syncOwnerBadgeOrbit } from './core/owner-badge';
+export {
+  OWNER_BADGE_HUES,
+  OWNER_BADGE_ORBIT_MS,
+  OWNER_BADGE_ORBITS,
+  ownerBadgeCss,
+  syncOwnerBadgeOrbit,
+} from './core/owner-badge';
 export type { PopAlign, PopPlace, PopRect, PopSide } from './core/popover';
 export { parsePlacement, placePopover } from './core/popover';
 export { baseCss, DARK, LIGHT, SHARED, tokensCss } from './core/tokens';

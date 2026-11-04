@@ -1832,11 +1832,6 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       }
     });
     this.#order = order;
-    // 6b. The viewer's own badges ride the document's shared orbit. Once everything is placed: a CSS animation exists
-    //     only on a connected element, and one restarts when its card is drawn, rewritten or moved (re-inserted), so
-    //     every self pill is put back on the orbit here — never a jump, wherever its card went.
-    for (const self of Array.from(this.content.querySelectorAll<HTMLElement>('.ib-badge.is-self')))
-      syncOwnerBadgeOrbit(self);
 
     // 7. Cards no longer drawn fade out where they were (inside a group that left, they go with it); then groups
     //    and columns that left go.
@@ -1935,6 +1930,11 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
         (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined);
       next?.focus({ preventScroll: true });
     }
+    // 9. The viewer's own badges ride the document's shared orbit. Last, after every DOM move: a CSS animation exists
+    //    only on a connected element and restarts when its card is drawn, rewritten or moved (re-inserted — a reorder,
+    //    a column change, an exit re-appended to fade out), so every self pill is put back on the orbit here.
+    for (const self of Array.from(this.content.querySelectorAll<HTMLElement>('.ib-badge.is-self')))
+      syncOwnerBadgeOrbit(self);
     this.#tickIn(this.content);
     this.#syncTick();
     // The first paint with data never animates (a render before any data, or skeletons only, does not count).
