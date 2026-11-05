@@ -164,7 +164,7 @@ export const doc: ComponentDoc = {
     'An <ol> named by label; each step carries a visually hidden “<label>, <status>” (“Build, Current”, “구현, 진행 중”) and the current one aria-current="step". Colour is never the only signal.',
     'The current pill’s fill is role="progressbar" named by the step, with aria-valuenow 0 … 100; unknown progress is aria-busy="true" with no value.',
     'Interactive: one tab stop (the current dot), the arrows rove, Home / End jump; each button’s title is its label. The focus ring sits on the dot; on a coarse pointer each dot gets a 44px target (they spread out, the dot stays small).',
-    'Motion: the slot widths ease on 520ms and the wake bumps once. Under reduced motion there is no wake, the widths jump and the sweeping band is a still half fill.',
+    'Motion: the slot widths ease on 520ms and the wake bumps once. Under reduced motion there is no wake, the widths jump and the sweeping band stands still as a faint tint over the whole pill (never a fill that reads as an amount).',
     'Sound (opt-in, @2lab.ai/ui/sound): a subtle select when a picked dot’s ui-select is not prevented. Progress the host sets never sounds. Silent until the page turns sound on.',
   ],
   usage: `<ui-step-track></ui-step-track>

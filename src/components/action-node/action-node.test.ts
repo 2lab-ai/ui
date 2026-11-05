@@ -446,6 +446,26 @@ describe('hover', () => {
     expect(focused(el)).toBe(act(el, 'run'));
   });
 
+  it('a press on the trigger of a fan the hover opened keeps it open (a key also moves focus in)', () => {
+    media({ fine: true });
+    const el = mount();
+    pointer(el, 'pointerenter');
+    expect(isOpen(el)).toBe(true);
+    press(el, trigger(el));
+    expect(isOpen(el)).toBe(true);
+    press(el, trigger(el));
+    expect(isOpen(el)).toBe(false);
+    pointer(el, 'pointerleave');
+    pointer(el, 'pointerenter');
+    expect(isOpen(el)).toBe(true);
+    press(el, trigger(el), 'keyboard');
+    expect(isOpen(el)).toBe(true);
+    expect(focused(el)).toBe(act(el, 'run'));
+    pointer(el, 'pointerleave');
+    vi.advanceTimersByTime(NODE_LEAVE_MS * 2);
+    expect(isOpen(el)).toBe(true);
+  });
+
   it('closing on leave with focus in the fan hands focus to the trigger (the fan turns inert)', () => {
     media({ fine: true });
     const el = mount();

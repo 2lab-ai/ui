@@ -387,6 +387,13 @@ export class UiActionNode extends UiElement<ActionNodeData> {
     if (!b || !this.content.contains(b)) return;
     if (b.classList.contains('an-trigger')) {
       const key = soundInput(e) === 'keyboard';
+      if (this.#open && this.#via === 'hover') {
+        // The mouse opened the fan on its way to the trigger: the press keeps it — and takes it over (a key moves
+        // focus into the fan and holds it past a pointer leave) — instead of folding it under the pointer.
+        this.#via = key ? 'key' : 'pointer';
+        if (key) this.#focusAt(0);
+        return;
+      }
       this.#setOpen(!this.#open, { via: key ? 'key' : 'pointer', event: e, focusFirst: key });
     } else if (b.classList.contains('an-name')) {
       if (this.emit('ui-open', {})) this.sound('navigate', undefined, e);

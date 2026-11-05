@@ -706,6 +706,20 @@ describe('sound', () => {
     ]);
   });
 
+  it('no success cue when the host refuses inside its listener (failed); a busy answer still sounds', async () => {
+    const el = mount();
+    el.addEventListener('ui-confirm', () => (el.data = { state: 'failed' }), { once: true });
+    key(grip(el), 'End');
+    await spy.settle();
+    expect(spy.calls).toEqual([]);
+    el.reset();
+    el.renderNow();
+    el.addEventListener('ui-confirm', () => (el.data = { state: 'busy' }), { once: true });
+    key(grip(el), 'End');
+    await spy.settle();
+    expect(spy.calls).toEqual([['success', { emphasis: 'normal', input: 'keyboard' }]]);
+  });
+
   it('silent when prevented, on grab and release, going home, and for every state the host sets', async () => {
     const el = mount();
     el.addEventListener('ui-confirm', (e) => e.preventDefault(), { once: true });

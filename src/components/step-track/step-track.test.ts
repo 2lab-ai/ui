@@ -460,6 +460,10 @@ describe('styles', () => {
     expect(styles).toContain('animation: st-wake 420ms ease-in-out calc(var(--i, 0) * 60ms) both;');
     expect(styles).toContain('@keyframes st-wake { 50% { transform: scaleY(1.34); } }');
     expect(styles).toMatch(/prefers-reduced-motion: reduce\) \{\s*\.st-band \{ animation: none !important;/);
+    // Still, an unknown amount is a faint tint over the whole pill — never a fill that reads as 50%.
+    expect(styles).toMatch(
+      /\.st-band \{ animation: none !important; transform: none; inset: 0; width: 100%; background: color-mix\(in srgb, var\(--st-run\) 35%, transparent\); \}/,
+    );
     expect(styles).toContain('.st-dot[data-wake] { animation: none !important; }');
     expect(styles).toMatch(/@media \(pointer: coarse\) \{[^}]*\.st-list \{ gap: 0; \}/);
     expect(styles).toContain('min-width: 44px; min-height: 44px;');
