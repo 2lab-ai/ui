@@ -1048,7 +1048,7 @@ describe('<ui-agent-steering> docked queue', () => {
   it('the dock tells a failed note (fail tone, its name) and one on its way (run tone)', () => {
     const el = mount({ running: true, items: [item('a'), item('b', { state: 'failed' })] });
     expect(dock(el).getAttribute('data-tone')).toBe('fail');
-    expect(dock(el).getAttribute('aria-label')).toBe('2 queued notes — one couldn’t send');
+    expect(dock(el).getAttribute('aria-label')).toBe('2 queued notes — some couldn’t be sent');
     set(el, { items: [item('a'), item('b')] });
     expect(dock(el).getAttribute('data-tone')).toBe('idle');
     act(el, 0, 'promote')?.click();
@@ -1178,7 +1178,7 @@ describe('<ui-agent-steering> docked queue', () => {
     const el = mount({ running: true, items: [item('a'), item('b', { state: 'failed' })] }, { lang: 'ko' });
     expect(dock(el).getAttribute('aria-label')).toBe('대기 중인 메시지 2개 — 보내지 못한 메시지가 있습니다');
     expect(q(el, '.as-pop-title')?.textContent).toBe('다음 단계에 전달 대기');
-    expect(q(el, '.as-pop-close')?.getAttribute('aria-label')).toBe('큐 닫기');
+    expect(q(el, '.as-pop-close')?.getAttribute('aria-label')).toBe('대기열 닫기');
   });
 
   describe('phone (under 640px): a bottom sheet', () => {
@@ -1207,6 +1207,7 @@ describe('<ui-agent-steering> docked queue', () => {
       field(el).focus();
       press(dock(el));
       expect(pop(el).hasAttribute('data-sheet')).toBe(true);
+      expect(pop(el).getAttribute('aria-modal')).toBe('true');
       expect(q(el, '.as-scrim')?.hasAttribute('data-open')).toBe(true);
       expect(el.shadowRoot?.activeElement).toBe(pop(el));
       (q(el, '.as-scrim') as HTMLElement).click();
@@ -1251,6 +1252,7 @@ describe('<ui-agent-steering> docked queue', () => {
       mq.set(false);
       expect(el.queueOpen).toBe(true);
       expect(pop(el).hasAttribute('data-sheet')).toBe(false);
+      expect(pop(el).hasAttribute('aria-modal')).toBe(false);
       expect(q(el, '.as-scrim')?.hasAttribute('data-open')).toBe(false);
       mq.set(true);
       expect(pop(el).hasAttribute('data-sheet')).toBe(true);
@@ -1290,6 +1292,54 @@ describe('<ui-agent-steering> docked queue', () => {
     el.focus();
     expect(el.shadowRoot?.activeElement).toBe(dock(el));
     expect(pop(el).contains(el.shadowRoot?.activeElement ?? null)).toBe(false);
+  });
+
+  it('openQueue({ focus: true }) lands on the first note; closeQueue() brings focus back to the dock', () => {
+    const el = mount({ running: true, items: two() });
+    el.openQueue({ focus: true });
+    expect(el.shadowRoot?.activeElement).toBe(act(el, 0, 'promote'));
+    el.closeQueue();
+    expect(el.queueOpen).toBe(false);
+    expect(el.shadowRoot?.activeElement).toBe(dock(el));
+  });
+
+  it('a press outside with focus inside the queue sends focus to the dock, never the field (no soft keyboard)', () => {
+    const el = mount({ running: true, items: two() });
+    el.openQueue({ focus: true });
+    pointer(document.body, 'pointerdown');
+    expect(el.queueOpen).toBe(false);
+    expect(el.shadowRoot?.activeElement).toBe(dock(el));
+    expect(el.shadowRoot?.activeElement).not.toBe(field(el));
+  });
+
+  it('Esc with the queue pinned and text in the field closes the queue first; the text stays', () => {
+    const el = mount({ running: true, items: two() });
+    type(el, 'half a thought');
+    field(el).focus();
+    press(dock(el));
+    expect(el.queueOpen).toBe(true);
+    const e = key(field(el), 'Escape');
+    expect(e.defaultPrevented).toBe(true);
+    expect(el.queueOpen).toBe(false);
+    expect(field(el).value).toBe('half a thought');
+    key(field(el), 'Escape');
+    expect(field(el).value).toBe('');
+  });
+
+  it('the width is watched only while the queue is open', () => {
+    let subscribed = 0;
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => subscribed++,
+      removeEventListener: () => subscribed--,
+    }));
+    const el = mount({ running: true, items: two() });
+    expect(subscribed).toBe(0);
+    el.openQueue();
+    expect(subscribed).toBe(1);
+    el.closeQueue();
+    expect(subscribed).toBe(0);
   });
 
   it('removed from the page while open: the document listeners go with it', () => {

@@ -254,7 +254,7 @@ export const doc: ComponentDoc = {
       type: 'CSS',
       default: '8px / 0px / 160',
       description:
-        'How far above the element’s top the dock floats and how far in from its right edge (the host knows what sits there); the open queue’s z-index (the scrim is one below).',
+        'How far above the element’s top the dock floats and how far in from its right edge (the host knows what sits there); the open queue’s z-index (the scrim is one below). The dock sits outside the element’s box: leave gap + 32px (44px on touch) of unclipped room above it — an overflow: hidden ancestor that ends at the element’s top hides it (openQueue() still opens the queue).',
     },
     { name: 'value', type: 'string', description: 'The field’s text — read it, or prefill it (e.g. to resend).' },
     {
@@ -302,7 +302,10 @@ export const doc: ComponentDoc = {
     ['Enter / Space (dock)', 'Open the queue pinned, focus on its first note; again closes it'],
     ['Esc (queue open)', 'Close the queue, focus back on the dock (the page sees the key as used)'],
     ['Enter / Esc (editing)', 'Save the edit / keep the original'],
-    ['Tab', 'The host’s tools, the field, Send, then each note’s Send now, Edit and Cancel'],
+    [
+      'Tab',
+      'The dock (while notes wait) and, when open, the queue’s notes and its ✕; then a note on its way in, the host’s tools, the field and Send',
+    ],
   ],
   a11y: [
     'The field is labelled (“Steer the agent” / “Message the session”) and described by the key hints.',
@@ -310,7 +313,7 @@ export const doc: ComponentDoc = {
     'Queuing, steering, sending, delivery, cancelling and failures are announced in a polite live region.',
     'Focus survives host updates; when a note’s control goes away it moves to the next note, the one before, or the field.',
     'With a slotted composer, its field carries this element’s name and placeholder; its chips, recorder and errors keep the composer’s own semantics.',
-    'The dock is a button named by the count (“3 queued notes — one couldn’t send”) with aria-haspopup="dialog" and aria-expanded; the queue is a dialog named by its heading and count, inert while closed.',
+    'The dock is a button named by the count (“3 queued notes — some couldn’t be sent”) with aria-haspopup="dialog" and aria-expanded; the queue is a dialog named by its heading and count, inert while closed; the phone sheet (with its scrim) is aria-modal.',
     'Hover only peeks for a mouse or pen (a touch never does); acting inside a peek (a press, focus) pins it. A tap on the phone sheet moves focus into it, so the soft keyboard goes down and the sheet has the screen.',
     'Touch targets are 44px on coarse pointers (the dock too); reduced motion drops the enter/leave motion, the bump and the spinners — the dock, the queue and the sheet fade.',
     'Sound (opt-in, @2lab.ai/ui/sound): pressing the dock open plays open and closing the queue (dock, ✕, Esc, scrim, drag) a subtle close; sending, queuing, Send now and Retry tap, Cancel plays a subtle close and a saved edit a subtle tap — once their event is not prevented; keystrokes in the field and the edit box play type while typing sounds are on. Silent until the page turns sound on.',
