@@ -191,7 +191,7 @@ export const doc: ComponentDoc = {
     'delivered (the agent reads it at its next tool call), or failed with Retry. Every action shows at once and the ' +
     'host confirms it with its next list or rolls it back with setItemState(). Owner-only like Stop: canAct: false ' +
     'leaves a read-only list. The field never resets under a host update, so an IME composition survives a live queue. ' +
-    'Docked (the default since 0.31): a note shows above the field only on its way in; once the list has it, it waits ' +
+    'Docked (the default since 0.33): a note shows above the field only on its way in; once the list has it, it waits ' +
     'behind a round button at the top right with the count — hover peeks the queue open, a press pins it, and under ' +
     '640px it is a bottom sheet that follows the soft keyboard and closes when dragged down. queue: "inline" keeps ' +
     'every note above the field.',
@@ -397,7 +397,7 @@ export const doc: ComponentDoc = {
     {
       id: 'inline',
       title: 'queue: "inline"',
-      description: 'Every note above the field, as before 0.31 — for a host with room to spare.',
+      description: 'Every note above the field, as before 0.33 — for a host with room to spare.',
       height: 380,
       create: () => stage(host(steering({ running: true, items: queue(), queue: 'inline' }))),
     },
