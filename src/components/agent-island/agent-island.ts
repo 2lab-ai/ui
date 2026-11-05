@@ -225,12 +225,24 @@ export class UiAgentIsland extends UiElement<AgentIslandData> {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    window.addEventListener('resize', this.#onResize);
+    // The room it has can change without the window (a side panel folding, a split pane dragged): watch the host.
+    if (typeof ResizeObserver === 'function') {
+      this.#ro ??= new ResizeObserver((entries) => {
+        const w = Math.round(entries[entries.length - 1]?.contentRect.width ?? 0);
+        if (w === this.#roomW) return;
+        const first = this.#roomW < 0;
+        this.#roomW = w;
+        if (!first) this.#fit(false);
+      });
+      this.#ro.observe(this);
+    } else window.addEventListener('resize', this.#onResize);
     // A web font that arrives after the first measure changes the pill's width.
     document.fonts?.ready.then(() => this.isConnected && this.#fit(false));
   }
 
   override disconnectedCallback(): void {
+    this.#ro?.disconnect();
+    this.#roomW = -1;
     window.removeEventListener('resize', this.#onResize);
     this.#stopTimer();
   }
@@ -324,6 +336,9 @@ export class UiAgentIsland extends UiElement<AgentIslandData> {
   }
 
   readonly #onResize = (): void => this.#fit(false);
+  /** Watches the host's width (the room the box has); the first report is the size it was drawn at. */
+  #ro: ResizeObserver | null = null;
+  #roomW = -1;
 
   #say(msg: string): void {
     this.#live.textContent = msg;

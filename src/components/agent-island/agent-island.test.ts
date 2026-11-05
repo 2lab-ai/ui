@@ -559,6 +559,45 @@ describe('the box is sized by measure', () => {
     expect(box.style.width).toBe('182px');
   });
 
+  it('refits when its own box narrows or widens, without a window resize (a ResizeObserver on the host)', () => {
+    const seen: Array<{ cb: ResizeObserverCallback; targets: Element[]; off: boolean }> = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        r: { cb: ResizeObserverCallback; targets: Element[]; off: boolean };
+        constructor(cb: ResizeObserverCallback) {
+          this.r = { cb, targets: [], off: false };
+          seen.push(this.r);
+        }
+        observe(t: Element) {
+          this.r.targets.push(t);
+          this.r.off = false;
+        }
+        unobserve() {}
+        disconnect() {
+          this.r.off = true;
+        }
+      },
+    );
+    const fire = (el: Element, width: number) => {
+      for (const r of seen)
+        if (!r.off && r.targets.includes(el))
+          r.cb([{ contentRect: { width } } as unknown as ResizeObserverEntry], {} as ResizeObserver);
+    };
+    fakeLayout(900);
+    const el = mount({ ...RUN, open: true });
+    const box = q(el, '.ai')!;
+    expect(seen.some((r) => r.targets.includes(el))).toBe(true);
+    fire(el, 900);
+    expect(box.style.width).toBe(`${ISLAND_OPEN_W}px`);
+    fakeLayout(260);
+    fire(el, 260);
+    expect(box.style.width).toBe('260px');
+    expect(box.style.getPropertyValue('--ai-card-w')).toBe('260px');
+    el.remove();
+    expect(seen.every((r) => r.off)).toBe(true);
+  });
+
   it('a wide room caps the card at 340; reduced motion lands on the same sizes', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
     fakeLayout(900);

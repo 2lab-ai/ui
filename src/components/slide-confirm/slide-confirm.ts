@@ -398,7 +398,8 @@ export class UiSlideConfirm extends UiElement<SlideConfirmData> {
         ],
         { duration: 420, delay: 100 },
       );
-    this.sound('success', { emphasis: 'normal' }, e);
+    // A host that refused inside its listener (failed) turned the commit down: no success cue under the shake.
+    if (!(this.#hears !== hears && this.#heard === 'failed')) this.sound('success', { emphasis: 'normal' }, e);
     this.renderNow();
   }
 

@@ -59,8 +59,9 @@ export const styles = `
   :host([interactive]) .st-step { justify-content: center; min-width: 44px; min-height: 44px; }
   :host([interactive]) .st-hit::before { content: none; }
 }
+/* Reduced motion: the band stands still over the whole pill in a faint tint — a solid half fill would read as "50% done". */
 @media (prefers-reduced-motion: reduce) {
-  .st-band { animation: none !important; transform: none; background: var(--st-run); }
+  .st-band { animation: none !important; transform: none; inset: 0; width: 100%; background: color-mix(in srgb, var(--st-run) 35%, transparent); }
   .st-dot[data-wake] { animation: none !important; }
 }
 `;
