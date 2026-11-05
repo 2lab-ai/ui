@@ -1805,7 +1805,7 @@ describe('attention (0.32.0) — a collapsed card that waits on the viewer', () 
       /\.ib-card\.is-attention:not\(\.is-open\)::after \{[^}]*animation: ib-attn-ping 10000ms [^;}]*infinite;/,
     );
     expect(css).toMatch(/@keyframes ib-attn-ping \{/);
-    // Only transform / opacity move (compositor-friendly): no layout property is animated.
+    // No layout property is animated (the ring is a box-shadow: paint only, no layout — not compositor-only).
     const frames = /@keyframes ib-attn-ping \{(.*?\}) \}/.exec(css)?.[1] ?? '';
     expect(frames).not.toBe('');
     expect(frames).not.toMatch(/\b(width|height|top|left|right|bottom|margin|padding|inset)\s*:/);
@@ -1813,6 +1813,17 @@ describe('attention (0.32.0) — a collapsed card that waits on the viewer', () 
     expect(css).toMatch(
       /prefers-reduced-motion: reduce\) \{[^@]*\.ib-card\.is-attention:not\(\.is-open\)::after \{ animation: none; display: none; \}/,
     );
+    // Held, never stuck: hover only on pointer devices (a tap's sticky :hover would hide it on touch), and a keyboard
+    // focus, not any focus (a face clicked closed keeps the focus — its ping must come back).
+    expect(css).not.toMatch(/\.ib-card\.is-attention[^{]*:focus-within/);
+    expect(css).toMatch(
+      /\.ib-card\.is-attention:not\(\.is-open\):is\(:has\(:focus-visible\), \.is-flying\)::after \{ visibility: hidden; \}/,
+    );
+    const hoverBlock = /@media \(hover: hover\) and \(pointer: fine\) \{(.*?)\} \/\* 44px/.exec(css)?.[1] ?? '';
+    expect(hoverBlock).toContain('.ib-card.is-attention:not(.is-open):hover::after { visibility: hidden; }');
+    expect(hoverBlock).toContain('.ib-card.is-attention:not(.is-open):hover { border-color: var(--ib-attn); }');
+    const outside = css.replace(/@media \(hover: hover\) and \(pointer: fine\) \{.*?\} \/\* 44px/, '');
+    expect(outside).not.toMatch(/\.ib-card\.is-attention[^{]*:hover/);
     // Forced colours: the mark in a system colour.
     expect(css).toMatch(/forced-colors: active\) \{[^@]*\.ib-card\.is-attention:not\(\.is-open\)[^{]*\{[^}]*Highlight/);
   });

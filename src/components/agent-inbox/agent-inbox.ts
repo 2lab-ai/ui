@@ -183,7 +183,7 @@ export interface InboxCard {
    * 0.32.0 — the card waits on the viewer (their own card in NEEDS YOU). Only `true` counts. While the card is
    * collapsed it carries a mark (a rail on its reading edge, a stronger border, the status tag in ink) and, once
    * every `ATTENTION_BEAT_MS`, a ping — a ring that leaves its edge and fades, every such card on one shared beat.
-   * Opening the card stops the cue; hovering or focusing it, or a move between columns, holds the ping. Reduced motion keeps the mark, drops the ping.
+   * Opening the card stops the cue; a pointer over it, a keyboard focus in it, or a move between columns holds the ping. Reduced motion keeps the mark, drops the ping.
    */
   attention?: boolean;
   /** Host metrics after tasks and context (a PR badge, a media count). */
