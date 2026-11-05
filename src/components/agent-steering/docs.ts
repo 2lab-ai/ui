@@ -23,7 +23,8 @@ function steering(data: AgentSteeringData, attrs: Record<string, string> = {}): 
 
 function stage(...els: HTMLElement[]): HTMLElement {
   const box = document.createElement('div');
-  box.style.cssText = 'display:grid;gap:28px;max-width:520px;margin:0 auto';
+  // The dock floats above the element's top right: room for it over the first one.
+  box.style.cssText = 'display:grid;gap:56px;max-width:520px;margin:0 auto;padding-top:48px';
   box.append(...els);
   return box;
 }
@@ -189,7 +190,11 @@ export const doc: ComponentDoc = {
     'order with Send now, Edit (inline: Enter saves, Esc cancels) and Cancel, and say what happened to them: sending, ' +
     'delivered (the agent reads it at its next tool call), or failed with Retry. Every action shows at once and the ' +
     'host confirms it with its next list or rolls it back with setItemState(). Owner-only like Stop: canAct: false ' +
-    'leaves a read-only list. The field never resets under a host update, so an IME composition survives a live queue.',
+    'leaves a read-only list. The field never resets under a host update, so an IME composition survives a live queue. ' +
+    'Docked (the default since 0.31): a note shows above the field only on its way in; once the list has it, it waits ' +
+    'behind a round button at the top right with the count — hover peeks the queue open, a press pins it, and under ' +
+    '640px it is a bottom sheet that follows the soft keyboard and closes when dragged down. queue: "inline" keeps ' +
+    'every note above the field.',
   usedIn:
     'soma-work dashboard — the session panel composer (renderPanelComposer / sendCommand, .panel-command, #cmd-input) ' +
     'with the session’s FollowupQueue (list / promote / steer / editQueued / cancelItem) that Slack shows as Send now / Cancel.',
@@ -230,6 +235,26 @@ export const doc: ComponentDoc = {
       type: 'number',
       default: '0',
       description: 'Files the host holds for the next message; above 0 a note with no text can be sent.',
+    },
+    {
+      name: 'data.queue',
+      type: "'dock' | 'inline'",
+      default: "'dock'",
+      description:
+        'dock: the list’s notes wait behind a round count button at the top right (fail colour when one failed, a spinning ring while one is on its way); hover peeks them open (120ms intent, 240ms grace), a press pins them, Esc / a press outside / the button again close; under 640px a bottom sheet over a scrim, on the visual viewport (above the keyboard and the home bar), dragged down to close. Only a note on its way in (not in the list yet, or refused before it got there) shows above the field. inline: every note above the field.',
+    },
+    {
+      name: 'openQueue({ focus? }) / closeQueue() / queueOpen',
+      type: 'methods',
+      description:
+        'Pin the docked queue open (focus: true moves focus to its first note), close it (focus inside goes back to the button), or read whether it shows. Nothing opens while no note waits.',
+    },
+    {
+      name: '--ui-steering-dock-gap / --ui-steering-dock-right / --ui-steering-pop-z',
+      type: 'CSS',
+      default: '8px / 0px / 160',
+      description:
+        'How far above the element’s top the dock floats and how far in from its right edge (the host knows what sits there); the open queue’s z-index (the scrim is one below).',
     },
     { name: 'value', type: 'string', description: 'The field’s text — read it, or prefill it (e.g. to resend).' },
     {
@@ -274,6 +299,8 @@ export const doc: ComponentDoc = {
     ['⌘/Ctrl + Enter', 'Hand the note to the running turn now (idle: send)'],
     ['Shift + Enter', 'New line (on touch screens Enter is a new line too; the button sends)'],
     ['Esc', 'Clear the field (an empty field lets Esc reach the page); in an edit box: stop editing'],
+    ['Enter / Space (dock)', 'Open the queue pinned, focus on its first note; again closes it'],
+    ['Esc (queue open)', 'Close the queue, focus back on the dock (the page sees the key as used)'],
     ['Enter / Esc (editing)', 'Save the edit / keep the original'],
     ['Tab', 'The host’s tools, the field, Send, then each note’s Send now, Edit and Cancel'],
   ],
@@ -283,8 +310,10 @@ export const doc: ComponentDoc = {
     'Queuing, steering, sending, delivery, cancelling and failures are announced in a polite live region.',
     'Focus survives host updates; when a note’s control goes away it moves to the next note, the one before, or the field.',
     'With a slotted composer, its field carries this element’s name and placeholder; its chips, recorder and errors keep the composer’s own semantics.',
-    'Touch targets are 44px on coarse pointers; reduced motion drops the enter/leave motion and the spinners.',
-    'Sound (opt-in, @2lab.ai/ui/sound): sending, queuing, Send now and Retry tap, Cancel plays a subtle close and a saved edit a subtle tap — once their event is not prevented; keystrokes in the field and the edit box play type while typing sounds are on. Silent until the page turns sound on.',
+    'The dock is a button named by the count (“3 queued notes — one couldn’t send”) with aria-haspopup="dialog" and aria-expanded; the queue is a dialog named by its heading and count, inert while closed.',
+    'Hover only peeks for a mouse or pen (a touch never does); acting inside a peek (a press, focus) pins it. A tap on the phone sheet moves focus into it, so the soft keyboard goes down and the sheet has the screen.',
+    'Touch targets are 44px on coarse pointers (the dock too); reduced motion drops the enter/leave motion, the bump and the spinners — the dock, the queue and the sheet fade.',
+    'Sound (opt-in, @2lab.ai/ui/sound): pressing the dock open plays open and closing the queue (dock, ✕, Esc, scrim, drag) a subtle close; sending, queuing, Send now and Retry tap, Cancel plays a subtle close and a saved edit a subtle tap — once their event is not prevented; keystrokes in the field and the edit box play type while typing sounds are on. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-steering lang="ko"></ui-agent-steering>
 <script type="module">
@@ -307,8 +336,8 @@ export const doc: ComponentDoc = {
       id: 'running',
       title: 'While the agent works',
       description:
-        'Two notes wait for the next step. Type one and press Enter to queue it, ⌘/Ctrl+Enter to hand it over now; Send now, Edit and Cancel on a note.',
-      height: 380,
+        'Two notes wait behind the round button at the top right. Type one and press Enter: it shows above the field until the list has it, then joins the count. Hover the button to peek, press it to pin the queue; Send now, Edit and Cancel on a note. Narrow the window under 640px for the bottom sheet.',
+      height: 420,
       create: () => stage(host(steering({ running: true, items: queue() }))),
     },
     {
@@ -361,6 +390,13 @@ export const doc: ComponentDoc = {
             }),
           ),
         ),
+    },
+    {
+      id: 'inline',
+      title: 'queue: "inline"',
+      description: 'Every note above the field, as before 0.31 — for a host with room to spare.',
+      height: 380,
+      create: () => stage(host(steering({ running: true, items: queue(), queue: 'inline' }))),
     },
     {
       id: 'idle',
