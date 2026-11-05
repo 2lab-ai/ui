@@ -54,7 +54,7 @@ export interface AgentSteeringData {
    * Where the notes the host's list holds wait. `'dock'` (default): behind a round button at the top right of the
    * element that shows how many there are and opens the queue on hover or press (a bottom sheet under 640px) — only
    * a note on its way in (not in the list yet, or refused before it got there) shows above the field. `'inline'`:
-   * every note above the field, as before 0.31.
+   * every note above the field, as before 0.33.
    */
   queue?: SteeringQueueLayout;
 }
