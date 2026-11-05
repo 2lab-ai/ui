@@ -1,6 +1,6 @@
 /**
  * The 2lab icon set: a 16×16 grid, 1.5px strokes, round caps and joins, drawn in `currentColor` — the same
- * hand as the glyphs inside the components and on ui.2lab.ai. `icon(name)` returns an SVG string (decorative by
+ * hand as the glyphs inside the components and on 2lab.ai/ui. `icon(name)` returns an SVG string (decorative by
  * default; pass `label` for a meaningful image). The brand mark and `dot` are the only filled glyphs.
  */
 
