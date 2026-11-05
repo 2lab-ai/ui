@@ -5,6 +5,7 @@ export const ORDER = [
   'agent-run',
   'agent-inbox',
   'agent-island',
+  'working',
   'agent-tree',
   'approval-card',
   'agent-steering',
@@ -53,6 +54,7 @@ export const ORDER = [
   'step-track',
   'slide-confirm',
   'ascii-wake',
+  'copy-field',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });
