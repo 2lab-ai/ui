@@ -38,7 +38,8 @@ svg { display: block; flex: none; }
   opacity: 0; visibility: hidden; transform: scale(0.6);
   transition: opacity 160ms ease, transform 240ms var(--as-ease), visibility 0s linear 240ms, background-color 160ms ease,
     color 160ms ease, box-shadow 160ms ease; }
-.as-dock[data-shown] { opacity: 1; visibility: visible; transform: none;
+/* inherit, not visible: a host that hides the element (a tucked composer) hides its dock too (ui#32). */
+.as-dock[data-shown] { opacity: 1; visibility: inherit; transform: none;
   transition: opacity 160ms ease, transform 360ms cubic-bezier(0.34, 1.4, 0.64, 1), visibility 0s, background-color 160ms ease,
     color 160ms ease, box-shadow 160ms ease; }
 /* The dock's box without its transforms: the open queue is placed against it. */
@@ -68,7 +69,7 @@ svg { display: block; flex: none; }
   transform-origin: bottom right; opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(4px) scale(0.97);
   transition: opacity 140ms ease, transform 180ms var(--as-ease), visibility 0s linear 180ms; }
 .as-pop[data-side="bottom"] { transform-origin: top right; transform: translateY(-4px) scale(0.97); }
-.as-pop[data-open] { opacity: 1; visibility: visible; pointer-events: auto; transform: none;
+.as-pop[data-open] { opacity: 1; visibility: inherit; pointer-events: auto; transform: none;
   transition: opacity 160ms ease, transform 240ms var(--as-ease), visibility 0s; }
 .as-pop-head { position: relative; display: flex; flex: none; align-items: center; gap: 6px; padding: 8px 6px 6px 14px;
   color: var(--as-muted); font-size: 10px; font-weight: 500; line-height: 16px; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -80,7 +81,7 @@ svg { display: block; flex: none; }
   background: var(--scrim, color-mix(in srgb, var(--text) 32%, transparent)); opacity: 0; visibility: hidden;
   pointer-events: none; touch-action: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: opacity 200ms ease, visibility 0s linear 200ms; }
-.as-scrim[data-open] { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 240ms ease, visibility 0s; }
+.as-scrim[data-open] { opacity: 1; visibility: inherit; pointer-events: auto; transition: opacity 240ms ease, visibility 0s; }
 
 /* Under 640px: a bottom sheet over the scrim, the visual viewport's width, above the keyboard and the home bar. Its
    head drags it down; the grabber says so. iOS's sheet curve in, a quicker one out. */
