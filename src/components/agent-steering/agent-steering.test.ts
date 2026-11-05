@@ -1290,6 +1290,91 @@ describe('<ui-agent-steering> docked queue', () => {
       expect(el.shadowRoot?.activeElement).toBe(btns[btns.length - 1]);
     });
 
+    it('with the keyboard up the sheet keeps only an 8px top margin, and an open edit row is scrolled into view', () => {
+      phone(true);
+      const vv = new EventTarget() as EventTarget & { height: number; offsetTop: number; width: number };
+      Object.assign(vv, { height: window.innerHeight, offsetTop: 0, width: 390 });
+      vi.stubGlobal('visualViewport', vv);
+      const el = mount({ running: true, items: two() });
+      el.openQueue();
+      act(el, 1, 'edit')?.click();
+      const body = q(el, '.as-pop-body') as HTMLElement;
+      const row = q(el, '.as-row.is-editing') as HTMLElement;
+      expect(row).toBeTruthy();
+      // Laid out: the body shows 0–200, the edit row (its Save row at the bottom) runs to 330.
+      const rect = (top: number, bottom: number) =>
+        ({
+          top,
+          bottom,
+          left: 0,
+          right: 390,
+          width: 390,
+          height: bottom - top,
+          x: 0,
+          y: top,
+          toJSON: () => ({}),
+        }) as DOMRect;
+      body.getBoundingClientRect = () => rect(0, 200);
+      row.getBoundingClientRect = () => rect(150, 330);
+      body.scrollTop = 0;
+      // The keyboard comes up: the visual viewport shrinks by it.
+      Object.assign(vv, { height: 321 });
+      vv.dispatchEvent(new Event('resize'));
+      expect(pop(el).hasAttribute('data-kb')).toBe(true);
+      expect(pop(el).style.maxHeight).toBe('313px');
+      expect(body.scrollTop).toBe(138);
+      // Still rising (iOS reports the keyboard in steps): the body ends higher — reveal again.
+      body.getBoundingClientRect = () => rect(0, 150);
+      row.getBoundingClientRect = () => rect(10, 190);
+      Object.assign(vv, { height: 280 });
+      vv.dispatchEvent(new Event('resize'));
+      expect(body.scrollTop).toBe(138 + 48);
+      // A steady view (the 150ms tick, a host update) never moves the reader's own scroll.
+      body.scrollTop = 20;
+      vv.dispatchEvent(new Event('resize'));
+      el.renderNow();
+      expect(body.scrollTop).toBe(20);
+    });
+
+    it('an edit row taller than the queue’s view shows its Save row (bottom first)', () => {
+      phone(true);
+      const vv = new EventTarget() as EventTarget & { height: number; offsetTop: number; width: number };
+      Object.assign(vv, { height: window.innerHeight, offsetTop: 0, width: 390 });
+      vi.stubGlobal('visualViewport', vv);
+      const el = mount({ running: true, items: two() });
+      el.openQueue();
+      act(el, 0, 'edit')?.click();
+      const body = q(el, '.as-pop-body') as HTMLElement;
+      const row = q(el, '.as-row.is-editing') as HTMLElement;
+      const rect = (top: number, bottom: number) =>
+        ({
+          top,
+          bottom,
+          left: 0,
+          right: 390,
+          width: 390,
+          height: bottom - top,
+          x: 0,
+          y: top,
+          toJSON: () => ({}),
+        }) as DOMRect;
+      body.getBoundingClientRect = () => rect(100, 200);
+      row.getBoundingClientRect = () => rect(60, 200);
+      body.scrollTop = 50;
+      Object.assign(vv, { height: 300 });
+      vv.dispatchEvent(new Event('resize'));
+      expect(body.scrollTop).toBe(58);
+    });
+
+    it('a hidden host hides the dock: shown, it inherits visibility instead of forcing it (ui#32)', () => {
+      const css = (customElements.get('ui-agent-steering') as unknown as { styles: string[] }).styles.join('\n');
+      expect(css).toMatch(/\.as-dock\[data-shown\] \{ opacity: 1; visibility: inherit;/);
+      expect(css).not.toMatch(/\.as-dock\[data-shown\] \{[^}]*visibility: visible/);
+      // The open queue and its scrim too: a host hidden while the queue is open hides them.
+      expect(css).toMatch(/\.as-pop\[data-open\] \{ opacity: 1; visibility: inherit;/);
+      expect(css).toMatch(/\.as-scrim\[data-open\] \{ opacity: 1; visibility: inherit;/);
+    });
+
     it('a wide screen never gets the sheet or the scrim', () => {
       phone(false);
       const el = mount({ running: true, items: two() });

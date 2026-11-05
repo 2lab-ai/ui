@@ -157,6 +157,10 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   /** The open queue is the phone's bottom sheet. */
   #sheet = false;
   #placed = false;
+  /** The soft keyboard was up at the last sheet placement (it coming up reveals an open edit row). */
+  #kb = false;
+  /** The visual viewport's height at the last reveal while the keyboard is up: a further shrink reveals again. */
+  #kbH = 0;
   #peekTimer: ReturnType<typeof setTimeout> | undefined;
   #graceTimer: ReturnType<typeof setTimeout> | undefined;
   #unwatch: (() => void) | null = null;
@@ -662,6 +666,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
       if (box) {
         box.focus({ preventScroll: true });
         box.setSelectionRange(box.value.length, box.value.length);
+        this.#revealEdit();
       }
     }
   }
@@ -964,6 +969,8 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     clearTimeout(this.#graceTimer);
     if (this.#queueMode === 'closed') return;
     this.#queueMode = 'closed';
+    this.#kb = false;
+    this.#kbH = 0;
     this.#watchPhone(false);
     this.#cancelDrag();
     document.removeEventListener('pointerdown', this.#onDocDown, true);
@@ -1018,6 +1025,10 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#syncModal();
     this.#scrim.toggleAttribute('data-open', sheet);
     for (const k of ['left', 'top', 'width', 'max-height']) this.#pop.style.removeProperty(k);
+    // The keyboard state belongs to the sheet: back in it, the keyboard counts as coming up again.
+    this.#kb = false;
+    this.#kbH = 0;
+    this.#pop.removeAttribute('data-kb');
     this.#placed = false;
     this.#placeQueue();
   };
@@ -1073,12 +1084,15 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     const box = readVisualViewport();
     const vh = box ? box.height : window.innerHeight;
     const vt = box ? box.top : 0;
-    pop.toggleAttribute('data-kb', !!box && window.innerHeight - box.height > 120);
+    const kb = !!box && window.innerHeight - box.height > 120;
+    pop.toggleAttribute('data-kb', kb);
     const left = `${Math.round(-o.left / k)}px`;
     const width = `${Math.round(vw / k)}px`;
     pop.style.left = left;
     pop.style.width = width;
-    pop.style.maxHeight = `${Math.floor((vh - Math.max(56, Math.round(vh * 0.12))) / k)}px`;
+    // With the keyboard up the screen left is short (a foldable's cover: ~320px): the sheet takes nearly all of it.
+    const margin = kb ? 8 : Math.max(56, Math.round(vh * 0.12));
+    pop.style.maxHeight = `${Math.floor((vh - margin) / k)}px`;
     pop.style.top = `${Math.round((vt + vh - o.top) / k - pop.offsetHeight)}px`;
     const sc = this.#scrim.style;
     sc.left = left;
@@ -1086,6 +1100,27 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     sc.top = `${Math.round((vt - o.top) / k)}px`;
     sc.height = `${Math.round(vh / k)}px`;
     this.#placed = true;
+    // The keyboard coming up — or still rising (iOS reports it in steps): reveal again; a steady view never does.
+    const up = kb && (!this.#kb || vh < this.#kbH);
+    this.#kb = kb;
+    this.#kbH = kb ? (up ? vh : this.#kbH) : 0;
+    if (up) this.#revealEdit();
+  }
+
+  /**
+   * An open edit row inside the queue, scrolled into the queue's view — its Save row at the bottom first (on a touch
+   * screen Enter is a new line, so Save is the way out). Runs when the edit starts and when the keyboard comes up.
+   */
+  #revealEdit(): void {
+    if (!this.#editing || this.#queueMode === 'closed') return;
+    const row = this.#dockList.querySelector<HTMLElement>('.as-row.is-editing');
+    if (!row) return;
+    const body = this.#popBody;
+    const b = body.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    // Taller than the view (a phone sideways with the keyboard up): its bottom — Save — wins over its top.
+    if (r.bottom > b.bottom || r.height > b.height) body.scrollTop += Math.ceil(r.bottom - b.bottom + 8);
+    else if (r.top < b.top) body.scrollTop -= Math.ceil(b.top - r.top + 8);
   }
 
   #startDrag(e: PointerEvent): void {
