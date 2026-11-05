@@ -241,7 +241,7 @@ export const doc: ComponentDoc = {
       type: "'dock' | 'inline'",
       default: "'dock'",
       description:
-        'dock: the list’s notes wait behind a round count button at the top right (fail colour when one failed, a spinning ring while one is on its way); hover peeks them open (120ms intent, 240ms grace), a press pins them, Esc / a press outside / the button again close; under 640px a bottom sheet over a scrim, on the visual viewport (above the keyboard and the home bar), dragged down to close. Only a note on its way in (not in the list yet, or refused before it got there) shows above the field. inline: every note above the field.',
+        'dock: the list’s notes wait behind a round count button at the top right (fail colour when one failed, a spinning ring while one is on its way); hover peeks them open (120ms intent, 240ms grace), a press pins them, Esc / a press outside / the button again close; under 640px a bottom sheet over a scrim, on the visual viewport (above the keyboard and the home bar; with the keyboard up it takes all but 8px of what is left, and a note being edited keeps its Save row in view), dragged down to close. Only a note on its way in (not in the list yet, or refused before it got there) shows above the field. inline: every note above the field.',
     },
     {
       name: 'openQueue({ focus? }) / closeQueue() / queueOpen',

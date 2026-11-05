@@ -38,7 +38,8 @@ svg { display: block; flex: none; }
   opacity: 0; visibility: hidden; transform: scale(0.6);
   transition: opacity 160ms ease, transform 240ms var(--as-ease), visibility 0s linear 240ms, background-color 160ms ease,
     color 160ms ease, box-shadow 160ms ease; }
-.as-dock[data-shown] { opacity: 1; visibility: visible; transform: none;
+/* inherit, not visible: a host that hides the element (a tucked composer) hides its dock too (ui#32). */
+.as-dock[data-shown] { opacity: 1; visibility: inherit; transform: none;
   transition: opacity 160ms ease, transform 360ms cubic-bezier(0.34, 1.4, 0.64, 1), visibility 0s, background-color 160ms ease,
     color 160ms ease, box-shadow 160ms ease; }
 /* The dock's box without its transforms: the open queue is placed against it. */
