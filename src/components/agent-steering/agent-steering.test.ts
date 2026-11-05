@@ -1285,6 +1285,13 @@ describe('<ui-agent-steering> docked queue', () => {
     });
   });
 
+  it('focus() with the field off lands on the dock, not on a button inside the closed queue', () => {
+    const el = mount({ running: true, canAct: true, disabled: true, items: [item('a', { state: 'failed' })] });
+    el.focus();
+    expect(el.shadowRoot?.activeElement).toBe(dock(el));
+    expect(pop(el).contains(el.shadowRoot?.activeElement ?? null)).toBe(false);
+  });
+
   it('removed from the page while open: the document listeners go with it', () => {
     const el = mount({ running: true, items: two() });
     el.openQueue();

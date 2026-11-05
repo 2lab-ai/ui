@@ -257,7 +257,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#syncSend();
   }
 
-  /** Keyboard landing: the field — or, when it is off (read-only, ended), the first note's first button. */
+  /** Keyboard landing: the field — or, when it is off (read-only, ended), a note's first button or the dock. */
   override focus(options?: FocusOptions): void {
     if (!this.#built && this.isConnected) this.renderNow();
     if (this.#composer && this.#open()) {
@@ -268,7 +268,10 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
       this.#field.focus(options);
       return;
     }
-    const first = this.$<HTMLElement>('.as-item:not([data-leaving]) [data-act]');
+    // A note above the field, else the dock (its notes are behind it), else a note in the open queue.
+    const inline = this.$<HTMLElement>('.as-queue .as-item:not([data-leaving]) [data-act]');
+    const docked = this.queueOpen ? this.$<HTMLElement>('.as-pop .as-item:not([data-leaving]) [data-act]') : null;
+    const first = inline ?? (this.#dock?.hasAttribute('data-shown') ? this.#dock : docked);
     if (first) first.focus(options);
     else super.focus(options);
   }
