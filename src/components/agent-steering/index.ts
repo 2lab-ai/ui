@@ -1,7 +1,8 @@
-export { UiAgentSteering } from './agent-steering';
+export { STEERING_GRACE_MS, STEERING_PEEK_MS, UiAgentSteering } from './agent-steering';
 export type {
   AgentSteeringData,
   SteeringAction,
+  SteeringDockTone,
   SteeringEditDetail,
   SteeringEnterAction,
   SteeringItem,
@@ -9,6 +10,7 @@ export type {
   SteeringItemState,
   SteeringLocal,
   SteeringOverlay,
+  SteeringQueueLayout,
   SteeringRow,
   SteeringSubmitDetail,
   SteerMode,
@@ -20,10 +22,15 @@ export {
   noteAge,
   STEERING_STATES,
   settleOverlays,
+  sheetDismisses,
+  splitSteeringRows,
   steerEnterAction,
   steeringActions,
+  steeringDockBadge,
+  steeringDockTone,
   steeringFocusIndex,
   steeringItemKey,
+  steeringQueueLayout,
   steeringRows,
 } from './logic';
 export type { SteeringLang, SteeringStrings } from './strings';

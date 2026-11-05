@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import type { UiComposer } from '../composer/composer';
 import '../composer/composer';
-import type { UiAgentSteering } from './agent-steering';
-import './agent-steering';
+import { STEERING_GRACE_MS, STEERING_PEEK_MS, type UiAgentSteering } from './agent-steering';
 import type {
   AgentSteeringData,
   SteeringItem,
@@ -18,10 +17,15 @@ import {
   normSteeringItems,
   noteAge,
   settleOverlays,
+  sheetDismisses,
+  splitSteeringRows,
   steerEnterAction,
   steeringActions,
+  steeringDockBadge,
+  steeringDockTone,
   steeringFocusIndex,
   steeringItemKey,
+  steeringQueueLayout,
   steeringRows,
 } from './logic';
 import { steeringStrings } from './strings';
@@ -193,7 +197,11 @@ describe('<ui-agent-steering> render', () => {
   it('renders the queue with its count, the notes, and the running composer', () => {
     const el = mount({ running: true, items: two() });
     expect(rows(el)).toHaveLength(2);
-    expect(q(el, '.as-queue')?.hasAttribute('data-open')).toBe(true);
+    // Docked (the default): the notes wait behind the round button, nothing above the field.
+    expect(q(el, '.as-queue')?.hasAttribute('data-open')).toBe(false);
+    expect(q(el, '.as-dock')?.hasAttribute('data-shown')).toBe(true);
+    expect(q(el, '.as-dock-n')?.textContent).toBe('2');
+    expect(q(el, '.as-pop-title')?.textContent).toBe('Queued for the next step');
     expect(q(el, '.as-label-text')?.textContent).toBe('Queued for the next step');
     expect(q(el, '.as-count')?.textContent).toBe('2');
     expect(q(el, '.as-list')?.getAttribute('aria-label')).toBe('Queued for the next step · 2 notes');
@@ -512,6 +520,7 @@ describe('<ui-agent-steering> note actions', () => {
 
   it('Edit inline: Enter saves (ui-edit), Saving… with the new text until the list has it', () => {
     const el = mount({ running: true, items: two() });
+    el.openQueue();
     const got = events<{ id: string; text: string }>(el, 'ui-edit');
     act(el, 1, 'edit')?.click();
     const box = q<HTMLTextAreaElement>(el, '.as-edit') as HTMLTextAreaElement;
@@ -535,6 +544,7 @@ describe('<ui-agent-steering> note actions', () => {
 
   it('Edit: Esc keeps the original, an empty or unchanged text sends nothing, a refusal keeps the box', () => {
     const el = mount({ running: true, items: two() });
+    el.openQueue();
     const got = events(el, 'ui-edit');
     act(el, 0, 'edit')?.click();
     const outside: string[] = [];
@@ -542,6 +552,8 @@ describe('<ui-agent-steering> note actions', () => {
     key(q(el, '.as-edit') as HTMLElement, 'Escape');
     expect(q(el, '.as-edit')).toBeNull();
     expect(outside).toEqual([]);
+    // The edit box's own Esc: the queue it sits in stays open.
+    expect(el.queueOpen).toBe(true);
     expect(el.shadowRoot?.activeElement).toBe(act(el, 0, 'edit'));
     act(el, 0, 'edit')?.click();
     const box = q<HTMLTextAreaElement>(el, '.as-edit') as HTMLTextAreaElement;
@@ -586,6 +598,7 @@ describe('<ui-agent-steering> note actions', () => {
 
   it('Cancel: ui-cancel {id}, the note leaves, focus goes to the next note, then the one before, then the field', () => {
     const el = mount({ running: true, items: [item('a'), item('b'), item('c')] });
+    el.openQueue();
     const got = events<{ id: string }>(el, 'ui-cancel');
     const b = act(el, 1, 'cancel') as HTMLElement;
     b.focus();
@@ -597,6 +610,9 @@ describe('<ui-agent-steering> note actions', () => {
     expect(el.shadowRoot?.activeElement).toBe(act(el, 0, 'promote'));
     (act(el, 0, 'cancel') as HTMLElement).click();
     expect(rows(el)).toHaveLength(0);
+    // The last note gone: the queue closes, the button goes, focus is on the field.
+    expect(el.queueOpen).toBe(false);
+    expect(q(el, '.as-dock')?.hasAttribute('data-shown')).toBe(false);
     expect(el.shadowRoot?.activeElement).toBe(field(el));
     expect(q(el, '.sr-only[role="status"]')?.textContent).toBe('Cancelled: note a');
   });
@@ -618,6 +634,7 @@ describe('<ui-agent-steering> note actions', () => {
 
   it('focus on a note’s button survives a host update', () => {
     const el = mount({ running: true, items: two() });
+    el.openQueue();
     (act(el, 1, 'promote') as HTMLElement).focus();
     set(el, { items: [item('z'), ...two()] });
     expect(el.shadowRoot?.activeElement).toBe(act(el, 2, 'promote'));
@@ -897,5 +914,383 @@ describe('sound', () => {
     key(muted.shadowRoot!.querySelector<HTMLTextAreaElement>('.as-input')!, 'Enter');
     await spy.settle();
     expect(spy.calls).toEqual([]);
+  });
+});
+
+describe('logic — the dock', () => {
+  const row = (key: string, over: Partial<SteeringRow> = {}): SteeringRow => ({
+    key,
+    id: key.slice(2),
+    local: key.startsWith('l:'),
+    text: key,
+    state: 'queued',
+    files: [],
+    fileCount: 0,
+    canEdit: true,
+    saving: false,
+    ...over,
+  });
+
+  it('steeringQueueLayout: inline only when asked', () => {
+    expect(steeringQueueLayout('inline')).toBe('inline');
+    expect(steeringQueueLayout(undefined)).toBe('dock');
+    expect(steeringQueueLayout('nonsense')).toBe('dock');
+  });
+
+  it('splitSteeringRows: the list’s notes dock, a note on its way in stays inline; inline docks none', () => {
+    const all = [
+      row('h:a'),
+      row('l:r1', { state: 'sending' }),
+      row('h:b', { state: 'steered' }),
+      row('l:r2', { state: 'failed' }),
+    ];
+    const dock = splitSteeringRows(all, 'dock');
+    expect(dock.docked.map((r) => r.key)).toEqual(['h:a', 'h:b']);
+    expect(dock.inline.map((r) => r.key)).toEqual(['l:r1', 'l:r2']);
+    const inline = splitSteeringRows(all, 'inline');
+    expect(inline.docked).toEqual([]);
+    expect(inline.inline).toHaveLength(4);
+  });
+
+  it('steeringDockTone: fail beats run beats idle', () => {
+    expect(steeringDockTone([row('h:a')])).toBe('idle');
+    expect(steeringDockTone([row('h:a'), row('h:b', { state: 'sending' })])).toBe('run');
+    expect(steeringDockTone([row('h:a', { saving: true })])).toBe('run');
+    expect(steeringDockTone([row('h:a', { state: 'sending' }), row('h:b', { state: 'failed' })])).toBe('fail');
+    expect(steeringDockTone([])).toBe('idle');
+  });
+
+  it('steeringDockBadge: the count, 99+ past 99, never negative', () => {
+    expect(steeringDockBadge(3)).toBe('3');
+    expect(steeringDockBadge(99)).toBe('99');
+    expect(steeringDockBadge(100)).toBe('99+');
+    expect(steeringDockBadge(-2)).toBe('0');
+    expect(steeringDockBadge(Number.NaN)).toBe('0');
+  });
+
+  it('sheetDismisses: past a quarter (48–120px) or a flick past 16px', () => {
+    expect(sheetDismisses(0, 2, 400)).toBe(false);
+    expect(sheetDismisses(-30, 2, 400)).toBe(false);
+    expect(sheetDismisses(99, 0, 400)).toBe(false);
+    expect(sheetDismisses(100, 0, 400)).toBe(true);
+    expect(sheetDismisses(120, 0, 1000)).toBe(true);
+    expect(sheetDismisses(48, 0, 100)).toBe(true);
+    expect(sheetDismisses(20, 0.6, 400)).toBe(true);
+    expect(sheetDismisses(12, 0.9, 400)).toBe(false);
+  });
+});
+
+describe('<ui-agent-steering> docked queue', () => {
+  const pop = (el: UiAgentSteering) => q(el, '.as-pop') as HTMLElement;
+  const dock = (el: UiAgentSteering) => q<HTMLButtonElement>(el, '.as-dock') as HTMLButtonElement;
+  const inline = (el: UiAgentSteering) => qa(el, '.as-queue .as-item:not([data-leaving])');
+  const docked = (el: UiAgentSteering) => qa(el, '.as-list.is-docked .as-item:not([data-leaving])');
+  const press = (target: HTMLElement, detail = 1) =>
+    target.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+  const pointer = (target: EventTarget, type: string, init: PointerEventInit = {}) =>
+    target.dispatchEvent(
+      new PointerEvent(type, { bubbles: true, composed: true, cancelable: true, pointerType: 'mouse', ...init }),
+    );
+  let spy: SoundSpy | null = null;
+  afterEach(() => {
+    spy?.restore();
+    spy = null;
+    vi.unstubAllGlobals();
+  });
+
+  it('a note on its way in shows above the field; once the list has it, it docks and the count grows', () => {
+    const el = mount({ running: true, items: two() });
+    expect(dock(el).hasAttribute('data-shown')).toBe(true);
+    expect(dock(el).hasAttribute('inert')).toBe(false);
+    expect(dock(el).getAttribute('aria-label')).toBe('2 queued notes');
+    expect(dock(el).getAttribute('aria-expanded')).toBe('false');
+    expect(docked(el)).toHaveLength(2);
+    expect(inline(el)).toHaveLength(0);
+    type(el, 'Use Postgres 16');
+    key(field(el), 'Enter');
+    el.renderNow();
+    expect(inline(el)).toHaveLength(1);
+    expect(inline(el)[0].textContent).toContain('Queuing…');
+    expect(q(el, '.as-queue')?.hasAttribute('data-open')).toBe(true);
+    expect(q(el, '.as-queue .as-count')?.textContent).toBe('1');
+    expect(q(el, '.as-dock-n')?.textContent).toBe('2');
+    set(el, { items: [...two(), item('n', { text: 'Use Postgres 16' })] });
+    expect(inline(el)).toHaveLength(0);
+    expect(q(el, '.as-queue')?.hasAttribute('data-open')).toBe(false);
+    expect(docked(el).map((r) => r.dataset.row)).toEqual(['h:a', 'h:b', 'h:n']);
+    expect(q(el, '.as-dock-n')?.textContent).toBe('3');
+    expect(dock(el).classList.contains('is-bump')).toBe(true);
+  });
+
+  it('a note refused before the list had it stays above the field with Retry; the dock does not count it', () => {
+    const el = mount({ running: true, items: [] });
+    const got = events<SteeringSubmitDetail>(el, 'ui-submit');
+    type(el, 'x');
+    key(field(el), 'Enter');
+    el.setItemState(got[0].ref, 'failed', 'HTTP 502');
+    el.renderNow();
+    expect(inline(el)).toHaveLength(1);
+    expect(inline(el)[0].querySelector('[data-act="retry"]')).toBeTruthy();
+    expect(dock(el).hasAttribute('data-shown')).toBe(false);
+    expect(dock(el).hasAttribute('inert')).toBe(true);
+  });
+
+  it('queue: inline keeps every note above the field and no dock', () => {
+    const el = mount({ running: true, items: two(), queue: 'inline' });
+    expect(inline(el)).toHaveLength(2);
+    expect(docked(el)).toHaveLength(0);
+    expect(q(el, '.as-queue')?.hasAttribute('data-open')).toBe(true);
+    expect(dock(el).hasAttribute('data-shown')).toBe(false);
+    el.openQueue();
+    expect(el.queueOpen).toBe(false);
+  });
+
+  it('the dock tells a failed note (fail tone, its name) and one on its way (run tone)', () => {
+    const el = mount({ running: true, items: [item('a'), item('b', { state: 'failed' })] });
+    expect(dock(el).getAttribute('data-tone')).toBe('fail');
+    expect(dock(el).getAttribute('aria-label')).toBe('2 queued notes — one couldn’t send');
+    set(el, { items: [item('a'), item('b')] });
+    expect(dock(el).getAttribute('data-tone')).toBe('idle');
+    act(el, 0, 'promote')?.click();
+    expect(dock(el).getAttribute('data-tone')).toBe('run');
+  });
+
+  it('a press pins the queue open (open cue); a press again closes it (close cue); the count stays on the button', async () => {
+    spy = soundSpy();
+    const el = mount({ running: true, items: two() });
+    press(dock(el));
+    expect(el.queueOpen).toBe(true);
+    expect(pop(el).hasAttribute('data-open')).toBe(true);
+    expect(pop(el).hasAttribute('inert')).toBe(false);
+    expect(dock(el).getAttribute('aria-expanded')).toBe('true');
+    expect(pop(el).getAttribute('aria-label')).toBe('Queued for the next step · 2 notes');
+    // A pointer press does not move focus into the queue.
+    expect(pop(el).contains(el.shadowRoot?.activeElement ?? null)).toBe(false);
+    await spy.settle();
+    press(dock(el));
+    expect(el.queueOpen).toBe(false);
+    expect(pop(el).hasAttribute('data-open')).toBe(false);
+    expect(pop(el).hasAttribute('inert')).toBe(true);
+    expect(dock(el).getAttribute('aria-expanded')).toBe('false');
+    await spy.settle();
+    expect(spy.cues()).toEqual(['open', 'close']);
+  });
+
+  it('a keyboard press (Enter/Space) moves focus to the first note’s first button; Esc closes and returns it to the dock', () => {
+    const el = mount({ running: true, items: two() });
+    const outside: boolean[] = [];
+    document.addEventListener('keydown', (e) => outside.push(e.defaultPrevented));
+    dock(el).focus();
+    press(dock(el), 0);
+    expect(el.shadowRoot?.activeElement).toBe(act(el, 0, 'promote'));
+    key(act(el, 0, 'promote') as HTMLElement, 'Escape');
+    expect(el.queueOpen).toBe(false);
+    expect(el.shadowRoot?.activeElement).toBe(dock(el));
+    // The page sees the Esc as used, so a drawer under it stays open.
+    expect(outside).toEqual([true]);
+    key(dock(el), 'Escape');
+    expect(outside).toEqual([true, false]);
+  });
+
+  it('the ✕ closes; a press outside closes; a press inside does not', () => {
+    const el = mount({ running: true, items: two() });
+    el.openQueue();
+    (q(el, '.as-pop-close') as HTMLElement).click();
+    expect(el.queueOpen).toBe(false);
+    el.openQueue();
+    pointer(act(el, 1, 'edit') as HTMLElement, 'pointerdown');
+    expect(el.queueOpen).toBe(true);
+    pointer(document.body, 'pointerdown');
+    expect(el.queueOpen).toBe(false);
+  });
+
+  it('hover peeks after the intent delay, closes after the grace; touch never peeks', () => {
+    vi.useFakeTimers();
+    const el = mount({ running: true, items: two() });
+    pointer(dock(el), 'pointerenter', { bubbles: false });
+    expect(el.queueOpen).toBe(false);
+    vi.advanceTimersByTime(STEERING_PEEK_MS);
+    expect(el.queueOpen).toBe(true);
+    pointer(dock(el), 'pointerleave', { bubbles: false });
+    vi.advanceTimersByTime(STEERING_GRACE_MS - 10);
+    pointer(pop(el), 'pointerenter', { bubbles: false });
+    vi.advanceTimersByTime(STEERING_GRACE_MS);
+    expect(el.queueOpen).toBe(true);
+    pointer(pop(el), 'pointerleave', { bubbles: false });
+    vi.advanceTimersByTime(STEERING_GRACE_MS);
+    expect(el.queueOpen).toBe(false);
+    pointer(dock(el), 'pointerenter', { bubbles: false, pointerType: 'touch' });
+    vi.advanceTimersByTime(STEERING_PEEK_MS * 3);
+    expect(el.queueOpen).toBe(false);
+  });
+
+  it('a peek that is pressed into (or clicked on the dock) stays when the pointer leaves', () => {
+    vi.useFakeTimers();
+    const el = mount({ running: true, items: two() });
+    pointer(dock(el), 'pointerenter', { bubbles: false });
+    vi.advanceTimersByTime(STEERING_PEEK_MS);
+    press(dock(el));
+    expect(el.queueOpen).toBe(true);
+    pointer(dock(el), 'pointerleave', { bubbles: false });
+    vi.advanceTimersByTime(STEERING_GRACE_MS * 2);
+    expect(el.queueOpen).toBe(true);
+    el.closeQueue();
+    pointer(dock(el), 'pointerenter', { bubbles: false });
+    vi.advanceTimersByTime(STEERING_PEEK_MS);
+    pointer(act(el, 0, 'edit') as HTMLElement, 'pointerdown');
+    pointer(pop(el), 'pointerleave', { bubbles: false });
+    vi.advanceTimersByTime(STEERING_GRACE_MS * 2);
+    expect(el.queueOpen).toBe(true);
+  });
+
+  it('the controls work inside the open queue: Send now, Edit, Cancel', () => {
+    const el = mount({ running: true, items: two() });
+    const promoted = events<{ id: string }>(el, 'ui-promote');
+    const cancelled = events<{ id: string }>(el, 'ui-cancel');
+    el.openQueue();
+    act(el, 0, 'promote')?.click();
+    expect(promoted).toEqual([{ id: 'a' }]);
+    expect(rows(el)[0].textContent).toContain('Sending…');
+    act(el, 1, 'cancel')?.click();
+    expect(cancelled).toEqual([{ id: 'b' }]);
+    expect(q(el, '.as-dock-n')?.textContent).toBe('1');
+    act(el, 0, 'edit');
+    expect(el.queueOpen).toBe(true);
+  });
+
+  it('the list emptying closes the queue and hides the dock', () => {
+    const el = mount({ running: true, items: two() });
+    el.openQueue();
+    set(el, { items: [] });
+    expect(el.queueOpen).toBe(false);
+    expect(dock(el).hasAttribute('data-shown')).toBe(false);
+    el.openQueue();
+    expect(el.queueOpen).toBe(false);
+  });
+
+  it('every note text is escaped in the docked list', () => {
+    const el = mount({ running: true, items: [item('x', { text: XSS, author: XSS, reason: XSS })] });
+    expect(q(el, '.as-list.is-docked img')).toBeNull();
+    expect(docked(el)[0].textContent).toContain(XSS);
+  });
+
+  it('Korean: the dock’s name and the queue’s head', () => {
+    const el = mount({ running: true, items: [item('a'), item('b', { state: 'failed' })] }, { lang: 'ko' });
+    expect(dock(el).getAttribute('aria-label')).toBe('대기 중인 메시지 2개 — 보내지 못한 메시지가 있습니다');
+    expect(q(el, '.as-pop-title')?.textContent).toBe('다음 단계에 전달 대기');
+    expect(q(el, '.as-pop-close')?.getAttribute('aria-label')).toBe('큐 닫기');
+  });
+
+  describe('phone (under 640px): a bottom sheet', () => {
+    const phone = (matches: boolean) => {
+      const listeners: Array<() => void> = [];
+      const mq = {
+        matches,
+        media: '(max-width: 639px)',
+        addEventListener: (_: string, fn: () => void) => listeners.push(fn),
+        removeEventListener: () => {},
+      };
+      vi.stubGlobal('matchMedia', (query: string) =>
+        query.includes('max-width') ? mq : { matches: false, media: query },
+      );
+      return {
+        set(v: boolean) {
+          mq.matches = v;
+          for (const fn of listeners) fn();
+        },
+      };
+    };
+
+    it('a tap opens the sheet over a scrim and takes focus (the keyboard goes down); the scrim closes it', () => {
+      phone(true);
+      const el = mount({ running: true, items: two() });
+      field(el).focus();
+      press(dock(el));
+      expect(pop(el).hasAttribute('data-sheet')).toBe(true);
+      expect(q(el, '.as-scrim')?.hasAttribute('data-open')).toBe(true);
+      expect(el.shadowRoot?.activeElement).toBe(pop(el));
+      (q(el, '.as-scrim') as HTMLElement).click();
+      expect(el.queueOpen).toBe(false);
+      expect(q(el, '.as-scrim')?.hasAttribute('data-open')).toBe(false);
+      // A press on the scrim is not an outside press: its own click closes, so the tap never lands under it.
+      el.openQueue();
+      pointer(q(el, '.as-scrim') as HTMLElement, 'pointerdown', { pointerType: 'touch' });
+      expect(el.queueOpen).toBe(true);
+    });
+
+    it('dragging the head down past the mark closes it; a short drag springs back', () => {
+      phone(true);
+      const el = mount({ running: true, items: two() });
+      el.openQueue();
+      const head = q(el, '.as-pop-head') as HTMLElement;
+      pointer(head, 'pointerdown', { pointerId: 1, clientY: 300, button: 0, pointerType: 'touch' });
+      expect(pop(el).hasAttribute('data-drag')).toBe(true);
+      pointer(head, 'pointermove', { pointerId: 1, clientY: 330, pointerType: 'touch' });
+      expect(pop(el).style.transform).toBe('translateY(30px)');
+      // Held still before the release: no flick.
+      pointer(head, 'pointermove', { pointerId: 1, clientY: 330, pointerType: 'touch' });
+      pointer(head, 'pointerup', { pointerId: 1, clientY: 330, pointerType: 'touch' });
+      expect(el.queueOpen).toBe(true);
+      expect(pop(el).style.transform).toBe('');
+      expect(pop(el).hasAttribute('data-drag')).toBe(false);
+      pointer(head, 'pointerdown', { pointerId: 2, clientY: 300, button: 0, pointerType: 'touch' });
+      pointer(head, 'pointermove', { pointerId: 2, clientY: 460, pointerType: 'touch' });
+      pointer(head, 'pointerup', { pointerId: 2, clientY: 460, pointerType: 'touch' });
+      expect(el.queueOpen).toBe(false);
+      // The ✕ is a button, not a handle.
+      el.openQueue();
+      pointer(q(el, '.as-pop-close') as HTMLElement, 'pointerdown', { pointerId: 3, button: 0, pointerType: 'touch' });
+      expect(pop(el).hasAttribute('data-drag')).toBe(false);
+    });
+
+    it('a foldable opening while the sheet is up turns it into the popover, in place', () => {
+      const mq = phone(true);
+      const el = mount({ running: true, items: two() });
+      el.openQueue();
+      expect(pop(el).hasAttribute('data-sheet')).toBe(true);
+      mq.set(false);
+      expect(el.queueOpen).toBe(true);
+      expect(pop(el).hasAttribute('data-sheet')).toBe(false);
+      expect(q(el, '.as-scrim')?.hasAttribute('data-open')).toBe(false);
+      mq.set(true);
+      expect(pop(el).hasAttribute('data-sheet')).toBe(true);
+      expect(q(el, '.as-scrim')?.hasAttribute('data-open')).toBe(true);
+    });
+
+    it('the sheet sits on the visual viewport’s bottom — above the soft keyboard — and the scrim covers what shows', () => {
+      phone(true);
+      const vv = new EventTarget() as EventTarget & { height: number; offsetTop: number; width: number };
+      Object.assign(vv, { height: 420, offsetTop: 90, width: 390 });
+      vi.stubGlobal('visualViewport', vv);
+      const el = mount({ running: true, items: two() });
+      el.openQueue();
+      expect(pop(el).style.top).toBe('510px');
+      expect(pop(el).hasAttribute('data-kb')).toBe(true);
+      const scrim = q(el, '.as-scrim') as HTMLElement;
+      expect(scrim.style.top).toBe('90px');
+      expect(scrim.style.height).toBe('420px');
+      // The keyboard goes down: the sheet follows in the same event.
+      Object.assign(vv, { height: window.innerHeight, offsetTop: 0 });
+      vv.dispatchEvent(new Event('resize'));
+      expect(pop(el).style.top).toBe(`${window.innerHeight}px`);
+      expect(pop(el).hasAttribute('data-kb')).toBe(false);
+    });
+
+    it('a wide screen never gets the sheet or the scrim', () => {
+      phone(false);
+      const el = mount({ running: true, items: two() });
+      el.openQueue();
+      expect(pop(el).hasAttribute('data-sheet')).toBe(false);
+      expect(q(el, '.as-scrim')?.hasAttribute('data-open')).toBe(false);
+    });
+  });
+
+  it('removed from the page while open: the document listeners go with it', () => {
+    const el = mount({ running: true, items: two() });
+    el.openQueue();
+    el.remove();
+    expect(el.queueOpen).toBe(false);
+    const e = key(document.body, 'Escape');
+    expect(e.defaultPrevented).toBe(false);
   });
 });
