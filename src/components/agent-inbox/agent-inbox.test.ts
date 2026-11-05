@@ -3,6 +3,7 @@ import { fmtDurationKo } from '../../core/format';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type AgentInboxData,
+  ATTENTION_BEAT_MS,
   agentDots,
   artifactKind,
   BOARD_HOLD_MS,
@@ -1709,5 +1710,110 @@ describe('mono palette rules', () => {
     expect(css).toContain(
       'color: color-mix(in srgb, var(--ib-model-hue, currentColor) calc(100% * var(--chroma)), currentColor);',
     );
+  });
+});
+
+// SSOT 2026-11-05 (Z): "응답 필요 상태인 "내꺼" 작업 카드(collapsed 상태)는 추가 ui 표시해줘 10초에 한번씩 어텐션을
+// 요구하는 뭔가 행동 추가해줘. 이건 리서치해서 현재의 모노톤 톤앤 매너에 맞게 개선"
+describe('attention (0.32.0) — a collapsed card that waits on the viewer', () => {
+  const css = monoStyles.replace(/\s+/g, ' ');
+  // happy-dom has no Web Animations: each connected card gets its ping (its ::after) and an unrelated fade.
+  type Anim = { animationName: string; startTime: number | null };
+  let anims: Map<Element, Anim[]>;
+  let had: PropertyDescriptor | undefined;
+  const proto = HTMLElement.prototype as unknown as { getAnimations?: (this: Element) => Anim[] };
+  beforeEach(() => {
+    anims = new Map();
+    had = Object.getOwnPropertyDescriptor(proto, 'getAnimations');
+    proto.getAnimations = function (this: Element) {
+      if (!this.isConnected) return [];
+      if (!anims.has(this))
+        anims.set(this, [
+          { animationName: 'ib-attn-ping', startTime: null },
+          { animationName: 'ib-fade', startTime: 7 },
+        ]);
+      return anims.get(this)!;
+    };
+  });
+  afterEach(() => {
+    if (had) Object.defineProperty(proto, 'getAnimations', had);
+    else delete proto.getAnimations;
+  });
+
+  it('marks only `attention: true` cards; dropping it takes the mark away; the card keeps its node', () => {
+    const el = mount(
+      board(
+        { ...WAIT, id: 'mine', attention: true },
+        { ...WAIT, id: 'theirs' },
+        { ...WAIT, id: 'truthy', attention: 'yes' as unknown as boolean },
+      ),
+    );
+    const mine = card(el, 'mine');
+    expect(mine.classList.contains('is-attention')).toBe(true);
+    for (const id of ['theirs', 'truthy']) expect(card(el, id).classList.contains('is-attention'), id).toBe(false);
+    el.data = board({ ...WAIT, id: 'mine' }, { ...WAIT, id: 'theirs', attention: true });
+    el.renderNow();
+    expect(card(el, 'mine')).toBe(mine);
+    expect(mine.classList.contains('is-attention')).toBe(false);
+    expect(card(el, 'theirs').classList.contains('is-attention')).toBe(true);
+  });
+
+  it('every attention card nudges on one shared 10 s beat: the ping starts at the document timeline’s origin', () => {
+    expect(ATTENTION_BEAT_MS).toBe(10_000);
+    const el = mount(board({ ...WAIT, id: 'a', attention: true }, { ...WAIT, id: 'b', attention: true }, RUN));
+    for (const id of ['a', 'b'])
+      expect(
+        anims.get(card(el, id))?.map((a) => a.startTime),
+        id,
+      ).toEqual([0, 7]);
+    // A card without attention is never touched.
+    expect(anims.has(card(el, 'notes'))).toBe(false);
+    // The browser restarted the ping (the card moved, or was shown again): the next render puts it back on the beat.
+    anims.get(card(el, 'a'))![0].startTime = 1234;
+    el.data = board(
+      { ...WAIT, id: 'a', attention: true, summary: 'Still waiting.' },
+      { ...WAIT, id: 'b', attention: true },
+    );
+    el.renderNow();
+    expect(anims.get(card(el, 'a'))?.[0].startTime).toBe(0);
+  });
+
+  it('opening the card stops the cue (CSS); closing it again puts the ping back on the shared beat at once', () => {
+    const el = mount(board({ ...WAIT, attention: true }));
+    const c = card(el, 'migrate');
+    const face = c.querySelector<HTMLElement>('.ib-face')!;
+    face.click();
+    expect(c.classList.contains('is-open')).toBe(true);
+    // The browser drops the ping while open and starts a new one when it closes — off the beat until synced.
+    anims.get(c)![0].startTime = 4321;
+    face.click();
+    expect(c.classList.contains('is-open')).toBe(false);
+    expect(anims.get(c)?.[0].startTime).toBe(0);
+    // Every visible mark of the cue is scoped to the collapsed card.
+    const rules = css.match(/[^{}]*\.is-attention[^{}]*\{/g) ?? [];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const r of rules)
+      for (const sel of r.replace(/\{$/, '').split(','))
+        if (sel.includes('.is-attention')) expect(sel, sel).toContain('.ib-card.is-attention:not(.is-open)');
+  });
+
+  it('styles: a static mark plus a 10 s ping; mono-safe; still under reduced motion; a system colour in forced colours', () => {
+    // The mark's colour: the waiting status in the colour themes, the ink in mono (it follows --chroma).
+    expect(css).toContain('--ib-attn: color-mix(in srgb, var(--st-wait) calc(100% * var(--chroma)), var(--ib-text));');
+    // The ping: one infinite 10 s animation on the card's ::after; its keyframes exist.
+    expect(css).toMatch(
+      /\.ib-card\.is-attention:not\(\.is-open\)::after \{[^}]*animation: ib-attn-ping 10000ms [^;}]*infinite;/,
+    );
+    expect(css).toMatch(/@keyframes ib-attn-ping \{/);
+    // Only transform / opacity move (compositor-friendly): no layout property is animated.
+    const frames = /@keyframes ib-attn-ping \{(.*?\}) \}/.exec(css)?.[1] ?? '';
+    expect(frames).not.toBe('');
+    expect(frames).not.toMatch(/\b(width|height|top|left|right|bottom|margin|padding|inset)\s*:/);
+    // Reduced motion: the ping goes, the static mark stays.
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce\) \{[^@]*\.ib-card\.is-attention:not\(\.is-open\)::after \{ animation: none; display: none; \}/,
+    );
+    // Forced colours: the mark in a system colour.
+    expect(css).toMatch(/forced-colors: active\) \{[^@]*\.ib-card\.is-attention:not\(\.is-open\)[^{]*\{[^}]*Highlight/);
   });
 });
