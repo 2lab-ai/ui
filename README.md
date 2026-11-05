@@ -10,6 +10,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Agent Inbox | `<ui-agent-inbox>` | Which runs need you, which are running, which are done |
 | Agent Tree | `<ui-agent-tree>` | Who started whom, what each agent is doing, and which branch costs what |
 | Agent Island | `<ui-agent-island>` | A live run you are not looking at — a pill with its status, title and running clock (or “+N” more) that grows into the run: the step it is on, how far, Stop and Open (`ui-action`); one spring for the shape, Esc to close |
+| Working | `<ui-working>` | What the agent is doing right now, and for how long — one line: the state’s mark (the working ring, a waiting dot, a check, a cross), the step it is on with a slow highlight while it works, the running time (“Done in 4m 12s” once over) and a detail such as tokens; the step swaps in place |
 | AI Answer | `<ui-ai-answer>` | The answer, the links in it, copy, response time |
 | Tool Call Card | `<ui-tool-call-card>`, `<ui-tool-call-group>` | What the agent called, with what, what came back, and how long it took |
 | Conversation | `<ui-conversation>` | Who said what and when — instructions, answers with their response time, system events and the files they carried; older turns load as you scroll up; Retry on a summary, answers loaded on demand, select turns, or lay it out as the page |
@@ -72,6 +73,7 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Step Track | `<ui-step-track>` | Where a pipeline is — a dot per step (done, to do, failed, skipped) and the current one a pill filled to its progress (or a sweeping band), “Review · 3 of 5” under it; a change of step sends a wake through the dots crossed; `interactive` dots send `ui-select` |
 | Slide to Confirm | `<ui-slide-confirm>` | An action that cannot be taken back — push the handle across; past the mark it takes over, `ui-confirm` (cancelable), the handle opens out into “Confirmed”, then the host’s busy / done / failed; a slider on the keyboard (→ to the end, End) |
 | ASCII Wake | `<ui-ascii-wake>` | A quiet state that is still alive — a cube (or a whole field) of ink dots the pointer drags a wake of characters through, a press sends a ring; `activity` stirs it by itself while the agent works; still under reduced motion, no frames while idle |
+| Copy Field | `<ui-copy-field>` | A value you will paste elsewhere — a link (the middle folds, the end stays) or a command block, copied in one press with proof (a check, “Copied”), masked with Show / Hide for a secret; `ui-copy` (cancelable) lets the host copy something it builds, then `confirm()` |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
 `@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab` — round, or

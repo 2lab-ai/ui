@@ -31,6 +31,7 @@ import { type CompactBreakdownData, fmtShare, UiCompactBreakdown } from '@2lab.a
 import { type ComposerData, composerEnterAction, UiComposer } from '@2lab.ai/ui/composer';
 import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-window';
 import { type ConversationData, initialOf, UiConversation } from '@2lab.ai/ui/conversation';
+import { type CopyFieldData, copyMiddle, UiCopyField } from '@2lab.ai/ui/copy-field';
 import { type DeckNavData, deckClamp, UiDeckNav } from '@2lab.ai/ui/deck-nav';
 import {
   type DialogCloseDetail,
@@ -78,6 +79,7 @@ import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
 import { tooltipDelay, UiTooltip } from '@2lab.ai/ui/tooltip';
 import { normGroups, UiWorkLog, type WorkLogData, workMetaHtml } from '@2lab.ai/ui/work-log';
+import { UiWorking, type WorkingData, workingWords } from '@2lab.ai/ui/working';
 
 const d: ContextWindowData = { window: 1000 };
 const m: Partial<ModelPickerData> = {};
@@ -214,12 +216,23 @@ const trackEl: HTMLElementTagNameMap['ui-step-track'] = document.createElement('
 const nodeEl: HTMLElementTagNameMap['ui-action-node'] = document.createElement('ui-action-node');
 const compareEl: HTMLElementTagNameMap['ui-image-compare'] = document.createElement('ui-image-compare');
 const wakeEl: HTMLElementTagNameMap['ui-ascii-wake'] = document.createElement('ui-ascii-wake');
+// 0.30.0: what the agent is doing now, and a value to copy.
+const busy: WorkingData = { state: 'working', label: 'Reading dashboard.ts', since: 0, detail: '12.4k tokens' };
+const permalink: CopyFieldData = {
+  value: 'https://ui.2lab.ai/components/slide-confirm',
+  label: 'Link',
+  view: 'inline',
+};
+const workingEl: HTMLElementTagNameMap['ui-working'] = document.createElement('ui-working');
+const copyEl: HTMLElementTagNameMap['ui-copy-field'] = document.createElement('ui-copy-field');
 // Sound: the policy from the root and the subpath is one API; the Cuelume player has the SoundPlayer shape.
 const player: SoundPlayer = cuelumeSound;
 const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
 const classes = [
+  UiWorking,
+  UiCopyField,
   UiSlideConfirm,
   UiAgentIsland,
   UiStepTrack,
@@ -398,4 +411,8 @@ console.log(
   nodeEl.tagName,
   compareEl.tagName,
   wakeEl.tagName,
+  workingWords(busy.state, busy.label),
+  copyMiddle(permalink.value, 24),
+  workingEl.tagName,
+  copyEl.tagName,
 );
