@@ -1,4 +1,9 @@
-/** Copy to the clipboard; without the Clipboard API (plain http) through a hidden textarea. */
+import { deepActive } from './popover';
+
+/**
+ * Copy to the clipboard; without the Clipboard API (plain http) through a hidden textarea in `root`. Focus goes back
+ * to where it was — wherever it was on the page, not only inside `root`.
+ */
 export async function copyText(text: string, root: ShadowRoot): Promise<boolean> {
   try {
     const clip = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
@@ -10,7 +15,8 @@ export async function copyText(text: string, root: ShadowRoot): Promise<boolean>
     // fall through to the textarea
   }
   if (typeof document.execCommand !== 'function') return false;
-  const prev = root.activeElement as HTMLElement | null;
+  // The deepest focused element: `root.activeElement` is null when focus is outside this root.
+  const prev = deepActive() as HTMLElement | null;
   const ta = document.createElement('textarea');
   ta.value = text;
   ta.setAttribute('readonly', '');

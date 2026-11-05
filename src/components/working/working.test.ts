@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
+import type { UiElapsed } from '../elapsed/elapsed';
 import { doc } from './docs';
 import { styles } from './styles';
 import {
@@ -38,6 +39,21 @@ const set = (el: UiWorking, data: WorkingData) => {
   el.data = data;
   el.renderNow();
 };
+/** What a screen reader reaches, in order: the text nodes not under aria-hidden. */
+function readable(el: UiWorking): string[] {
+  const out: string[] = [];
+  const walk = (n: Node) => {
+    if (n.nodeType === 1 && (n as Element).getAttribute('aria-hidden') === 'true') return;
+    if (n.nodeType === 3) {
+      const t = (n.nodeValue ?? '').trim();
+      if (t) out.push(t);
+      return;
+    }
+    for (const c of Array.from(n.childNodes)) walk(c);
+  };
+  walk(q(el, '.ui-root')!);
+  return out;
+}
 const reduce = () =>
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
 
@@ -116,11 +132,9 @@ describe('pure helpers', () => {
 });
 
 describe('rendering', () => {
-  it('one line: mark · label · time · detail; the line is aria-hidden and the host is role="status"', () => {
+  it('one line: mark · label · time · detail', () => {
     const el = mount(RUN);
-    expect(el.getAttribute('role')).toBe('status');
     const line = q(el, '.wk')!;
-    expect(line.getAttribute('aria-hidden')).toBe('true');
     expect(line.dataset.state).toBe('working');
     expect(Array.from(line.children).map((c) => c.className)).toEqual(['wk-mark', 'wk-label', 'wk-time', 'wk-detail']);
     expect(text(el, '.wk-now')).toBe('Reading src/conversation/dashboard.ts');
@@ -129,13 +143,33 @@ describe('rendering', () => {
     expect(q(el, '.wk-time')!.hasAttribute('data-sep')).toBe(true);
     expect(q(el, '.wk-detail')!.hasAttribute('data-sep')).toBe(true);
     expect(said(el)).toBe('Working: Reading src/conversation/dashboard.ts');
-    // The said text is the one thing outside the hidden line.
-    expect(q(el, '.wk-said')!.className).toBe('wk-said sr-only');
   });
 
-  it('keeps a role the page gave it', () => {
-    const el = mount(RUN, { role: 'none' });
-    expect(el.getAttribute('role')).toBe('none');
+  it('no role on the host; one hidden role="status" holds only the words; the line stays readable outside it', () => {
+    const el = mount(RUN);
+    expect(el.hasAttribute('role')).toBe(false);
+    expect(el.hasAttribute('aria-live')).toBe(false);
+    const live = qa(el, '[role="status"], [aria-live]');
+    expect(live.length).toBe(1);
+    expect(live[0].className).toBe('wk-said sr-only');
+    expect(live[0].getAttribute('aria-live')).toBe('polite');
+    expect(live[0].textContent).toBe('Working: Reading src/conversation/dashboard.ts');
+    // The ticking time and the detail are readable, and not in the live region.
+    expect(q(el, '.wk')!.hasAttribute('aria-hidden')).toBe(false);
+    expect(q(el, '.wk-mark')!.getAttribute('aria-hidden')).toBe('true');
+    expect(live[0].contains(q(el, '.wk-time'))).toBe(false);
+    expect(live[0].contains(q(el, '.wk-detail'))).toBe(false);
+    expect(readable(el)).toEqual(['Working: Reading src/conversation/dashboard.ts', '42s', '12.4k tokens']);
+    // What the status words already say (the label, a finished time) is not read twice.
+    set(el, { state: 'done', label: 'Opened PR #27', since: NOW - 252_000, until: NOW, detail: '31.2k tokens' });
+    expect(readable(el)).toEqual(['Done: Opened PR #27, Done in 4m 12s', '31.2k tokens']);
+    set(el, { state: 'waiting', since: NOW - 9_000, until: NOW });
+    expect(readable(el)).toEqual(['Needs you', '9s']);
+    // The dots between the parts are not read (generated content with empty alt text).
+    expect(styles).toContain("[data-sep]::before { content: '·'; content: '·' / '';");
+    // A role the page gives stays.
+    const own = mount(RUN, { role: 'none' });
+    expect(own.getAttribute('role')).toBe('none');
   });
 
   it('each state has its mark and its words', () => {
@@ -356,7 +390,8 @@ describe('the time', () => {
     const time = q(el, '.wk-time')!;
     const node = time.firstChild;
     const render = vi.spyOn(el as unknown as { render(): string }, 'render');
-    vi.advanceTimersByTime(1000);
+    // The shared ticker turns just past each whole second.
+    vi.advanceTimersByTime(1010);
     expect(time.textContent).toBe('43s');
     expect(time.firstChild).toBe(node);
     expect(q(el, '.wk-time')).toBe(time);
@@ -366,7 +401,31 @@ describe('the time', () => {
     expect(render).not.toHaveBeenCalled();
   });
 
-  it('one interval, only while connected and live; it stops on done, failed, idle, an end and disconnect', () => {
+  it('joins the page’s shared whole-second ticker: every live line and <ui-elapsed> turn on the same tick', () => {
+    vi.setSystemTime(NOW + 300);
+    const a = mount(RUN);
+    vi.advanceTimersByTime(400);
+    const b = mount({ ...RUN, since: NOW - 10_000 });
+    const e = document.createElement('ui-elapsed') as UiElapsed;
+    e.setAttribute('since', String(NOW - 5_000));
+    document.body.append(e);
+    e.renderNow();
+    expect([text(a, '.wk-time'), text(b, '.wk-time')]).toEqual(['42s', '10s']);
+    // One timer for all three, not one interval each.
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(310); // NOW + 1010: just past the whole second
+    expect([text(a, '.wk-time'), text(b, '.wk-time')]).toEqual(['43s', '11s']);
+    expect(e.shadowRoot!.querySelector('time')!.textContent).toBe('6s');
+    vi.advanceTimersByTime(1000);
+    expect([text(a, '.wk-time'), text(b, '.wk-time')]).toEqual(['44s', '12s']);
+    a.remove();
+    expect(vi.getTimerCount()).toBe(1);
+    set(b, { ...RUN, state: 'done', until: NOW });
+    e.remove();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('one subscription, only while connected and live; it leaves on done, failed, idle, an end and disconnect', () => {
     const el = mount(RUN);
     expect(vi.getTimerCount()).toBe(1);
     set(el, { ...RUN, detail: '13.0k tokens' });
@@ -397,7 +456,7 @@ describe('the time', () => {
 });
 
 describe('announcements', () => {
-  /** Mutations of the said text (the only text outside the aria-hidden line). */
+  /** Mutations of the said text (the live region). */
   function watchSaid(el: UiWorking): { count: () => Promise<number> } {
     let n = 0;
     const mo = new MutationObserver((records) => {
@@ -435,11 +494,8 @@ describe('announcements', () => {
     vi.advanceTimersByTime(3000);
     expect(await w.count()).toBe(afterState);
     expect(q(el, '.wk-said')).toBe(node);
-    // Everything else is inside the aria-hidden line.
-    const outside = Array.from(el.shadowRoot!.querySelector('.ui-root')!.children).filter(
-      (c) => c.getAttribute('aria-hidden') !== 'true',
-    );
-    expect(outside.map((c) => c.className)).toEqual(['wk-said sr-only']);
+    // The live region is that one node; the ticking time and the detail are outside it.
+    expect(qa(el, '[role="status"], [aria-live]')).toEqual([node]);
   });
 });
 

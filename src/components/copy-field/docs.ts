@@ -35,12 +35,17 @@ function said(text: string): HTMLElement {
 
 const clock = () => new Date().toTimeString().slice(0, 8);
 
-/** Log every ui-copy the fields send into `line`. */
+/** Log every ui-copy the fields send into `line`. A secret is logged by its label only — never its value or length. */
 function logCopies(line: HTMLElement, ...els: UiCopyField[]): void {
   for (const el of els)
     el.addEventListener('ui-copy', (e) => {
       const { value } = (e as CustomEvent<CopyFieldCopyDetail>).detail;
-      line.textContent = `${clock()} ui-copy → ${value.length > 48 ? `${value.slice(0, 47)}…` : value}`;
+      const said = el.data?.secret
+        ? `${el.data.label ?? 'secret'} (value not shown)`
+        : value.length > 48
+          ? `${value.slice(0, 47)}…`
+          : value;
+      line.textContent = `${clock()} ui-copy → ${said}`;
     });
 }
 
@@ -98,7 +103,7 @@ export const doc: ComponentDoc = {
   summary:
     'A value you will paste somewhere else — shown whole (or masked), copied in one press, with proof it worked.',
   description:
-    'A value and a copy button. Inline it is a pill-height row: a muted label, the value in mono on one line, the button. Text that does not fit ends in “…”; a URL gives way in the middle instead, so its last segment stays in view (https://soma.2lab.ai/dash…/7f3c2a91). As a block it is a box for a command or a snippet: a <pre> that never wraps and scrolls sideways, the button in its top-right corner. The value is one unit to select (user-select: all), so selecting it by hand and copying works too. A press sends a cancelable ui-copy { value }; not prevented, the element copies the value and shows the outcome: the copy icon cross-fades into a check in the done colour that settles from 0.6 to 1, the edge tints, the button is named Copied and a polite live region says so — all back to rest after 1.6 s, one timer that a new press starts again. If the copy fails, the icon turns to a warning, the field says “Copy failed — select the text” (for 4 s, long enough to read) and selects the value, so ⌘C / Ctrl+C is all that is left. A secret shows eight dots whatever its length, with a Show toggle; the copy is always the real value. A host that copies something else — built on demand, like a conversation’s full context — prevents ui-copy, writes it itself and calls confirm(ok).',
+    'A value and a copy button. Inline it is a pill-height row: a muted label, the value in mono on one line, the button. Text that does not fit ends in “…”; a URL gives way in the middle instead, so its last segment stays in view (https://soma.2lab.ai/dash…/7f3c2a91). As a block it is a box for a command or a snippet: a <pre> that never wraps and scrolls sideways, the button in its top-right corner. The value is one unit to select (user-select: all), so selecting it by hand and copying works too. A press sends a cancelable ui-copy { value }; not prevented, the element copies the value and shows the outcome: the copy icon cross-fades into a check in the done colour that settles from 0.6 to 1, the edge tints, the button is named Copied and a polite live region says so — all back to rest after 1.6 s, one timer that a new press starts again. If the copy fails, the icon turns to a warning, the field says “Copy failed — select the text” (for 4 s, long enough to read) and selects the value, so ⌘C / Ctrl+C is all that is left. A secret shows eight dots whatever its length, with a Show toggle; the copy is always the real value. It is never shown for the person: a failed copy of a masked secret keeps it masked and says “Copy failed — press Show, then copy”. A host that copies something else — built on demand, like a conversation’s full context — prevents ui-copy, writes it itself and calls confirm(ok).',
   usedIn:
     'soma-work dashboard: the session permalink and “copy full context” (copyPanelPermalink / copyToClipboard in src/conversation/dashboard.ts, hand-rolled today), the resume command (claude --resume <id>), a branch name or PR URL on a card, and webhook URLs and tokens on the settings page (masked).',
   reference: {
@@ -186,7 +191,7 @@ export const doc: ComponentDoc = {
     'Real <button>s. Copy is named “Copy <label>” (or copyLabel); while the outcome shows it is named “Copied” or the failed words. A visually hidden role="status" (polite) says the same once per press — the same words twice in a row are said twice.',
     'Show is a toggle: its name stays “Show <label>” and aria-pressed says whether the secret shows. The dots are aria-hidden; screen readers hear “Hidden”, and “No value” for the “—”.',
     'The outcome is never colour alone: the icon changes shape (check / warning), and a failure is written under the field.',
-    'A failed copy selects the value (a secret shows first, so there is something to select). A block’s scroller takes focus (tabindex="0") so the keyboard can scroll it.',
+    'A failed copy selects the value. A masked secret is never shown or selected for the person — not in a title, a name or the live text either; its words send them to Show. A block’s scroller takes focus (tabindex="0") so the keyboard can scroll it.',
     'Focus ring: 2px --border-focus. Coarse pointer: the buttons are 44 × 44 and the inline row grows to fit them.',
     'Reduced motion: no cross-fade or scale — the icons swap at once.',
     'Sound (opt-in, @2lab.ai/ui/sound): a person’s press that copied plays success (subtle); one that failed plays error (subtle); Show / Hide plays toggle. Nothing for a prevented ui-copy, copy() or confirm() — the host plays its own cue if it wants one.',
