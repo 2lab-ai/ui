@@ -266,7 +266,7 @@ export const doc: ComponentDoc = {
                 },
                 {
                   id: 'cdn',
-                  label: 'Load from ui.2lab.ai at runtime',
+                  label: 'Load from 2lab.ai/ui at runtime',
                   description: 'Simplest, but the dashboard then depends on the site.',
                 },
               ],

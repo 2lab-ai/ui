@@ -2,10 +2,18 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build:site",
   "outputDirectory": "site-dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "redirects": [
+    { "source": "/", "destination": "https://www.2lab.ai/ui", "permanent": true },
+    { "source": "/((?!ui$|ui/|lib/).*)", "destination": "https://www.2lab.ai/ui/$1", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/lib/(.*)", "destination": "/ui/lib/$1" },
+    { "source": "/ui", "destination": "/ui/index.html" },
+    { "source": "/ui/(.*)", "destination": "/ui/index.html" }
+  ],
   "headers": [
     {
-      "source": "/lib/(.*)",
+      "source": "/(ui/)?lib/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Cache-Control", "value": "public, max-age=300" }

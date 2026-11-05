@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/2lab-ai/ui.git"
   },
-  "homepage": "https://ui.2lab.ai",
+  "homepage": "https://2lab.ai/ui",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"
