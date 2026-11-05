@@ -216,17 +216,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.requestRender();
   }
 
-  override connectedCallback(): void {
-    super.connectedCallback();
-    if (!this.#phone && typeof matchMedia === 'function') {
-      this.#phone = matchMedia(PHONE_MQ);
-      this.#phone.addEventListener?.('change', this.#onPhone);
-    }
-  }
-
   override disconnectedCallback(): void {
-    this.#phone?.removeEventListener?.('change', this.#onPhone);
-    this.#phone = null;
     if (this.#built) this.#closeQueue(false);
     this.#stopAges();
     for (const [el, timer] of this.#leaving) {
@@ -268,10 +258,9 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
       this.#field.focus(options);
       return;
     }
-    // A note above the field, else the dock (its notes are behind it), else a note in the open queue.
+    // A note above the field, else the dock (the queue's notes are behind it).
     const inline = this.$<HTMLElement>('.as-queue .as-item:not([data-leaving]) [data-act]');
-    const docked = this.queueOpen ? this.$<HTMLElement>('.as-pop .as-item:not([data-leaving]) [data-act]') : null;
-    const first = inline ?? (this.#dock?.hasAttribute('data-shown') ? this.#dock : docked);
+    const first = inline ?? (this.#dock?.hasAttribute('data-shown') ? this.#dock : null);
     if (first) first.focus(options);
     else super.focus(options);
   }
@@ -902,8 +891,15 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     }, STEERING_GRACE_MS);
   }
 
-  #phoneNow(): boolean {
-    return this.#phone ? this.#phone.matches : typeof matchMedia === 'function' && matchMedia(PHONE_MQ).matches;
+  /** The width query, watched only while the queue is open (a foldable crossing 640px then switches it in place). */
+  #watchPhone(on: boolean): void {
+    if (on && !this.#phone && typeof matchMedia === 'function') {
+      this.#phone = matchMedia(PHONE_MQ);
+      this.#phone.addEventListener?.('change', this.#onPhone);
+    } else if (!on && this.#phone) {
+      this.#phone.removeEventListener?.('change', this.#onPhone);
+      this.#phone = null;
+    }
   }
 
   #openQueue(mode: Exclude<QueueMode, 'closed'>, focusIn = false): void {
@@ -913,9 +909,11 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     const was = this.#queueMode;
     if (!(was === 'pinned' && mode === 'peek')) this.#queueMode = mode;
     if (was === 'closed') {
-      this.#sheet = this.#phoneNow();
+      this.#watchPhone(true);
+      this.#sheet = !!this.#phone?.matches;
       this.#placed = false;
       this.#pop.toggleAttribute('data-sheet', this.#sheet);
+      this.#syncModal();
       this.#pop.removeAttribute('inert');
       document.addEventListener('pointerdown', this.#onDocDown, true);
       document.addEventListener('keydown', this.#onDocKey, true);
@@ -944,6 +942,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     clearTimeout(this.#graceTimer);
     if (this.#queueMode === 'closed') return;
     this.#queueMode = 'closed';
+    this.#watchPhone(false);
     this.#cancelDrag();
     document.removeEventListener('pointerdown', this.#onDocDown, true);
     document.removeEventListener('keydown', this.#onDocKey, true);
@@ -972,7 +971,9 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     if (this.#queueMode === 'closed') return;
     const path = e.composedPath();
     if (path.includes(this.#pop) || path.includes(this.#dock) || path.includes(this.#scrim)) return;
-    this.#closeQueue(false);
+    // Focus inside goes to the dock, never the field (a tap there would raise the soft keyboard); a focusable
+    // target of this press takes it right after.
+    this.#closeQueue(true);
   };
 
   /** Esc closes the queue first (marked used, so a drawer under it stays) — not while a note's edit box has it. */
@@ -987,16 +988,23 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   /** The width crossed 640px while the queue is open (a foldable opened or closed): popover ↔ sheet in place. */
   readonly #onPhone = (): void => {
     if (!this.#built || this.#queueMode === 'closed') return;
-    const sheet = this.#phoneNow();
+    const sheet = !!this.#phone?.matches;
     if (sheet === this.#sheet) return;
     this.#sheet = sheet;
     this.#cancelDrag();
     this.#pop.toggleAttribute('data-sheet', sheet);
+    this.#syncModal();
     this.#scrim.toggleAttribute('data-open', sheet);
     for (const k of ['left', 'top', 'width', 'max-height']) this.#pop.style.removeProperty(k);
     this.#placed = false;
     this.#placeQueue();
   };
+
+  /** The sheet is modal (a scrim under it, focus in it): it says so; the popover beside the dock is not. */
+  #syncModal(): void {
+    if (this.#sheet) this.#pop.setAttribute('aria-modal', 'true');
+    else this.#pop.removeAttribute('aria-modal');
+  }
 
   #placeQueue(): void {
     if (this.#queueMode === 'closed' || !this.isConnected) return;
