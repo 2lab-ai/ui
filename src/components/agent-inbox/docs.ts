@@ -298,6 +298,7 @@ function dashboardColumns(now: number): InboxColumn[] {
     status: 'waiting',
     since: now - 6 * MIN - 12_000,
     badge: { text: 'zhuge', hue: 0, title: 'Zhuge Liang (you)', self: true },
+    attention: true,
     tokens: 1_284_310,
     costUsd: 4.53,
     steps: { done: 3, total: 5 },
@@ -700,6 +701,12 @@ export const doc: ComponentDoc = {
         'A name pill at the right end of the head (the owner on an all-users board). `hue` 0–7 picks one of eight tints (≥ 4.5:1 in both themes); the title truncates first. 0.28.0 — `self: true` marks the viewer’s own card: a ring in the pill’s hue with an arc orbiting it (every self pill on the page on one shared orbit — the arc starts at the document timeline’s origin, set after each render for every self pill in the board — so a new, rewritten or moved card never makes it jump; a board the host hid and shows again — display: none on an ancestor restarts the arcs — is put back on the orbit by `el.renderNow()`); the ring alone, stronger, under reduced motion; a system outline in forced colours. A screen reader hears the name then “(you)” / “(나)” (`strings.badgeSelf`), the default title says the same. The same pill on a host page is the kit’s `.ui-owner-badge` — call `syncOwnerBadgeOrbit(el)` (exported) once it is in the document and it orbits in step with the board’s.',
     },
     {
+      name: 'data.columns[].cards[].attention',
+      type: 'boolean',
+      description:
+        '0.32.0 — the card waits on the viewer: their own card in NEEDS YOU. Only `true` counts. While the card is collapsed it carries a mark — a 3px rail over its reading edge, its border drawn toward the mark, the status tag in ink (the one solid pill on the card) — and once every `ATTENTION_BEAT_MS` (10 s, exported) a ping: a ring that leaves the card’s edge and fades (1.2 s ease-out, then rest). Every attention card on the page pings on one shared beat — the ping starts at the document timeline’s origin, set after each render and when a card closes — so several never fire out of step. The mark is the waiting colour in the colour themes and the ink in mono (`--chroma`). Opening the card ends the cue; a pointer over it (pointer devices only — a tap leaves no hold behind), a keyboard focus in it (a face clicked closed pings again) or a move between columns holds the ping, and the hovered border shows the mark at full. Reduced motion keeps the mark and drops the ping; forced colours draw the rail in Highlight. The host decides who it is for (the dashboard: the signed-in viewer’s own waiting cards).',
+    },
+    {
       name: 'data.columns[].cards[].metrics',
       type: "Array<{ text, glyph?, tone?: 'run' | 'done' | 'fail' | 'wait' | 'warn' | 'danger', title?, label?, effort?, color? }>",
       description:
@@ -857,6 +864,7 @@ export const doc: ComponentDoc = {
     'While the board loads it is aria-busy and makes no claims: no counts, no “Nothing here”, no announcement.',
     'Host face extras are text only (escaped): a metric’s label is its accessible name; a file chip button says “Open <name>” (`artOpen`).',
     'Reduced motion: no hold, no travel — a card that changes column fades in where it lands; the ring and pulses stop.',
+    'Attention (0.32.0) is decorative: the waiting is already the status word and the owner the badge’s “(you)”. Its ping is 1.2 s in every 10 s, never a flash (no luminance swing, no more than one a second), stops while the card is open, held while a pointer is over it or a keyboard focus is in it, and is gone under reduced motion.',
     'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or closes a card or a group (not for reveal()), a tap for an action, a navigate for Open, a softer navigate for a file chip. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-inbox lang="en"></ui-agent-inbox>

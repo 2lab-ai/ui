@@ -179,6 +179,13 @@ export interface InboxCard {
    * "(you)" read after the name.
    */
   badge?: { text: string; hue?: number; title?: string; self?: boolean };
+  /**
+   * 0.32.0 — the card waits on the viewer (their own card in NEEDS YOU). Only `true` counts. While the card is
+   * collapsed it carries a mark (a rail on its reading edge, a stronger border, the status tag in ink) and, once
+   * every `ATTENTION_BEAT_MS`, a ping — a ring that leaves its edge and fades, every such card on one shared beat.
+   * Opening the card stops the cue; a pointer over it, a keyboard focus in it, or a move between columns holds the ping. Reduced motion keeps the mark, drops the ping.
+   */
+  attention?: boolean;
   /** Host metrics after tasks and context (a PR badge, a media count). */
   metrics?: InboxMetric[];
   /**
@@ -504,6 +511,10 @@ const METRIC_TONES: readonly InboxMetricTone[] = ['run', 'done', 'fail', 'wait',
 const DOTS: readonly AgentDot[] = ['running', 'done', 'failed', 'stopped', 'unknown'];
 /** Owner badge colour slots (`badge.hue`). */
 export const BADGE_HUES = OWNER_BADGE_HUES;
+/** 0.32.0 — the attention cue's beat: every `attention` card pings once per beat, all on the document's clock. */
+export const ATTENTION_BEAT_MS = 10_000;
+/** The attention cue's animations (the card's ::after), put on the shared beat after a render or a collapse. */
+const ATTENTION_ANIMS: readonly string[] = ['ib-attn-ping'];
 const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
 
 const num = (v: unknown): number => {
@@ -1448,6 +1459,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       void sh.el.offsetHeight;
       sh.el.classList.remove('no-motion');
     }
+    // Closed again, an attention card's ping starts anew — put it back on the shared beat (0.32.0).
+    if (!open && sh.el.classList.contains('is-attention')) syncOwnerBadgeOrbit(sh.el, ATTENTION_ANIMS);
     return true;
   }
 
@@ -1935,6 +1948,10 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     //    a column change, an exit re-appended to fade out), so every self pill is put back on the orbit here.
     for (const self of Array.from(this.content.querySelectorAll<HTMLElement>('.ib-badge.is-self')))
       syncOwnerBadgeOrbit(self);
+    //    The attention pings (0.32.0) ride one shared beat the same way: every card that waits on the viewer pings
+    //    at the same moment, and a card drawn, rewritten or moved never pings out of step.
+    for (const c of Array.from(this.content.querySelectorAll<HTMLElement>('li.ib-card.is-attention')))
+      syncOwnerBadgeOrbit(c, ATTENTION_ANIMS);
     this.#tickIn(this.content);
     this.#syncTick();
     // The first paint with data never animates (a render before any data, or skeletons only, does not count).
@@ -1947,6 +1964,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       sh.status = status;
       sh.el.setAttribute('data-status', status);
     }
+    const attention = card.attention === true;
+    if (sh.el.classList.contains('is-attention') !== attention) sh.el.classList.toggle('is-attention', attention);
     const face = renderFace(card, t);
     if (sh.faceHtml !== face) {
       sh.face.innerHTML = face;
