@@ -21,6 +21,8 @@ export const styles = `
   --ib-fail-fg: color-mix(in srgb, var(--st-fail-text) calc(70% * var(--chroma)), var(--ib-tone-ink));
   --ib-rest-bg: var(--ib-pill);
   --ib-rest-fg: var(--ib-text-2);
+  /* The attention mark (0.32.0): the waiting status in the colour themes, the ink in mono. */
+  --ib-attn: color-mix(in srgb, var(--st-wait) calc(100% * var(--chroma)), var(--ib-text));
 }
 .ib { container: ib / inline-size; position: relative; }
 
@@ -301,6 +303,33 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-metric.is-host[data-tone="warn"] svg { color: var(--st-wait); }
 .ib-metric.is-host[data-tone="danger"] { color: var(--st-fail-text); font-weight: 600; }
 
+/* ── ATTENTION (0.32.0) — a collapsed card that waits on the viewer ──
+   Still: a 3px rail over the reading edge, the border drawn toward the mark, the status tag in ink (the one solid
+   pill on the card — the board's way to say "your move"). Moving: once every 10 s a ping — a ring that leaves the
+   card's edge and fades (1.2 s ease-out, then 8.8 s of rest), every such card on one shared beat (the element puts
+   each ping on the document's clock). No colour beyond the tokens: in mono the rail and the ring are ink.
+   Opening the card ends the cue; hovering or focusing it holds the ping (the person is already there), and so does
+   a move between columns. */
+.ib-card.is-attention:not(.is-open) { border-color: color-mix(in srgb, var(--ib-attn) 55%, var(--ib-card-border)); }
+.ib-card.is-attention:not(.is-open)::before {
+  content: ''; position: absolute; left: -1px; top: 11px; bottom: 11px; width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--ib-attn); pointer-events: none;
+}
+.ib-card.is-attention:not(.is-open)::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 0 transparent;
+  /* The ping's decay: a plain decelerate (Tailwind's ping, Material's), not the snappy --ease-out — the ring stays
+     legible for half its run instead of a 300 ms flick. */
+  animation: ib-attn-ping 10000ms cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.ib-card.is-attention:not(.is-open):is(:hover, :focus-within, .is-flying)::after { visibility: hidden; }
+.ib-card.is-attention:not(.is-open) .ib-tag[data-tone="wait"] { background: var(--ib-text); color: var(--ib-card); }
+.ib-card.is-attention:not(.is-open) .ib-tag[data-tone="wait"] .ib-tag-icon { color: currentColor; }
+@keyframes ib-attn-ping {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ib-attn) 50%, transparent); }
+  12%, 100% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--ib-attn) 0%, transparent); }
+}
+
 /* Expansion — grid row 0fr → 1fr; cards below ride the animated row. */
 .ib-expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .ib-card.is-open .ib-expand { grid-template-rows: 1fr; }
@@ -371,5 +400,11 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   .ib-adot.is-running { animation: none; }
   .ib-sk, .ib-board[aria-busy="true"] .ib-count:empty { animation: none; }
   .ib-group-head .ib-chev { transition: none; }
+  .ib-card.is-attention:not(.is-open)::after { animation: none; display: none; }
+}
+/* Forced colours: the rail in the system's highlight (backgrounds are forced there); no ring. */
+@media (forced-colors: active) {
+  .ib-card.is-attention:not(.is-open)::before { forced-color-adjust: none; background: Highlight; }
+  .ib-card.is-attention:not(.is-open)::after { display: none; }
 }
 `;

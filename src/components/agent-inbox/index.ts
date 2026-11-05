@@ -25,6 +25,7 @@ export type {
 } from './agent-inbox';
 export {
   ANNOUNCE_MS,
+  ATTENTION_BEAT_MS,
   agentDots,
   artifactKind,
   BADGE_HUES,
