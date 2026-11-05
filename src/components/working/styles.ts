@@ -67,7 +67,8 @@ export const styles = `
 .wk[data-state="failed"] .wk-time {
   color: color-mix(in srgb, var(--st-fail-text) calc(80% * var(--chroma)), var(--ib-text));
 }
-[data-sep]::before { content: '·'; margin-inline-end: var(--wk-gap); color: var(--ib-muted); }
+/* The dot is not read: generated content with empty alt text (the first value where alt text is unknown). */
+[data-sep]::before { content: '·'; content: '·' / ''; margin-inline-end: var(--wk-gap); color: var(--ib-muted); }
 
 @keyframes wk-spin { to { transform: rotate(360deg); } }
 @keyframes wk-pulse { from { opacity: 0.45; scale: 1; } to { opacity: 0; scale: 2.4; } }

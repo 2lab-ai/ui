@@ -46,6 +46,7 @@ export const COPY_STRINGS = {
     show: (what: string) => `Show ${what}`,
     copied: 'Copied',
     failed: 'Copy failed — select the text',
+    failedShow: 'Copy failed — press Show, then copy',
     failedHost: 'Copy failed',
     hidden: 'Hidden',
     empty: 'No value',
@@ -56,6 +57,7 @@ export const COPY_STRINGS = {
     show: (what: string) => `${what} 보기`,
     copied: '복사됨',
     failed: '복사 실패 — 직접 선택하세요',
+    failedShow: '복사 실패 — 보기를 누른 뒤 복사하세요',
     failedHost: '복사 실패',
     hidden: '숨김',
     empty: '값 없음',
@@ -109,7 +111,8 @@ export function copyView(v: unknown): CopyFieldView {
  * view); as a block it is a `<pre>` that scrolls sideways with the button in its corner. The press sends a cancelable
  * `ui-copy { value }`; not prevented, the element copies the value itself (the Clipboard API, then a hidden textarea)
  * and shows the outcome — the icon turns into a check, the edge tints done, the button and a polite live region say
- * Copied, all back to rest after 1.6 s. A copy that fails says so and selects the value for the person. A host that
+ * Copied, all back to rest after 1.6 s. A copy that fails says so and selects the value for the person — a masked
+ * secret stays masked and the words send them to Show (it is never shown for them). A host that
  * copies something else (built on demand) prevents `ui-copy`, writes it itself and calls `confirm(ok)`.
  */
 export class UiCopyField extends UiElement<CopyFieldData> {
@@ -120,8 +123,12 @@ export class UiCopyField extends UiElement<CopyFieldData> {
 
   /** The outcome on show: '' at rest. */
   #outcome: '' | 'done' | 'fail' = '';
-  /** The failure is the element's own: the value was selected, the words say to copy it by hand. */
-  #hint = false;
+  /**
+   * Why a failed copy failed, for its words: select — the element's own copy, the value is selected for the person;
+   * show — the element's own copy of a masked secret (never shown for them: they press Show, then copy);
+   * '' — the host's copy (`confirm(false)`).
+   */
+  #why: '' | 'select' | 'show' = '';
   /** Outcomes said so far: the live text alternates a trailing no-break space, so the same words are said again. */
   #said = 0;
   #timer: ReturnType<typeof setTimeout> | 0 = 0;
@@ -217,7 +224,7 @@ export class UiCopyField extends UiElement<CopyFieldData> {
     clearTimeout(this.#timer);
     this.#timer = 0;
     this.#outcome = '';
-    this.#hint = false;
+    this.#why = '';
   }
 
   async #run(e?: Event): Promise<boolean> {
@@ -239,17 +246,18 @@ export class UiCopyField extends UiElement<CopyFieldData> {
     this.sound('toggle', { direction: this.#shown ? 'forward' : 'back' }, e);
   }
 
-  /** One timer: a new outcome starts it again. `own`: the element's own copy failed — select the value. */
+  /**
+   * One timer: a new outcome starts it again. `own`: the element's own copy — a failure selects the value, unless
+   * it is a masked secret: that is never shown for the person (or put in the selection); the words send them to Show.
+   */
   #show(ok: boolean, own: boolean): void {
     if (!this.isConnected) return;
     this.#rest();
     this.#outcome = ok ? 'done' : 'fail';
-    this.#hint = !ok && own;
+    this.#why = ok || !own ? '' : this.#secret && !this.#shown ? 'show' : 'select';
     this.#said++;
-    // A masked secret cannot be selected: the person asked to copy it, so it shows (the toggle reads pressed).
-    if (this.#hint && this.#secret) this.#shown = true;
     this.renderNow();
-    if (this.#hint) this.#select();
+    if (this.#why === 'select') this.#select();
     this.#timer = setTimeout(
       () => {
         this.#rest();
@@ -291,7 +299,7 @@ export class UiCopyField extends UiElement<CopyFieldData> {
     const label = this.#label;
     const what = label || t.value;
     const state = this.#outcome;
-    const fail = this.#hint ? t.failed : t.failedHost;
+    const fail = this.#why === 'select' ? t.failed : this.#why === 'show' ? t.failedShow : t.failedHost;
     const said = state === 'done' ? t.copied : state === 'fail' ? fail : '';
     const name = said || words(this.data?.copyLabel ?? this.getAttribute('copy-label')) || t.copy(what);
     const glyph = this.#shown ? 'shield' : 'lock';

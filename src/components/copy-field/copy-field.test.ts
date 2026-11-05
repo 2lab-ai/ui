@@ -55,6 +55,16 @@ function refuse() {
   const writeText = clipboard(() => Promise.reject(new DOMException('denied', 'NotAllowedError')));
   return { writeText, exec: execCommand(false) };
 }
+/** Every place in the shadow DOM (style aside) that holds `secret`: attributes by name, and the text. */
+function leaks(el: UiCopyField, secret: string): string[] {
+  const found: string[] = [];
+  for (const n of Array.from(el.shadowRoot!.querySelectorAll('*'))) {
+    if (n.localName === 'style') continue;
+    for (const a of Array.from(n.attributes)) if (a.value.includes(secret)) found.push(`${n.localName}[${a.name}]`);
+  }
+  if (q(el, '.ui-root')!.textContent!.includes(secret)) found.push('text');
+  return found;
+}
 function copies(el: UiCopyField, run?: (e: Event) => void): string[] {
   const seen: string[] = [];
   el.addEventListener('ui-copy', (e) => {
@@ -457,13 +467,60 @@ describe('secret', () => {
     expect(eye(attr).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('a failed copy shows the secret first, so the selection holds the real value', async () => {
+  it('a failed copy never shows a secret: still masked, nothing selected, the words say to press Show', async () => {
+    refuse();
+    const el = mount({ label: 'Signing secret', value: TOKEN, secret: true });
+    vi.useFakeTimers();
+    for (const run of [() => press(copyBtn(el)), () => void el.copy()]) {
+      run();
+      await flush();
+      expect(field(el).getAttribute('data-state')).toBe('fail');
+      expect(eye(el).getAttribute('aria-pressed')).toBe('false');
+      expect(copyBtn(el).getAttribute('aria-label')).toBe('Copy failed — press Show, then copy');
+      expect(q(el, '.cf-note')?.textContent).toBe('Copy failed — press Show, then copy');
+      expect(live(el)).toBe('Copy failed — press Show, then copy');
+      expect(getSelection()?.toString() ?? '').toBe('');
+      expect(leaks(el, TOKEN)).toEqual([]);
+      vi.advanceTimersByTime(COPY_FAIL_MS);
+      expect(field(el).hasAttribute('data-state')).toBe(false);
+      expect(eye(el).getAttribute('aria-pressed')).toBe('false');
+      expect(leaks(el, TOKEN)).toEqual([]);
+    }
+  });
+
+  it('a secret the person chose to see: a failed copy selects it, like any value', async () => {
     refuse();
     const el = mount({ value: TOKEN, secret: true });
+    press(eye(el));
     press(copyBtn(el));
     await flush();
     expect(eye(el).getAttribute('aria-pressed')).toBe('true');
+    expect(copyBtn(el).getAttribute('aria-label')).toBe('Copy failed — select the text');
     expect(getSelection()?.toString()).toBe(TOKEN);
+  });
+
+  it('masked, the value is in no attribute, title, name or text — at rest, copied, failed, confirmed, as a block', async () => {
+    const check = (el: UiCopyField) => expect(leaks(el, TOKEN)).toEqual([]);
+    const views: CopyFieldData[] = [
+      { label: 'Signing secret', value: TOKEN, secret: true },
+      { view: 'block', value: TOKEN, secret: true },
+      { value: TOKEN, secret: true, href: `https://x.dev/${TOKEN}`, copyLabel: 'Copy the key' },
+      { value: TOKEN, secret: true, disabled: true },
+    ];
+    for (const data of views) {
+      clipboard();
+      const el = mount(data);
+      check(el);
+      await el.copy();
+      check(el);
+      el.confirm(false);
+      check(el);
+      refuse();
+      await el.copy();
+      check(el);
+      expect(el.shadowRoot!.querySelector('textarea')).toBeNull();
+    }
+    check(mount({ value: TOKEN, secret: true }, { lang: 'ko' }));
   });
 
   it('never a link; disabled turns Show off too; a block makes room for two buttons; empty has no Show', () => {
@@ -496,6 +553,9 @@ describe('lang="ko"', () => {
     expect(copyBtn(el).getAttribute('aria-label')).toBe('복사됨');
     const secret = mount({ label: '서명 키', value: TOKEN, secret: true }, { lang: 'ko' });
     expect(eye(secret).getAttribute('aria-label')).toBe('서명 키 보기');
+    await secret.copy();
+    expect(copyBtn(secret).getAttribute('aria-label')).toBe('복사 실패 — 보기를 누른 뒤 복사하세요');
+    expect(live(secret)).toBe('복사 실패 — 보기를 누른 뒤 복사하세요');
     expect(q(secret, '.cf-val .sr-only')?.textContent).toBe('숨김');
     const empty = mount({ value: '' }, { lang: 'ko' });
     expect(q(empty, '.cf-val .sr-only')?.textContent).toBe('값 없음');
@@ -626,6 +686,26 @@ describe('docs', () => {
       document.body.append(node);
       expect(node.querySelector('ui-copy-field')).not.toBeNull();
     }
+  });
+
+  it('the masked-tokens demo never prints a secret, or its length, into its log line', () => {
+    clipboard();
+    const node = doc.demos.find((d) => d.id === 'secrets')!.create();
+    document.body.append(node);
+    const line = node.querySelector('.ui-status-line')!;
+    const fields = Array.from(node.querySelectorAll('ui-copy-field'));
+    let pressed = 0;
+    for (const el of fields) {
+      el.renderNow();
+      if (copyBtn(el).disabled) continue;
+      press(copyBtn(el));
+      pressed++;
+      const value = el.data!.value;
+      expect(line.textContent).toContain(el.data!.label!);
+      expect(line.textContent).not.toContain(value.slice(0, 8));
+      expect(line.textContent).not.toContain(String(value.length));
+    }
+    expect(pressed).toBe(2);
   });
 
   it('the full-context demo: the host prevents ui-copy, writes the Markdown itself and confirms', async () => {
