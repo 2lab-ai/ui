@@ -1,6 +1,6 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
-import { positionFixed, watchViewport } from '../../core/popover';
+import { placePopover, watchViewport } from '../../core/popover';
 import { readVisualViewport, watchVisualViewport } from '../../core/viewport';
 import { typedKey } from '../../sound/sound';
 import {
@@ -1012,16 +1012,30 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
       this.#placeSheet();
       return;
     }
-    this.#pop.style.removeProperty('width');
-    // Measured at its natural height: the card scrolls its body, not itself, so a capped card would report the cap
-    // and the next placement would lift it — the height would flip every tick.
-    this.#pop.style.maxHeight = 'none';
-    const p = positionFixed(this.#anchor, this.#pop, this.#probe, 'top', 'end', POP_GAP);
-    if (!p) {
+    const pop = this.#pop;
+    pop.style.removeProperty('width');
+    const r = this.#anchor.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight;
+    if ((!r.width && !r.height) || r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) {
       // The button scrolled away (or was never laid out — then there is nothing to follow yet).
       if (this.#placed) this.#closeQueue(false);
       return;
     }
+    const o = this.#probe.getBoundingClientRect();
+    const k = o.width > 0 ? o.width / 100 : 1;
+    // The card's natural height, read without lifting its cap: it scrolls its body, so the card reports the cap,
+    // and un-capping it to measure would let the body stop overflowing and drop where the reader scrolled to.
+    const body = this.$('.as-pop-body') as HTMLElement;
+    const natural = pop.offsetHeight - body.clientHeight + body.scrollHeight;
+    const p = placePopover(r, pop.offsetWidth * k, natural * k, vw, vh, 'top', 'end', POP_GAP);
+    const left = `${Math.round((p.left - o.left) / k)}px`;
+    const top = `${Math.round((p.top - o.top) / k)}px`;
+    const max = `${Math.floor(p.maxHeight / k)}px`;
+    if (pop.style.left !== left) pop.style.left = left;
+    if (pop.style.top !== top) pop.style.top = top;
+    if (pop.style.maxHeight !== max) pop.style.maxHeight = max;
+    if (pop.getAttribute('data-side') !== p.side) pop.setAttribute('data-side', p.side);
     this.#placed = true;
   }
 
