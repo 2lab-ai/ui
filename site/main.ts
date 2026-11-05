@@ -24,6 +24,19 @@ const esc = (s: unknown) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
+/**
+ * Where the site lives: Vite's `base` (`/ui/` — the docs are served at https://2lab.ai/ui). Every internal link and
+ * asset goes through `at()`, and the router reads paths with the base taken off, so the same build works under any base.
+ */
+const BASE = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const at = (path: string): string => `${BASE}${path.replace(/^\/+/, '')}`;
+/** The site path of a location (`/ui/components/meter` → `/components/meter`; the base itself → `/`). */
+function sitePath(pathname: string): string {
+  const root = BASE.replace(/\/+$/, '');
+  const rest = root && (pathname === root || pathname.startsWith(`${root}/`)) ? pathname.slice(root.length) : pathname;
+  return rest.replace(/\/+$/, '') || '/';
+}
+
 const ICON = {
   sun: icon('sun'),
   moon: icon('moon'),
@@ -49,17 +62,17 @@ function themeNow(): 'light' | 'dark' {
 
 function shell(active: string, body: string): string {
   const link = (href: string, label: string, extra = '') =>
-    `<a href="${href}" data-link${active === href ? ' aria-current="page"' : ''}>${label}${extra}</a>`;
+    `<a href="${at(href)}" data-link${active === href ? ' aria-current="page"' : ''}>${label}${extra}</a>`;
   // The top nav marks its section: Components on every component page, Docs on every docs page.
   const section = (href: string, label: string, on: boolean) =>
-    `<a href="${href}" data-link${on ? ' aria-current="page"' : ''}>${label}</a>`;
+    `<a href="${at(href)}" data-link${on ? ' aria-current="page"' : ''}>${label}</a>`;
   const screens = DOCS.filter((d) => d.group === 'Screens');
   const comps = DOCS.filter((d) => d.group === 'Components');
   const pages = DOCS.filter((d) => d.group === 'Pages');
   const prims = DOCS.filter((d) => d.group === 'Primitives');
   return `<header class="top">
   <button class="icon-btn menu-btn" id="menu" aria-label="Menu">${ICON.menu}</button>
-  <a class="brand" href="/" data-link><img src="/favicon.svg" alt="" />2lab<span>/ui</span></a>
+  <a class="brand" href="${at('/')}" data-link><img src="${at('favicon.svg')}" alt="" />2lab<span>/ui</span></a>
   <nav>${section('/components', 'Components', active.startsWith('/components'))}${section('/docs/installation', 'Docs', active.startsWith('/docs/'))}</nav>
   <div class="grow"></div>
   <span class="ver">v${esc(pkg.version)}</span>
@@ -100,7 +113,7 @@ const GROUP_LABEL: Record<ComponentDoc['group'], string> = {
 
 function homePage(): string {
   const cards = DOCS.map(
-    (d) => `<a class="card" href="/components/${d.slug}" data-link>
+    (d) => `<a class="card" href="${at(`components/${d.slug}`)}" data-link>
       <div class="thumb" data-thumb="${d.slug}"><div></div></div>
       <div class="meta"><em>${GROUP_LABEL[d.group]}</em><b>${esc(d.name)}</b><span>${esc(d.summary)}</span></div></a>`,
   ).join('');
@@ -108,7 +121,7 @@ function homePage(): string {
     <div class="crumb">@2lab.ai/ui</div>
     <h1>Agent UI components that show what the agent is doing — and what it needs from you.</h1>
     <p class="lede">${DOCS.length} Web Components from the 2lab soma-work dashboard: runs, approvals, conversations, plans and costs, plus the settings and sign-in pages around them. Pass data in, get events out. No runtime dependencies. Light and dark. Works with a keyboard.</p>
-    <div class="cta"><a class="btn primary" href="/components" data-link>Browse components</a><a class="btn" href="/docs/installation" data-link>Install</a></div>
+    <div class="cta"><a class="btn primary" href="${at('components')}" data-link>Browse components</a><a class="btn" href="${at('docs/installation')}" data-link>Install</a></div>
   </section>
   <h2 id="components">Components <span class="chip">${DOCS.length}</span></h2>
   <div class="grid">${cards}</div>`;
@@ -159,7 +172,7 @@ function componentPage(d: ComponentDoc): string {
       esc(a),
     ]),
   );
-  return `<div class="crumb"><a href="/components" data-link>${d.group}</a> / ${esc(d.name)}</div>
+  return `<div class="crumb"><a href="${at('components')}" data-link>${d.group}</a> / ${esc(d.name)}</div>
   <h1>${esc(d.name)}</h1>
   <p class="lede">${esc(d.summary)}</p>
   <div class="chips"><span class="chip"><code>&lt;${esc(d.tag)}&gt;</code></span><span class="chip">Web Component</span><span class="chip">Light · Dark</span>
@@ -189,7 +202,7 @@ function componentPage(d: ComponentDoc): string {
 }
 
 function installPage(): string {
-  const origin = location.origin;
+  const lib = `${location.origin}${at('lib/')}`;
   return `<div class="crumb">Getting started</div><h1>Installation</h1>
   <p class="lede">The package is published to npm as <a href="https://www.npmjs.com/package/@2lab.ai/ui"><code>@2lab.ai/ui</code></a>. For a page without a build step, load the same files from this site.</p>
   <h2>npm</h2>
@@ -197,7 +210,7 @@ function installPage(): string {
   <h2>Import</h2>
   ${codeBlock(`// everything\nimport '@2lab.ai/ui';\n\n// or one component (registers only that element)\nimport '@2lab.ai/ui/context-window';\n\n// optional page tokens (data-theme="dark" on any ancestor switches)\nimport '@2lab.ai/ui/tokens.css';\n\n// optional light-DOM classes (buttons, chips, status …) and the icon set\nimport '@2lab.ai/ui/ui-kit.css';\nimport { icon } from '@2lab.ai/ui/icons';\n\n// on a server (ESM or CommonJS, no DOM, no element): the auth card as markup\nimport { authCardHtml } from '@2lab.ai/ui/server';`, 'imp')}
   <h2>No build step</h2>
-  ${codeBlock(`<script type="module" src="${origin}/lib/index.js"></script>\n<link rel="stylesheet" href="${origin}/lib/tokens.css">\n<link rel="stylesheet" href="${origin}/lib/ui-kit.css">\n\n<ui-context-window lang="en"></ui-context-window>`, 'cdn')}
+  ${codeBlock(`<script type="module" src="${lib}index.js"></script>\n<link rel="stylesheet" href="${lib}tokens.css">\n<link rel="stylesheet" href="${lib}ui-kit.css">\n\n<ui-context-window lang="en"></ui-context-window>`, 'cdn')}
   <h2>Data in, events out</h2>
   <p class="desc">Every element takes plain data (<code>el.data = {...}</code>) and reports what the person did with a bubbling <code>ui-*</code> event. Elements never fetch — the host app owns the network and passes the result back in.</p>
   ${codeBlock(`const picker = document.querySelector('ui-model-picker');\npicker.addEventListener('ui-change', (e) => save(e.detail));`, 'evt')}
@@ -314,7 +327,7 @@ function route(): void {
   // The old page's tiles leave with it: let go of them before the new page renders.
   thumbObserver?.disconnect();
   thumbObserver = null;
-  const path = location.pathname.replace(/\/+$/, '') || '/';
+  const path = sitePath(location.pathname);
   current = null;
   let body: string;
   let active = path;

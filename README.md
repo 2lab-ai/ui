@@ -2,7 +2,7 @@
 
 Agent UI components from the 2lab soma-work dashboard, as **Web Components** with zero runtime dependencies.
 
-**Demo & docs: https://ui.2lab.ai**
+**Demo & docs: https://2lab.ai/ui**
 
 | Component | Tag | What it tells you |
 |---|---|---|
@@ -99,7 +99,7 @@ Sound — opt-in interface cues (0.11.0): every element plays a short cue for wh
 changes, air when a dialog opens, a soft chord when a run is done). Off until the person turns it on. `@2lab.ai/ui/sound` is
 the policy (`setSound`, `bindSound`, quiet regions, opt-in typing) and loads no audio; `@2lab.ai/ui/sound-cuelume` is the
 player — [Cuelume](https://github.com/danielwh2/cuelume)'s fourteen cues synthesized live with Web Audio, no audio files,
-bundled so the package keeps zero runtime dependencies. See https://ui.2lab.ai/docs/sound.
+bundled so the package keeps zero runtime dependencies. See https://2lab.ai/ui/docs/sound.
 
 ```js
 import { bindSound, setSound } from '@2lab.ai/ui/sound';
@@ -123,7 +123,7 @@ import '@2lab.ai/ui/ui-kit.css';      // optional light-DOM classes (buttons, ch
 import { icon } from '@2lab.ai/ui/icons';
 import { authCardHtml } from '@2lab.ai/ui/server';  // on a server: no DOM, no element; require() works too
 ```
-No build step: `<script type="module" src="https://ui.2lab.ai/lib/index.js"></script>`.
+No build step: `<script type="module" src="https://2lab.ai/ui/lib/index.js"></script>`.
 
 ## Use
 ```html
