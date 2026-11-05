@@ -4,6 +4,7 @@ import type { ComponentDoc } from './types';
 export const ORDER = [
   'agent-run',
   'agent-inbox',
+  'agent-island',
   'agent-tree',
   'approval-card',
   'agent-steering',
@@ -13,12 +14,14 @@ export const ORDER = [
   'file-card',
   'media-grid',
   'artifact-viewer',
+  'image-compare',
   'conversation',
   'work-log',
   'choice-form',
   'goal-card',
   'task-plan',
   'task-runs',
+  'action-node',
   'agent-queue',
   'context-window',
   'compact-breakdown',
@@ -47,6 +50,9 @@ export const ORDER = [
   'log-scroller',
   'elapsed',
   'meter',
+  'step-track',
+  'slide-confirm',
+  'ascii-wake',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });
