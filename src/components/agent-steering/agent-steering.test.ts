@@ -1278,6 +1278,18 @@ describe('<ui-agent-steering> docked queue', () => {
       expect(pop(el).hasAttribute('data-kb')).toBe(false);
     });
 
+    it('Tab wraps inside the sheet (it is modal)', () => {
+      phone(true);
+      const el = mount({ running: true, items: two() });
+      el.openQueue({ focus: true });
+      const btns = qa(el, '.as-pop button');
+      btns[btns.length - 1].focus();
+      expect(key(btns[btns.length - 1], 'Tab').defaultPrevented).toBe(true);
+      expect(el.shadowRoot?.activeElement).toBe(btns[0]);
+      expect(key(btns[0], 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+      expect(el.shadowRoot?.activeElement).toBe(btns[btns.length - 1]);
+    });
+
     it('a wide screen never gets the sheet or the scrim', () => {
       phone(false);
       const el = mount({ running: true, items: two() });
@@ -1340,6 +1352,13 @@ describe('<ui-agent-steering> docked queue', () => {
     expect(subscribed).toBe(1);
     el.closeQueue();
     expect(subscribed).toBe(0);
+  });
+
+  it('openQueue() right after data was set opens on that data', () => {
+    const el = mount({ running: true, items: [] });
+    el.data = { running: true, items: two() };
+    el.openQueue();
+    expect(el.queueOpen).toBe(true);
   });
 
   it('removed from the page while open: the document listeners go with it', () => {

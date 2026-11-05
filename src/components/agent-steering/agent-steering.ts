@@ -272,7 +272,8 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
 
   /** Show the docked queue, pinned (as a press does). `focus`: into its first note. Nothing while no note waits. */
   openQueue(options: { focus?: boolean } = {}): void {
-    if (!this.#built && this.isConnected) this.renderNow();
+    // Data set just before (its render still queued) counts: render now.
+    if (this.isConnected) this.renderNow();
     if (this.#built) this.#openQueue('pinned', !!options.focus);
   }
 
@@ -863,6 +864,24 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     pop.addEventListener('focusin', () => {
       if (this.#queueMode === 'peek') this.#queueMode = 'pinned';
     });
+    // The sheet is modal: Tab wraps inside it.
+    pop.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab' || !this.#sheet || this.#queueMode === 'closed') return;
+      const list = Array.from(
+        pop.querySelectorAll<HTMLElement>('button:not([aria-disabled="true"]), textarea, [tabindex="0"]'),
+      ).filter((el) => !el.closest('[data-leaving]'));
+      if (!list.length) return;
+      const a = this.#active();
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (e.shiftKey && (a === first || a === pop)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && a === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
     // iOS Safari sends no click for a tap on a plain element unless a listener sits on it (or it shows a pointer):
     // the scrim's own listener is what makes its tap close the sheet there. The delegated handler sees it too.
     this.#scrim.addEventListener('click', () => {});
@@ -1092,7 +1111,9 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   #endDrag(e: PointerEvent): void {
     const d = this.#drag;
     if (!d || e.pointerId !== d.id) return;
-    const gone = e.type === 'pointerup' && sheetDismisses(d.dy, d.v, this.#pop.offsetHeight);
+    // Held still before letting go: no flick (no move came to lower the speed).
+    const v = e.timeStamp - d.lt > 100 ? 0 : d.v;
+    const gone = e.type === 'pointerup' && sheetDismisses(d.dy, v, this.#pop.offsetHeight);
     this.#cancelDrag();
     if (gone) {
       this.sound('close', { emphasis: 'subtle' }, e);
