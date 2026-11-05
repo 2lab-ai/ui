@@ -6,7 +6,9 @@
  * `@2lab.ai/ui/sound-cuelume` (import it only when the user turns sound on). A server renders the auth card from
  * `@2lab.ai/ui/server` — no element in it, so it loads without a DOM, as ESM or CommonJS.
  */
+export * from './components/action-node';
 export * from './components/agent-inbox';
+export * from './components/agent-island';
 export * from './components/agent-queue';
 export * from './components/agent-run';
 export * from './components/agent-steering';
@@ -15,6 +17,7 @@ export * from './components/ai-answer';
 export * from './components/app-bar';
 export * from './components/approval-card';
 export * from './components/artifact-viewer';
+export * from './components/ascii-wake';
 export * from './components/auth-card';
 export * from './components/bar-chart';
 export * from './components/breadcrumbs';
@@ -32,6 +35,7 @@ export * from './components/episode-log';
 export * from './components/file-card';
 export * from './components/goal-card';
 export * from './components/hovercard';
+export * from './components/image-compare';
 export * from './components/knowledge-pages';
 export * from './components/log-scroller';
 export * from './components/media-grid';
@@ -42,8 +46,10 @@ export * from './components/model-picker';
 export * from './components/segmented';
 export * from './components/setting-row';
 export * from './components/settings-nav';
+export * from './components/slide-confirm';
 export * from './components/stat-strip';
 export * from './components/status-bar';
+export * from './components/step-track';
 export * from './components/tabs';
 export * from './components/task-plan';
 export * from './components/task-runs';

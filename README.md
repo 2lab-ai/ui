@@ -9,6 +9,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Agent Run (screen) | `<ui-agent-run>` | What the agent is doing now, its plan, and what it needs from you |
 | Agent Inbox | `<ui-agent-inbox>` | Which runs need you, which are running, which are done |
 | Agent Tree | `<ui-agent-tree>` | Who started whom, what each agent is doing, and which branch costs what |
+| Agent Island | `<ui-agent-island>` | A live run you are not looking at — a pill with its status, title and running clock (or “+N” more) that grows into the run: the step it is on, how far, Stop and Open (`ui-action`); one spring for the shape, Esc to close |
 | AI Answer | `<ui-ai-answer>` | The answer, the links in it, copy, response time |
 | Tool Call Card | `<ui-tool-call-card>`, `<ui-tool-call-group>` | What the agent called, with what, what came back, and how long it took |
 | Conversation | `<ui-conversation>` | Who said what and when — instructions, answers with their response time, system events and the files they carried; older turns load as you scroll up; Retry on a summary, answers loaded on demand, select turns, or lay it out as the page |
@@ -17,6 +18,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Goal Card | `<ui-goal-card>` | What the agent is working toward, how far it is, and what is queued — only the actions the host answers, meta and a note on the current and past goals; complete, pause, delete with a second press |
 | Task Plan | `<ui-task-plan>` | The plan step by step — done, running, dropped or moved — and the plans before it; `setOpen()` / `isOpen()` for the folds; or a window of `max` rows for a card, with one “+N” button (`ui-more`) to the whole plan |
 | Task Runs | `<ui-task-runs>` | Each run of a task — status, time, tokens, tools and revisions, approximate runs with a note, a totals row the host can give (“n of m shown”) |
+| Action Node | `<ui-action-node>` | A scheduled job (cron) — what it runs, when next, which channels and models it touches, its status; Run now / Pause / Edit / Delete fanned out of the corner on hover or the corner button, Delete with a second press |
 | Agent Queue | `<ui-agent-queue>` | Provider capacity, rate limits, and the scheduled-job lane |
 | Context Window | `<ui-context-window>` | How full the context is and how far auto-compaction is |
 | Approval Card | `<ui-approval-card>` | What the agent wants to do and how risky it is — Approve / Deny, or answer its question, before it expires |
@@ -38,6 +40,7 @@ Surfaces — the page-level pieces around the agent (0.6.0):
 | File Card | `<ui-file-card>` | What a file is — kind glyph or thumbnail, name, size and age as a tile, row or chip |
 | Media Grid | `<ui-media-grid>` | What pictures came with the message — a row of tiles (compact for a card's row), “+N” on the last for the rest, one picture whole in a wide box; each tile a button named by its action that opens it (`ui-open` with the index among all), lazy images, “No preview” for one that fails |
 | Artifact Viewer | `<ui-artifact-viewer>` | What the agent made — a strip or grid of files, a hover peek, and a lightbox with previous / next, preview and Download; a trusted page runs its scripts, a PDF opens in the browser’s viewer, `ui-before-view` / `ui-closed` for a host’s own body |
+| Image Compare | `<ui-image-compare>` | A change’s before and after — two pictures under one line you drag or flick (it glides to the edge), a slider on the keyboard, the labels in the corners, “No preview” for a picture that fails |
 | Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, `/` and `$` menus (commands, skills), Enter to send |
 
 Page parts — the pages around the app: settings, memory, sign-in (0.9.0):
@@ -66,6 +69,9 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Elapsed | `<ui-elapsed>` | A live time — running for, stopwatch, how long ago, countdown — on one shared whole-second tick, text changed in place; a countdown in the host’s words (`after="후 복귀"`, `at-zero="곧 복귀"`, `precision="minute"` for 24분 · 1시간 20분) |
 | Breadcrumbs | `<ui-breadcrumbs>` | Where you are — the trail root first, links or `ui-select` buttons, the current page last; the middle folds behind “…” when the row is narrow, a status chip in its end slot; `sm` for a panel’s path |
 | Meter | `<ui-meter>` | How much is left (or used) of a bounded thing — a bar or a battery with its fill, the percent or your own words, a tone from `low` / `high` / `optimum` (the native `<meter>`'s rule); a new value slides the fill in place; `role="meter"`, unknown is “?” |
+| Step Track | `<ui-step-track>` | Where a pipeline is — a dot per step (done, to do, failed, skipped) and the current one a pill filled to its progress (or a sweeping band), “Review · 3 of 5” under it; a change of step sends a wake through the dots crossed; `interactive` dots send `ui-select` |
+| Slide to Confirm | `<ui-slide-confirm>` | An action that cannot be taken back — push the handle across; past the mark it takes over, `ui-confirm` (cancelable), the handle opens out into “Confirmed”, then the host’s busy / done / failed; a slider on the keyboard (→ to the end, End) |
+| ASCII Wake | `<ui-ascii-wake>` | A quiet state that is still alive — a cube (or a whole field) of ink dots the pointer drags a wake of characters through, a press sends a ring; `activity` stirs it by itself while the agent works; still under reduced motion, no frames while idle |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
 `@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab` — round, or
@@ -147,4 +153,9 @@ own data. No affectUI code or assets are included.
 
 Interface sounds: [Cuelume](https://github.com/danielwh2/cuelume) (MIT, Daniel Belyi) is bundled into
 `dist/sound-cuelume.js`; the sound policy is ported from [Morphin UI](https://morphin.dev/docs/sound) (MIT, Ivan Oliinyk).
+
+Six elements are ported from [bencho.dev](https://bencho.dev)'s free blocks (MIT, Lorenzo Cabra —
+https://bencho.dev/licence): Slide to Confirm, Agent Island (Dynamic island), Step Track (Step player), Action Node,
+Image Compare and ASCII Wake. Bencho Pro blocks may not be passed on inside a component library, so none is included.
+
 Their notices ship in `dist/THIRD_PARTY_NOTICES.md`.

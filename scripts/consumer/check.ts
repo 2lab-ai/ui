@@ -1,6 +1,8 @@
 // Consumer smoke test: compiled against the installed package (packed tarball or registry), not the source.
 import { type ContextWindowData, fmtTokens, UiContextWindow } from '@2lab.ai/ui';
+import { type ActionNodeData, nodeInitials, UiActionNode } from '@2lab.ai/ui/action-node';
 import { UiAgentInbox } from '@2lab.ai/ui/agent-inbox';
+import { type AgentIslandData, islandClock, UiAgentIsland } from '@2lab.ai/ui/agent-island';
 import { UiAgentQueue } from '@2lab.ai/ui/agent-queue';
 import { UiAgentRun } from '@2lab.ai/ui/agent-run';
 import { type AgentSteeringData, steerEnterAction, UiAgentSteering } from '@2lab.ai/ui/agent-steering';
@@ -15,6 +17,7 @@ import {
   stepIndex,
   UiArtifactViewer,
 } from '@2lab.ai/ui/artifact-viewer';
+import { type AsciiWakeData, asciiRamp, UiAsciiWake } from '@2lab.ai/ui/ascii-wake';
 import { type AuthCardData, authCardHtml, UiAuthCard } from '@2lab.ai/ui/auth-card';
 import { type BarChartData, niceScale, UiBarChart } from '@2lab.ai/ui/bar-chart';
 import {
@@ -44,6 +47,7 @@ import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
 import { GOAL_ARM_MS, type GoalCardData, goalMetaHtml, UiGoalCard } from '@2lab.ai/ui/goal-card';
 import { type HovercardDetail, hovercardDelay, UiHovercard } from '@2lab.ai/ui/hovercard';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
+import { compareText, type ImageCompareData, UiImageCompare } from '@2lab.ai/ui/image-compare';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { filterPages, type KnowledgePagesData, UiKnowledgePages } from '@2lab.ai/ui/knowledge-pages';
 import { type LogScrollerData, logJumpText, UiLogScroller } from '@2lab.ai/ui/log-scroller';
@@ -61,10 +65,12 @@ import {
 } from '@2lab.ai/ui/server';
 import { type SettingRowData, UiSettingRow } from '@2lab.ai/ui/setting-row';
 import { applySettingsFilter, type SettingsNavData, settingMatches, UiSettingsNav } from '@2lab.ai/ui/settings-nav';
+import { type SlideConfirmData, slideThreshold, UiSlideConfirm } from '@2lab.ai/ui/slide-confirm';
 import { bindSound, playSound, type SoundCue, type SoundPlayer, setSound } from '@2lab.ai/ui/sound';
 import { cuelumeSound, type SoundTheme, setSoundTheme, unlockSound } from '@2lab.ai/ui/sound-cuelume';
 import { fmtMetric, type StatStripData, UiStatStrip } from '@2lab.ai/ui/stat-strip';
 import { STATUS_ARM_MS, type StatusBarData, UiStatusBar } from '@2lab.ai/ui/status-bar';
+import { type StepTrackData, stepCaption, UiStepTrack } from '@2lab.ai/ui/step-track';
 import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
 import { type TaskPlanData, type TaskPlanMore, taskFateCounts, taskWindow, UiTaskPlan } from '@2lab.ai/ui/task-plan';
 import { type TaskRunsData, taskRunTotals, UiTaskRuns } from '@2lab.ai/ui/task-runs';
@@ -171,12 +177,55 @@ const loose: ElapsedPrecision = 'minute';
 const nextRun: ElapsedData = { until: 0, format: 'countdown', precision: loose, after: '후 복귀', atZero: '곧 복귀' };
 const navEl: HTMLElementTagNameMap['ui-settings-nav'] = document.createElement('ui-settings-nav');
 const authEl: HTMLElementTagNameMap['ui-auth-card'] = document.createElement('ui-auth-card');
+// 0.29.0: bencho.dev's free blocks — slide to confirm, the agent island, the step track, the action node, the image
+// compare and the ASCII wake.
+const confirmCfg: SlideConfirmData = {
+  label: 'Slide to deploy to prod',
+  tone: 'danger',
+  state: 'idle',
+  threshold: 0.85,
+};
+const islandCfg: AgentIslandData = {
+  title: 'soma-work',
+  status: 'running',
+  startedAt: 0,
+  step: 'npm test',
+  progress: { done: 3, total: 7 },
+};
+const phases: StepTrackData = {
+  steps: [{ label: 'Plan', status: 'done' }, { label: 'Build' }],
+  current: 1,
+  progress: 0.4,
+};
+const cron: ActionNodeData = {
+  name: 'Daily digest',
+  status: 'active',
+  actions: [{ id: 'run', label: 'Run now', icon: 'play' }],
+};
+const shotsCompare: ImageCompareData = {
+  before: { src: '/a.png', alt: 'Before' },
+  after: { src: '/b.png', alt: 'After' },
+  position: 0.5,
+};
+const field: AsciiWakeData = { shape: 'field', glyphs: 'classic', activity: 0.4 };
+const confirmEl: HTMLElementTagNameMap['ui-slide-confirm'] = document.createElement('ui-slide-confirm');
+const islandEl: HTMLElementTagNameMap['ui-agent-island'] = document.createElement('ui-agent-island');
+const trackEl: HTMLElementTagNameMap['ui-step-track'] = document.createElement('ui-step-track');
+const nodeEl: HTMLElementTagNameMap['ui-action-node'] = document.createElement('ui-action-node');
+const compareEl: HTMLElementTagNameMap['ui-image-compare'] = document.createElement('ui-image-compare');
+const wakeEl: HTMLElementTagNameMap['ui-ascii-wake'] = document.createElement('ui-ascii-wake');
 // Sound: the policy from the root and the subpath is one API; the Cuelume player has the SoundPlayer shape.
 const player: SoundPlayer = cuelumeSound;
 const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
 const classes = [
+  UiSlideConfirm,
+  UiAgentIsland,
+  UiStepTrack,
+  UiActionNode,
+  UiImageCompare,
+  UiAsciiWake,
   UiAgentInbox,
   UiAgentQueue,
   UiAgentRun,
@@ -336,4 +385,17 @@ console.log(
   trailEl.tagName,
   elapsedText(nextRun, 0),
   fmtSpanCoarse(80 * 60_000, 'ko'),
+  slideThreshold(confirmCfg.threshold),
+  islandClock(62_000),
+  islandCfg.title,
+  stepCaption(phases.steps, phases.current),
+  nodeInitials(cron.name),
+  compareText(shotsCompare.position ?? 0.5),
+  asciiRamp(field.glyphs).length,
+  confirmEl.tagName,
+  islandEl.tagName,
+  trackEl.tagName,
+  nodeEl.tagName,
+  compareEl.tagName,
+  wakeEl.tagName,
 );

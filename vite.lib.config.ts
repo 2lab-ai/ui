@@ -47,6 +47,12 @@ const COMPONENTS = [
   'media-grid',
   'meter',
   'breadcrumbs',
+  'agent-island',
+  'step-track',
+  'action-node',
+  'image-compare',
+  'slide-confirm',
+  'ascii-wake',
 ];
 /**
  * `@2lab.ai/ui/server` is not here: vite.server.config.ts builds it (ESM + CommonJS, self-contained) into the same
