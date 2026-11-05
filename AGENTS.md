@@ -1,14 +1,16 @@
 # AGENTS.md — how to work in 2lab-ai/ui
 
 `@2lab.ai/ui` ships the agent UI of the soma-work dashboard as Web Components. One folder per component, a demo site
-(`site/`) that renders each component's `docs.ts`, published to npm as `@2lab.ai/ui`, demo at https://ui.2lab.ai.
+(`site/`) that renders each component's `docs.ts`, published to npm as `@2lab.ai/ui`, docs at https://2lab.ai/ui.
+The site is built for the base `/ui/` (into `site-dist/ui/`): the 2lab.ai site proxies `/ui/*` to this Vercel project,
+and ui.2lab.ai redirects there. Internal links go through `at()` in `site/main.ts`, never a bare `/path`.
 
 ## Gates (run before every commit)
 ```
 npm run check       # biome
 npm run typecheck   # tsc --noEmit
 npm test            # vitest (happy-dom)
-npm run build:site  # lib build (+ the server entry, ESM + CJS) + d.ts + site build + site-dist/lib
+npm run build:site  # lib build (+ the server entry, ESM + CJS) + d.ts + site build + site-dist/ui/lib
 npm run consumer-check  # pack → install → NodeNext and node10 typecheck, every element registers, require('@2lab.ai/ui/server')
 ```
 `npm run verify` runs all five.
@@ -40,7 +42,7 @@ npm run consumer-check  # pack → install → NodeNext and node10 typecheck, ev
   for hosts lives in `src/kit/kit.ts` (`ui-kit.css`): tokens and `color-mix()` only, no hex / rgba literals.
 - Sound (`src/sound/`): a user action that went through plays one cue with `this.sound(cue, options, event)` — after the
   `emit` was not prevented and only when state changed; never from render, hover, timers, streams or data the app set
-  (toasts are the one code-driven exception). Pick the cue by the job (see https://ui.2lab.ai/docs/sound), test it with
+  (toasts are the one code-driven exception). Pick the cue by the job (see https://2lab.ai/ui/docs/sound), test it with
   `soundSpy()` from `src/sound/fixtures.ts`, and add one `Sound (opt-in …)` line to the docs' `a11y`.
 - Server entry (`src/server/index.ts` → `@2lab.ai/ui/server`): the one entry with no element in it. Nothing it reaches may
   touch `HTMLElement`, `customElements`, `document` or `window` at load (its test runs under `// @vitest-environment node`).
