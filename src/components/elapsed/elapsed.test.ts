@@ -4,6 +4,7 @@ import {
   elapsedFormat,
   elapsedPrecision,
   elapsedText,
+  elapsedTicker,
   elapsedTicks,
   elapsedTime,
   fmtSince,
@@ -213,6 +214,24 @@ describe('<ui-elapsed>', () => {
     el.data = { since: NOW - 3_725_000, format: 'clock' };
     el.renderNow();
     expect(text(el)).toBe('1:02:05');
+  });
+
+  it('elapsedTicker: another element’s live time joins the same whole-second tick; unsubscribing leaves it', () => {
+    vi.setSystemTime(NOW + 400);
+    const el = mount({ since: String(NOW - 59_000) });
+    const seen: number[] = [];
+    const stop = elapsedTicker(() => seen.push(Date.now()));
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(610);
+    expect(seen).toEqual([NOW + 1005]);
+    expect(text(el)).toBe('1m 00s');
+    stop();
+    stop();
+    vi.advanceTimersByTime(1000);
+    expect(seen.length).toBe(1);
+    expect(text(el)).toBe('1m 01s');
+    el.remove();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('leaves the shared ticker when disconnected', () => {

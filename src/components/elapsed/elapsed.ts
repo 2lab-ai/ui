@@ -148,29 +148,39 @@ export function elapsedTicks(d: { since?: unknown; until?: unknown; format?: unk
   return !Number.isNaN(elapsedTime(d.since)) && Number.isNaN(until);
 }
 
-// One ticker for every element on the page, on whole seconds, so all of them turn together.
-const live = new Set<UiElapsed>();
+// One ticker for every live time on the page, on whole seconds, so all of them turn together.
+const live = new Set<() => void>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 function tickAll(): void {
   timer = undefined;
-  for (const el of live) el.tick();
+  for (const fn of live) fn();
   schedule();
 }
 function schedule(): void {
   if (timer !== undefined || !live.size) return;
   timer = setTimeout(tickAll, 1000 - (Date.now() % 1000) + 5);
 }
-function watch(el: UiElapsed, on: boolean): void {
+function watch(fn: () => void, on: boolean): void {
   if (on) {
-    live.add(el);
+    live.add(fn);
     schedule();
   } else {
-    live.delete(el);
+    live.delete(fn);
     if (!live.size && timer !== undefined) {
       clearTimeout(timer);
       timer = undefined;
     }
   }
+}
+
+/**
+ * Join the page's shared whole-second ticker — the one every `<ui-elapsed>` turns on — so a live time drawn by another
+ * element turns with them: `fn` runs just past each whole second until the returned function is called. The same
+ * function joins once however often it subscribes.
+ */
+export function elapsedTicker(fn: () => void): () => void {
+  watch(fn, true);
+  return () => watch(fn, false);
 }
 
 const css = `
@@ -193,13 +203,14 @@ export class UiElapsed extends UiElement<ElapsedData> {
   }
 
   #ended = false;
+  readonly #onTick = (): void => this.tick();
 
   attributeChangedCallback(): void {
     this.requestRender();
   }
 
   override disconnectedCallback(): void {
-    watch(this, false);
+    watch(this.#onTick, false);
     super.disconnectedCallback();
   }
 
@@ -237,7 +248,7 @@ export class UiElapsed extends UiElement<ElapsedData> {
   }
 
   protected override updated(): void {
-    watch(this, this.isConnected && elapsedTicks(this.value, Date.now()));
+    watch(this.#onTick, this.isConnected && elapsedTicks(this.value, Date.now()));
   }
 
   /** One tick: the text node changes in place; a final time leaves the ticker; a countdown at zero says so once. */
@@ -249,7 +260,7 @@ export class UiElapsed extends UiElement<ElapsedData> {
     const text = elapsedText(v, now, this.#lang);
     if (node.textContent !== text) node.textContent = text;
     if (elapsedTicks(v, now)) return;
-    watch(this, false);
+    watch(this.#onTick, false);
     if (v.format === 'countdown' && !this.#ended) {
       this.#ended = true;
       this.notify<ElapsedEndDetail>('ui-end', { until: elapsedTime(v.until) });
