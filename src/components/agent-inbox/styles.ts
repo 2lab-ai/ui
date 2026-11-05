@@ -308,8 +308,8 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
    pill on the card — the board's way to say "your move"). Moving: once every 10 s a ping — a ring that leaves the
    card's edge and fades (1.2 s ease-out, then 8.8 s of rest), every such card on one shared beat (the element puts
    each ping on the document's clock). No colour beyond the tokens: in mono the rail and the ring are ink.
-   Opening the card ends the cue; hovering or focusing it holds the ping (the person is already there), and so does
-   a move between columns. */
+   Opening the card ends the cue; a pointer over it or a keyboard focus in it holds the ping (the person is already
+   there), and so does a move between columns. */
 .ib-card.is-attention:not(.is-open) { border-color: color-mix(in srgb, var(--ib-attn) 55%, var(--ib-card-border)); }
 .ib-card.is-attention:not(.is-open)::before {
   content: ''; position: absolute; left: -1px; top: 11px; bottom: 11px; width: 3px; border-radius: 0 3px 3px 0;
@@ -322,7 +322,9 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
      legible for half its run instead of a 300 ms flick. */
   animation: ib-attn-ping 10000ms cubic-bezier(0, 0, 0.2, 1) infinite;
 }
-.ib-card.is-attention:not(.is-open):is(:hover, :focus-within, .is-flying)::after { visibility: hidden; }
+/* Held while the person is on it — a keyboard focus inside (a mouse press leaves the face focused but not
+   focus-visible, so a card clicked closed pings again), or a move between columns; hover below, pointers only. */
+.ib-card.is-attention:not(.is-open):is(:has(:focus-visible), .is-flying)::after { visibility: hidden; }
 .ib-card.is-attention:not(.is-open) .ib-tag[data-tone="wait"] { background: var(--ib-text); color: var(--ib-card); }
 .ib-card.is-attention:not(.is-open) .ib-tag[data-tone="wait"] .ib-tag-icon { color: currentColor; }
 @keyframes ib-attn-ping {
@@ -380,6 +382,9 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   .ib-btn.is-primary:hover:not([aria-disabled="true"]) { border-color: var(--ib-text); opacity: 0.88; }
   button.ib-chip:hover { border-color: var(--tint); background: var(--ib-card); }
   .ib-group-head:hover { background: var(--ib-pill); }
+  /* An attention card: hover holds the ping, and the border still answers the pointer — the mark at full. */
+  .ib-card.is-attention:not(.is-open):hover { border-color: var(--ib-attn); }
+  .ib-card.is-attention:not(.is-open):hover::after { visibility: hidden; }
 }
 /* 44px targets on touch and narrow screens. */
 @media (pointer: coarse), (max-width: 639px) {
