@@ -50,7 +50,17 @@ export interface AgentSteeringData {
   disabled?: boolean;
   /** Files the host holds for the next message (its chips go in `slot="attachments"`): > 0 lets an empty note send. */
   attachments?: number;
+  /**
+   * Where the notes the host's list holds wait. `'dock'` (default): behind a round button at the top right of the
+   * element that shows how many there are and opens the queue on hover or press (a bottom sheet under 640px) — only
+   * a note on its way in (not in the list yet, or refused before it got there) shows above the field. `'inline'`:
+   * every note above the field, as before 0.33.
+   */
+  queue?: SteeringQueueLayout;
 }
+
+/** See {@link AgentSteeringData.queue}. */
+export type SteeringQueueLayout = 'dock' | 'inline';
 
 export interface SteeringSubmitDetail {
   text: string;
@@ -267,6 +277,47 @@ export function steerEnterAction(
   if (e.metaKey || e.ctrlKey) return opts.running ? 'steer' : 'queue';
   if (e.shiftKey || e.altKey || opts.touch) return 'newline';
   return 'queue';
+}
+
+/** The layout asked for: `'inline'` only when asked, else the dock. */
+export function steeringQueueLayout(v: unknown): SteeringQueueLayout {
+  return v === 'inline' ? 'inline' : 'dock';
+}
+
+/**
+ * Which rows wait behind the dock and which show above the field. Docked: every note the host's list has. Inline: a
+ * note on its way in (a local row — sending, or refused before the list had it). The `'inline'` layout docks none.
+ */
+export function splitSteeringRows(
+  rows: readonly SteeringRow[],
+  layout: SteeringQueueLayout,
+): { inline: SteeringRow[]; docked: SteeringRow[] } {
+  if (layout === 'inline') return { inline: [...rows], docked: [] };
+  return { inline: rows.filter((r) => r.local), docked: rows.filter((r) => !r.local) };
+}
+
+/** The dock's tone: `fail` when a note failed, `run` while one is on its way (Send now, a save), else `idle`. */
+export type SteeringDockTone = 'idle' | 'run' | 'fail';
+export function steeringDockTone(rows: readonly SteeringRow[]): SteeringDockTone {
+  if (rows.some((r) => r.state === 'failed')) return 'fail';
+  if (rows.some((r) => r.state === 'sending' || r.saving)) return 'run';
+  return 'idle';
+}
+
+/** The number on the dock: up to 99, then “99+”. */
+export function steeringDockBadge(n: number): string {
+  const c = Math.max(0, Math.floor(Number(n) || 0));
+  return c > 99 ? '99+' : String(c);
+}
+
+/**
+ * Whether a sheet dragged down by `dy` px (of its `height`) at `velocity` px/ms on release goes away: past a quarter
+ * of it (at most 120px), or flicked (≥ 0.5 px/ms) more than 16px.
+ */
+export function sheetDismisses(dy: number, velocity: number, height: number): boolean {
+  if (!(dy > 0)) return false;
+  const far = Math.min(120, Math.max(48, height * 0.25));
+  return dy >= far || (velocity >= 0.5 && dy > 16);
 }
 
 /** Where focus goes when the row at `index` lost its control: the row now at that place, else the one before, else -1. */
