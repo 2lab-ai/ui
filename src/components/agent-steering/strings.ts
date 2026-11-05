@@ -8,6 +8,10 @@ const en = {
   queueRunning: 'Queued for the next step',
   queueIdle: 'Queued',
   count: (n: number) => `${n} ${n === 1 ? 'note' : 'notes'}`,
+  /** The dock's name: how many wait, and whether one needs a look. */
+  dock: (n: number, failed: boolean) =>
+    `${n} queued ${n === 1 ? 'note' : 'notes'}${failed ? ' — some couldn’t be sent' : ''}`,
+  closeQueue: 'Close the queue',
   fieldRunning: 'Steer the agent',
   fieldIdle: 'Message the session',
   placeholderRunning: 'Steer the agent…',
@@ -63,6 +67,8 @@ const ko: SteeringStrings = {
   queueRunning: '다음 단계에 전달 대기',
   queueIdle: '대기 중인 메시지',
   count: (n: number) => `${n}개`,
+  dock: (n: number, failed: boolean) => `대기 중인 메시지 ${n}개${failed ? ' — 보내지 못한 메시지가 있습니다' : ''}`,
+  closeQueue: '대기열 닫기',
   fieldRunning: '작업 중인 에이전트에 지시',
   fieldIdle: '이 세션에 지시',
   placeholderRunning: '작업 중인 에이전트에 지시…',

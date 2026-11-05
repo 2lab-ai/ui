@@ -1,5 +1,7 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr } from '../../core/html';
+import { placePopover, watchViewport } from '../../core/popover';
+import { readVisualViewport, watchVisualViewport } from '../../core/viewport';
 import { typedKey } from '../../sound/sound';
 import {
   type AgentSteeringData,
@@ -15,14 +17,20 @@ import {
   type SteeringItemState,
   type SteeringLocal,
   type SteeringOverlay,
+  type SteeringQueueLayout,
   type SteeringRow,
   type SteeringSubmitDetail,
   type SteerMode,
   settleOverlays,
+  sheetDismisses,
+  splitSteeringRows,
   steerEnterAction,
   steeringActions,
+  steeringDockBadge,
+  steeringDockTone,
   steeringFocusIndex,
   steeringItemKey,
+  steeringQueueLayout,
   steeringRows,
 } from './logic';
 import { type SteeringLang, type SteeringStrings, steeringStrings } from './strings';
@@ -35,6 +43,16 @@ const AGE_MS = 30_000;
 const FIELD_MAX = 200;
 const EDIT_MAX = 160;
 const PENDING_MAX = 20;
+/** Hover intent before the docked queue peeks open — a pointer crossing the button stays quiet. */
+export const STEERING_PEEK_MS = 120;
+/** Time to move the pointer from the button onto the queue (WCAG 1.4.13 hoverable) before a peek closes. */
+export const STEERING_GRACE_MS = 240;
+/** Narrower than this the docked queue is a bottom sheet (the dialog's `size-phone` width). */
+const PHONE_MQ = '(max-width: 639px)';
+const POP_GAP = 8;
+
+/** How the docked queue is showing: not, on hover (it closes when the pointer leaves), or pinned by a press. */
+type QueueMode = 'closed' | 'peek' | 'pinned';
 
 const svg = (vb: number, body: string, cls = 'as-i') =>
   `<svg class="${cls}" viewBox="0 0 ${vb} ${vb}" aria-hidden="true">${body}</svg>`;
@@ -86,6 +104,11 @@ const kbd = (...keys: string[]) => keys.map((k) => `<kbd>${esc(k)}</kbd>`).join(
  *
  * The composer is built once and patched in place, and notes are keyed rows that are only replaced when they change,
  * so a host update arriving while someone types (Korean IME included) never resets the field or the edit box.
+ *
+ * Docked (the default `data.queue`): once the host's list has a note it leaves the space above the field for a round
+ * button at the element's top right with the number waiting. Hover peeks the queue open, a press pins it (Esc, a press
+ * outside or the button again close it); under 640px it is a bottom sheet over a scrim that follows the visual
+ * viewport (the soft keyboard) and closes when dragged down. Only a note on its way in shows above the field.
  */
 export class UiAgentSteering extends UiElement<AgentSteeringData> {
   static override styles = [styles];
@@ -104,6 +127,19 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   #field!: HTMLTextAreaElement;
   #send!: HTMLButtonElement;
   #hint!: HTMLElement;
+  #dock!: HTMLButtonElement;
+  #dockNum!: HTMLElement;
+  #pop!: HTMLElement;
+  #popHead!: HTMLElement;
+  #popTitle!: HTMLElement;
+  #popCount!: HTMLElement;
+  #popClose!: HTMLButtonElement;
+  #popBody!: HTMLElement;
+  #dockList!: HTMLElement;
+  #scrim!: HTMLElement;
+  #probe!: HTMLElement;
+  /** Where the dock sits, untransformed (its press and pop scale it): what the open queue is placed against. */
+  #anchor!: HTMLElement;
   /** Field text set through `value` before the composer exists. */
   #draft = '';
   /** A `<ui-composer slot="composer">` that is the field (its own field, attachments and tools step aside). */
@@ -113,6 +149,22 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
 
   #items: SteeringItem[] = [];
   #rows: SteeringRow[] = [];
+  #layout: SteeringQueueLayout = 'dock';
+  /** Rows drawn above the field, and rows behind the dock. */
+  #inlineRows: SteeringRow[] = [];
+  #dockRows: SteeringRow[] = [];
+  #queueMode: QueueMode = 'closed';
+  /** The open queue is the phone's bottom sheet. */
+  #sheet = false;
+  #placed = false;
+  #peekTimer: ReturnType<typeof setTimeout> | undefined;
+  #graceTimer: ReturnType<typeof setTimeout> | undefined;
+  #unwatch: (() => void) | null = null;
+  #phone: MediaQueryList | null = null;
+  /** The number the dock showed last (a new note bumps it). */
+  #dockShown = 0;
+  /** A drag of the sheet's head: pointer, start y, the last y / time, how far down, the speed (px/ms). */
+  #drag: { id: number; y: number; ly: number; lt: number; dy: number; v: number } | null = null;
   #overlays = new Map<string, SteeringOverlay>();
   #locals: SteeringLocal[] = [];
   /** Idle sends: not drawn (they become a turn), kept so a reported failure can still offer Retry. */
@@ -123,6 +175,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   #editing: Editing | null = null;
   #focusEdit = false;
   #lostIndex = -1;
+  #lostList: HTMLElement | null = null;
 
   #html = new WeakMap<Element, string>();
   #leaving = new Map<Element, number>();
@@ -165,6 +218,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   }
 
   override disconnectedCallback(): void {
+    if (this.#built) this.#closeQueue(false);
     this.#stopAges();
     for (const [el, timer] of this.#leaving) {
       clearTimeout(timer);
@@ -194,7 +248,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#syncSend();
   }
 
-  /** Keyboard landing: the field — or, when it is off (read-only, ended), the first note's first button. */
+  /** Keyboard landing: the field — or, when it is off (read-only, ended), a note's first button or the dock. */
   override focus(options?: FocusOptions): void {
     if (!this.#built && this.isConnected) this.renderNow();
     if (this.#composer && this.#open()) {
@@ -205,9 +259,28 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
       this.#field.focus(options);
       return;
     }
-    const first = this.$<HTMLElement>('.as-item:not([data-leaving]) [data-act]');
+    // A note above the field, else the dock (the queue's notes are behind it).
+    const inline = this.$<HTMLElement>('.as-queue .as-item:not([data-leaving]) [data-act]');
+    const first = inline ?? (this.#dock?.hasAttribute('data-shown') ? this.#dock : null);
     if (first) first.focus(options);
     else super.focus(options);
+  }
+
+  /** Whether the docked queue is showing (hovered open or pinned). */
+  get queueOpen(): boolean {
+    return this.#queueMode !== 'closed';
+  }
+
+  /** Show the docked queue, pinned (as a press does). `focus`: into its first note. Nothing while no note waits. */
+  openQueue(options: { focus?: boolean } = {}): void {
+    // Data set just before (its render still queued) counts: render now.
+    if (this.isConnected) this.renderNow();
+    if (this.#built) this.#openQueue('pinned', !!options.focus);
+  }
+
+  /** Hide the docked queue (focus inside it goes back to the button). */
+  closeQueue(): void {
+    if (this.#built) this.#closeQueue(true);
   }
 
   /**
@@ -299,6 +372,10 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#seen = new Map(items.map((i) => [i.id, i.state]));
     this.#items = items;
     this.#rows = steeringRows(items, this.#overlays, this.#locals);
+    this.#layout = steeringQueueLayout(d.queue);
+    const split = splitSteeringRows(this.#rows, this.#layout);
+    this.#inlineRows = split.inline;
+    this.#dockRows = split.docked;
     const ed = this.#editing;
     if (ed) {
       const row = this.#rows.find((r) => r.key === ed.key);
@@ -333,6 +410,15 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     }
     if (act === 'discard') {
       this.#stopEdit();
+      return;
+    }
+    if (act === 'dock') {
+      this.#pressDock(e as MouseEvent);
+      return;
+    }
+    if (act === 'close-queue' || act === 'scrim') {
+      if (this.#queueMode !== 'closed') this.sound('close', { emphasis: 'subtle' }, e);
+      this.#closeQueue(true);
       return;
     }
     const key = (el.closest('.as-item') as HTMLElement | null)?.dataset.row;
@@ -542,23 +628,30 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     if (!this.#built) this.#build();
     this.#sync();
     const active = this.#active();
-    const inList = !!active && this.#list.contains(active);
+    const home = active ? ([this.#dockList, this.#list].find((l) => l.contains(active)) ?? null) : null;
+    const inList = !!home;
     const key = inList ? active?.dataset.key : undefined;
     const sel =
       inList && active instanceof HTMLTextAreaElement ? ([active.selectionStart, active.selectionEnd] as const) : null;
-    const items = inList ? this.#liveItems() : [];
+    const items = home ? this.#liveItems(home) : [];
     this.#lostIndex = inList ? items.findIndex((li) => li.contains(active)) : -1;
-    this.#patchList();
+    this.#lostList = home;
+    this.#patchList(this.#dockList, this.#dockRows);
+    this.#patchList(this.#list, this.#inlineRows);
+    this.#patchQueue();
+    this.#rendered = true;
     this.#patchComposer();
     this.updated();
-    if (inList) {
+    if (home) {
       const now = this.#active();
-      const kept = !!now && now === active && this.#list.contains(now) && !now.closest('[data-leaving]');
+      const kept = !!now && now === active && home.contains(now) && !now.closest('[data-leaving]');
       if (!kept) {
         const next =
           key === undefined
             ? undefined
-            : Array.from(this.#list.querySelectorAll<HTMLElement>('[data-key]')).find((el) => el.dataset.key === key);
+            : Array.from(this.root.querySelectorAll<HTMLElement>('.as-list [data-key]')).find(
+                (el) => el.dataset.key === key,
+              );
         (next ?? this.focusFallback())?.focus({ preventScroll: true });
         if (next instanceof HTMLTextAreaElement && sel) next.setSelectionRange(sel[0], sel[1]);
       }
@@ -585,7 +678,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
 
   /** A note whose control went away: the note now at its place (or the one before) — else the field. */
   protected override focusFallback(): HTMLElement | null {
-    const items = this.#liveItems();
+    const items = this.#liveItems(this.#lostList ?? this.#list);
     const from = steeringFocusIndex(items.length, this.#lostIndex);
     if (from >= 0) {
       for (let i = from; i < items.length; i++) {
@@ -597,6 +690,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
         if (b) return b;
       }
     }
+    if (this.#lostList === this.#dockList && this.#queueMode !== 'closed') return this.#popClose;
     if (this.#composer && this.#open()) return this.#composer as unknown as HTMLElement;
     return this.#built && !this.#field.disabled && !this.#composer ? this.#field : null;
   }
@@ -606,7 +700,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   }
 
   protected render(): string {
-    return `<div class="as"><div class="as-queue"><div class="as-queue-in"><div class="as-queue-pad"><div class="as-label" aria-hidden="true"><span class="as-label-text"></span><span class="as-count"></span></div><ul class="as-list"></ul></div></div></div><div class="as-compose"><slot name="composer"></slot><slot name="attachments"></slot><div class="as-field"><slot name="tools"></slot><textarea class="as-input" rows="1" dir="auto" autocomplete="off"></textarea><button type="button" class="as-send" data-act="send">${ICON.send}</button></div><div class="as-hint" id="as-hint"></div></div></div>`;
+    return `<div class="as"><button type="button" class="as-dock" data-act="dock" aria-haspopup="dialog" aria-expanded="false" aria-controls="as-pop" inert><span class="as-dock-ring" aria-hidden="true"></span><span class="as-dock-n" aria-hidden="true"></span></button><i class="as-probe" aria-hidden="true"></i><i class="as-anchor" aria-hidden="true"></i><div class="as-scrim" data-act="scrim" aria-hidden="true"></div><div class="as-pop" id="as-pop" role="dialog" tabindex="-1" inert><div class="as-pop-head"><span class="as-grab" aria-hidden="true"></span><span class="as-pop-title"></span><span class="as-count as-pop-count"></span><button type="button" class="as-btn is-icon as-pop-close" data-act="close-queue">${ICON.cancel}</button></div><div class="as-pop-body"><ul class="as-list is-docked"></ul></div></div><div class="as-queue"><div class="as-queue-in"><div class="as-queue-pad"><div class="as-label" aria-hidden="true"><span class="as-label-text"></span><span class="as-count"></span></div><ul class="as-list"></ul></div></div></div><div class="as-compose"><slot name="composer"></slot><slot name="attachments"></slot><div class="as-field"><slot name="tools"></slot><textarea class="as-input" rows="1" dir="auto" autocomplete="off"></textarea><button type="button" class="as-send" data-act="send">${ICON.send}</button></div><div class="as-hint" id="as-hint"></div></div></div>`;
   }
 
   #build(): void {
@@ -614,19 +708,32 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#wrap = this.$('.as') as HTMLElement;
     this.#queue = this.$('.as-queue') as HTMLElement;
     this.#labelText = this.$('.as-label-text') as HTMLElement;
-    this.#count = this.$('.as-count') as HTMLElement;
-    this.#list = this.$('.as-list') as HTMLElement;
+    this.#count = this.$('.as-queue .as-count') as HTMLElement;
     this.#fieldBox = this.$('.as-field') as HTMLElement;
     this.#field = this.$('.as-input') as HTMLTextAreaElement;
     this.#send = this.$('.as-send') as HTMLButtonElement;
     this.#hint = this.$('.as-hint') as HTMLElement;
+    this.#dock = this.$('.as-dock') as HTMLButtonElement;
+    this.#dockNum = this.$('.as-dock-n') as HTMLElement;
+    this.#pop = this.$('.as-pop') as HTMLElement;
+    this.#popHead = this.$('.as-pop-head') as HTMLElement;
+    this.#popTitle = this.$('.as-pop-title') as HTMLElement;
+    this.#popCount = this.$('.as-pop-count') as HTMLElement;
+    this.#popClose = this.$('.as-pop-close') as HTMLButtonElement;
+    this.#popBody = this.$('.as-pop-body') as HTMLElement;
+    this.#dockList = this.$('.as-list.is-docked') as HTMLElement;
+    this.#list = this.$('.as-queue .as-list') as HTMLElement;
+    this.#scrim = this.$('.as-scrim') as HTMLElement;
+    this.#probe = this.$('.as-probe') as HTMLElement;
+    this.#anchor = this.$('.as-anchor') as HTMLElement;
+    this.#wireQueue();
     this.#field.value = this.#draft;
     this.#draft = '';
     this.#built = true;
   }
 
-  #liveItems(): HTMLElement[] {
-    return Array.from(this.#list.children).filter((el) => !this.#leaving.has(el)) as HTMLElement[];
+  #liveItems(list: HTMLElement): HTMLElement[] {
+    return Array.from(list.children).filter((el) => !this.#leaving.has(el)) as HTMLElement[];
   }
 
   #make(html: string): HTMLElement {
@@ -637,15 +744,16 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     return el;
   }
 
-  #patchList(): void {
+  /** Reconcile one list with its rows by key: unchanged rows stay, changed ones are replaced, gone ones leave. */
+  #patchList(list: HTMLElement, rows: readonly SteeringRow[]): void {
     const d = this.#d;
     const t = this.#t;
     const opts = this.#acts(d);
     const now = Date.now();
     const live = new Map<string, HTMLElement>();
-    for (const el of this.#liveItems()) live.set(s(el.dataset.row), el);
+    for (const el of this.#liveItems(list)) live.set(s(el.dataset.row), el);
     let prev: Element | null = null;
-    for (const row of this.#rows) {
+    for (const row of rows) {
       const html = this.#rowHtml(row, opts, t, now);
       let el = live.get(row.key);
       live.delete(row.key);
@@ -665,9 +773,9 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
         }
       }
       // Leaving rows hold their place; moving a node would blur whatever it holds focused, so only move when needed.
-      let want: Element | null = prev ? prev.nextElementSibling : this.#list.firstElementChild;
+      let want: Element | null = prev ? prev.nextElementSibling : list.firstElementChild;
       while (want && this.#leaving.has(want)) want = want.nextElementSibling;
-      if (el !== want) this.#list.insertBefore(el, want);
+      if (el !== want) list.insertBefore(el, want);
       if (fresh && this.#editing?.key === row.key) {
         const box = el.querySelector<HTMLTextAreaElement>('.as-edit');
         if (box) {
@@ -678,14 +786,349 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
       prev = el;
     }
     for (const el of live.values()) this.#leave(el);
-    const n = this.#rows.length;
-    this.#queue.toggleAttribute('data-open', n > 0);
+  }
+
+  /** The inline queue's label and count, the dock's number, tone and name, the open queue's head. */
+  #patchQueue(): void {
+    const d = this.#d;
+    const t = this.#t;
     const label = d.running ? t.queueRunning : t.queueIdle;
+    const n = this.#inlineRows.length;
+    this.#queue.toggleAttribute('data-open', n > 0);
     if (this.#labelText.textContent !== label) this.#labelText.textContent = label;
     const count = String(n);
     if (this.#count.textContent !== count) this.#count.textContent = count;
     this.#list.setAttribute('aria-label', `${label} · ${t.count(n)}`);
-    this.#rendered = true;
+
+    const m = this.#dockRows.length;
+    const shown = this.#layout === 'dock' && m > 0;
+    const tone = steeringDockTone(this.#dockRows);
+    const dock = this.#dock;
+    if (dock.hasAttribute('data-shown') !== shown) {
+      if (!shown && this.#active() === dock) this.focusFallback()?.focus({ preventScroll: true });
+      dock.toggleAttribute('data-shown', shown);
+      dock.toggleAttribute('inert', !shown);
+    }
+    dock.setAttribute('data-tone', tone);
+    const badge = steeringDockBadge(m);
+    if (this.#dockNum.textContent !== badge) this.#dockNum.textContent = badge;
+    const name = t.dock(m, tone === 'fail');
+    dock.setAttribute('aria-label', name);
+    dock.title = name;
+    if (this.#rendered && shown && m > this.#dockShown && !prefersReducedMotion()) {
+      dock.classList.remove('is-bump');
+      void dock.offsetWidth; // restart the animation
+      dock.classList.add('is-bump');
+    }
+    this.#dockShown = shown ? m : 0;
+    if (this.#popTitle.textContent !== label) this.#popTitle.textContent = label;
+    const mc = String(m);
+    if (this.#popCount.textContent !== mc) this.#popCount.textContent = mc;
+    const popName = `${label} · ${t.count(m)}`;
+    this.#pop.setAttribute('aria-label', popName);
+    this.#dockList.setAttribute('aria-label', popName);
+    this.#popClose.setAttribute('aria-label', t.closeQueue);
+    this.#popClose.title = t.closeQueue;
+    if (!shown) this.#closeQueue(false);
+    else this.#placeQueue();
+  }
+
+  // ── The docked queue: hover peek, press pin, phone sheet ─────────────────
+
+  #wireQueue(): void {
+    const dock = this.#dock;
+    const pop = this.#pop;
+    const head = this.#popHead;
+    const mouse = (e: PointerEvent) => e.pointerType !== 'touch';
+    dock.addEventListener('pointerenter', (e) => {
+      if (!mouse(e)) return;
+      clearTimeout(this.#graceTimer);
+      if (this.#queueMode !== 'closed') return;
+      clearTimeout(this.#peekTimer);
+      this.#peekTimer = setTimeout(() => this.#openQueue('peek'), STEERING_PEEK_MS);
+    });
+    dock.addEventListener('pointerleave', (e) => {
+      if (!mouse(e)) return;
+      clearTimeout(this.#peekTimer);
+      this.#graceClose();
+    });
+    pop.addEventListener('pointerenter', (e) => {
+      if (mouse(e)) clearTimeout(this.#graceTimer);
+    });
+    pop.addEventListener('pointerleave', (e) => {
+      if (mouse(e)) this.#graceClose();
+    });
+    // Acting inside a peek keeps it: a press or focus there pins it.
+    pop.addEventListener('pointerdown', (e) => {
+      if (this.#queueMode === 'peek') this.#queueMode = 'pinned';
+      this.#startDrag(e);
+    });
+    pop.addEventListener('focusin', () => {
+      if (this.#queueMode === 'peek') this.#queueMode = 'pinned';
+    });
+    // The sheet is modal: Tab wraps inside it.
+    pop.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab' || !this.#sheet || this.#queueMode === 'closed') return;
+      const list = Array.from(
+        // Focusable, not enabled: a locked (aria-disabled) button is still in the tab sequence.
+        pop.querySelectorAll<HTMLElement>('button, textarea, [tabindex="0"]'),
+      ).filter((el) => !el.closest('[data-leaving]'));
+      if (!list.length) return;
+      const a = this.#active();
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (e.shiftKey && (a === first || a === pop)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && a === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+    // iOS Safari sends no click for a tap on a plain element unless a listener sits on it (or it shows a pointer):
+    // the scrim's own listener is what makes its tap close the sheet there. The delegated handler sees it too.
+    this.#scrim.addEventListener('click', () => {});
+    head.addEventListener('pointermove', (e) => this.#moveDrag(e));
+    head.addEventListener('pointerup', (e) => this.#endDrag(e));
+    head.addEventListener('pointercancel', (e) => this.#endDrag(e));
+  }
+
+  /** The dock pressed: open and pin (a peek is pinned), or close a pinned queue. A keyboard press moves focus in. */
+  #pressDock(e: MouseEvent): void {
+    if (this.#queueMode === 'pinned') {
+      this.sound('close', { emphasis: 'subtle' }, e);
+      this.#closeQueue(true);
+      return;
+    }
+    const was = this.#queueMode;
+    this.#openQueue('pinned', e.detail === 0);
+    if (was === 'closed' && this.queueOpen) this.sound('open', undefined, e);
+  }
+
+  #graceClose(): void {
+    clearTimeout(this.#graceTimer);
+    if (this.#queueMode !== 'peek') return;
+    this.#graceTimer = setTimeout(() => {
+      if (this.#queueMode === 'peek') this.#closeQueue(false);
+    }, STEERING_GRACE_MS);
+  }
+
+  /** The width query, watched only while the queue is open (a foldable crossing 640px then switches it in place). */
+  #watchPhone(on: boolean): void {
+    if (on && !this.#phone && typeof matchMedia === 'function') {
+      this.#phone = matchMedia(PHONE_MQ);
+      this.#phone.addEventListener?.('change', this.#onPhone);
+    } else if (!on && this.#phone) {
+      this.#phone.removeEventListener?.('change', this.#onPhone);
+      this.#phone = null;
+    }
+  }
+
+  #openQueue(mode: Exclude<QueueMode, 'closed'>, focusIn = false): void {
+    clearTimeout(this.#peekTimer);
+    clearTimeout(this.#graceTimer);
+    if (this.#layout !== 'dock' || !this.#dockRows.length || !this.isConnected) return;
+    const was = this.#queueMode;
+    if (!(was === 'pinned' && mode === 'peek')) this.#queueMode = mode;
+    if (was === 'closed') {
+      this.#watchPhone(true);
+      this.#sheet = !!this.#phone?.matches;
+      this.#placed = false;
+      this.#pop.toggleAttribute('data-sheet', this.#sheet);
+      this.#syncModal();
+      this.#pop.removeAttribute('inert');
+      document.addEventListener('pointerdown', this.#onDocDown, true);
+      document.addEventListener('keydown', this.#onDocKey, true);
+      const stopViewport = watchViewport(() => this.#placeQueue());
+      const stopVisual = watchVisualViewport(() => this.#placeQueue());
+      this.#unwatch = () => {
+        stopViewport();
+        stopVisual();
+      };
+      this.#placeQueue();
+      this.#pop.setAttribute('data-open', '');
+      this.#scrim.toggleAttribute('data-open', this.#sheet);
+      this.#dock.setAttribute('aria-expanded', 'true');
+    }
+    if (focusIn) {
+      const first = this.#dockList.querySelector<HTMLElement>('.as-item:not([data-leaving]) [data-act]');
+      (first ?? this.#popClose).focus({ preventScroll: true });
+    } else if (was === 'closed' && this.#sheet) {
+      // The sheet takes focus from the field, so the soft keyboard goes down and the sheet has the screen.
+      this.#pop.focus({ preventScroll: true });
+    }
+  }
+
+  #closeQueue(returnFocus: boolean): void {
+    clearTimeout(this.#peekTimer);
+    clearTimeout(this.#graceTimer);
+    if (this.#queueMode === 'closed') return;
+    this.#queueMode = 'closed';
+    this.#watchPhone(false);
+    this.#cancelDrag();
+    document.removeEventListener('pointerdown', this.#onDocDown, true);
+    document.removeEventListener('keydown', this.#onDocKey, true);
+    this.#unwatch?.();
+    this.#unwatch = null;
+    // Focus leaves before the queue goes inert (an inert subtree drops it on the body).
+    const a = this.#active();
+    if (a && (this.#pop.contains(a) || a === this.#pop)) {
+      const to = returnFocus && this.#dock.hasAttribute('data-shown') ? this.#dock : this.#fieldTarget();
+      to?.focus({ preventScroll: true });
+    }
+    this.#pop.removeAttribute('data-open');
+    this.#scrim.removeAttribute('data-open');
+    this.#pop.setAttribute('inert', '');
+    this.#dock.setAttribute('aria-expanded', 'false');
+  }
+
+  /** The field, as a focus target (the slotted composer's when there is one), or null when it is off. */
+  #fieldTarget(): HTMLElement | null {
+    if (this.#composer && this.#open()) return this.#composer as unknown as HTMLElement;
+    return this.#built && !this.#field.disabled && !this.#composer ? this.#field : null;
+  }
+
+  /** A press outside the queue and its button closes it (the scrim's own click does, so its tap never falls through). */
+  readonly #onDocDown = (e: PointerEvent): void => {
+    if (this.#queueMode === 'closed') return;
+    const path = e.composedPath();
+    if (path.includes(this.#pop) || path.includes(this.#dock) || path.includes(this.#scrim)) return;
+    // Focus inside goes to the dock, never the field (a tap there would raise the soft keyboard); a focusable
+    // target of this press takes it right after.
+    this.#closeQueue(true);
+  };
+
+  /** Esc closes the queue first (marked used, so a drawer under it stays) — not while a note's edit box has it. */
+  readonly #onDocKey = (e: KeyboardEvent): void => {
+    if (e.key !== 'Escape' || e.isComposing || e.defaultPrevented || this.#queueMode === 'closed') return;
+    if (e.composedPath().some((n) => n instanceof HTMLTextAreaElement && n.classList.contains('as-edit'))) return;
+    e.preventDefault();
+    this.sound('close', { emphasis: 'subtle' }, e);
+    this.#closeQueue(true);
+  };
+
+  /** The width crossed 640px while the queue is open (a foldable opened or closed): popover ↔ sheet in place. */
+  readonly #onPhone = (): void => {
+    if (!this.#built || this.#queueMode === 'closed') return;
+    const sheet = !!this.#phone?.matches;
+    if (sheet === this.#sheet) return;
+    this.#sheet = sheet;
+    this.#cancelDrag();
+    this.#pop.toggleAttribute('data-sheet', sheet);
+    this.#syncModal();
+    this.#scrim.toggleAttribute('data-open', sheet);
+    for (const k of ['left', 'top', 'width', 'max-height']) this.#pop.style.removeProperty(k);
+    this.#placed = false;
+    this.#placeQueue();
+  };
+
+  /** The sheet is modal (a scrim under it, focus in it): it says so; the popover beside the dock is not. */
+  #syncModal(): void {
+    if (this.#sheet) this.#pop.setAttribute('aria-modal', 'true');
+    else this.#pop.removeAttribute('aria-modal');
+  }
+
+  #placeQueue(): void {
+    if (this.#queueMode === 'closed' || !this.isConnected) return;
+    if (this.#sheet) {
+      this.#placeSheet();
+      return;
+    }
+    const pop = this.#pop;
+    pop.style.removeProperty('width');
+    const r = this.#anchor.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = window.innerHeight;
+    if ((!r.width && !r.height) || r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) {
+      // The button scrolled away (or was never laid out — then there is nothing to follow yet).
+      if (this.#placed) this.#closeQueue(false);
+      return;
+    }
+    const o = this.#probe.getBoundingClientRect();
+    const k = o.width > 0 ? o.width / 100 : 1;
+    // The card's natural height, read without lifting its cap: it scrolls its body, so the card reports the cap,
+    // and un-capping it to measure would let the body stop overflowing and drop where the reader scrolled to.
+    const body = this.#popBody;
+    const natural = pop.offsetHeight - body.clientHeight + body.scrollHeight;
+    const p = placePopover(r, pop.offsetWidth * k, natural * k, vw, vh, 'top', 'end', POP_GAP);
+    const left = `${Math.round((p.left - o.left) / k)}px`;
+    const top = `${Math.round((p.top - o.top) / k)}px`;
+    const max = `${Math.floor(p.maxHeight / k)}px`;
+    if (pop.style.left !== left) pop.style.left = left;
+    if (pop.style.top !== top) pop.style.top = top;
+    if (pop.style.maxHeight !== max) pop.style.maxHeight = max;
+    if (pop.getAttribute('data-side') !== p.side) pop.setAttribute('data-side', p.side);
+    this.#placed = true;
+  }
+
+  /**
+   * The sheet spans the screen's width and sits on the visual viewport's bottom — above the soft keyboard — with
+   * the scrim over the visible area. The probe maps viewport px into a transformed ancestor's (a drawer's) space.
+   */
+  #placeSheet(): void {
+    const pop = this.#pop;
+    const o = this.#probe.getBoundingClientRect();
+    const k = o.width > 0 ? o.width / 100 : 1;
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const box = readVisualViewport();
+    const vh = box ? box.height : window.innerHeight;
+    const vt = box ? box.top : 0;
+    pop.toggleAttribute('data-kb', !!box && window.innerHeight - box.height > 120);
+    const left = `${Math.round(-o.left / k)}px`;
+    const width = `${Math.round(vw / k)}px`;
+    pop.style.left = left;
+    pop.style.width = width;
+    pop.style.maxHeight = `${Math.floor((vh - Math.max(56, Math.round(vh * 0.12))) / k)}px`;
+    pop.style.top = `${Math.round((vt + vh - o.top) / k - pop.offsetHeight)}px`;
+    const sc = this.#scrim.style;
+    sc.left = left;
+    sc.width = width;
+    sc.top = `${Math.round((vt - o.top) / k)}px`;
+    sc.height = `${Math.round(vh / k)}px`;
+    this.#placed = true;
+  }
+
+  #startDrag(e: PointerEvent): void {
+    if (!this.#sheet || this.#drag || e.button !== 0) return;
+    const target = e.target as Element | null;
+    if (!target || !this.#popHead.contains(target) || target.closest('button')) return;
+    this.#drag = { id: e.pointerId, y: e.clientY, ly: e.clientY, lt: e.timeStamp, dy: 0, v: 0 };
+    try {
+      this.#popHead.setPointerCapture(e.pointerId);
+    } catch {}
+    this.#pop.setAttribute('data-drag', '');
+  }
+
+  #moveDrag(e: PointerEvent): void {
+    const d = this.#drag;
+    if (!d || e.pointerId !== d.id) return;
+    const dt = Math.max(1, e.timeStamp - d.lt);
+    d.v = (e.clientY - d.ly) / dt;
+    d.ly = e.clientY;
+    d.lt = e.timeStamp;
+    d.dy = Math.max(0, e.clientY - d.y);
+    this.#pop.style.transform = `translateY(${d.dy}px)`;
+  }
+
+  /** Released: past the mark (or flicked) the sheet goes, from where it is; else it springs back. */
+  #endDrag(e: PointerEvent): void {
+    const d = this.#drag;
+    if (!d || e.pointerId !== d.id) return;
+    // Held still before letting go: no flick (no move came to lower the speed).
+    const v = e.timeStamp - d.lt > 100 ? 0 : d.v;
+    const gone = e.type === 'pointerup' && sheetDismisses(d.dy, v, this.#pop.offsetHeight);
+    this.#cancelDrag();
+    if (gone) {
+      this.sound('close', { emphasis: 'subtle' }, e);
+      this.#closeQueue(true);
+    }
+  }
+
+  #cancelDrag(): void {
+    if (!this.#drag) return;
+    this.#drag = null;
+    this.#pop.removeAttribute('data-drag');
+    this.#pop.style.removeProperty('transform');
   }
 
   #leave(el: HTMLElement): void {

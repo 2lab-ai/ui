@@ -27,6 +27,75 @@ textarea { margin: 0; letter-spacing: inherit; }
 svg { display: block; flex: none; }
 .as { position: relative; container: as / inline-size; min-width: 0; color: var(--as-text); }
 
+/* Dock (data.queue 'dock'): notes the host's list holds wait behind a round button above the element's top right —
+   it takes no height. It pops in with the first note, bumps on each new one, spins a ring while a note is on its way,
+   turns the fail colour when one failed. --ui-steering-dock-gap / -right move it (the host knows what sits there). */
+.as-dock { position: absolute; z-index: 3; right: var(--ui-steering-dock-right, 0px);
+  bottom: calc(100% + var(--ui-steering-dock-gap, 8px)); display: grid; place-items: center; width: 32px; height: 32px;
+  border-radius: 999px; background: var(--as-card); color: var(--as-ink);
+  box-shadow: 0 0 0 1px var(--as-line), var(--ib-shadow, 0 2px 8px color-mix(in srgb, var(--text) 10%, transparent));
+  font-size: 13px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0; cursor: pointer;
+  opacity: 0; visibility: hidden; transform: scale(0.6);
+  transition: opacity 160ms ease, transform 240ms var(--as-ease), visibility 0s linear 240ms, background-color 160ms ease,
+    color 160ms ease, box-shadow 160ms ease; }
+.as-dock[data-shown] { opacity: 1; visibility: visible; transform: none;
+  transition: opacity 160ms ease, transform 360ms cubic-bezier(0.34, 1.4, 0.64, 1), visibility 0s, background-color 160ms ease,
+    color 160ms ease, box-shadow 160ms ease; }
+/* The dock's box without its transforms: the open queue is placed against it. */
+.as-anchor { position: absolute; right: var(--ui-steering-dock-right, 0px); bottom: calc(100% + var(--ui-steering-dock-gap, 8px));
+  width: 32px; height: 32px; visibility: hidden; pointer-events: none; }
+.as-dock-n { position: relative; min-width: 1ch; text-align: center; }
+.as-dock-ring { position: absolute; inset: -3px; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: conic-gradient(from 0deg, transparent 0 62%, var(--as-accent) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px)); transition: opacity 160ms ease; }
+.as-dock[data-tone="run"] .as-dock-ring { opacity: 1; animation: as-spin 900ms linear infinite; }
+.as-dock[aria-expanded="true"] { background: var(--as-solid); color: var(--as-on-solid); box-shadow: 0 0 0 1px var(--as-solid); }
+.as-dock[data-tone="fail"] { background: var(--as-fail); color: var(--as-on-solid); box-shadow: 0 0 0 1px var(--as-fail); }
+.as-dock.is-bump { animation: as-bump 420ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.as-dock:focus-visible { outline: 2px solid var(--as-accent); outline-offset: 2px; }
+@media (hover: hover) {
+  .as-dock[data-tone="idle"][aria-expanded="false"]:hover { background: color-mix(in srgb, var(--text) 6%, var(--as-card)); }
+}
+.as-dock:active { transform: scale(0.94); }
+
+/* The open queue: a raised card above the dock, its right edge on the dock's (fixed: no ancestor clips it). */
+.as-probe { position: fixed; left: 0; top: 0; width: 100px; height: 0; visibility: hidden; pointer-events: none; }
+.as-pop { position: fixed; z-index: var(--ui-steering-pop-z, 160); left: 0; top: 0; box-sizing: border-box;
+  display: flex; flex-direction: column; width: min(380px, calc(100vw - 16px)); max-width: calc(100vw - 16px);
+  border-radius: 12px; background: var(--as-card); color: var(--as-text); outline: none;
+  box-shadow: 0 0 0 1px var(--as-line), var(--ib-shadow-raised, 0 14px 30px color-mix(in srgb, var(--text) 14%, transparent));
+  transform-origin: bottom right; opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(4px) scale(0.97);
+  transition: opacity 140ms ease, transform 180ms var(--as-ease), visibility 0s linear 180ms; }
+.as-pop[data-side="bottom"] { transform-origin: top right; transform: translateY(-4px) scale(0.97); }
+.as-pop[data-open] { opacity: 1; visibility: visible; pointer-events: auto; transform: none;
+  transition: opacity 160ms ease, transform 240ms var(--as-ease), visibility 0s; }
+.as-pop-head { position: relative; display: flex; flex: none; align-items: center; gap: 6px; padding: 8px 6px 6px 14px;
+  color: var(--as-muted); font-size: 10px; font-weight: 500; line-height: 16px; letter-spacing: 0.5px; text-transform: uppercase; }
+.as-pop-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.as-pop-close { margin-left: auto; text-transform: none; }
+.as-pop-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 10px 10px; }
+.as-grab { display: none; }
+.as-scrim { position: fixed; z-index: calc(var(--ui-steering-pop-z, 160) - 1); left: 0; top: 0; width: 0; height: 0;
+  background: var(--scrim, color-mix(in srgb, var(--text) 32%, transparent)); opacity: 0; visibility: hidden;
+  pointer-events: none; touch-action: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: opacity 200ms ease, visibility 0s linear 200ms; }
+.as-scrim[data-open] { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 240ms ease, visibility 0s; }
+
+/* Under 640px: a bottom sheet over the scrim, the visual viewport's width, above the keyboard and the home bar. Its
+   head drags it down; the grabber says so. iOS's sheet curve in, a quicker one out. */
+.as-pop[data-sheet] { max-width: none; border-radius: 16px 16px 0 0; opacity: 1; transform: translateY(100%);
+  transform-origin: bottom center; padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 0 0 1px var(--as-line), 0 -8px 28px color-mix(in srgb, var(--text) 12%, transparent);
+  transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 260ms; }
+.as-pop[data-sheet][data-open] { transform: none; transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s; }
+.as-pop[data-sheet][data-kb] { padding-bottom: 8px; }
+.as-pop[data-drag] { transition: none !important; }
+.as-pop[data-sheet] .as-pop-head { padding: 22px 8px 8px 18px; font-size: 11px; touch-action: none; cursor: grab; }
+.as-pop[data-sheet] .as-grab { display: block; position: absolute; top: 8px; left: 50%; width: 36px; height: 5px;
+  margin-left: -18px; border-radius: 3px; background: var(--as-faint); }
+.as-pop[data-sheet] .as-pop-body { padding: 2px 12px 8px; }
+
 /* Queue: label + count, then the notes. Opens and closes by height (grid rows), never jumps. */
 .as-queue { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 360ms var(--as-ease); }
 .as-queue[data-open] { grid-template-rows: 1fr; }
@@ -133,22 +202,36 @@ svg.as-i { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: 
 @keyframes as-in { from { opacity: 0; transform: translateY(6px); } }
 @keyframes as-spin { to { transform: rotate(360deg); } }
 @keyframes as-breathe { 50% { opacity: 0.35; } }
+@keyframes as-bump { 30% { transform: scale(1.16); } }
 
 @container as (max-width: 380px) {
   .as-row { grid-template-columns: minmax(0, 1fr); }
   .as-acts { justify-content: flex-end; margin-right: -2px; }
+}
+/* The open queue measures itself (a 380px card, a phone-wide sheet): its notes take the full width, buttons under. */
+.as-pop { container: as-pop / inline-size; }
+@container as-pop (max-width: 520px) {
+  .as-pop .as-row { grid-template-columns: minmax(0, 1fr); }
+  .as-pop .as-acts { justify-content: flex-end; margin-right: -2px; }
 }
 @media (pointer: coarse) {
   .as-btn { height: 44px; padding: 0 12px 0 10px; }
   .as-btn.is-icon { width: 44px; padding: 0; }
   .as-btn.is-primary { padding: 0 14px; }
   .as-send { width: 44px; height: 44px; }
+  .as-dock { width: 44px; height: 44px; font-size: 15px; }
+  .as-anchor { width: 44px; height: 44px; }
   .as-field { min-height: 52px; }
   .as-input, .as-edit { font-size: 16px; }
   .as-input { margin: 12px 0; }
   .as-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .as-row[data-state="sending"]::before, .as-spin { animation: none; }
+  .as-row[data-state="sending"]::before, .as-spin, .as-dock.is-bump { animation: none; }
+  .as-dock[data-tone="run"] .as-dock-ring { animation: none; background: var(--as-accent); }
+  /* Nothing moves: the dock, the queue and the sheet fade. */
+  .as-dock, .as-dock[data-shown], .as-pop, .as-pop[data-side="bottom"], .as-pop[data-sheet] { transform: none; }
+  .as-pop[data-sheet] { opacity: 0; transition: opacity 160ms ease, visibility 0s linear 160ms; }
+  .as-pop[data-sheet][data-open] { opacity: 1; transition: opacity 160ms ease, visibility 0s; }
 }
 `;
