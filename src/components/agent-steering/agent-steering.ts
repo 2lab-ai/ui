@@ -134,6 +134,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   #popTitle!: HTMLElement;
   #popCount!: HTMLElement;
   #popClose!: HTMLButtonElement;
+  #popBody!: HTMLElement;
   #dockList!: HTMLElement;
   #scrim!: HTMLElement;
   #probe!: HTMLElement;
@@ -719,6 +720,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.#popTitle = this.$('.as-pop-title') as HTMLElement;
     this.#popCount = this.$('.as-pop-count') as HTMLElement;
     this.#popClose = this.$('.as-pop-close') as HTMLButtonElement;
+    this.#popBody = this.$('.as-pop-body') as HTMLElement;
     this.#dockList = this.$('.as-list.is-docked') as HTMLElement;
     this.#list = this.$('.as-queue .as-list') as HTMLElement;
     this.#scrim = this.$('.as-scrim') as HTMLElement;
@@ -868,7 +870,8 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     pop.addEventListener('keydown', (e) => {
       if (e.key !== 'Tab' || !this.#sheet || this.#queueMode === 'closed') return;
       const list = Array.from(
-        pop.querySelectorAll<HTMLElement>('button:not([aria-disabled="true"]), textarea, [tabindex="0"]'),
+        // Focusable, not enabled: a locked (aria-disabled) button is still in the tab sequence.
+        pop.querySelectorAll<HTMLElement>('button, textarea, [tabindex="0"]'),
       ).filter((el) => !el.closest('[data-leaving]'));
       if (!list.length) return;
       const a = this.#active();
@@ -1045,7 +1048,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     const k = o.width > 0 ? o.width / 100 : 1;
     // The card's natural height, read without lifting its cap: it scrolls its body, so the card reports the cap,
     // and un-capping it to measure would let the body stop overflowing and drop where the reader scrolled to.
-    const body = this.$('.as-pop-body') as HTMLElement;
+    const body = this.#popBody;
     const natural = pop.offsetHeight - body.clientHeight + body.scrollHeight;
     const p = placePopover(r, pop.offsetWidth * k, natural * k, vw, vh, 'top', 'end', POP_GAP);
     const left = `${Math.round((p.left - o.left) / k)}px`;

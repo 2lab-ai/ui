@@ -304,7 +304,7 @@ export const doc: ComponentDoc = {
     ['Enter / Esc (editing)', 'Save the edit / keep the original'],
     [
       'Tab',
-      'The dock (while notes wait) and, when open, the queue’s notes and its ✕; then a note on its way in, the host’s tools, the field and Send',
+      'The dock (while notes wait) and, when open, its ✕ and the queue’s notes; then a note on its way in, the host’s tools, the field and Send',
     ],
   ],
   a11y: [
