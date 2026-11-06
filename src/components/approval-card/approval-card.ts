@@ -110,6 +110,8 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
   #clockFor = 0;
   #timer = 0;
   #morphTimer = 0;
+  /** This render patches the card in place (its slide is on screen) — see update(). */
+  #patch = false;
   #layout: 'card' | 'row' | '' = '';
   #enter = false;
   #focusOther = false;
@@ -294,6 +296,8 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
         true,
       );
     if (!ok) e.preventDefault();
+    // Inside its listener, so the slide hears "busy" from the card instead of calling itself done.
+    else this.#syncSlide();
   }
 
   #select(id: string, byPointer: boolean): void {
@@ -527,6 +531,7 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
   /** Card ↔ row: the old layout fades and blurs out on top while the height glides to the new one. */
   protected override update(): void {
     const d = this.data;
+    const was = this.#id;
     if (d) this.#sync(d);
     const next = d ? (this.#eff(d).status === 'resolved' ? 'row' : 'card') : '';
     const prev = this.#layout;
@@ -545,13 +550,22 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
       }
     }
     this.#layout = next;
+    // The same prompt staying a card with its slide on screen is patched, not redrawn: a redrawn slide would drop a drag
+    // in progress, focus on its grip, and a commit still sliding home (the approval would never be sent). Another
+    // prompt gets a fresh slide — a gesture never carries over to it.
+    this.#patch = prev === 'card' && next === 'card' && was === this.#id && !!this.$('.ac-slide');
     super.update();
+    this.#patch = false;
     this.#enter = false;
     if (ghost) this.#morph(ghost, fromH, top);
     if (this.#focusOther) {
       this.#focusOther = false;
       this.$<HTMLInputElement>('.ac-other input')?.focus();
     }
+  }
+
+  protected override patchesInPlace(): boolean {
+    return this.#patch;
   }
 
   #morph(ghost: HTMLElement, fromH: number, top: number): void {
