@@ -1676,6 +1676,226 @@ describe('face TL;DR row (0.20.0)', () => {
   });
 });
 
+// 0.34.0 — follow-ups (soma-work 2026-11-06): the issues and PRs a finished run left open, one gradient line each,
+// right under the title bar; a press sends ui-followup (the host opens it and drops the line).
+describe('face follow-up bar (0.34.0)', () => {
+  const faceOf = (el: UiAgentInbox, id: string) => card(el, id).querySelector<HTMLElement>('.ib-face')!;
+  const DONE: InboxCard = {
+    id: 'fix',
+    title: 'Fix #911',
+    status: 'done',
+    summary: 'Why it is here',
+    tldr: { lines: ['Done.'] },
+  };
+  const FU = [
+    {
+      id: 'https://github.com/o/r/issues/918',
+      kind: 'issue' as const,
+      text: '#918',
+      title: 'Phone chrome follow-ups',
+      status: 'Open',
+      href: 'https://github.com/o/r/issues/918',
+    },
+    {
+      id: 'https://github.com/o/r/pull/950',
+      kind: 'pr' as const,
+      text: '#950',
+      title: 'Draft: retry the queue',
+      status: 'Draft',
+    },
+  ];
+
+  it('draws one line per follow-up right under the head, before every row, each part escaped', () => {
+    const el = mount(
+      board({
+        ...DONE,
+        followups: [...FU, { id: 'x', kind: 'issue', text: '<b>#1</b>', title: '<img src=x onerror=alert(1)>' }],
+      }),
+    );
+    const face = faceOf(el, 'fix');
+    const kids = Array.from(face.children).map((d) => d.className.split(' ')[0]);
+    expect(kids[0]).toBe('ib-head');
+    expect(kids[1]).toBe('ib-fu');
+    const bar = face.querySelector<HTMLElement>('.ib-fu')!;
+    expect(bar.getAttribute('role')).toBe('group');
+    expect(bar.getAttribute('aria-label')).toBe('Follow-ups');
+    const lines = Array.from(bar.querySelectorAll<HTMLButtonElement>('button.ib-fu-line'));
+    expect(lines).toHaveLength(3);
+    expect(lines[0].getAttribute('data-followup')).toBe(FU[0].id);
+    expect(lines[0].classList.contains('is-issue')).toBe(true);
+    expect(lines[1].classList.contains('is-pr')).toBe(true);
+    expect(lines[0].querySelector('.ib-fu-text')?.textContent).toBe('#918 · Phone chrome follow-ups');
+    expect(lines[0].querySelector('.ib-fu-st')?.textContent).toBe('Open');
+    expect(lines[0].querySelector('svg')).not.toBeNull();
+    expect(lines[0].getAttribute('title')).toBe('Open follow-up #918 — Phone chrome follow-ups · Open');
+    expect(lines[2].querySelector('.ib-fu-text')?.textContent).toBe('<b>#1</b> · <img src=x onerror=alert(1)>');
+    expect(bar.querySelector('img, b')).toBeNull();
+  });
+
+  it('a press sends ui-followup { cardId, id, kind, href } and never toggles the card; the host owns the state', () => {
+    const el = mount(board({ ...DONE, followups: FU }));
+    const got: unknown[] = [];
+    const toggles = vi.fn();
+    el.addEventListener('ui-followup', (e) => got.push((e as CustomEvent).detail));
+    el.addEventListener('ui-toggle', toggles);
+    const [first, second] = Array.from(card(el, 'fix').querySelectorAll<HTMLButtonElement>('button.ib-fu-line'));
+    first.click();
+    second.click();
+    expect(got).toEqual([
+      { cardId: 'fix', id: FU[0].id, kind: 'issue', href: FU[0].href },
+      { cardId: 'fix', id: FU[1].id, kind: 'pr', href: '' },
+    ]);
+    expect(toggles).not.toHaveBeenCalled();
+    expect(faceOf(el, 'fix').getAttribute('aria-expanded')).not.toBe('true');
+    // Enter on a line is the button's (the face does not take it).
+    key(first, 'Enter');
+    expect(toggles).not.toHaveBeenCalled();
+    // Still drawn until the host drops it; dropped, focus goes to the next line.
+    expect(card(el, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(2);
+    second.focus();
+    el.data = board({ ...DONE, followups: [FU[1]] });
+    el.renderNow();
+    expect(card(el, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(1);
+    el.data = board(DONE);
+    el.renderNow();
+    expect(card(el, 'fix').querySelector('.ib-fu')).toBeNull();
+    expect((el.shadowRoot!.activeElement as HTMLElement | null)?.classList.contains('ib-face')).toBe(true);
+  });
+
+  it('at most five lines, then "+N more"; bad entries are skipped; an unsafe href is not sent', () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({ id: `u${i}`, kind: 'issue' as const, text: `#${i}` }));
+    const el = mount(
+      board({
+        ...DONE,
+        followups: [
+          { id: '', kind: 'issue', text: '#0' },
+          { id: 'w', kind: 'wiki' as never, text: 'Page' },
+          { id: 'n', kind: 'pr', text: ' ' },
+          { id: 'j', kind: 'pr', text: '#77', href: 'javascript:alert(1)' },
+          ...many,
+        ],
+      }),
+    );
+    const bar = card(el, 'fix').querySelector<HTMLElement>('.ib-fu')!;
+    expect(bar.querySelectorAll('button.ib-fu-line')).toHaveLength(5);
+    expect(bar.querySelector('.ib-fu-more')?.textContent).toBe('+4 more');
+    const got: unknown[] = [];
+    el.addEventListener('ui-followup', (e) => got.push((e as CustomEvent).detail));
+    bar.querySelector<HTMLButtonElement>('button.ib-fu-line')!.click();
+    expect(got).toEqual([{ cardId: 'fix', id: 'j', kind: 'pr', href: '' }]);
+  });
+
+  it('"+N more" shows every line in place and hands focus to the first one it showed', () => {
+    const many = Array.from({ length: 7 }, (_, i) => ({ id: `u${i}`, kind: 'issue' as const, text: `#${i}` }));
+    const el = mount(board({ ...DONE, followups: many }));
+    const more = card(el, 'fix').querySelector<HTMLButtonElement>('button.ib-fu-more')!;
+    expect(more.textContent).toBe('+2 more');
+    const toggles = vi.fn();
+    el.addEventListener('ui-toggle', toggles);
+    more.focus();
+    more.click();
+    el.renderNow();
+    const lines = Array.from(card(el, 'fix').querySelectorAll<HTMLButtonElement>('button.ib-fu-line'));
+    expect(lines).toHaveLength(7);
+    expect(card(el, 'fix').querySelector('.ib-fu-more')).toBeNull();
+    expect(toggles).not.toHaveBeenCalled();
+    expect(el.shadowRoot!.activeElement).toBe(lines[5]);
+  });
+
+  // Review (astra-zhuge, ui#34): keys, successor focus, the overflow button, a face that is not a button, stale state.
+  const fu = (ids: string[]) => ids.map((id) => ({ id, kind: 'issue' as const, text: `#${id}` }));
+  const lineOf = (el: UiAgentInbox, cardId: string, id: string) =>
+    Array.from(card(el, cardId).querySelectorAll<HTMLButtonElement>('button.ib-fu-line')).find(
+      (b) => b.getAttribute('data-followup') === id,
+    )!;
+  const active = (el: UiAgentInbox) => el.shadowRoot!.activeElement as HTMLElement | null;
+
+  it('keys never collide across cards: "a:b"/"c" and "a"/"b:c" keep their own focus', () => {
+    const A = { ...DONE, id: 'a:b', followups: fu(['c']) };
+    const B = { ...DONE, id: 'a', followups: fu(['b:c', 'z']) };
+    const el = mount(board(A, B));
+    expect(lineOf(el, 'a:b', 'c').dataset.key).not.toBe(lineOf(el, 'a', 'b:c').dataset.key);
+    lineOf(el, 'a', 'b:c').focus();
+    el.data = board(A, { ...B, title: 'renamed' });
+    el.renderNow();
+    expect(active(el)).toBe(lineOf(el, 'a', 'b:c'));
+    // A repeated id in one card is drawn once.
+    document.body.innerHTML = '';
+    const dup = mount(board({ ...DONE, followups: fu(['x', 'x', 'y']) }));
+    expect(card(dup, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(2);
+  });
+
+  it('a dropped focused line hands focus to its successor, else its predecessor, else the face', () => {
+    const el = mount(board({ ...DONE, followups: fu(['A', 'B', 'C', 'D']) }));
+    lineOf(el, 'fix', 'C').focus();
+    el.data = board({ ...DONE, followups: fu(['A', 'B', 'D']) });
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-followup')).toBe('D');
+    el.data = board({ ...DONE, followups: fu(['A', 'B']) });
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-followup')).toBe('B');
+    el.data = board(DONE);
+    el.renderNow();
+    expect(active(el)?.classList.contains('ib-face')).toBe(true);
+  });
+
+  it('"+N more" taken away by the host hands focus to the last line', () => {
+    const el = mount(board({ ...DONE, followups: fu(['1', '2', '3', '4', '5', '6']) }));
+    card(el, 'fix').querySelector<HTMLButtonElement>('button.ib-fu-more')!.focus();
+    el.data = board({ ...DONE, followups: fu(['1', '2', '3', '4', '5']) });
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-followup')).toBe('5');
+  });
+
+  it('a face that is not a button still takes the focus back', () => {
+    const bare: InboxCard = { id: 'bare', title: 'Bare', status: 'done', followups: fu(['only']) };
+    const el = mount({ columns: columnsByStatus([bare]), openLabel: false });
+    expect(card(el, 'bare').querySelector('.ib-face')!.hasAttribute('role')).toBe(false);
+    lineOf(el, 'bare', 'only').focus();
+    el.data = { columns: columnsByStatus([{ ...bare, followups: [] }]), openLabel: false };
+    el.renderNow();
+    expect(active(el)?.classList.contains('ib-face')).toBe(true);
+  });
+
+  it('"show all" is forgotten when the card leaves the board', () => {
+    const seven = { ...DONE, followups: fu(['1', '2', '3', '4', '5', '6', '7']) };
+    const el = mount(board(seven));
+    card(el, 'fix').querySelector<HTMLButtonElement>('button.ib-fu-more')!.click();
+    el.renderNow();
+    expect(card(el, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(7);
+    el.data = board(RUN);
+    el.renderNow();
+    el.data = board(RUN, seven);
+    el.renderNow();
+    expect(card(el, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(5);
+  });
+
+  it('drawn whatever rows the layout picked; none without follow-ups; Korean words', () => {
+    const left = mount(board({ ...DONE, followups: FU, rows: ['task'] }));
+    expect(card(left, 'fix').querySelector('.ib-fu')).not.toBeNull();
+    document.body.innerHTML = '';
+    const none = mount(board({ ...DONE, followups: [] }));
+    expect(card(none, 'fix').querySelector('.ib-fu')).toBeNull();
+    document.body.innerHTML = '';
+    const many = Array.from({ length: 7 }, (_, i) => ({ id: `u${i}`, kind: 'pr' as const, text: `#${i}` }));
+    const ko = mount(board({ ...DONE, followups: [{ ...FU[0], status: '열림' }, ...many] }), { lang: 'ko' });
+    const bar = card(ko, 'fix').querySelector<HTMLElement>('.ib-fu')!;
+    expect(bar.getAttribute('aria-label')).toBe('후속 작업');
+    expect(bar.querySelector('button.ib-fu-line')?.getAttribute('title')).toBe(
+      '후속 작업 #918 열기 — Phone chrome follow-ups · 열림',
+    );
+    expect(bar.querySelector('.ib-fu-more')?.textContent).toBe('외 3개');
+  });
+
+  it('the gradient text has its reduced-motion and forced-colors fallbacks', () => {
+    const css = monoStyles.replace(/\s+/g, ' ');
+    expect(css).toMatch(/\.ib-fu-text \{[^}]*background-clip: text/);
+    expect(css).toMatch(/@keyframes ib-fu-flow/);
+    expect(css).toMatch(/prefers-reduced-motion: reduce\) \{ \.ib-fu-text \{ animation: none; \}/);
+    expect(css).toMatch(/forced-colors: active\) \{[^@]*\.ib-fu-text \{[^}]*color: ButtonText/);
+  });
+});
+
 // 0.25.0 — the mono palette (--chroma 0): a state shows its colour on its mark only.
 describe('mono palette rules', () => {
   const css = monoStyles.replace(/\s+/g, ' ');
