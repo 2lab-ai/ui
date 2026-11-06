@@ -930,7 +930,8 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#level = 0;
     const a = this.#activeInside();
     // Focus that moved on to a control slotted into the row (slot "end") while the microphone was asked stays there.
-    const doc = this.ownerDocument.activeElement;
+    // Read from the root the composer lives in (a document, or a parent component's shadow root).
+    const doc = (this.getRootNode() as Document | ShadowRoot).activeElement;
     const slotted = !!doc && doc !== this && this.contains(doc);
     if (!slotted && (!a || a.dataset.act === 'voice')) this.#wantFocus = 'rec-done';
     rec.timer = window.setInterval(() => this.#tick(rec), 250);
