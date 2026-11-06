@@ -132,6 +132,12 @@ export const doc: ComponentDoc = {
       description: 'Offer “Disable this rule for this session” / Explain.',
     },
     {
+      name: 'data.irreversible',
+      type: 'string',
+      description:
+        'What cannot be undone once approved (“prod 배포”, “force push”) — the host’s own classification. Approve becomes a slide (<ui-slide-confirm tone="danger">, “Slide to approve” / “밀어서 승인”) that sends the same ui-decide; ⌘↵ no longer approves; a line under the title says what is at stake; a failed approve is retried by sliding again. Deny, Explain and the rule box stay. The slide survives a data refresh for the same prompt (a drag, a commit still sliding home and focus on its grip carry on); its ui-confirm is stopped at the card (a capture listener above the card still sees it). It adds no gate: the card only appears where the host already asks.',
+    },
+    {
       name: 'data.question / choices / recommendedId / allowOther',
       type: 'string / Choice[] / string / boolean',
       description: 'Question: prompt, options (recommended first and preselected), free-text answer.',
@@ -185,6 +191,7 @@ export const doc: ComponentDoc = {
     'The card is a group labelled by its title; focus() lands on the card, so answering is a deliberate second step.',
     'Options are a radio group (arrows move, the recommended one is preselected and tagged).',
     'A polite live region announces the status changes (sending, failed, approved/denied/answered/expired).',
+    'An irreversible action is approved by sliding: the slide is a role="slider" (arrows, End to commit), so the keyboard path stays deliberate; the line saying what cannot be undone is part of the card’s description.',
     'Locked answers stay focusable with aria-disabled and say why (canAnswer string).',
     'The countdown pauses while the card is hovered or focused; reduced motion removes the morph to a row.',
     'Sound (opt-in, @2lab.ai/ui/sound): Approve, Explain and an answered question tap, Deny plays close — once the answer is not prevented; keystrokes in the free-text box play type while typing sounds are on; expiry is silent. Silent until the page turns sound on.',
@@ -210,6 +217,32 @@ export const doc: ComponentDoc = {
         'A Bash call that matched a dangerous-command rule: risk badge, the command, a countdown that pauses while you read. Approve with the rule ticked to stop being asked this session.',
       height: 520,
       create: () => stage(host(card(bashMigration()))),
+    },
+    {
+      id: 'irreversible',
+      title: 'Irreversible — slide to approve',
+      description:
+        'A deploy to prod the agent was not told to run on its own: the host marks it irreversible, so Approve is a slide and ⌘↵ does nothing. Deny stays one press.',
+      height: 520,
+      create: () =>
+        stage(
+          host(
+            card(
+              {
+                ...bashMigration(),
+                id: 'approval_9d21',
+                irreversible: 'prod 배포',
+                rules: [],
+                canDisableRule: false,
+                input: {
+                  command: 'gh pr merge 1287 --merge --repo 2lab-ai/soma-work  # main → deploy/prod',
+                  description: 'Merge the release PR into deploy/prod',
+                },
+              },
+              { lang: 'ko' },
+            ),
+          ),
+        ),
     },
     {
       id: 'diff',

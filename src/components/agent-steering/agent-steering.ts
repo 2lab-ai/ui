@@ -1255,7 +1255,7 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   }
 
   /**
-   * A key in the composer's own field or buttons — not in a control the host slotted into it (its slot "end", 0.34.0):
+   * A key in the composer's own field or buttons — not in a control the host slotted into it (its slot "end", 0.36.0):
    * the event starts in the composer's shadow root. Such a control may keep its keys (a model picker's open menu
    * stops them), so arming steer on them would never be undone.
    */

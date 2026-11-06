@@ -1999,7 +1999,7 @@ describe('sound', () => {
   });
 });
 
-// ── The end slot (0.34.0) ──
+// ── The end slot (0.36.0) ──
 
 describe('<ui-composer> end slot', () => {
   const own = (el: UiComposer, text = 'Model') => {

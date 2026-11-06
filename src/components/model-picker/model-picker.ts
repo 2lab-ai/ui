@@ -786,7 +786,7 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const level = modelEffortLabel(levelKey, this.#langKey);
     const pending = typeof d.busy?.model === 'string' ? d.busy.model : '';
 
-    // compact (0.34.0): a tight row (a phone's composer) reads the maker's mark and the level; the name is in the
+    // compact (0.36.0): a tight row (a phone's composer) reads the maker's mark and the level; the name is in the
     // label and the tooltip. Without a level the short name stands in, so the trigger never reads a mark alone.
     const compact = this.hasAttribute('compact');
     const shown = compact ? (level ? '' : (curOpt && curOpt.model.short) || name) : name;

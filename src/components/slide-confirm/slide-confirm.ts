@@ -205,6 +205,14 @@ export class UiSlideConfirm extends UiElement<SlideConfirmData> {
     this.requestRender();
   }
 
+  /** Keyboard landing: the grip (the host itself takes no focus). */
+  override focus(options?: FocusOptions): void {
+    if (!this.#grip() && this.isConnected) this.renderNow();
+    const grip = this.#grip();
+    if (grip) grip.focus(options);
+    else super.focus(options);
+  }
+
   attributeChangedCallback(): void {
     this.#check();
     this.requestRender();

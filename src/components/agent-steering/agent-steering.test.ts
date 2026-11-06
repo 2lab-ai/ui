@@ -721,7 +721,7 @@ describe('<ui-agent-steering> with a slotted <ui-composer> (D2 G5-1)', () => {
     expect(sent.map((d) => d.mode)).toEqual(['queue']);
   });
 
-  it('a ⌘/Ctrl+Enter inside a control slotted into the composer (slot="end") never arms steer (0.34.0)', () => {
+  it('a ⌘/Ctrl+Enter inside a control slotted into the composer (slot="end") never arms steer (0.36.0)', () => {
     const { el, c } = hosted({ running: true });
     const sent = events<SteeringSubmitDetail>(el, 'ui-submit');
     // A model picker's open menu keeps every key to itself (stopPropagation), so no bubbling handler sees it.

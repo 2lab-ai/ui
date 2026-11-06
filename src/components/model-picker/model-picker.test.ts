@@ -838,7 +838,7 @@ describe("the maker's mark", () => {
   });
 });
 
-describe('compact (0.34.0): the trigger in a tight row', () => {
+describe('compact (0.36.0): the trigger in a tight row', () => {
   const trig = (el: UiModelPicker) => q(el, '.mp-trigger')!;
 
   it('draws the maker’s mark and the level; the model’s name moves to the label and the tooltip', () => {
@@ -887,7 +887,7 @@ describe('compact (0.34.0): the trigger in a tight row', () => {
   });
 });
 
-describe('an anchor that moves under an open menu (0.34.0)', () => {
+describe('an anchor that moves under an open menu (0.36.0)', () => {
   it('closes the menu and gives focus that was in it back to the trigger — never to the page', () => {
     vi.useFakeTimers();
     try {
