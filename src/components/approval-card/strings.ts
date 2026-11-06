@@ -20,6 +20,10 @@ const en = {
   approve: 'Approve',
   deny: 'Deny',
   explain: 'Explain',
+  /** An irreversible action: the slide that approves it, its busy words, and the line that says what is at stake. */
+  slideApprove: 'Slide to approve',
+  slideBusy: 'Approving…',
+  irreversible: (what: string) => `Cannot be undone: ${what}`,
   disableRule: (n: number): string =>
     n > 1 ? 'Disable these rules for this session' : 'Disable this rule for this session',
   submit: 'Submit',
@@ -61,6 +65,9 @@ const ko: ApprovalStrings = {
   approve: 'Approve',
   deny: 'Deny',
   explain: 'Explain',
+  slideApprove: '밀어서 승인',
+  slideBusy: '승인 중…',
+  irreversible: (what: string) => `되돌릴 수 없음: ${what}`,
   disableRule: (n: number) => (n > 1 ? '이 세션에서 이 규칙들 끄기' : '이 세션에서 이 규칙 끄기'),
   submit: '제출하기',
   recommended: '추천',

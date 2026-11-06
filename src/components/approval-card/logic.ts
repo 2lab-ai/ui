@@ -88,6 +88,12 @@ export interface ApprovalPermissionData extends ApprovalCommon {
   canDisableRule?: boolean;
   /** Offer Explain (`decision: 'explain'`). */
   canExplain?: boolean;
+  /**
+   * What cannot be undone once approved (`prod 배포`, `force push`) — the host's own classification. Approve becomes a
+   * slide (`<ui-slide-confirm tone="danger">`) instead of a button, ⌘↵ no longer approves, and a line under the title
+   * says what is at stake; Deny, Explain and the rule checkbox stay. The slide sends the same `ui-decide`.
+   */
+  irreversible?: string;
 }
 
 export interface ApprovalQuestionData extends ApprovalCommon {
@@ -163,10 +169,20 @@ export function decisionOutcome(decision: ApprovalDecision): { outcome: Approval
   return { outcome: 'approved' };
 }
 
-/** The header badge: the host's risk, else `high` when a dangerous-command rule matched, else none. */
-export function riskOf(d: Pick<ApprovalPermissionData, 'risk' | 'rules'>): ApprovalRisk | undefined {
+/**
+ * The header badge: the host's risk, else `high` when a dangerous-command rule matched or the action cannot be undone,
+ * else none.
+ */
+export function riskOf(d: Pick<ApprovalPermissionData, 'risk' | 'rules' | 'irreversible'>): ApprovalRisk | undefined {
   if (d.risk === 'low' || d.risk === 'medium' || d.risk === 'high') return d.risk;
+  if (irreversibleOf(d)) return 'high';
   return Array.isArray(d.rules) && d.rules.length ? 'high' : undefined;
+}
+
+/** What the host says cannot be undone, trimmed; empty when the action is not marked irreversible. */
+export function irreversibleOf(d: Pick<ApprovalPermissionData, 'irreversible'> | null | undefined): string {
+  const v = d?.irreversible;
+  return typeof v === 'string' ? v.trim() : '';
 }
 
 /** The recommended choice id when it names one of the choices. */
