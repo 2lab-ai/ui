@@ -1094,7 +1094,8 @@ describe('<ui-composer> mode switch (0.26.0)', () => {
     expect(sw(mount({ submitLabel: 'Start task' }))).toBeNull();
     const el = mount({ submitLabel: 'Start task', hint: true, maxLength: 100, mode: PLAN });
     const end = q(el, '.cp-end')!;
-    expect(Array.from(end.children).map((c) => c.className.split(' ')[0])).toEqual([
+    expect(Array.from(end.children).map((c) => (c.localName === 'slot' ? 'slot' : c.className.split(' ')[0]))).toEqual([
+      'slot',
       'cp-hint',
       'cp-count',
       'cp-mode',
@@ -1995,5 +1996,75 @@ describe('sound', () => {
     key(muted.shadowRoot!.querySelector('.cp-field')!, 'Enter');
     await spy.settle();
     expect(spy.calls).toEqual([]);
+  });
+});
+
+// ── The end slot (0.34.0) ──
+
+describe('<ui-composer> end slot', () => {
+  const own = (el: UiComposer, text = 'Model') => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.slot = 'end';
+    b.textContent = text;
+    el.append(b);
+    return b;
+  };
+  const endSlot = (el: UiComposer) => q<HTMLSlotElement>(el, 'slot[name="end"]');
+
+  it('a host child with slot="end" sits on the toolbar row, before the hint, the counter and Send', () => {
+    const el = mount({ hint: true, maxLength: 100 });
+    const b = own(el);
+    const slot = endSlot(el)!;
+    expect(slot.parentElement!.classList.contains('cp-end')).toBe(true);
+    expect(slot.assignedElements()).toEqual([b]);
+    const kids = Array.from(q(el, '.cp-end')!.children);
+    expect(kids[0]).toBe(slot);
+    expect(kids.indexOf(q(el, '.cp-hint')!)).toBeGreaterThan(0);
+    expect(kids.indexOf(q(el, '.cp-count')!)).toBeGreaterThan(0);
+    expect(kids[kids.length - 1]).toBe(sendBtn(el));
+  });
+
+  it('a re-render keeps the slot node, so what is slotted stays assigned', () => {
+    const el = mount({ value: 'Hello', hint: true });
+    const b = own(el);
+    const slot = endSlot(el);
+    set(el, { busy: true, hint: false });
+    set(el, { busy: false, maxLength: 50 });
+    expect(endSlot(el)).toBe(slot);
+    expect(endSlot(el)!.assignedElements()).toEqual([b]);
+  });
+
+  it('the recorder row keeps it, before Cancel and Done', async () => {
+    stubMic();
+    const el = mount();
+    const b = own(el);
+    await startRec(el);
+    const slot = endSlot(el)!;
+    expect(slot.parentElement!.classList.contains('cp-rec')).toBe(true);
+    expect(slot.assignedElements()).toEqual([b]);
+    const kids = Array.from(q(el, '.cp-rec')!.children);
+    expect(kids.indexOf(slot)).toBeLessThan(kids.indexOf(act(el, 'rec-cancel')!));
+    act(el, 'rec-cancel')!.click();
+    expect(endSlot(el)!.parentElement!.classList.contains('cp-end')).toBe(true);
+  });
+
+  it('a click or Enter on the slotted control neither sends nor takes focus to the field', () => {
+    const el = mount({ value: 'Hello' });
+    const sub = events(el, 'ui-submit');
+    const b = own(el);
+    b.focus();
+    key(b, 'Enter');
+    b.click();
+    key(b, 'Enter', { metaKey: true });
+    expect(sub).toEqual([]);
+    expect(document.activeElement).toBe(b);
+    expect(el.value).toBe('Hello');
+  });
+
+  it('nothing slotted: the row is as before (the empty slot takes no room)', () => {
+    const el = mount();
+    expect(endSlot(el)!.assignedElements()).toEqual([]);
+    expect(styles).toMatch(/::slotted\(\[slot="end"\]\)\s*\{[^}]*min-width:\s*0/);
   });
 });

@@ -351,7 +351,7 @@ function currentIndex(opts: Opt[], cur: string): number {
 export class UiModelPicker extends UiElement<ModelPickerData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang', 'open', 'side'];
+    return ['lang', 'open', 'side', 'compact'];
   }
 
   #open = false;
@@ -783,15 +783,21 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const level = modelEffortLabel(levelKey, this.#langKey);
     const pending = typeof d.busy?.model === 'string' ? d.busy.model : '';
 
+    // compact (0.34.0): a tight row (a phone's composer) reads the maker's mark and the level; the name is in the
+    // label and the tooltip. Without a level the short name stands in, so the trigger never reads a mark alone.
+    const compact = this.hasAttribute('compact');
+    const shown = compact ? (level ? '' : (curOpt && curOpt.model.short) || name) : name;
+    const tip = why || (compact ? (level ? `${name} · ${level}` : name) : '');
     const trigger = `<button type="button" class="mp-trigger" part="trigger" data-key="mp-trigger" aria-haspopup="dialog" aria-expanded="${
       open ? 'true' : 'false'
     }" aria-controls="mp-menu" aria-label="${escAttr(t.trigger(name, level, off))}"${busy ? ' aria-busy="true"' : ''}${
-      off ? ` aria-disabled="true"${why ? ` title="${escAttr(why)}" aria-describedby="mp-why"` : ''}` : ''
-    }>${modelMarkHtml(pickerVendor(curOpt ? curOpt.model : { label: name }), 'mp-glyph')}<span class="mp-name">${esc(
-      name,
-    )}</span>${
+      off ? ' aria-disabled="true"' : ''
+    }${tip ? ` title="${escAttr(tip)}"` : ''}${off && why ? ' aria-describedby="mp-why"' : ''}>${modelMarkHtml(
+      pickerVendor(curOpt ? curOpt.model : { label: name }),
+      'mp-glyph',
+    )}${shown ? `<span class="mp-name">${esc(shown)}</span>` : ''}${
       level
-        ? `<span class="mp-level">&middot; <span class="mp-fx" data-effort="${escAttr(levelKey)}">${esc(level)}</span></span>`
+        ? `<span class="mp-level">${shown ? '&middot; ' : ''}<span class="mp-fx" data-effort="${escAttr(levelKey)}">${esc(level)}</span></span>`
         : ''
     }<span class="mp-chev" aria-hidden="true"></span></button>`;
 
