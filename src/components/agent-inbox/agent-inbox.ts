@@ -136,6 +136,16 @@ export interface InboxFollowup {
   href?: string;
 }
 
+/** 0.37.0 — one child of an epic card, listed on the epic's face (`card.children`). */
+export interface InboxChild {
+  /** The host's id for it (the child's card id when it is on the board) — sent back in `ui-child`. */
+  id: string;
+  title: string;
+  status: InboxStatus;
+  /** Replaces the status word (`Sleeping`, `Queued`). */
+  statusText?: string;
+}
+
 export interface InboxCard {
   id: string;
   title: string;
@@ -146,6 +156,21 @@ export interface InboxCard {
    * seen.
    */
   followups?: readonly InboxFollowup[];
+  /**
+   * 0.37.0 — the id of this card's epic (its parent card). The card carries `data-parent` and `is-child`, its epic
+   * `is-parent` while a child is drawn. A child drawn right after its epic, or after a sibling tied to it, in the
+   * same list is tied: indented, with a connector from the epic down to it (`is-tied`, the run's last `is-tied-last`).
+   * A pointer over, or a keyboard focus in, any card of the family (the epic and every card whose `parent` it is)
+   * marks every card of it on the board (`is-kin`).
+   */
+  parent?: string;
+  /**
+   * 0.37.0 — the epic's children, drawn right after the follow-up bar whatever `rows` says: one line (a toggle with
+   * the count, then a status dot and the title per child, clipped) that opens the full list in place — one line per
+   * child (dot, title, status word), each a button that sends `ui-child` `{ cardId, childId }`. Neither the toggle
+   * nor a child line ever toggles the card. Entries without an id or a title are skipped, a repeated id is drawn once.
+   */
+  children?: readonly InboxChild[];
   /** One or two sentences: why the card is here / where it stands (clamped to two lines). */
   summary?: string;
   /**
@@ -353,6 +378,9 @@ const STRINGS = {
     followups: 'Follow-ups',
     followupOpen: (text: string) => `Open follow-up ${text}`,
     followupMore: (n: number) => `+${n} more`,
+    children: 'Children',
+    childrenShow: 'Show all children',
+    childrenHide: 'Hide',
     badgeSelf: '(you)',
   },
   ko: {
@@ -391,6 +419,9 @@ const STRINGS = {
     followups: '후속 작업',
     followupOpen: (text: string) => `후속 작업 ${text} 열기`,
     followupMore: (n: number) => `외 ${n}개`,
+    children: '자식',
+    childrenShow: '자식 모두 보기',
+    childrenHide: '접기',
     badgeSelf: '(나)',
   },
 };
@@ -724,7 +755,7 @@ function fmtCount(kind: string, v: number): string {
   return kind === 'usd' ? fmtUsd(v) : fmtInt(v);
 }
 
-function statusWord(c: InboxCard, t: Strings): string {
+function statusWord(c: Pick<InboxCard, 'status' | 'statusText'>, t: Strings): string {
   const own = typeof c.statusText === 'string' ? c.statusText.trim() : '';
   return own || t.status[statusOf(c)];
 }
@@ -1049,6 +1080,58 @@ function renderFollowups(c: InboxCard, t: Strings, all: boolean): string {
   }</div>`;
 }
 
+/** An epic's children that can be drawn (0.37.0): an id and a title, each id once. */
+export function cardChildren(c: Pick<InboxCard, 'children'>): InboxChild[] {
+  const seen = new Set<string>();
+  return (Array.isArray(c?.children) ? c.children : []).filter((k): k is InboxChild => {
+    if (!k || typeof k !== 'object' || !str(k.id) || !str(k.title).trim()) return false;
+    if (seen.has(str(k.id))) return false;
+    seen.add(str(k.id));
+    return true;
+  });
+}
+
+/** A child's status as a dot (its status word is said beside it in the open list and in its tooltip). */
+const kidDot = (k: InboxChild): string =>
+  `<i class="ib-kdot" data-tone="${statusTone(statusOf(k))}" aria-hidden="true"></i>`;
+
+/**
+ * The children row (0.37.0): a one-line toggle — "Children 4", then a dot and the title per child, clipped — and the
+ * list it opens in place (`open`), one button per child. `listId` is the list's id, for the toggle's aria-controls.
+ */
+function renderChildren(c: InboxCard, t: Strings, open: boolean, listId: string): string {
+  const list = cardChildren(c);
+  if (!list.length) return '';
+  const cardId = String(c.id);
+  const action = open ? t.childrenHide : t.childrenShow;
+  const peek = open
+    ? ''
+    : `<span class="ib-kids-peek">${list
+        .map((k) => `<span class="ib-kid-peek">${kidDot(k)}${esc(str(k.title).trim())}</span>`)
+        .join('')}</span>`;
+  const lines = open
+    ? list
+        .map((k) => {
+          const id = str(k.id);
+          const title = str(k.title).trim();
+          const word = statusWord(k, t);
+          return `<li><button type="button" class="ib-kid" data-child="${escAttr(id)}" data-key="${escAttr(
+            `kc:${cardId}:${id}`,
+          )}" title="${escAttr(`${title} — ${word}`)}">${kidDot(k)}<span class="ib-kid-title">${esc(title)}</span><span class="ib-kid-st" data-tone="${statusTone(
+            statusOf(k),
+          )}">${esc(word)}</span></button></li>`;
+        })
+        .join('')
+    : '';
+  return `<div class="ib-kids"><button type="button" class="ib-kids-line" data-kids data-key="${escAttr(
+    `k:${cardId}`,
+  )}" aria-expanded="${open}" aria-controls="${escAttr(listId)}" aria-label="${escAttr(
+    `${t.children} ${list.length} — ${action}`,
+  )}" title="${escAttr(action)}"><span class="ib-kids-label">${esc(t.children)} <b>${list.length}</b></span>${peek}${CHEV_SVG}</button><ul class="ib-kids-list" id="${escAttr(
+    listId,
+  )}" role="list" aria-label="${escAttr(t.children)}"${open ? '' : ' hidden'}>${lines}</ul></div>`;
+}
+
 function renderRow(c: InboxCard, row: InboxRow, t: Strings): string {
   switch (row) {
     case 'summary':
@@ -1103,11 +1186,17 @@ function renderLinks(c: InboxCard, t: Strings): string {
     .join('')}${more > 0 ? `<span class="ib-links-more">+${more}</span>` : ''}</div>`;
 }
 
-function renderFace(c: InboxCard, t: Strings = STRINGS.en, allFollowups = false): string {
+function renderFace(
+  c: InboxCard,
+  t: Strings = STRINGS.en,
+  allFollowups = false,
+  kidsOpen = false,
+  kidsId = '',
+): string {
   return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c, t)}${renderStar(
     c,
     t,
-  )}</div>${renderFollowups(c, t, allFollowups)}${faceRows(c)
+  )}</div>${renderFollowups(c, t, allFollowups)}${renderChildren(c, t, kidsOpen, kidsId)}${faceRows(c)
     .map((r) => renderRow(c, r, t))
     .join('')}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
     statusOf(c),
@@ -1172,6 +1261,10 @@ interface Shell {
   col: string;
   status: InboxStatus | '';
   flip: Animation | null;
+  /** Its epic's id (`card.parent`), or `''` (0.37.0). */
+  parent: string;
+  /** The id of its children list (the children toggle's aria-controls, 0.37.0). */
+  kids: string;
 }
 interface GroupShell {
   el: HTMLElement;
@@ -1221,6 +1314,11 @@ const SKELETONS = [2, 3, 2];
 const SKEL_CARD =
   '<div class="ib-skel-card"><div class="ib-sk ib-sk-title"></div><div class="ib-sk ib-sk-meta"></div><div class="ib-sk ib-sk-pill"></div></div>';
 
+/** Set or clear a class only when it changes (no churn for observers). */
+function flag(el: Element, name: string, on: boolean): void {
+  if (el.classList.contains(name) !== on) el.classList.toggle(name, on);
+}
+
 /** A text field, a select or an editable region keeps its own Escape (clear, cancel, IME). */
 function ownsEscape(el: HTMLElement): boolean {
   const tag = String(el.tagName || '').toUpperCase();
@@ -1250,6 +1348,12 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #fuAll = new Set<string>();
   /** The card whose `+N more` was pressed: its first newly shown line takes focus after the render. */
   #fuFocus: string | null = null;
+  /** Epics whose children list is open (the children toggle was pressed, 0.37.0). */
+  #kidsOpen = new Set<string>();
+  /** The epic whose children toggle opened its list: its first child takes focus after the render. */
+  #kidsFocus: string | null = null;
+  /** The card under the pointer and the card a focus is in (0.37.0): each marks its family (`is-kin`). */
+  #kinAt: { pointer: string | null; focus: string | null } = { pointer: null, focus: null };
   /** Groups the person opened or closed (`gkey` → open); their choice rules over `group.open`. */
   #groupOpen = new Map<string, boolean>();
   /** Cards in a closed group this render: id → its column and group (for `reveal`). */
@@ -1305,6 +1409,15 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     super();
     this.root.addEventListener('click', (e) => this.#onClick(e as MouseEvent));
     this.root.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
+    // A family (0.37.0) is marked while the pointer is over one of its cards or a focus is in one; the CSS shows the
+    // pointer's only on hover devices, the focus's when visible. pointerover / pointerout bubble to the shadow root
+    // (pointerenter / pointerleave do not, and Chromium does not deliver them to a capture listener on the root).
+    this.root.addEventListener('pointerover', (e) => this.#kinPointer(e as PointerEvent, true));
+    this.root.addEventListener('pointerout', (e) => this.#kinPointer(e as PointerEvent, false));
+    this.root.addEventListener('focusin', (e) => this.#kin('focus', this.#cardOf(e.target as Element | null)));
+    this.root.addEventListener('focusout', (e) =>
+      this.#kin('focus', this.#cardOf((e as FocusEvent).relatedTarget as Element | null)),
+    );
     // Esc from a host's slotted body (light DOM) reaches the host, not the shadow root's own handler.
     this.addEventListener('keydown', (e) => this.#onHostKey(e));
   }
@@ -1472,6 +1585,27 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       this.requestRender();
       return;
     }
+    const child = target.closest?.('[data-child]');
+    if (child) {
+      const id = this.#cardOf(child);
+      if (id !== null && this.emit('ui-child', { cardId: id, childId: child.getAttribute('data-child') ?? '' }))
+        this.sound('navigate', { emphasis: 'subtle' }, e);
+      return;
+    }
+    const kids = target.closest?.('[data-kids]');
+    if (kids) {
+      // The children list opens and closes in place (silent, as "+N more" is); the card stays as it is.
+      const id = this.#cardOf(kids);
+      if (id === null) return;
+      if (this.#kidsOpen.delete(id)) this.#kidsFocus = null;
+      else {
+        this.#kidsOpen.add(id);
+        // Its first child takes focus (as "+N more" hands focus to the first line it showed).
+        this.#kidsFocus = id;
+      }
+      this.requestRender();
+      return;
+    }
     const dismiss = target.closest?.('[data-dismiss]');
     if (dismiss) {
       const id = this.#cardOf(dismiss);
@@ -1531,6 +1665,82 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     if (id === null || !this.#open.has(id)) return;
     e.stopPropagation();
     if (this.#toggle(id, true, e)) this.#cards.get(id)?.face.focus({ preventScroll: true });
+  }
+
+  /**
+   * The pointer moved over or out of something in the board (0.37.0): the card it is on marks its family. Moving
+   * inside one card changes nothing; leaving it for a gap, another card or outside the board moves (or clears) it —
+   * a `relatedTarget` outside the shadow tree is the host (or null), which is in no card.
+   */
+  #kinPointer(e: PointerEvent, over: boolean): void {
+    const here = this.#cardOf(e.target as Element | null);
+    if (over) {
+      this.#kin('pointer', here);
+      return;
+    }
+    const next = this.#cardOf(e.relatedTarget as Element | null);
+    if (next !== here) this.#kin('pointer', next);
+  }
+
+  #kin(by: 'pointer' | 'focus', cardId: string | null): void {
+    if (this.#kinAt[by] === cardId) return;
+    this.#kinAt[by] = cardId;
+    this.#paintKin();
+  }
+
+  /**
+   * Mark the families (0.37.0) of the card under the pointer and of the card a focus is in: the epic and every card
+   * whose `parent` it is, those drawn. `data-kin` says by what (`pointer`, `focus` or both). A card of no family — no
+   * epic of its own and no child drawn — marks nothing.
+   */
+  #paintKin(): void {
+    const root = (id: string | null): string | null => {
+      const sh = id === null ? undefined : this.#cards.get(id);
+      return sh ? sh.parent || (id as string) : null;
+    };
+    const kin = (id: string, sh: Shell, k: string | null) => k !== null && (id === k || sh.parent === k);
+    const family = (k: string | null): string | null => {
+      let n = 0;
+      for (const [id, sh] of this.#cards) if (kin(id, sh, k)) n++;
+      return n > 1 ? k : null;
+    };
+    const pointer = family(root(this.#kinAt.pointer));
+    const focus = family(root(this.#kinAt.focus));
+    for (const [id, sh] of this.#cards) {
+      const by = [kin(id, sh, pointer) ? 'pointer' : '', kin(id, sh, focus) ? 'focus' : ''].filter(Boolean).join(' ');
+      flag(sh.el, 'is-kin', !!by);
+      if (by) {
+        if (sh.el.getAttribute('data-kin') !== by) sh.el.setAttribute('data-kin', by);
+      } else if (sh.el.hasAttribute('data-kin')) sh.el.removeAttribute('data-kin');
+    }
+  }
+
+  /**
+   * Families after a render (0.37.0): a card whose `parent` is drawn makes that card `is-parent`; in each list a
+   * child right after its epic, or after a sibling tied to it, is `is-tied`, and the last of such a run
+   * `is-tied-last`. Set before the FLIP's last boxes are read, so a card that is tied or let go glides there.
+   */
+  #tie(order: Record<string, string[]>): void {
+    const lists = Object.values(order);
+    const parents = new Set<string>();
+    for (const ids of lists)
+      for (const id of ids) {
+        const p = this.#cards.get(id)?.parent;
+        if (p) parents.add(p);
+      }
+    for (const ids of lists) {
+      const sh = ids.map((id) => this.#cards.get(id)!);
+      const tied: boolean[] = [];
+      sh.forEach((s, i) => {
+        const p = s.parent;
+        tied[i] = !!p && i > 0 && (ids[i - 1] === p || (tied[i - 1] && sh[i - 1].parent === p));
+      });
+      sh.forEach((s, i) => {
+        flag(s.el, 'is-parent', parents.has(ids[i]));
+        flag(s.el, 'is-tied', tied[i]);
+        flag(s.el, 'is-tied-last', tied[i] && !(tied[i + 1] && sh[i + 1].parent === s.parent));
+      });
+    }
   }
 
   /** Esc inside a host's slotted body (`slot="body:<id>"`) closes that card like Esc inside a built-in body. */
@@ -1671,15 +1881,21 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   }
 
   /**
-   * Where focus goes when the focused follow-up line (`id`, `null` for "+N more") is gone: the first line still drawn
-   * after it in the old `order`, else the last one before it, else any line, else the card's face (made focusable
-   * when it is not a button).
+   * Where focus goes when the focused follow-up line (`attr` `data-followup`; `id` `null` for "+N more") or child line
+   * (`data-child`, 0.37.0; `null` for the children toggle) is gone: the first line still drawn after it in the old
+   * `order`, else the last one before it, else any line, else the children toggle (for a child line), else the card's
+   * face (made focusable when it is not a button).
    */
-  #followupHeir(cardId: string, id: string | null, order: string[]): HTMLElement | undefined {
+  #lineHeir(
+    cardId: string,
+    attr: 'data-followup' | 'data-child',
+    id: string | null,
+    order: string[],
+  ): HTMLElement | undefined {
     const face = this.#cards.get(cardId)?.face;
     if (!face) return undefined;
-    const lines = Array.from(face.querySelectorAll<HTMLElement>('[data-followup]'));
-    const byId = new Map(lines.map((b) => [b.getAttribute('data-followup') ?? '', b]));
+    const lines = Array.from(face.querySelectorAll<HTMLElement>(`[${attr}]`));
+    const byId = new Map(lines.map((b) => [b.getAttribute(attr) ?? '', b]));
     const at = id === null ? order.length : order.indexOf(id);
     const after = order.slice(at + 1).find((x) => byId.has(x));
     const before = order
@@ -1689,7 +1905,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const heir =
       (after !== undefined ? byId.get(after) : undefined) ??
       (before !== undefined ? byId.get(before) : undefined) ??
-      lines[lines.length - 1];
+      lines[lines.length - 1] ??
+      (attr === 'data-child' ? (face.querySelector<HTMLElement>('[data-kids]') ?? undefined) : undefined);
     if (heir) return heir;
     if (!face.hasAttribute('tabindex')) face.setAttribute('tabindex', '-1');
     return face;
@@ -1699,6 +1916,11 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const el = document.createElement('li');
     el.className = 'ib-card';
     el.setAttribute('data-card', id);
+    // The connector to its epic (0.37.0), drawn only while the card is tied (`li::before` / `::after` are the
+    // attention cue's).
+    const tie = document.createElement('span');
+    tie.className = 'ib-tie';
+    tie.setAttribute('aria-hidden', 'true');
     const face = document.createElement('div');
     face.className = 'ib-face';
     face.setAttribute('data-key', `f:${id}`);
@@ -1709,8 +1931,20 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const body = document.createElement('div');
     body.className = 'ib-expand-inner';
     expand.append(body);
-    el.append(face, expand);
-    return { el, face, expand, body, faceHtml: null, bodyHtml: null, col: '', status: '', flip: null };
+    el.append(tie, face, expand);
+    return {
+      el,
+      face,
+      expand,
+      body,
+      faceHtml: null,
+      bodyHtml: null,
+      col: '',
+      status: '',
+      flip: null,
+      parent: '',
+      kids: `ib-k${++this.#seq}`,
+    };
   }
 
   /** Column heads (`h:<column>`) and group heads (`g:<gkey>`) on screen. */
@@ -1785,18 +2019,25 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const t = this.#t;
     const d = this.data;
     const now = Date.now();
-    const activeKey = (this.root.activeElement as HTMLElement | null)?.dataset?.key;
+    const active = this.root.activeElement as HTMLElement | null;
+    const activeKey = active?.dataset?.key;
+    const activeCard = this.#cardOf(active);
     // A follow-up line or "+N more" the host drops (0.34.0) hands focus to the card's next line, else its previous one,
-    // else its face — so the order the lines had is kept here.
-    const fuCard =
-      activeKey?.startsWith('u:') || activeKey?.startsWith('v:') ? this.#cardOf(this.root.activeElement) : null;
-    const fuWas =
-      fuCard !== null
+    // else its face — so the order the lines had is kept here. A child line or the children toggle (0.37.0) likewise.
+    const lineAttr: 'data-followup' | 'data-child' | null =
+      activeKey?.startsWith('u:') || activeKey?.startsWith('v:')
+        ? 'data-followup'
+        : activeKey?.startsWith('kc:') || activeKey?.startsWith('k:')
+          ? 'data-child'
+          : null;
+    const lineWas =
+      lineAttr !== null && activeCard !== null
         ? {
-            id: (this.root.activeElement as HTMLElement | null)?.getAttribute('data-followup') ?? null,
-            order: Array.from(this.#cards.get(fuCard)?.face.querySelectorAll<HTMLElement>('[data-followup]') ?? []).map(
-              (b) => b.getAttribute('data-followup') ?? '',
-            ),
+            attr: lineAttr,
+            id: active?.getAttribute(lineAttr) ?? null,
+            order: Array.from(
+              this.#cards.get(activeCard)?.face.querySelectorAll<HTMLElement>(`[${lineAttr}]`) ?? [],
+            ).map((b) => b.getAttribute(lineAttr) ?? ''),
           }
         : null;
     const hidden = typeof document !== 'undefined' && document.hidden;
@@ -1991,6 +2232,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       }
     });
     this.#order = order;
+    // 6½. Families (0.37.0): epics, and the children tied under them.
+    this.#tie(order);
 
     // 7. Cards no longer drawn fade out where they were (inside a group that left, they go with it); then groups
     //    and columns that left go.
@@ -2085,13 +2328,20 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       // A TL;DR × the host took away with its box (0.20.0): focus goes to that card's face, never to the page.
       const fallback = activeKey.startsWith('d:') ? `f:${activeKey.slice(2)}` : '';
       const next =
+        // Two cards' keys can meet (`kc:a:b:c` is card a:b's child c and card a's child b:c): its own card's first.
+        (activeCard !== null
+          ? keys.find((el) => el.dataset.key === activeKey && this.#cardOf(el) === activeCard)
+          : undefined) ??
         keys.find((el) => el.dataset.key === activeKey) ??
         (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined) ??
-        (fuCard !== null && fuWas ? this.#followupHeir(fuCard, fuWas.id, fuWas.order) : undefined);
+        (activeCard !== null && lineWas
+          ? this.#lineHeir(activeCard, lineWas.attr, lineWas.id, lineWas.order)
+          : undefined);
       next?.focus({ preventScroll: true });
     }
-    // "Show all" is kept only for cards the data still holds (a card in a closed group included).
-    if (this.#fuAll.size) {
+    // "Show all" and an open children list are kept only for cards the data still holds (a card in a closed group
+    // included).
+    if (this.#fuAll.size || this.#kidsOpen.size) {
       const ids = new Set<string>();
       for (const col of Array.isArray(d?.columns) ? d.columns : []) {
         for (const c of Array.isArray(col?.cards) ? col.cards : []) if (c) ids.add(String(c.id));
@@ -2099,12 +2349,22 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
           for (const c of Array.isArray(g?.cards) ? g.cards : []) if (c) ids.add(String(c.id));
       }
       for (const id of Array.from(this.#fuAll)) if (!ids.has(id)) this.#fuAll.delete(id);
+      for (const id of Array.from(this.#kidsOpen)) if (!ids.has(id)) this.#kidsOpen.delete(id);
     }
     if (this.#fuFocus !== null) {
       const lines = this.#cards.get(this.#fuFocus)?.face.querySelectorAll<HTMLElement>('[data-followup]');
       this.#fuFocus = null;
       (lines?.[FOLLOWUP_MAX_LINES] ?? lines?.[lines.length - 1])?.focus({ preventScroll: true });
     }
+    if (this.#kidsFocus !== null) {
+      const first = this.#cards.get(this.#kidsFocus)?.face.querySelector<HTMLElement>('[data-child]');
+      this.#kidsFocus = null;
+      first?.focus({ preventScroll: true });
+    }
+    // The families marked (0.37.0) follow the board: a card that left marks nothing, the focus is where it is now.
+    if (this.#kinAt.pointer !== null && !this.#cards.has(this.#kinAt.pointer)) this.#kinAt.pointer = null;
+    this.#kinAt.focus = this.#cardOf(this.root.activeElement);
+    this.#paintKin();
     // 9. The viewer's own badges ride the document's shared orbit. Last, after every DOM move: a CSS animation exists
     //    only on a connected element and restarts when its card is drawn, rewritten or moved (re-inserted — a reorder,
     //    a column change, an exit re-appended to fade out), so every self pill is put back on the orbit here.
@@ -2128,8 +2388,17 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     const attention = card.attention === true;
     if (sh.el.classList.contains('is-attention') !== attention) sh.el.classList.toggle('is-attention', attention);
+    // 0.37.0 — its epic: a card is never its own.
+    const parent = str(card.parent) === id ? '' : str(card.parent);
+    if (sh.parent !== parent) {
+      sh.parent = parent;
+      if (parent) sh.el.setAttribute('data-parent', parent);
+      else sh.el.removeAttribute('data-parent');
+      flag(sh.el, 'is-child', !!parent);
+    }
     if (this.#fuAll.has(card.id) && cardFollowups(card).length <= FOLLOWUP_MAX_LINES) this.#fuAll.delete(card.id);
-    const face = renderFace(card, t, this.#fuAll.has(card.id));
+    if (this.#kidsOpen.has(id) && !cardChildren(card).length) this.#kidsOpen.delete(id);
+    const face = renderFace(card, t, this.#fuAll.has(card.id), this.#kidsOpen.has(id), sh.kids);
     if (sh.faceHtml !== face) {
       sh.face.innerHTML = face;
       sh.faceHtml = face;
@@ -2219,6 +2488,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const hr = section.getBoundingClientRect();
     const width = sh.el.offsetWidth;
     sh.el.removeAttribute('data-card');
+    sh.el.removeAttribute('data-kin');
+    sh.el.classList.remove('is-kin');
     sh.el.setAttribute('aria-hidden', 'true');
     sh.el.setAttribute('inert', '');
     sh.el.classList.add('is-exiting');

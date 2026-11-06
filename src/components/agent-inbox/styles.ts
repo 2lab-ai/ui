@@ -23,6 +23,13 @@ export const styles = `
   --ib-rest-fg: var(--ib-text-2);
   /* The attention mark (0.32.0): the waiting status in the colour themes, the ink in mono. */
   --ib-attn: color-mix(in srgb, var(--st-wait) calc(100% * var(--chroma)), var(--ib-text));
+  /* A family (0.37.0): a tied child's indent, its elbow (the head's middle, from the card's top), the connector — a
+     mark, the accent toward the column as agent-tree draws its links (grey in mono, where the accent is) — and the
+     marked family's border. */
+  --ib-tie-in: 20px;
+  --ib-tie-y: 22px;
+  --ib-tie-c: color-mix(in srgb, var(--accent) 45%, var(--ib-col));
+  --ib-kin: color-mix(in srgb, var(--accent) 60%, var(--ib-card-border));
 }
 .ib { container: ib / inline-size; position: relative; }
 
@@ -224,6 +231,52 @@ ${ownerBadgeCss('.ib-badge', (name) => `var(--${name})`, 'ib-badge')}
   .ib-fu-text { background: none; color: ButtonText; -webkit-text-fill-color: ButtonText; animation: none; }
   .ib-fu-line svg, .ib-fu-st { color: ButtonText; }
 }
+/* The children row (0.37.0): an epic's children on one line — "Children 4", then a status dot and the title per
+   child, clipped with an ellipsis — on the pill. A press opens the list in place: one line per child (dot, title,
+   status word), each a button that sends ui-child. No expand animation: the face is rewritten as it opens. */
+.ib-kids { margin-top: 8px; min-width: 0; }
+.ib-kids-line {
+  display: flex; align-items: center; gap: 8px; inline-size: 100%; min-width: 0; min-height: 28px; margin: 0; padding: 3px 8px;
+  border: 0; border-radius: 8px; background: var(--ib-pill); color: var(--ib-text-2); font: inherit; font-size: 12.5px;
+  line-height: 1.35; text-align: start; cursor: pointer; transition: background-color var(--dur-press) ease;
+}
+.ib-kids-label { flex: none; white-space: nowrap; }
+.ib-kids-label b { color: var(--ib-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ib-kids-peek { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ib-text); }
+.ib-kid-peek + .ib-kid-peek { margin-inline-start: 10px; }
+.ib-kids-line .ib-chev { flex: none; inline-size: 12px; block-size: 12px; margin-inline-start: auto; color: var(--ib-muted); transition: transform var(--dur-press) var(--ease-out); }
+.ib-kids-line[aria-expanded="true"] .ib-chev { transform: rotate(90deg); }
+/* A child's status dot: the state colour on the mark itself (a mark keeps its colour in mono); idle is hollow. */
+.ib-kdot { display: inline-block; inline-size: 7px; block-size: 7px; border-radius: 50%; margin-inline-end: 5px; vertical-align: 1px; background: var(--ib-muted); }
+.ib-kdot[data-tone="run"] { background: var(--st-run); }
+.ib-kdot[data-tone="wait"] { background: var(--st-wait); }
+.ib-kdot[data-tone="done"] { background: var(--st-done); }
+.ib-kdot[data-tone="fail"] { background: var(--st-fail); }
+.ib-kdot[data-tone="rest"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ib-muted); }
+.ib-kids-list { display: grid; gap: 1px; margin: 2px 0 0; padding: 0; list-style: none; min-width: 0; }
+.ib-kids-list[hidden] { display: none; }
+.ib-kid {
+  display: flex; align-items: center; gap: 6px; inline-size: 100%; min-width: 0; min-height: 26px; margin: 0; padding: 2px 8px;
+  border: 0; border-radius: 6px; background: none; color: var(--ib-text); font: inherit; font-size: 13px; line-height: 1.35;
+  text-align: start; cursor: pointer; transition: background-color var(--dur-press) ease;
+}
+.ib-kid .ib-kdot { flex: none; margin: 0; }
+.ib-kid-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-kid-st { flex: none; font-size: 11.5px; white-space: nowrap; color: var(--ib-text-2); }
+.ib-kid-st[data-tone="run"] { color: var(--ib-run-fg); }
+.ib-kid-st[data-tone="wait"] { color: var(--ib-wait-fg); }
+.ib-kid-st[data-tone="done"] { color: var(--ib-done-fg); }
+.ib-kid-st[data-tone="fail"] { color: var(--ib-fail-fg); }
+.ib-kids-line:focus-visible, .ib-kid:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .ib-kids-line:hover { background: color-mix(in srgb, var(--ib-text) 6%, var(--ib-pill)); }
+  .ib-kid:hover { background: var(--ib-pill); }
+}
+@media (forced-colors: active) {
+  .ib-kids-line { border: 1px solid ButtonText; }
+  .ib-kdot { forced-color-adjust: none; background: CanvasText; }
+  .ib-kdot[data-tone="rest"] { background: Canvas; box-shadow: inset 0 0 0 1.5px CanvasText; }
+}
 /* The task in progress. */
 .ib-task { margin-top: 8px; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--ib-text); background: var(--ib-pill); border-radius: 8px; padding: 5px 9px; }
 .ib-task-id { flex-shrink: 0; color: var(--ib-muted); font-variant-numeric: tabular-nums; font-size: 12px; }
@@ -381,6 +434,47 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   12%, 100% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--ib-attn) 0%, transparent); }
 }
 
+/* ── FAMILY (0.37.0) — an epic and its children ──
+   A tied child sits one step in; its connector (.ib-tie, the li's first child — ::before / ::after are the attention
+   cue's) runs from under the card above down the indent and curves into the child at its head. A child that is not
+   the run's last carries the line on down to the next. A pointer over, or a keyboard focus in, any card of the family
+   marks every card of it (is-kin): a border and ring in the accent, the connector with them — colour only, nothing
+   moves or grows. The pointer's mark is for hover devices only; the focus's shows while the focus is visible. */
+.ib-card.is-tied:not(.is-exiting) { margin-inline-start: var(--ib-tie-in); }
+.ib-tie { display: none; }
+.ib-card.is-tied:not(.is-exiting) > .ib-tie {
+  display: block; position: absolute; pointer-events: none;
+  /* From the 8px gap above (and the border) to the card's bottom edge, in the middle of the indent. */
+  inset-block: -9px -1px; inset-inline-start: calc(-1px - var(--ib-tie-in) / 2); inline-size: calc(var(--ib-tie-in) / 2);
+}
+.ib-card.is-tied:not(.is-exiting) > .ib-tie::before {
+  content: ''; position: absolute; inset-inline: 0; top: 0; block-size: calc(9px + var(--ib-tie-y));
+  border: 0 solid var(--ib-tie-c); border-inline-start-width: 1.5px; border-block-end-width: 1.5px; border-end-start-radius: 6px;
+}
+.ib-card.is-tied:not(.is-tied-last):not(.is-exiting) > .ib-tie::after {
+  content: ''; position: absolute; inset-inline-start: 0; top: calc(9px + var(--ib-tie-y) - 6px); bottom: 0; inline-size: 1.5px;
+  background: var(--ib-tie-c);
+}
+.ib:has(:focus-visible) .ib-card.is-kin[data-kin~="focus"] {
+  --ib-tie-c: var(--ib-kin); border-color: var(--ib-kin); box-shadow: 0 0 0 1px var(--ib-kin), var(--ib-shadow);
+}
+@media (hover: hover) {
+  .ib .ib-card.is-kin[data-kin~="pointer"] {
+    --ib-tie-c: var(--ib-kin); border-color: var(--ib-kin); box-shadow: 0 0 0 1px var(--ib-kin), var(--ib-shadow);
+  }
+}
+/* Forced colours: the connector in GrayText (CanvasText while its family is marked); the mark is an outline in
+   Highlight, as borders are forced there. */
+@media (forced-colors: active) {
+  .ib-tie { forced-color-adjust: none; --ib-tie-c: GrayText; }
+  .ib:has(:focus-visible) .ib-card.is-kin[data-kin~="focus"] { outline: 2px solid Highlight; outline-offset: 1px; }
+  .ib:has(:focus-visible) .ib-card.is-kin[data-kin~="focus"] > .ib-tie { --ib-tie-c: CanvasText; }
+}
+@media (forced-colors: active) and (hover: hover) {
+  .ib .ib-card.is-kin[data-kin~="pointer"] { outline: 2px solid Highlight; outline-offset: 1px; }
+  .ib .ib-card.is-kin[data-kin~="pointer"] > .ib-tie { --ib-tie-c: CanvasText; }
+}
+
 /* Expansion — grid row 0fr → 1fr; cards below ride the animated row. */
 .ib-expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
 .ib-card.is-open .ib-expand { grid-template-rows: 1fr; }
@@ -447,13 +541,15 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   /* Wrapped link rows sit 20px apart, so one chip's reach (10px down) never covers the next row's (10px up). */
   .ib-links { row-gap: 20px; }
   .ib-tldr-x::after { content: ''; position: absolute; inset: -11px 0; }
+  /* The children row (0.37.0): the toggle and each child line are 44px tall (stacked lines leave no room for a reach). */
+  .ib-kids-line, .ib-kid { min-height: 44px; }
 }
 /* Reduced motion: the global rule only shortens durations, so infinite loops stop here; the ring stays whole. */
 @media (prefers-reduced-motion: reduce) {
   .ib-spin { animation: none; border-color: currentColor; }
   .ib-adot.is-running { animation: none; }
   .ib-sk, .ib-board[aria-busy="true"] .ib-count:empty { animation: none; }
-  .ib-group-head .ib-chev { transition: none; }
+  .ib-group-head .ib-chev, .ib-kids-line .ib-chev { transition: none; }
   .ib-card.is-attention:not(.is-open)::after { animation: none; display: none; }
 }
 /* Forced colours: the rail in the system's highlight (backgrounds are forced there); no ring. */

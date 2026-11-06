@@ -2048,3 +2048,497 @@ describe('attention (0.32.0) — a collapsed card that waits on the viewer', () 
     expect(css).toMatch(/forced-colors: active\) \{[^@]*\.ib-card\.is-attention:not\(\.is-open\)[^{]*\{[^}]*Highlight/);
   });
 });
+
+// 0.37.0 (ui#38) — SSOT (owner, 2026-11-05): "대시보드에서 에픽 작업 카드랑 자식 작업 카드를 ui상에서 시각적으로
+// 연결해줘 … 에픽 작업 카드에서 자식작업 카드 리스트를 볼수 있도록해줘. (한줄로 표시해주고 클릭시 모두 열어주면 좋겠음."
+describe('epic family (0.37.0)', () => {
+  const css = monoStyles.replace(/\s+/g, ' ');
+  const EPIC: InboxCard = { id: 'epic', title: 'Billing v2', status: 'running' };
+  const OTHER: InboxCard = { id: 'other', title: 'Release notes', status: 'running' };
+  const kid = (id: string, extra: Partial<InboxCard> = {}): InboxCard => ({
+    id,
+    title: `Task ${id}`,
+    status: 'running',
+    parent: 'epic',
+    ...extra,
+  });
+  /** Columns c0, c1 … in the order given, each card in the order given (the host's order). */
+  const lanes = (...lists: InboxCard[][]): AgentInboxData => ({
+    columns: lists.map((cards, i) => ({ id: `c${i}`, label: `C${i}`, cards })),
+  });
+  const family = (el: UiAgentInbox, id: string) =>
+    ['is-child', 'is-parent', 'is-tied', 'is-tied-last'].filter((c) => card(el, id).classList.contains(c));
+  const kin = (el: UiAgentInbox) =>
+    qa(el, 'li.ib-card.is-kin').map((li) => `${li.getAttribute('data-card')}:${li.getAttribute('data-kin')}`);
+  // The pointer over an element (pointerover bubbles to the shadow root), or out of it to outside the board.
+  const enter = (li: Element, type: 'pointerenter' | 'pointerleave') =>
+    li.dispatchEvent(
+      new PointerEvent(type === 'pointerenter' ? 'pointerover' : 'pointerout', {
+        pointerType: 'mouse',
+        bubbles: true,
+        composed: true,
+        relatedTarget: null,
+      }),
+    );
+  const faceOf = (el: UiAgentInbox, id: string) => card(el, id).querySelector<HTMLElement>('.ib-face')!;
+  const active = (el: UiAgentInbox) => el.shadowRoot!.activeElement as HTMLElement | null;
+  const KIDS = [
+    { id: 'k1', title: 'Split the invoices table', status: 'running' as const },
+    { id: 'k2', title: 'Retry failed webhooks', status: 'waiting' as const },
+    { id: 'k3', title: 'Billing API docs', status: 'idle' as const, statusText: 'Queued' },
+  ];
+  const toggleOf = (el: UiAgentInbox, id = 'epic') =>
+    card(el, id).querySelector<HTMLButtonElement>('button.ib-kids-line')!;
+  const kidsOf = (el: UiAgentInbox, id = 'epic') =>
+    Array.from(card(el, id).querySelectorAll<HTMLButtonElement>('button.ib-kid'));
+  const press = (n: Element, detail = 1) =>
+    n.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, detail }));
+
+  it('a child carries data-parent and is-child; its epic is-parent only while a child is drawn', () => {
+    const el = mount(lanes([EPIC, kid('a'), OTHER], [kid('b'), { ...kid('self'), parent: 'self' }]));
+    expect(card(el, 'a').getAttribute('data-parent')).toBe('epic');
+    expect(card(el, 'b').getAttribute('data-parent')).toBe('epic');
+    expect(family(el, 'a')).toContain('is-child');
+    expect(family(el, 'b')).toContain('is-child');
+    expect(family(el, 'epic')).toEqual(['is-parent']);
+    expect(card(el, 'epic').hasAttribute('data-parent')).toBe(false);
+    expect(family(el, 'other')).toEqual([]);
+    // A card is never its own epic.
+    expect(card(el, 'self').hasAttribute('data-parent')).toBe(false);
+    expect(family(el, 'self')).toEqual([]);
+    // Its children gone from the board (one dropped, one in a closed group): the epic is no parent any more.
+    el.data = {
+      columns: [
+        { id: 'c0', label: 'C0', cards: [EPIC, { ...kid('a'), parent: undefined }] },
+        { id: 'c1', label: 'C1', cards: [], groups: [{ id: 'g', label: 'Older', open: false, cards: [kid('b')] }] },
+      ],
+    };
+    el.renderNow();
+    expect(family(el, 'epic')).toEqual([]);
+    expect(card(el, 'a').hasAttribute('data-parent')).toBe(false);
+    expect(family(el, 'a')).toEqual([]);
+  });
+
+  it('a child right after its epic, or after a sibling tied to it, is tied; the run’s last ends at its elbow', () => {
+    const el = mount(lanes([EPIC, kid('a'), kid('b'), kid('c'), OTHER, kid('d'), { ...kid('x'), parent: 'other' }]));
+    expect(family(el, 'a')).toEqual(['is-child', 'is-tied']);
+    expect(family(el, 'b')).toEqual(['is-child', 'is-tied']);
+    expect(family(el, 'c')).toEqual(['is-child', 'is-tied', 'is-tied-last']);
+    // After another card: not tied (it is still a child). A card right after its own epic is tied to it.
+    expect(family(el, 'd')).toEqual(['is-child']);
+    expect(family(el, 'x')).toEqual(['is-child']);
+    // "other" is x's epic (x is not right after it).
+    expect(family(el, 'other')).toEqual(['is-parent']);
+    // The connector is the card's first child, a decorative span (li::before / ::after are the attention cue's).
+    const tie = card(el, 'a').firstElementChild as HTMLElement;
+    expect(tie.className).toBe('ib-tie');
+    expect(tie.getAttribute('aria-hidden')).toBe('true');
+    // A run of siblings without their epic above it is not tied.
+    document.body.innerHTML = '';
+    const loose = mount(lanes([OTHER, kid('a'), kid('b')]));
+    expect(family(loose, 'a')).toEqual(['is-child']);
+    expect(family(loose, 'b')).toEqual(['is-child']);
+  });
+
+  it('ties follow the data: a child removed, the order changed, a card put between — on the same nodes', () => {
+    const el = mount(lanes([EPIC, kid('a'), kid('b'), kid('c')]));
+    const nodes = ['epic', 'a', 'b'].map((id) => card(el, id));
+    el.data = lanes([EPIC, kid('a'), kid('b')]);
+    el.renderNow();
+    expect(family(el, 'b')).toEqual(['is-child', 'is-tied', 'is-tied-last']);
+    expect(family(el, 'a')).toEqual(['is-child', 'is-tied']);
+    el.data = lanes([EPIC, kid('b'), OTHER, kid('a')]);
+    el.renderNow();
+    expect(family(el, 'b')).toEqual(['is-child', 'is-tied', 'is-tied-last']);
+    expect(family(el, 'a')).toEqual(['is-child']);
+    el.data = lanes([kid('a'), EPIC, kid('b'), kid('c')]);
+    el.renderNow();
+    expect(family(el, 'a')).toEqual(['is-child']);
+    expect(family(el, 'b')).toEqual(['is-child', 'is-tied']);
+    expect(family(el, 'c')).toEqual(['is-child', 'is-tied', 'is-tied-last']);
+    // The cards that stayed kept their nodes (c left and came back: a new one).
+    expect(['epic', 'a', 'b'].map((id) => card(el, id))).toEqual(nodes);
+    // The epic leaves: its children stay children, tied to nothing.
+    el.data = lanes([kid('a'), kid('b')]);
+    el.renderNow();
+    expect(family(el, 'a')).toEqual(['is-child']);
+    expect(family(el, 'b')).toEqual(['is-child']);
+  });
+
+  it('a child in another column or group is not tied — it keeps is-child and its family mark', () => {
+    const el = mount({
+      columns: [
+        { id: 'c0', label: 'C0', cards: [EPIC, kid('a')], groups: [{ id: 'g', label: 'Today', cards: [kid('g')] }] },
+        { id: 'c1', label: 'C1', cards: [kid('b')] },
+      ],
+    });
+    expect(family(el, 'a')).toEqual(['is-child', 'is-tied', 'is-tied-last']);
+    expect(family(el, 'g')).toEqual(['is-child']);
+    expect(family(el, 'b')).toEqual(['is-child']);
+    // A child that moves to another column is let go once it lands there.
+    el.data = {
+      columns: [
+        { id: 'c0', label: 'C0', cards: [EPIC] },
+        { id: 'c1', label: 'C1', cards: [kid('a'), kid('b')] },
+      ],
+    };
+    el.renderNow();
+    vi.advanceTimersByTime(BOARD_HOLD_MS + 50);
+    el.renderNow();
+    expect(colOf(el, 'a')).toBe('c1');
+    expect(family(el, 'a')).toEqual(['is-child']);
+    enter(card(el, 'b'), 'pointerenter');
+    expect(kin(el).sort()).toEqual(['a:pointer', 'b:pointer', 'epic:pointer']);
+  });
+
+  it('the pointer moving inside a card keeps its family marked; moving to another card moves the mark', () => {
+    const el = mount(lanes([EPIC, kid('a'), OTHER], [kid('b')]));
+    const out = (from: Element, to: Element | null) =>
+      from.dispatchEvent(
+        new PointerEvent('pointerout', { pointerType: 'mouse', bubbles: true, composed: true, relatedTarget: to }),
+      );
+    enter(card(el, 'a').querySelector('.ib-title')!, 'pointerenter');
+    expect(kin(el).sort()).toEqual(['a:pointer', 'b:pointer', 'epic:pointer']);
+    // Out of the title into its own card's face: still the same card.
+    out(card(el, 'a').querySelector('.ib-title')!, faceOf(el, 'a'));
+    expect(kin(el)).toHaveLength(3);
+    // Out of the family's card onto a card of no family: nothing marked.
+    out(faceOf(el, 'a'), faceOf(el, 'other'));
+    expect(kin(el)).toEqual([]);
+    // Leaving the board (relatedTarget is the host, outside the shadow tree): nothing marked.
+    enter(card(el, 'epic'), 'pointerenter');
+    out(faceOf(el, 'epic'), el);
+    expect(kin(el)).toEqual([]);
+  });
+
+  it('a pointer over, or a focus in, any card of a family marks every card of it; leaving clears it', () => {
+    const el = mount(lanes([EPIC, kid('a'), OTHER], [kid('b')]));
+    enter(card(el, 'a'), 'pointerenter');
+    expect(kin(el).sort()).toEqual(['a:pointer', 'b:pointer', 'epic:pointer']);
+    enter(card(el, 'a'), 'pointerleave');
+    expect(kin(el)).toEqual([]);
+    enter(card(el, 'epic'), 'pointerenter');
+    expect(kin(el).sort()).toEqual(['a:pointer', 'b:pointer', 'epic:pointer']);
+    // Entering something inside the card changes nothing; a card of no family marks nothing.
+    enter(card(el, 'epic').querySelector('.ib-title')!, 'pointerenter');
+    expect(kin(el)).toHaveLength(3);
+    enter(card(el, 'epic'), 'pointerleave');
+    enter(card(el, 'other'), 'pointerenter');
+    expect(kin(el)).toEqual([]);
+    enter(card(el, 'other'), 'pointerleave');
+    // A focus in a card: the same family, marked by the focus.
+    faceOf(el, 'b').focus();
+    expect(kin(el).sort()).toEqual(['a:focus', 'b:focus', 'epic:focus']);
+    // Both at once.
+    enter(card(el, 'epic'), 'pointerenter');
+    expect(kin(el).sort()).toEqual(['a:pointer focus', 'b:pointer focus', 'epic:pointer focus']);
+    enter(card(el, 'epic'), 'pointerleave');
+    faceOf(el, 'other').focus();
+    expect(kin(el)).toEqual([]);
+    faceOf(el, 'a').focus();
+    expect(kin(el)).toHaveLength(3);
+    faceOf(el, 'a').blur();
+    expect(kin(el)).toEqual([]);
+    // A card that arrives while the family is marked is marked with it; one that leaves takes its mark away.
+    enter(card(el, 'a'), 'pointerenter');
+    el.data = lanes([EPIC, kid('a'), kid('c'), OTHER], [kid('b')]);
+    el.renderNow();
+    expect(kin(el).sort()).toEqual(['a:pointer', 'b:pointer', 'c:pointer', 'epic:pointer']);
+    el.data = lanes([EPIC, OTHER], [kid('b')]);
+    el.renderNow();
+    expect(kin(el)).toEqual([]);
+  });
+
+  it('the children row: right after the follow-up bar whatever rows says, one line, escaped, counted in words', () => {
+    const el = mount(
+      lanes([
+        {
+          ...EPIC,
+          rows: [],
+          followups: [{ id: 'f1', kind: 'issue', text: '#918' }],
+          children: [
+            { id: 'k1', title: '<img src=x onerror=1>', status: 'running' },
+            { id: 'k2', title: 'Docs', status: 'idle', statusText: 'Queued' },
+            { id: '', title: 'no id', status: 'done' },
+            { id: 'k2', title: 'repeated', status: 'done' },
+            { id: 'k3', title: '  ', status: 'done' },
+          ],
+        },
+      ]),
+    );
+    const face = faceOf(el, 'epic');
+    expect(Array.from(face.children).map((d) => d.className.split(' ')[0])).toEqual([
+      'ib-head',
+      'ib-fu',
+      'ib-kids',
+      'ib-foot',
+    ]);
+    const toggle = toggleOf(el);
+    expect(toggle.dataset.key).toBe('k:epic');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-label')).toBe('Children 2 — Show all children');
+    expect(toggle.querySelector('.ib-kids-label')?.textContent).toBe('Children 2');
+    const list = el.shadowRoot!.getElementById(toggle.getAttribute('aria-controls')!)!;
+    expect(list.classList.contains('ib-kids-list')).toBe(true);
+    expect(list.hidden).toBe(true);
+    // One line: a dot and the title per child, all inside one clipped span.
+    const peek = Array.from(toggle.querySelectorAll('.ib-kids-peek > .ib-kid-peek'));
+    expect(peek.map((p) => p.textContent)).toEqual(['<img src=x onerror=1>', 'Docs']);
+    expect(peek.map((p) => p.querySelector('.ib-kdot')?.getAttribute('data-tone'))).toEqual(['run', 'rest']);
+    expect(toggle.querySelectorAll('.ib-kids-peek')).toHaveLength(1);
+    expect(face.querySelector('img')).toBeNull();
+    expect(css).toMatch(
+      /\.ib-kids-peek \{ flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;/,
+    );
+    // None without children; Korean words.
+    document.body.innerHTML = '';
+    const none = mount(lanes([{ ...EPIC, children: [] }]));
+    expect(card(none, 'epic').querySelector('.ib-kids')).toBeNull();
+    document.body.innerHTML = '';
+    const ko = mount(lanes([{ ...EPIC, children: KIDS }]), { lang: 'ko' });
+    expect(toggleOf(ko).querySelector('.ib-kids-label')?.textContent).toBe('자식 3');
+    expect(toggleOf(ko).getAttribute('aria-label')).toBe('자식 3 — 자식 모두 보기');
+    toggleOf(ko).click();
+    ko.renderNow();
+    expect(toggleOf(ko).getAttribute('aria-label')).toBe('자식 3 — 접기');
+    expect(kidsOf(ko).map((b) => b.querySelector('.ib-kid-st')?.textContent)).toEqual([
+      '실행 중',
+      '입력 대기',
+      'Queued',
+    ]);
+  });
+
+  it('the toggle opens and closes the list in place and hands focus to the first child; the card never toggles', () => {
+    const el = mount(lanes([{ ...EPIC, children: KIDS, details: ['Planned 3 tasks'] }]));
+    const toggles = vi.fn();
+    el.addEventListener('ui-toggle', toggles);
+    toggleOf(el).click();
+    el.renderNow();
+    const toggle = toggleOf(el);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.getAttribute('aria-label')).toBe('Children 3 — Hide');
+    const list = el.shadowRoot!.getElementById(toggle.getAttribute('aria-controls')!)!;
+    expect(list.hidden).toBe(false);
+    expect(list.getAttribute('aria-label')).toBe('Children');
+    const kids = kidsOf(el);
+    expect(kids.map((b) => b.dataset.key)).toEqual(['kc:epic:k1', 'kc:epic:k2', 'kc:epic:k3']);
+    expect(kids.map((b) => b.querySelector('.ib-kid-title')?.textContent)).toEqual(KIDS.map((k) => k.title));
+    expect(kids.map((b) => b.querySelector('.ib-kid-st')?.textContent)).toEqual([
+      'Running',
+      'Waiting for you',
+      'Queued',
+    ]);
+    expect(kids.map((b) => b.querySelector('.ib-kdot')?.getAttribute('aria-hidden'))).toEqual(['true', 'true', 'true']);
+    expect(kids[2].title).toBe('Billing API docs — Queued');
+    expect(active(el)).toBe(kids[0]);
+    expect(toggles).not.toHaveBeenCalled();
+    expect(card(el, 'epic').classList.contains('is-open')).toBe(false);
+    // Kept while the data changes.
+    el.data = lanes([{ ...EPIC, title: 'Billing v2 (renamed)', children: KIDS, details: ['Planned 3 tasks'] }]);
+    el.renderNow();
+    expect(kidsOf(el)).toHaveLength(3);
+    // A second press closes it; the focus stays on the toggle.
+    toggleOf(el).focus();
+    toggleOf(el).click();
+    el.renderNow();
+    expect(toggleOf(el).getAttribute('aria-expanded')).toBe('false');
+    expect(kidsOf(el)).toHaveLength(0);
+    expect(card(el, 'epic').querySelector<HTMLElement>('.ib-kids-list')!.hidden).toBe(true);
+    expect(active(el)).toBe(toggleOf(el));
+    expect(toggles).not.toHaveBeenCalled();
+  });
+
+  it('a child line sends ui-child { cardId, childId }, cancelable, and never toggles the card', () => {
+    const el = mount(lanes([{ ...EPIC, children: KIDS, details: ['Planned 3 tasks'] }]));
+    toggleOf(el).click();
+    el.renderNow();
+    const got: CustomEvent[] = [];
+    const toggles = vi.fn();
+    el.addEventListener('ui-child', (e) => got.push(e as CustomEvent));
+    el.addEventListener('ui-toggle', toggles);
+    kidsOf(el)[1].click();
+    expect(got.map((e) => e.detail)).toEqual([{ cardId: 'epic', childId: 'k2' }]);
+    expect(got[0].cancelable).toBe(true);
+    expect(got[0].bubbles && got[0].composed).toBe(true);
+    // Prevented: nothing else happens (the list stays, the card stays closed).
+    el.addEventListener('ui-child', (e) => e.preventDefault());
+    kidsOf(el)[0].click();
+    expect(got[1].detail).toEqual({ cardId: 'epic', childId: 'k1' });
+    expect(got[1].defaultPrevented).toBe(true);
+    el.renderNow();
+    expect(kidsOf(el)).toHaveLength(3);
+    expect(toggles).not.toHaveBeenCalled();
+    expect(card(el, 'epic').classList.contains('is-open')).toBe(false);
+  });
+
+  it('Enter / Space on the toggle and on a child are theirs: the card never toggles; a keyboard press opens', () => {
+    const el = mount(lanes([{ ...EPIC, children: KIDS, details: ['Planned 3 tasks'] }]));
+    const toggles = vi.fn();
+    const children = vi.fn();
+    el.addEventListener('ui-toggle', toggles);
+    el.addEventListener('ui-child', (e) => children((e as CustomEvent).detail));
+    toggleOf(el).focus();
+    key(toggleOf(el), 'Enter');
+    key(toggleOf(el), ' ');
+    expect(toggles).not.toHaveBeenCalled();
+    // The button's own activation (a click with detail 0) opens the list and focuses the first child.
+    press(toggleOf(el), 0);
+    el.renderNow();
+    expect(toggleOf(el).getAttribute('aria-expanded')).toBe('true');
+    expect(active(el)).toBe(kidsOf(el)[0]);
+    key(kidsOf(el)[0], 'Enter');
+    key(kidsOf(el)[0], ' ');
+    expect(toggles).not.toHaveBeenCalled();
+    press(kidsOf(el)[0], 0);
+    expect(children).toHaveBeenCalledWith({ cardId: 'epic', childId: 'k1' });
+    // The face's own Enter still opens the card.
+    key(faceOf(el, 'epic'), 'Enter');
+    expect(toggles).toHaveBeenCalledWith(expect.objectContaining({ detail: { cardId: 'epic', expanded: true } }));
+  });
+
+  it('the open list is forgotten when the card leaves the board or has no children left', () => {
+    const epic = { ...EPIC, children: KIDS };
+    const el = mount(lanes([epic, OTHER]));
+    toggleOf(el).click();
+    el.renderNow();
+    expect(kidsOf(el)).toHaveLength(3);
+    el.data = lanes([OTHER]);
+    el.renderNow();
+    el.data = lanes([epic, OTHER]);
+    el.renderNow();
+    expect(toggleOf(el).getAttribute('aria-expanded')).toBe('false');
+    expect(kidsOf(el)).toHaveLength(0);
+    // Kept for a card in a closed group (still on the board), dropped once it has no children.
+    toggleOf(el).click();
+    el.renderNow();
+    el.data = {
+      columns: [
+        { id: 'c0', label: 'C0', cards: [OTHER], groups: [{ id: 'g', label: 'G', open: false, cards: [epic] }] },
+      ],
+    };
+    el.renderNow();
+    el.data = lanes([epic, OTHER]);
+    el.renderNow();
+    expect(kidsOf(el)).toHaveLength(3);
+    el.data = lanes([{ ...epic, children: [] }, OTHER]);
+    el.renderNow();
+    el.data = lanes([epic, OTHER]);
+    el.renderNow();
+    expect(kidsOf(el)).toHaveLength(0);
+  });
+
+  it('a dropped child hands focus to the next child, else the previous, else the face; keys of two cards never cross', () => {
+    const el = mount(lanes([{ ...EPIC, children: KIDS }]));
+    toggleOf(el).click();
+    el.renderNow();
+    kidsOf(el)[1].focus();
+    el.data = lanes([{ ...EPIC, children: [KIDS[0], KIDS[2]] }]);
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-child')).toBe('k3');
+    el.data = lanes([{ ...EPIC, children: [KIDS[0]] }]);
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-child')).toBe('k1');
+    el.data = lanes([{ ...EPIC, children: [] }]);
+    el.renderNow();
+    expect(active(el)).toBe(faceOf(el, 'epic'));
+    // `kc:a:b:c` is card "a:b"'s child "c" and card "a"'s child "b:c": a rewritten face keeps its own.
+    document.body.innerHTML = '';
+    const A = { ...EPIC, id: 'a:b', children: [{ id: 'c', title: 'C', status: 'running' as const }] };
+    const B = { ...EPIC, id: 'a', children: [{ id: 'b:c', title: 'BC', status: 'running' as const }] };
+    const two = mount(lanes([A, B]));
+    toggleOf(two, 'a:b').click();
+    two.renderNow();
+    toggleOf(two, 'a').click();
+    two.renderNow();
+    expect(kidsOf(two, 'a:b')[0].dataset.key).toBe(kidsOf(two, 'a')[0].dataset.key);
+    expect(active(two)).toBe(kidsOf(two, 'a')[0]);
+    two.data = lanes([A, { ...B, title: 'renamed' }]);
+    two.renderNow();
+    expect(active(two)).toBe(kidsOf(two, 'a')[0]);
+  });
+
+  describe('sound', () => {
+    let spy: SoundSpy;
+    beforeEach(() => {
+      vi.useRealTimers();
+      spy = soundSpy();
+    });
+    afterEach(() => spy.restore());
+
+    it('a child line → a subtle navigate (as a follow-up line); the children toggle is silent (as "+N more")', async () => {
+      const el = mount(lanes([{ ...EPIC, children: KIDS }]));
+      press(toggleOf(el));
+      el.renderNow();
+      await spy.settle();
+      expect(spy.calls).toEqual([]);
+      press(kidsOf(el)[0]);
+      await spy.settle();
+      press(kidsOf(el)[1], 0);
+      await spy.settle();
+      expect(spy.calls).toEqual([
+        ['navigate', { emphasis: 'subtle', input: 'mouse' }],
+        ['navigate', { emphasis: 'subtle', input: 'keyboard' }],
+      ]);
+      // Prevented: silent. Closing: silent.
+      el.addEventListener('ui-child', (e) => e.preventDefault());
+      press(kidsOf(el)[0]);
+      press(toggleOf(el));
+      el.renderNow();
+      await spy.settle();
+      expect(spy.calls).toHaveLength(2);
+    });
+  });
+
+  it('styles: the connector is a mark in the accent with forced-colour fallbacks; the mark is colour only', () => {
+    // Tied: one step in; the connector from the gap above to the card's bottom, its elbow curving into the head.
+    expect(css).toContain('--ib-tie-c: color-mix(in srgb, var(--accent) 45%, var(--ib-col));');
+    expect(css).toMatch(/\.ib-card\.is-tied:not\(\.is-exiting\) \{ margin-inline-start: var\(--ib-tie-in\); \}/);
+    expect(css).toMatch(/\.ib-tie \{ display: none; \}/);
+    expect(css).toMatch(/> \.ib-tie::before \{[^}]*border-inline-start-width: 1\.5px; border-block-end-width: 1\.5px;/);
+    expect(css).toMatch(/\.ib-card\.is-tied:not\(\.is-tied-last\):not\(\.is-exiting\) > \.ib-tie::after \{/);
+    // Forced colours: GrayText, CanvasText while marked; the mark an outline in Highlight.
+    expect(css).toMatch(
+      /@media \(forced-colors: active\) \{[^@]*\.ib-tie \{ forced-color-adjust: none; --ib-tie-c: GrayText; \}/,
+    );
+    expect(css).toMatch(
+      /forced-colors: active\) \{[^@]*\.is-kin\[data-kin~="focus"\] > \.ib-tie \{ --ib-tie-c: CanvasText; \}/,
+    );
+    expect(css).toMatch(
+      /forced-colors: active\) \{[^@]*\.is-kin\[data-kin~="focus"\] \{ outline: 2px solid Highlight;/,
+    );
+    expect(css).toMatch(
+      /forced-colors: active\) \{[^@]*\.ib-kdot \{ forced-color-adjust: none; background: CanvasText; \}/,
+    );
+    // The pointer's mark only on hover devices (every rule for it sits in a (hover: hover) block); the focus's
+    // whenever the focus is visible, outside any media block.
+    const at = (s: string) => [...css.matchAll(new RegExp(s.replace(/[[\]().~*"]/g, '\\$&'), 'g'))].map((m) => m.index);
+    const pointer = at('[data-kin~="pointer"]');
+    expect(pointer.length).toBeGreaterThan(0);
+    for (const i of pointer) {
+      const media = css.lastIndexOf('@media', i);
+      expect(css.slice(media, css.indexOf('{', media))).toContain('(hover: hover)');
+    }
+    expect(css).toMatch(
+      /\} \.ib:has\(:focus-visible\) \.ib-card\.is-kin\[data-kin~="focus"\] \{ --ib-tie-c: var\(--ib-kin\); border-color: var\(--ib-kin\); box-shadow: 0 0 0 1px var\(--ib-kin\), var\(--ib-shadow\); \}/,
+    );
+    // Colour only: every rule of the mark sets colours, a ring or an outline — never a size or a position.
+    for (const [, body] of css.matchAll(/\.is-kin[^{}]*\{([^}]*)\}/g))
+      for (const decl of body.split(';').filter((d) => d.trim()))
+        expect(decl.split(':')[0].trim()).toMatch(/^(--ib-tie-c|border-color|box-shadow|outline|outline-offset)$/);
+    // No expand animation and no keyframes that move layout; the toggle's chevron turns (transform).
+    expect(css).not.toMatch(/\.ib-kid[^{]*\{[^}]*animation/);
+    for (const [, frames] of css.matchAll(/@keyframes [\w-]+ \{(.*?\}) \}/g))
+      expect(frames).not.toMatch(
+        /\b(width|height|top|left|right|bottom|margin[\w-]*|padding[\w-]*|inset[\w-]*|grid-template-rows|block-size|inline-size)\s*:/,
+      );
+    // Hover on the toggle and the child lines only on pointer devices; 44px targets on touch.
+    expect(css).toMatch(/@media \(hover: hover\) and \(pointer: fine\) \{ \.ib-kids-line:hover \{/);
+    for (const i of [...at('.ib-kids-line:hover'), ...at('.ib-kid:hover')]) {
+      const media = css.lastIndexOf('@media', i);
+      expect(css.slice(media, css.indexOf('{', media))).toBe('@media (hover: hover) and (pointer: fine) ');
+    }
+    expect(css).toMatch(
+      /@media \(pointer: coarse\), \(max-width: 639px\) \{[^@]*\.ib-kids-line, \.ib-kid \{ min-height: 44px; \}/,
+    );
+  });
+});
