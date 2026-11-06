@@ -196,6 +196,13 @@ export const doc: ComponentDoc = {
       default: "'bottom'",
       description: 'Attribute. Preferred side of the trigger (a composer row uses `top`); flips when it has no room.',
     },
+    {
+      name: 'compact',
+      type: 'boolean attribute',
+      default: 'false',
+      description:
+        'A tight row (a phone’s composer, 0.36.0): the trigger reads the maker’s mark and the level, and the model’s name moves to its label and a tooltip (“<name> · <level>”). A model without a level shows its `short` name instead, so the trigger never reads a mark alone. Set it from the host when the row is narrow.',
+    },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
       name: 'theme',
@@ -233,6 +240,7 @@ export const doc: ComponentDoc = {
   ],
   a11y: [
     'Trigger: aria-haspopup="dialog", aria-expanded, aria-controls; its label reads “Model <name>, effort <level> — change”; aria-busy while a write runs. Read-only uses aria-disabled and keeps focus, so the reason is read as its description; its label drops “— change”, since it cannot change anything.',
+    'compact keeps the trigger’s label whole (“Model <name>, effort <level> — change”): only what is drawn gets shorter, and the name is the tooltip.',
     'The menu is role="dialog"; closed it is inert and hidden. The list is a listbox with aria-activedescendant (focus stays on the list); the current model is aria-selected; locked rows and a model outside the list are aria-disabled.',
     'Each option’s aria-label states name, description, window and price — the column head, meters and tray caption are aria-hidden.',
     'Effort is a radiogroup with one tab stop (roving tabindex); aria-disabled + aria-busy while an effort write runs.',
@@ -373,6 +381,14 @@ export const doc: ComponentDoc = {
       description: 'Someone else’s session: the trigger shows the model and effort but does not open.',
       height: 240,
       create: () => make({ ...BASE, disabled: 'Read-only — not your session' }),
+    },
+    {
+      id: 'compact',
+      title: 'Compact (a tight row)',
+      description:
+        'compact: the maker’s mark and the level — what a phone’s composer row has room for. The name is the tooltip and stays in the label.',
+      height: 240,
+      create: () => make(BASE, { attrs: { compact: '', lang: 'ko' } }),
     },
     {
       id: 'ko',

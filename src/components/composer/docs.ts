@@ -246,6 +246,12 @@ export const doc: ComponentDoc = {
         'The card takes the composer’s height — give the host one (flex: 1 in a phone sheet): the field grows into it and the toolbar sits at the bottom; maxRows no longer caps the field.',
     },
     {
+      name: 'slot="end"',
+      type: 'content',
+      description:
+        'The host’s own controls on the composer’s row (0.36.0): a light-DOM child with `slot="end"` sits first on the row’s end — before the hint, the counter, the mode switch and Send — and, while a voice note records, before Cancel and Done, so it never leaves the row. It shrinks before the composer’s own items (give it `min-width: 0` and let its text truncate). Its clicks, keys and pastes are its own: they never send, never move the caret, never end a recording (Esc on it is its own) and never attach a pasted file. A session’s model picker goes here.',
+    },
+    {
       name: 'data.maxRecordMs',
       type: 'number',
       default: '600000 (10 min)',
@@ -388,7 +394,7 @@ export const doc: ComponentDoc = {
     ],
     ['Esc (menu open)', 'Close the menu; it stays closed until the text changes'],
     ['Esc (while recording)', 'Discard the recording'],
-    ['Tab', 'Field → chip buttons (play, remove) → tools → send'],
+    ['Tab', 'Field → chip buttons (play, remove) → tools → slot="end" → mode → send'],
   ],
   a11y: [
     'The textarea has an accessible name (data.label, default “Message”) and is described by the counter, hint, disabled reason and error line.',
@@ -396,6 +402,7 @@ export const doc: ComponentDoc = {
     'The error line is role="alert"; attaching and removing files is announced in a polite status region that the patched markup never re-creates.',
     'Send uses aria-disabled (it stays in the tab order) and aria-busy while busy; host toggles use aria-pressed.',
     'The mode switch is a button with role="switch" and aria-checked, named by data.mode.label (also its tooltip); its short text is aria-hidden, so the name holds when narrow cards hide it. Day and night differ in position and glyph, not colour alone.',
+    'A control in slot="end" keeps its own name and keys; it is in the row’s tab order before the mode switch and Send.',
     'Recording moves focus to Done; the recorder row is a group named “Recording” with a role="timer" clock; ending it returns focus to the field.',
     'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom. The camera tool (data.camera) shows only there.',
     'Upload progress (data.progress) is a role="progressbar" named “Uploading” with aria-valuenow in percent.',
@@ -447,6 +454,27 @@ export const doc: ComponentDoc = {
       create: () => {
         const el = make({ value: 'Summarise the report and flag anything unusual in the chart.', hint: true });
         el.addFiles(demoFiles());
+        const line = statusLine();
+        echoSubmit(el, line);
+        return frame(el, line);
+      },
+    },
+    {
+      id: 'end-slot',
+      title: 'A control on the row (slot end)',
+      description:
+        'The host slots its own control into slot="end" — here a model chip — and it sits left of Send on the composer’s row. Narrow the frame: the chip truncates before Send moves. Start a voice note: the chip stays on the row, before Cancel and Done.',
+      height: 220,
+      create: () => {
+        const el = make({ placeholder: 'Steer the session…', minRows: 1 });
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.slot = 'end';
+        chip.className = 'ui-chip';
+        chip.style.cssText = 'min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis';
+        chip.textContent = 'Opus 5.5 (1M) · Extra high';
+        chip.setAttribute('aria-label', 'Model: Opus 5.5 (1M), effort Extra high');
+        el.append(chip);
         const line = statusLine();
         echoSubmit(el, line);
         return frame(el, line);
