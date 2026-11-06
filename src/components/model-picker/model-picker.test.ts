@@ -837,3 +837,50 @@ describe("the maker's mark", () => {
     ]);
   });
 });
+
+describe('compact (0.34.0): the trigger in a tight row', () => {
+  const trig = (el: UiModelPicker) => q(el, '.mp-trigger')!;
+
+  it('draws the maker’s mark and the level; the model’s name moves to the label and the tooltip', () => {
+    const el = mount(BASE, { compact: '' });
+    expect(q(el, '.mp-glyph')).toBeTruthy();
+    expect(q(el, '.mp-name')).toBeNull();
+    expect(q(el, '.mp-level')!.textContent).toBe('Extra high'); // no separator before it: nothing to separate
+    expect(trig(el).getAttribute('aria-label')).toBe('Model Opus 5.5 (1M), effort Extra high — change');
+    expect(trig(el).getAttribute('title')).toBe('Opus 5.5 (1M) · Extra high');
+  });
+
+  it('without a level it reads the short name instead, never the mark alone', () => {
+    const el = mount({ models: [{ ...MODELS[0], effortLevels: [] }], value: { model: 'opus' } }, { compact: '' });
+    expect(q(el, '.mp-level')).toBeNull();
+    expect(q(el, '.mp-name')!.textContent).toBe('opus[1m]');
+    expect(trig(el).getAttribute('title')).toBe('Opus 5.5 (1M)');
+  });
+
+  it('follows the attribute both ways; a read-only trigger keeps its reason as the tooltip', () => {
+    const el = mount(BASE);
+    expect(q(el, '.mp-name')!.textContent).toBe('Opus 5.5 (1M)');
+    expect(trig(el).hasAttribute('title')).toBe(false);
+    el.setAttribute('compact', '');
+    el.renderNow();
+    expect(q(el, '.mp-name')).toBeNull();
+    el.removeAttribute('compact');
+    el.renderNow();
+    expect(q(el, '.mp-name')!.textContent).toBe('Opus 5.5 (1M)');
+    const ro = mount({ ...BASE, disabled: 'Not your session' }, { compact: '' });
+    expect(q(ro, '.mp-name')).toBeNull();
+    expect(trig(ro).getAttribute('title')).toBe('Not your session');
+  });
+
+  it('escapes the name in the tooltip; lang="ko" names the level in Korean', () => {
+    const x = mount(
+      { models: [{ ...MODELS[0], label: XSS }], value: { model: 'opus', effort: 'high' } },
+      { compact: '' },
+    );
+    expect(x.shadowRoot!.querySelector('img')).toBeNull();
+    expect(trig(x).getAttribute('title')).toBe(`${XSS} · High`);
+    const ko = mount(BASE, { compact: '', lang: 'ko' });
+    expect(q(ko, '.mp-level')!.textContent).toContain('매우 높음');
+    expect(trig(ko).getAttribute('title')).toBe('Opus 5.5 (1M) · 매우 높음');
+  });
+});

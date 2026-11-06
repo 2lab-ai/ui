@@ -113,6 +113,13 @@ const plainKey = (e: KeyboardEvent): boolean => !e.shiftKey && !e.altKey && !e.m
 const floorSec = (ms: number): number => Math.floor(Math.max(0, ms) / 1000) * 1000;
 
 /**
+ * The host's own controls at the end of the row (0.34.0): `<x slot="end">` sits before the hint, the counter, the
+ * mode switch and Send, and in the recorder row before Cancel and Done, so it never leaves the row. The slot node
+ * keeps its place in the patched markup (`data-mk`), so what is slotted stays assigned across renders.
+ */
+const END_SLOT = '<slot name="end" data-mk="end"></slot>';
+
+/**
  * `<ui-composer>` — write a message, drop or paste files, record a voice note, and send. The field grows with its
  * text (2–10 rows), Enter sends (Shift+Enter is a new line, never on an IME composition Enter, touch Enter is a new
  * line), attachments show as chips (image thumbnails, a play button for audio), limits reject with an inline error,
@@ -1397,7 +1404,7 @@ export class UiComposer extends UiElement<ComposerData> {
       s.busy ? ' aria-busy="true"' : ''
     }>${inner}</button>`;
     const modeSwitch = mode ? this.#modeSwitch(mode, on, off) : '';
-    return `<div class="cp-bar"${this.#barEnter ? ' data-enter' : ''}><div class="cp-tools">${tools}</div><div class="cp-end">${hint}${count}${modeSwitch}${send}</div></div>`;
+    return `<div class="cp-bar"${this.#barEnter ? ' data-enter' : ''}><div class="cp-tools">${tools}</div><div class="cp-end">${END_SLOT}${hint}${count}${modeSwitch}${send}</div></div>`;
   }
 
   /** Day / night: a track whose thumb carries the sun (off) or the moon (on); two stars come out at night. */
@@ -1414,7 +1421,7 @@ export class UiComposer extends UiElement<ComposerData> {
   #recorderBar(rec: Rec, t: ComposerStrings): string {
     return `<div class="cp-rec" role="group" aria-label="${escAttr(t.recording)}"><span class="cp-rec-dot" aria-hidden="true"></span><span class="cp-rec-time" role="timer">${fmtClock(
       floorSec(Date.now() - rec.started),
-    )}</span><span class="cp-meter" aria-hidden="true"><span class="cp-level" style="${this.#levelStyle()}"></span></span><button type="button" class="cp-rec-btn" data-act="rec-cancel" data-key="rec-cancel">${esc(
+    )}</span><span class="cp-meter" aria-hidden="true"><span class="cp-level" style="${this.#levelStyle()}"></span></span>${END_SLOT}<button type="button" class="cp-rec-btn" data-act="rec-cancel" data-key="rec-cancel">${esc(
       t.cancel,
     )}</button><button type="button" class="cp-rec-btn is-done" data-act="rec-done" data-key="rec-done">${esc(t.done)}</button></div>`;
   }
