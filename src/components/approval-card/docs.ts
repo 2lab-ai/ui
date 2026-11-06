@@ -135,7 +135,7 @@ export const doc: ComponentDoc = {
       name: 'data.irreversible',
       type: 'string',
       description:
-        'What cannot be undone once approved (“prod 배포”, “force push”) — the host’s own classification. Approve becomes a slide (<ui-slide-confirm tone="danger">, “Slide to approve” / “밀어서 승인”) that sends the same ui-decide; ⌘↵ no longer approves; a line under the title says what is at stake; a failed approve is retried by sliding again. Deny, Explain and the rule box stay. It adds no gate: the card only appears where the host already asks.',
+        'What cannot be undone once approved (“prod 배포”, “force push”) — the host’s own classification. Approve becomes a slide (<ui-slide-confirm tone="danger">, “Slide to approve” / “밀어서 승인”) that sends the same ui-decide; ⌘↵ no longer approves; a line under the title says what is at stake; a failed approve is retried by sliding again. Deny, Explain and the rule box stay. The slide survives a data refresh for the same prompt (a drag, a commit still sliding home and focus on its grip carry on); its ui-confirm is stopped at the card (a capture listener above the card still sees it). It adds no gate: the card only appears where the host already asks.',
     },
     {
       name: 'data.question / choices / recommendedId / allowOther',

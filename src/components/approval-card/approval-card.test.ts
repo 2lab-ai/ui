@@ -544,7 +544,80 @@ describe('irreversible — Approve is a slide', () => {
     expect(slideCommit(el).defaultPrevented).toBe(true);
     expect(decided).toEqual([]);
     const gone = mount(irr({ id: 'ap3', expiresAt: Date.now() - 1000 }));
-    expect(events(gone, 'ui-decide')).toEqual([]);
+    const goneDecided = events(gone, 'ui-decide');
+    expect(q(gone, '.ac-slide')?.hasAttribute('disabled')).toBe(true);
+    expect(slideCommit(gone).defaultPrevented).toBe(true);
+    expect(goneDecided).toEqual([]);
+  });
+
+  describe('the slide survives the host refreshing data (review P1/P2)', () => {
+    /** The slide's grip, inside its own shadow root (drawn now if its first render is still queued). */
+    const gripOf = (el: UiApprovalCard) => {
+      const slide = q<HTMLElement & { renderNow(): void }>(el, '.ac-slide')!;
+      if (!slide.shadowRoot!.querySelector('.sc-grip')) slide.renderNow();
+      return slide.shadowRoot!.querySelector<HTMLElement>('.sc-grip')!;
+    };
+    const press = (t: HTMLElement, k: string) =>
+      t.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, composed: true, cancelable: true }));
+
+    it('End, then the host re-sends the same data while the grip slides home: the approval is still sent once', () => {
+      vi.useFakeTimers();
+      const el = mount(irr());
+      const decided = events(el, 'ui-decide');
+      const slide = q(el, '.ac-slide')!;
+      press(gripOf(el), 'End');
+      expect(decided).toEqual([]); // still sliding
+      set(el, {}); // a board push with nothing new, mid-slide
+      set(el, { expiresAt: Date.now() + 60_000 });
+      expect(q(el, '.ac-slide')).toBe(slide); // the same element, its commit still pending
+      vi.advanceTimersByTime(1000);
+      expect(decided).toEqual([{ id: 'ap1', decision: 'approve' }]);
+      // The card answered inside the slide's listener: the slide shows busy (the card's word), not its own done.
+      expect((slide as unknown as { state: string }).state).toBe('busy');
+      el.renderNow();
+      expect(q(el, '.ac-slide')).toBe(slide);
+      expect((slide as unknown as { state: string }).state).toBe('busy');
+    });
+
+    it('a drag in progress keeps its grip, and focus stays on the grip, across a refresh', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      const grip = gripOf(el);
+      grip.focus();
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true, pointerId: 1, button: 0 }));
+      expect(slide.shadowRoot!.querySelector('.sc')?.hasAttribute('data-held')).toBe(true);
+      set(el, { expiresAt: Date.now() + 60_000 });
+      expect(q(el, '.ac-slide')).toBe(slide);
+      expect(slide.shadowRoot!.querySelector('.sc')?.hasAttribute('data-held')).toBe(true);
+      expect(slide.shadowRoot!.activeElement).toBe(gripOf(el));
+    });
+
+    it('another prompt gets a fresh slide — a gesture never carries over', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      set(el, { id: 'ap2' });
+      expect(q(el, '.ac-slide')).not.toBe(slide);
+      expect(q(el, '.ac-slide')).not.toBeNull();
+    });
+
+    it('a failed approve: the same slide goes back to idle and keeps keyboard focus, ready to slide again', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      gripOf(el).focus();
+      slideCommit(el);
+      el.renderNow();
+      set(el, { state: { status: 'error', message: 'Could not send', retry: true } });
+      expect(q(el, '.ac-slide')).toBe(slide);
+      expect((slide as unknown as { state: string }).state).toBe('idle');
+      expect(slide.shadowRoot!.activeElement).toBe(gripOf(el));
+    });
+
+    it('focus() on the slide lands on its grip (the host takes no focus)', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      slide.focus();
+      expect(slide.shadowRoot!.activeElement).toBe(gripOf(el));
+    });
   });
 
   it('a failed approve offers no Retry button — the slide is the way to approve again', () => {
