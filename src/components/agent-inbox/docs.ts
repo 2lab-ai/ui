@@ -570,6 +570,137 @@ function cronLaneDemo(): HTMLElement {
   return lane;
 }
 
+/**
+ * An epic and its children (0.37.0), as soma-work draws them: each child right after its epic in the same list, so
+ * three are tied under it; one child waits in another column (not tied, still marked with its family on hover or
+ * focus). The epic's face lists all five children on one line; a press opens the list, a child sends ui-child.
+ */
+function epicDemo(): HTMLElement {
+  const now = Date.now();
+  const epic: InboxCard = {
+    id: 'epic-billing',
+    title: 'Billing v2',
+    lead: { glyph: 'epic', title: 'Epic' },
+    summary: 'Split invoices out of orders, retry failed webhooks and move the plan picker to the new API.',
+    status: 'running',
+    since: now - 48 * MIN,
+    agents: { total: 4, running: 1, done: 2, failed: 1 },
+    tokens: 8_412_330,
+    costUsd: 14.2,
+    steps: { done: 1, total: 5 },
+    model: 'opus-4-5',
+    children: [
+      { id: 'bill-schema', title: 'Split the invoices table', status: 'running' },
+      { id: 'bill-webhooks', title: 'Retry failed webhooks', status: 'waiting' },
+      { id: 'bill-plans', title: 'Move the plan picker to the new API', status: 'done' },
+      { id: 'bill-tax', title: 'Tax rounding on credit notes', status: 'failed' },
+      { id: 'bill-docs', title: 'Billing API docs', status: 'idle', statusText: 'Queued' },
+    ],
+    details: ['Planned 5 tasks from the billing v2 spec', 'Started 4 of them', 'Watching the children'],
+  };
+  const task = { glyph: 'task' as const, title: 'Task' };
+  const schema: InboxCard = {
+    id: 'bill-schema',
+    parent: 'epic-billing',
+    lead: task,
+    title: 'Split the invoices table',
+    status: 'running',
+    since: now - 12 * MIN,
+    task: { id: 'T2', label: 'Backfilling 2.1M invoices', startedAt: now - 4 * MIN },
+    tokens: 1_204_118,
+    costUsd: 2.41,
+    rows: ['task', 'usage'],
+  };
+  const webhooks: InboxCard = {
+    id: 'bill-webhooks',
+    parent: 'epic-billing',
+    lead: task,
+    title: 'Retry failed webhooks',
+    summary: 'Wants to replay 312 failed deliveries against production.',
+    status: 'waiting',
+    since: now - 3 * MIN,
+    rows: ['summary'],
+    details: ['Found 312 failed deliveries since Monday', 'Wants to replay them'],
+    actions: [{ id: 'reject', label: 'Reject' }],
+    primary: { id: 'approve', label: 'Replay' },
+  };
+  const plans: InboxCard = {
+    id: 'bill-plans',
+    parent: 'epic-billing',
+    lead: task,
+    title: 'Move the plan picker to the new API',
+    status: 'done',
+    since: now - 20 * MIN,
+    elapsedMs: 9 * MIN + 40_000,
+    rows: ['usage'],
+    tokens: 640_210,
+    costUsd: 1.02,
+  };
+  const tax: InboxCard = {
+    id: 'bill-tax',
+    parent: 'epic-billing',
+    lead: task,
+    title: 'Tax rounding on credit notes',
+    summary: 'Two credit notes round a cent apart from the ledger.',
+    status: 'failed',
+    since: now - 7 * MIN,
+    rows: ['summary'],
+    details: ['Compared 1,840 credit notes with the ledger', 'Two differ by 0.01'],
+    primary: { id: 'retry', label: 'Retry' },
+  };
+  const notes: InboxCard = {
+    id: 'notes',
+    title: 'Release notes v2.4',
+    status: 'running',
+    since: now - 3 * MIN - 49_000,
+    task: { id: 'T3', label: 'Drafting the highlights', startedAt: now - 58_000 },
+    rows: ['task'],
+  };
+  const digest: InboxCard = {
+    id: 'digest',
+    title: 'Weekly metrics digest',
+    status: 'done',
+    since: now - 13 * 60 * MIN,
+    elapsedMs: 4 * MIN + 12_000,
+  };
+  let between = false;
+  const data = (): AgentInboxData => ({
+    columns: [
+      { id: 'needs-you', label: 'Needs you', cards: [tax] },
+      {
+        id: 'running',
+        label: 'Running',
+        cards: between ? [epic, schema, webhooks, notes, plans] : [epic, schema, webhooks, plans, notes],
+      },
+      { id: 'done', label: 'Done', cards: [digest] },
+    ],
+  });
+  const el = make(data());
+  const said = note();
+  const wrap = document.createElement('div');
+  wrap.append(
+    toolbar([
+      [
+        'Put a card between',
+        (b) => {
+          between = !between;
+          b.textContent = between ? 'Put the children back together' : 'Put a card between';
+          el.data = data();
+        },
+      ],
+    ]),
+    el,
+    said,
+  );
+  el.addEventListener('ui-child', (e) => {
+    const { childId } = (e as CustomEvent<{ cardId: string; childId: string }>).detail;
+    said.textContent = `ui-child → ${JSON.stringify((e as CustomEvent).detail)}`;
+    // The host deep-links to the child's card when it is on the board.
+    el.reveal(childId, { open: false });
+  });
+  return wrap;
+}
+
 export const doc: ComponentDoc = {
   slug: 'agent-inbox',
   name: 'Agent Inbox',
@@ -705,6 +836,24 @@ export const doc: ComponentDoc = {
       type: "Array<{ id: string; kind: 'issue' | 'pr'; text: string; title?: string; status?: string; href?: string }>",
       description:
         'The follow-up bar (0.34.0), right under the head whatever `rows` says: the issues and PRs the run left open, one line each — the kind’s mark, “#918 · title” in a gradient (still; it sweeps while the line is hovered or focused) and the state word — on a quiet purple tint. At most 5 lines, then a “+N more” button that shows the rest in place. A line is a button that sends ui-followup and never toggles the card. The host owns the state: drop a follow-up once the person has seen it. Entries without an id, a text or a known kind are skipped.',
+    },
+    {
+      name: 'data.columns[].cards[].parent',
+      type: 'string',
+      description:
+        '0.37.0 — the id of the card’s epic (its parent card). The card carries `data-parent` and the class `is-child`; its epic, while a child is drawn, `is-parent`. A child drawn right after its epic — or after a sibling tied to it — in the same list (the way soma-work draws them) is tied: one step in (20px), with a connector from under the epic down the indent that curves into the child at its head and runs on to the next tied child (the run’s last, `is-tied-last`, ends at its elbow). Kept as cards move, arrive and leave. A child anywhere else (another column or group) is not tied. A pointer over (hover devices only), or a keyboard focus in, any card of the family — the epic and every card whose `parent` it is — marks every card of it drawn (`is-kin`): a border and ring in the accent, the connector with them; colour only, nothing moves. The connector is a mark in the accent (grey in mono), GrayText under forced colours.',
+    },
+    {
+      name: 'data.columns[].cards[].children',
+      type: 'InboxChild[]',
+      description:
+        '0.37.0 — the epic’s children row, right after the follow-up bar whatever `rows` says: one line — “Children 4” (`strings.children`), then a status dot and the title per child, clipped with an ellipsis — that is a toggle (aria-expanded): a press opens the list in place, one line per child (dot, title, status word; `statusText` wins), and hands focus to the first child; a second press closes it. Each child line is a button that sends ui-child. Neither ever toggles the card. The open list is kept while the card is on the board. Entries without an id or a title are skipped; a repeated id is drawn once.',
+    },
+    {
+      name: 'InboxChild',
+      type: "{ id: string; title: string; status: 'waiting' | 'running' | 'done' | 'failed' | 'idle'; statusText?: string }",
+      description:
+        'One child in `children` (exported type). `id` is sent back in ui-child — the child’s card id when it is on the board, so the host can `reveal()` it. `status` draws the dot (amber, blue, green, red; idle hollow) and the status word; `statusText` replaces the word (`Queued`).',
     },
     {
       name: 'data.columns[].cards[].rows',
@@ -869,6 +1018,12 @@ export const doc: ComponentDoc = {
         "A follow-up line (`followups[]`) was pressed — `href` is the follow-up’s http(s) page, or `''`. Cancelable. The card does not toggle and the line stays until the host drops it (for example once it has shown the page).",
     },
     {
+      name: 'ui-child',
+      detail: '{ cardId: string; childId: string }',
+      description:
+        'A child line in an epic’s open children list (`children[]`) was pressed — `cardId` is the epic, `childId` the child’s id. Cancelable. The card does not toggle (nor does the children toggle, which sends nothing).',
+    },
+    {
       name: 'ui-group-toggle',
       detail: '{ columnId: string; groupId: string; open: boolean }',
       description:
@@ -879,6 +1034,11 @@ export const doc: ComponentDoc = {
     ['Tab', 'Through the cards, then the buttons inside an open card'],
     ['Enter / Space', 'Open or close the focused card (no transition); press a button'],
     ['Enter / Space on a group head', 'Open or close the group'],
+    [
+      'Enter / Space on an epic’s children line',
+      'Show the children (focus goes to the first) or hide them — never opens or closes the card',
+    ],
+    ['Enter / Space on a child line', 'Send ui-child for that child — never opens or closes the card'],
     [
       'Esc',
       'Close the open card the focus is in — its own body or the host’s slotted body — and put focus back on it (not from a text field or select)',
@@ -895,8 +1055,10 @@ export const doc: ComponentDoc = {
     'Host face extras are text only (escaped): a metric’s label is its accessible name; a file chip button says “Open <name>” (`artOpen`).',
     'Reduced motion: no hold, no travel — a card that changes column fades in where it lands; the ring and pulses stop.',
     'Follow-ups (0.34.0) are a group labelled “Follow-ups” of buttons, each named “Open follow-up #918 — title · state” by its tooltip and read as its words; the gradient is text colour only (each stop pulled toward ink, ≥ 4.5:1 in both themes), ButtonText under forced colours, and its sweep runs only on hover or focus, never under reduced motion. When the host drops the focused line, focus goes to the card’s next line, else its face; “+N more” hands focus to the first line it shows.',
+    "Families (0.37.0): the connector is aria-hidden and the family mark is colour only — the relationship is also said in words by the epic’s children row (and by a lead the host gives, `{ glyph: 'epic' }`). The mark answers a pointer on hover devices only (a tap leaves none behind) and a keyboard focus while the focus is visible; under forced colours it is an outline in Highlight and the connector GrayText.",
+    'The children row (0.37.0) is a toggle button named “Children 4 — Show all children” (“Hide” once open; ko “자식 4 — 자식 모두 보기” / “접기”) with aria-expanded and aria-controls on its list, labelled “Children”, of buttons that read the child’s title then its status word (the dot is aria-hidden). Opening it hands focus to the first child; a child the host drops hands focus to the next one, else the previous one, else the toggle, else the face. Each line is 44px tall on touch.',
     'Attention (0.32.0) is decorative: the waiting is already the status word and the owner the badge’s “(you)”. Its ping is 1.2 s in every 10 s, never a flash (no luminance swing, no more than one a second), stops while the card is open, held while a pointer is over it or a keyboard focus is in it, and is gone under reduced motion.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or closes a card or a group (not for reveal()), a tap for an action, a navigate for Open, a softer navigate for a file chip. Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or closes a card or a group (not for reveal()), a tap for an action, a navigate for Open, a softer navigate for a file chip, a follow-up line or a child line (ui-child, 0.37.0); opening or closing an epic’s children list is silent, as “+N more” is. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-inbox lang="en"></ui-agent-inbox>
 <script type="module">
@@ -967,6 +1129,15 @@ export const doc: ComponentDoc = {
       height: 900,
       frame: false,
       create: dashboardDemo,
+    },
+    {
+      id: 'epic',
+      title: 'Epic with children',
+      description:
+        'Billing v2 lists its five children on one line; press it for the full list, and a child sends ui-child (here the host reveals that card). Three children sit right after the epic, tied to it by a connector; Tax rounding waits in Needs you, untied. Hover or Tab into any of them and the whole family is marked. “Put a card between” breaks the run: the ties follow.',
+      height: 820,
+      frame: false,
+      create: epicDemo,
     },
     {
       id: 'host-body',
