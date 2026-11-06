@@ -459,3 +459,185 @@ describe('sound', () => {
     expect(spy.calls).toEqual([]);
   });
 });
+
+describe('irreversible — Approve is a slide', () => {
+  const irr = (over: Partial<ApprovalPermissionData> = {}) =>
+    perm({ irreversible: 'prod 배포', canDisableRule: true, ...over });
+  /** What the slide's commit sends: its cancelable ui-confirm, from inside the card's shadow root. */
+  const slideCommit = (el: UiApprovalCard) => {
+    const slide = q(el, '.ac-slide')!;
+    const ev = new CustomEvent('ui-confirm', { detail: {}, bubbles: true, composed: true, cancelable: true });
+    slide.dispatchEvent(ev);
+    return ev;
+  };
+
+  it('irreversibleOf / riskOf: the host label trimmed; an irreversible action is high risk without a rule', () => {
+    expect(riskOf({ irreversible: 'prod 배포', rules: [] })).toBe('high');
+    expect(riskOf({ irreversible: '  ', rules: [] })).toBeUndefined();
+    expect(riskOf({ irreversible: 'x', risk: 'low' })).toBe('low');
+  });
+
+  it('renders the slide where Approve stood, says what is at stake, keeps Deny / Explain / the rule box', () => {
+    const el = mount(irr({ canExplain: true }));
+    expect(q(el, '.ac-approve')).toBeNull();
+    const slide = q(el, 'ui-slide-confirm.ac-slide')!;
+    expect(slide).not.toBeNull();
+    expect(slide.getAttribute('tone')).toBe('danger');
+    expect(slide.getAttribute('label')).toBe('Slide to approve');
+    expect(q(el, '.ac-irrev')?.textContent).toContain('Cannot be undone: prod 배포');
+    expect(q(el, '.ac-card')?.getAttribute('aria-describedby')).toContain('ac-irrev');
+    expect(q(el, '.ac-deny')).not.toBeNull();
+    expect(q(el, '[data-act="explain"]')).not.toBeNull();
+    expect(q(el, '.ac-always input')).not.toBeNull();
+    expect(q(el, '.ac-risk')?.getAttribute('data-risk')).toBe('high');
+  });
+
+  it('a slide commit sends ui-decide approve (approve_disable_rule with the box ticked) and stays inside the card', () => {
+    const el = mount(irr());
+    const decided = events(el, 'ui-decide');
+    const leaked = events(el, 'ui-confirm');
+    const ev = slideCommit(el);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(decided).toEqual([{ id: 'ap1', decision: 'approve' }]);
+    expect(leaked).toEqual([]);
+    el.renderNow();
+    // In flight: the slide shows busy, Deny is locked.
+    expect((q(el, '.ac-slide') as unknown as { data: { state: string } }).data.state).toBe('busy');
+    expect(q(el, '.ac-deny')?.getAttribute('aria-disabled')).toBe('true');
+
+    const el2 = mount(irr({ id: 'ap2' }));
+    const d2 = events(el2, 'ui-decide');
+    q<HTMLInputElement>(el2, '.ac-always input')!.click();
+    slideCommit(el2);
+    expect(d2).toEqual([{ id: 'ap2', decision: 'approve_disable_rule' }]);
+  });
+
+  it('a refused ui-decide refuses the slide (it springs home) and the card stays answerable', () => {
+    const el = mount(irr());
+    el.addEventListener('ui-decide', (e) => e.preventDefault());
+    const ev = slideCommit(el);
+    expect(ev.defaultPrevented).toBe(true);
+    el.renderNow();
+    expect((q(el, '.ac-slide') as unknown as { data: { state: string; disabled: boolean } }).data).toMatchObject({
+      state: 'idle',
+      disabled: false,
+    });
+  });
+
+  it('⌘↵ does not approve an irreversible action; Esc still denies', () => {
+    const el = mount(irr());
+    const decided = events(el, 'ui-decide');
+    q(el, '.ac-card')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, composed: true, cancelable: true }),
+    );
+    expect(decided).toEqual([]);
+    q(el, '.ac-deny')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true, cancelable: true }),
+    );
+    expect(decided).toEqual([{ id: 'ap1', decision: 'deny' }]);
+  });
+
+  it('locked (someone else answers) or expired: the slide is disabled and a commit sends nothing', () => {
+    const el = mount(irr({ canAnswer: 'Only the requester can answer' }));
+    expect(q(el, '.ac-slide')?.hasAttribute('disabled')).toBe(true);
+    const decided = events(el, 'ui-decide');
+    expect(slideCommit(el).defaultPrevented).toBe(true);
+    expect(decided).toEqual([]);
+    const gone = mount(irr({ id: 'ap3', expiresAt: Date.now() - 1000 }));
+    const goneDecided = events(gone, 'ui-decide');
+    expect(q(gone, '.ac-slide')?.hasAttribute('disabled')).toBe(true);
+    expect(slideCommit(gone).defaultPrevented).toBe(true);
+    expect(goneDecided).toEqual([]);
+  });
+
+  describe('the slide survives the host refreshing data (review P1/P2)', () => {
+    /** The slide's grip, inside its own shadow root (drawn now if its first render is still queued). */
+    const gripOf = (el: UiApprovalCard) => {
+      const slide = q<HTMLElement & { renderNow(): void }>(el, '.ac-slide')!;
+      if (!slide.shadowRoot!.querySelector('.sc-grip')) slide.renderNow();
+      return slide.shadowRoot!.querySelector<HTMLElement>('.sc-grip')!;
+    };
+    const press = (t: HTMLElement, k: string) =>
+      t.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, composed: true, cancelable: true }));
+
+    it('End, then the host re-sends the same data while the grip slides home: the approval is still sent once', () => {
+      vi.useFakeTimers();
+      const el = mount(irr());
+      const decided = events(el, 'ui-decide');
+      const slide = q(el, '.ac-slide')!;
+      press(gripOf(el), 'End');
+      expect(decided).toEqual([]); // still sliding
+      set(el, {}); // a board push with nothing new, mid-slide
+      set(el, { expiresAt: Date.now() + 60_000 });
+      expect(q(el, '.ac-slide')).toBe(slide); // the same element, its commit still pending
+      vi.advanceTimersByTime(1000);
+      expect(decided).toEqual([{ id: 'ap1', decision: 'approve' }]);
+      // The card answered inside the slide's listener: the slide shows busy (the card's word), not its own done.
+      expect((slide as unknown as { state: string }).state).toBe('busy');
+      el.renderNow();
+      expect(q(el, '.ac-slide')).toBe(slide);
+      expect((slide as unknown as { state: string }).state).toBe('busy');
+    });
+
+    it('a drag in progress keeps its grip, and focus stays on the grip, across a refresh', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      const grip = gripOf(el);
+      grip.focus();
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true, pointerId: 1, button: 0 }));
+      expect(slide.shadowRoot!.querySelector('.sc')?.hasAttribute('data-held')).toBe(true);
+      set(el, { expiresAt: Date.now() + 60_000 });
+      expect(q(el, '.ac-slide')).toBe(slide);
+      expect(slide.shadowRoot!.querySelector('.sc')?.hasAttribute('data-held')).toBe(true);
+      expect(slide.shadowRoot!.activeElement).toBe(gripOf(el));
+    });
+
+    it('another prompt gets a fresh slide — a gesture never carries over', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      set(el, { id: 'ap2' });
+      expect(q(el, '.ac-slide')).not.toBe(slide);
+      expect(q(el, '.ac-slide')).not.toBeNull();
+    });
+
+    it('a failed approve: the same slide goes back to idle and keeps keyboard focus, ready to slide again', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      gripOf(el).focus();
+      slideCommit(el);
+      el.renderNow();
+      set(el, { state: { status: 'error', message: 'Could not send', retry: true } });
+      expect(q(el, '.ac-slide')).toBe(slide);
+      expect((slide as unknown as { state: string }).state).toBe('idle');
+      expect(slide.shadowRoot!.activeElement).toBe(gripOf(el));
+    });
+
+    it('focus() on the slide lands on its grip (the host takes no focus)', () => {
+      const el = mount(irr());
+      const slide = q(el, '.ac-slide')!;
+      slide.focus();
+      expect(slide.shadowRoot!.activeElement).toBe(gripOf(el));
+    });
+  });
+
+  it('a failed approve offers no Retry button — the slide is the way to approve again', () => {
+    const el = mount(irr());
+    slideCommit(el);
+    set(el, { state: { status: 'error', message: 'Could not send', retry: true } });
+    expect(q(el, '.ac-retry')).toBeNull();
+    expect((q(el, '.ac-slide') as unknown as { data: { state: string } }).data.state).toBe('idle');
+    // A plain card keeps its Retry.
+    const plain = mount(perm({ id: 'ap9' }));
+    q(plain, '.ac-approve')!.click();
+    set(plain, { state: { status: 'error', message: 'Could not send', retry: true } });
+    expect(q(plain, '.ac-retry')).not.toBeNull();
+  });
+
+  it('escapes the host label; Korean words with lang="ko"', () => {
+    const el = mount(irr({ irreversible: XSS }), { lang: 'ko' });
+    expect(q(el, '.ac-irrev')?.innerHTML).not.toContain('<img');
+    expect(q(el, '.ac-irrev')?.textContent).toContain(`되돌릴 수 없음: ${XSS}`);
+    expect(q(el, '.ac-slide')?.getAttribute('label')).toBe('밀어서 승인');
+    expect(approvalStrings('ko').slideBusy).toBe('승인 중…');
+  });
+});

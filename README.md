@@ -22,7 +22,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Action Node | `<ui-action-node>` | A scheduled job (cron) — what it runs, when next, which channels and models it touches, its status; Run now / Pause / Edit / Delete fanned out of the corner on hover or the corner button, Delete with a second press |
 | Agent Queue | `<ui-agent-queue>` | Provider capacity, rate limits, and the scheduled-job lane |
 | Context Window | `<ui-context-window>` | How full the context is and how far auto-compaction is |
-| Approval Card | `<ui-approval-card>` | What the agent wants to do and how risky it is — Approve / Deny, or answer its question, before it expires |
+| Approval Card | `<ui-approval-card>` | What the agent wants to do and how risky it is — Approve / Deny, or answer its question, before it expires; an irreversible action (prod 배포, force push) is approved by sliding |
 | Agent Steering | `<ui-agent-steering>` | What you told the agent mid-run, whether it has it yet — queue a note for its next step, Send now, Edit, Cancel; queued notes wait behind a round count button (hover or press for the queue, a bottom sheet on phones) |
 | Toaster | `<ui-toaster>` + `toast()` | Whether what you just did worked — results, failures with Retry, promise spinners, Undo |
 | Compact Breakdown | `<ui-compact-breakdown>` | One number and what it is made of — spend and tokens by model or by user |
