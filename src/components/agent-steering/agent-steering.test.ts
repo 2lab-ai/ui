@@ -721,6 +721,20 @@ describe('<ui-agent-steering> with a slotted <ui-composer> (D2 G5-1)', () => {
     expect(sent.map((d) => d.mode)).toEqual(['queue']);
   });
 
+  it('a ⌘/Ctrl+Enter inside a control slotted into the composer (slot="end") never arms steer (0.34.0)', () => {
+    const { el, c } = hosted({ running: true });
+    const sent = events<SteeringSubmitDetail>(el, 'ui-submit');
+    // A model picker's open menu keeps every key to itself (stopPropagation), so no bubbling handler sees it.
+    const own = document.createElement('button');
+    own.slot = 'end';
+    own.addEventListener('keydown', (e) => e.stopPropagation());
+    c.append(own);
+    key(own, 'Enter', { metaKey: true });
+    cType(c, 'later');
+    c.shadowRoot!.querySelector<HTMLButtonElement>('.cp-send')!.click();
+    expect(sent.map((d) => d.mode)).toEqual(['queue']);
+  });
+
   it('the host cancels: the composer keeps its text and files; no row', () => {
     const { el, c } = hosted({ running: true });
     events(el, 'ui-submit', true);

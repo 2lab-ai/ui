@@ -2049,17 +2049,52 @@ describe('<ui-composer> end slot', () => {
     expect(endSlot(el)!.parentElement!.classList.contains('cp-end')).toBe(true);
   });
 
-  it('a click or Enter on the slotted control neither sends nor takes focus to the field', () => {
+  /**
+   * An event from a slotted control the way a browser routes it: through the slot into the composer's shadow root, with
+   * the control first on its path (happy-dom does not route a slotted node's events through the shadow root at all).
+   */
+  const fromSlot = <E extends Event>(el: UiComposer, b: Element, e: E): E => {
+    const path = [b, endSlot(el)!, q(el, '.cp-end') ?? q(el, '.cp-rec')!, el.shadowRoot!, el, document.body];
+    Object.defineProperty(e, 'composedPath', { value: () => path });
+    endSlot(el)!.dispatchEvent(e);
+    return e;
+  };
+
+  it('a click, Enter or ⌘+Enter on the slotted control neither sends nor moves the caret', () => {
     const el = mount({ value: 'Hello' });
     const sub = events(el, 'ui-submit');
     const b = own(el);
     b.focus();
-    key(b, 'Enter');
-    b.click();
-    key(b, 'Enter', { metaKey: true });
+    fromSlot(el, b, new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true, cancelable: true }));
+    fromSlot(el, b, new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, composed: true }));
+    fromSlot(el, b, new MouseEvent('click', { bubbles: true, composed: true }));
     expect(sub).toEqual([]);
     expect(document.activeElement).toBe(b);
     expect(el.value).toBe('Hello');
+  });
+
+  it('Esc on the slotted control is its own: a recording goes on', async () => {
+    stubMic();
+    const el = mount();
+    const rec = events<ComposerRecordDetail>(el, 'ui-record');
+    const b = own(el);
+    await startRec(el);
+    const e = fromSlot(
+      el,
+      b,
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true, cancelable: true }),
+    );
+    expect(e.defaultPrevented).toBe(false);
+    expect(q(el, '.cp-rec')).toBeTruthy();
+    expect(rec.map((r) => r.state)).toEqual(['start']);
+  });
+
+  it('a paste with files on the slotted control attaches nothing (a host input there keeps its own paste)', () => {
+    const el = mount();
+    const b = own(el);
+    const e = fromSlot(el, b, paste([png()]));
+    expect(e.defaultPrevented).toBe(false);
+    expect(el.files).toEqual([]);
   });
 
   it('nothing slotted: the row is as before (the empty slot takes no room)', () => {

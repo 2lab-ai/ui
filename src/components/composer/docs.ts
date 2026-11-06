@@ -249,7 +249,7 @@ export const doc: ComponentDoc = {
       name: 'slot="end"',
       type: 'content',
       description:
-        'The host’s own controls on the composer’s row (0.34.0): a light-DOM child with `slot="end"` sits first on the row’s end — before the hint, the counter, the mode switch and Send — and, while a voice note records, before Cancel and Done, so it never leaves the row. It shrinks before the composer’s own items (give it `min-width: 0` and let its text truncate). Its clicks and keys are its own: they never send and never move the caret. A session’s model picker goes here.',
+        'The host’s own controls on the composer’s row (0.34.0): a light-DOM child with `slot="end"` sits first on the row’s end — before the hint, the counter, the mode switch and Send — and, while a voice note records, before Cancel and Done, so it never leaves the row. It shrinks before the composer’s own items (give it `min-width: 0` and let its text truncate). Its clicks, keys and pastes are its own: they never send, never move the caret, never end a recording (Esc on it is its own) and never attach a pasted file. A session’s model picker goes here.',
     },
     {
       name: 'data.maxRecordMs',
