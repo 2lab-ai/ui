@@ -17,6 +17,7 @@ import {
   approvalIcon,
   choiceOrder,
   clockText,
+  irreversibleOf,
   LOW_MS,
   normState,
   num,
@@ -25,6 +26,8 @@ import {
   timeOfDay,
   toPreview,
 } from './logic';
+import '../slide-confirm/slide-confirm';
+import type { UiSlideConfirm } from '../slide-confirm/slide-confirm';
 import { type ApprovalLang, type ApprovalStrings, approvalStrings } from './strings';
 import { styles } from './styles';
 
@@ -69,6 +72,8 @@ const answerable = (v: boolean | string | undefined) => v === undefined || v ===
 const lockReason = (v: boolean | string | undefined) => (typeof v === 'string' ? v : '');
 const stateKey = (v: unknown) => JSON.stringify(normState(v));
 const text = (v: unknown) => (v === undefined || v === null ? '' : String(v));
+/** An answer that approves (with or without disabling the rule): for an irreversible action only its slide sends one. */
+const isApproval = (i: { decision?: string }) => i.decision === 'approve' || i.decision === 'approve_disable_rule';
 
 /**
  * `<ui-approval-card>` — an agent asks before it acts. A tool permission (the tool, its risk and matched rules, a
@@ -121,6 +126,8 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     this.#live.setAttribute('aria-live', 'polite');
     this.root.append(this.#live);
     this.root.addEventListener('click', (e) => this.#onClick(e));
+    // An irreversible action's Approve is a slide: its commit is the approve (the slide's own event stays inside).
+    this.root.addEventListener('ui-confirm', (e) => this.#onSlide(e));
     this.root.addEventListener('keydown', (e) => this.#onKey(e as KeyboardEvent));
     this.root.addEventListener('input', (e) => this.#onInput(e));
     this.root.addEventListener('focusin', () => this.#setPause('focus', true));
@@ -271,6 +278,24 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     else if (act === 'retry') this.#retry(d, e);
   }
 
+  /**
+   * The slide went past its mark: approve (with the rule ticked, approve and disable it). A refused `ui-decide` (or a
+   * card that cannot answer now) refuses the slide too, so it springs home. The slide plays its own cue.
+   */
+  #onSlide(e: Event): void {
+    e.stopPropagation();
+    const d = this.data;
+    const ok =
+      !!d &&
+      this.#decide(
+        d,
+        this.#always && (d as ApprovalPermissionData).canDisableRule ? 'approve_disable_rule' : 'approve',
+        e,
+        true,
+      );
+    if (!ok) e.preventDefault();
+  }
+
   #select(id: string, byPointer: boolean): void {
     const d = this.data;
     if (!d || this.#kind(d) !== 'question' || !this.#canAct(d, this.#eff(d))) return;
@@ -279,12 +304,14 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     this.renderNow();
   }
 
-  #decide(d: ApprovalCardData, decision: ApprovalDecision, e?: Event): void {
-    if (this.#kind(d) !== 'permission' || !this.#canAct(d, this.#eff(d))) return;
+  #decide(d: ApprovalCardData, decision: ApprovalDecision, e?: Event, quiet = false): boolean {
+    if (this.#kind(d) !== 'permission' || !this.#canAct(d, this.#eff(d))) return false;
     const p = d as ApprovalPermissionData;
-    if (decision === 'approve_disable_rule' && !p.canDisableRule) return;
-    if (decision === 'explain' && !p.canExplain) return;
-    this.#send({ decision }, e);
+    if (decision === 'approve_disable_rule' && !p.canDisableRule) return false;
+    if (decision === 'explain' && !p.canExplain) return false;
+    // An irreversible action is approved by its slide only — never by a stray button or ⌘↵.
+    if ((decision === 'approve' || decision === 'approve_disable_rule') && irreversibleOf(p) && !quiet) return false;
+    return this.#send({ decision }, e, quiet);
   }
 
   #submit(d: ApprovalCardData, e?: Event): void {
@@ -302,8 +329,11 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     if (last && this.#canAct(d, this.#eff(d))) this.#send(last, e);
   }
 
-  /** Emit the answer; not cancelled → the answers lock with a spinner until the host changes `state`. Deny closes. */
-  #send(intent: Intent, e?: Event): void {
+  /**
+   * Emit the answer; not cancelled → the answers lock with a spinner until the host changes `state`. Deny closes.
+   * `quiet`: the control that sent it already played its cue (the slide). True when the host took it.
+   */
+  #send(intent: Intent, e?: Event, quiet = false): boolean {
     const id = text(this.data?.id);
     const ok = intent.decision
       ? this.emit<ApprovalDecideDetail>('ui-decide', { id, decision: intent.decision })
@@ -311,13 +341,14 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
           'ui-answer',
           intent.text !== undefined ? { id, text: intent.text } : { id, choiceId: intent.choiceId },
         );
-    if (!ok) return;
-    this.sound(intent.decision === 'deny' ? 'close' : 'tap', undefined, e);
+    if (!ok) return false;
+    if (!quiet) this.sound(intent.decision === 'deny' ? 'close' : 'tap', undefined, e);
     this.#sent = intent;
     this.#last = intent;
     this.#sentKey = stateKey(this.data?.state);
     this.#sentRef = this.data?.state;
     this.requestRender();
+    return true;
   }
 
   /**
@@ -557,6 +588,25 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
 
   protected override updated(): void {
     this.#schedule();
+    this.#syncSlide();
+  }
+
+  /** The slide shows what the card is doing: busy while an approval is on its way, at rest otherwise. */
+  #syncSlide(): void {
+    const slide = this.$<UiSlideConfirm>('.ac-slide');
+    const d = this.data;
+    if (!slide || !d) return;
+    const eff = this.#eff(d);
+    const t = this.#t;
+    const approving =
+      eff.status === 'sending' && (eff.busy.decision === 'approve' || eff.busy.decision === 'approve_disable_rule');
+    slide.data = {
+      label: t.slideApprove,
+      busyLabel: t.slideBusy,
+      tone: 'danger',
+      disabled: !this.#canAct(d, eff) && !approving,
+      state: approving ? 'busy' : 'idle',
+    };
   }
 
   protected render(): string {
@@ -627,6 +677,10 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
       desc ? `<p class="ac-desc" id="ac-desc"${p ? ` title="${escAttr(desc)}"` : ''}>${esc(desc)}</p>` : ''
     }</div>${badge}</div>`;
 
+    const irrev = p ? irreversibleOf(p) : '';
+    const stake = irrev
+      ? `<p class="ac-irrev" id="ac-irrev"><span class="ac-irrev-mark" aria-hidden="true">!</span>${esc(t.irreversible(irrev))}</p>`
+      : '';
     const body = p ? this.#permBody(p, preview, t) : q ? this.#questionBody(q, can, t) : '';
 
     const btn = (act: string, cls: string, label: string, on: boolean, spin: boolean, kbd = '', keys = '') =>
@@ -644,18 +698,24 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
           this.#always ? ' checked' : ''
         }${can ? '' : ' aria-disabled="true"'}>${TICK}</span><span class="ac-always-label">${esc(t.disableRule(n))}</span></label>`;
       const sd = busy ? (busy.decision ?? 'approve') : '';
+      // Irreversible: the slide stands where Approve stood (its state is set after the render, in updated()).
+      const approve = irrev
+        ? `<ui-slide-confirm class="ac-slide" part="slide" data-key="slide" tone="danger" lang="${this.#lang}" label="${escAttr(
+            t.slideApprove,
+          )}"${can ? '' : ' disabled'}${why ? ` title="${escAttr(why)}"` : ''}></ui-slide-confirm>`
+        : btn(
+            'approve',
+            'ac-primary ac-approve',
+            t.approve,
+            can,
+            sd === 'approve' || sd === 'approve_disable_rule',
+            KBD_ENTER,
+            'Meta+Enter Control+Enter',
+          );
       actions =
         (p.canExplain ? btn('explain', 'ac-ghost', t.explain, can, sd === 'explain') : '') +
         btn('deny', 'ac-quiet ac-deny', t.deny, can, sd === 'deny', 'Esc', 'Escape') +
-        btn(
-          'approve',
-          'ac-primary ac-approve',
-          t.approve,
-          can,
-          sd === 'approve' || sd === 'approve_disable_rule',
-          KBD_ENTER,
-          'Meta+Enter Control+Enter',
-        );
+        approve;
     } else if (q) {
       actions = btn(
         'submit',
@@ -678,7 +738,7 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     const error =
       eff.status === 'error'
         ? `<div class="ac-error"><p class="ac-error-text">${esc(eff.message || t.failed)}</p>${
-            eff.retry && this.#last && answerable(d.canAnswer)
+            eff.retry && this.#last && answerable(d.canAnswer) && !(irrev && isApproval(this.#last))
               ? `<button type="button" class="ac-btn ac-retry" data-act="retry" data-key="retry">${RETRY}${esc(t.retry)}</button>`
               : ''
           }</div>`
@@ -686,10 +746,10 @@ export class UiApprovalCard extends UiElement<ApprovalCardData> {
     const sr = until
       ? `<span class="sr-only" id="ac-exp">${esc(t.expiresAt(timeOfDay(until, this.#lang)))}</span>`
       : '';
-    const described = [desc ? 'ac-desc' : '', until ? 'ac-exp' : ''].filter(Boolean).join(' ');
+    const described = [desc ? 'ac-desc' : '', irrev ? 'ac-irrev' : '', until ? 'ac-exp' : ''].filter(Boolean).join(' ');
     return `<div class="ac-card${enter ? ' is-enter' : ''}" role="group" tabindex="-1" data-key="card" aria-labelledby="ac-title"${
       described ? ` aria-describedby="${described}"` : ''
-    }${busy ? ' aria-busy="true"' : ''}><div class="ac-main">${head}${body}${foot}${lock}${error}${sr}</div></div>`;
+    }${busy ? ' aria-busy="true"' : ''}${irrev ? ' data-irreversible=""' : ''}><div class="ac-main">${head}${stake}${body}${foot}${lock}${error}${sr}</div></div>`;
   }
 
   #permBody(p: ApprovalPermissionData, preview: ApprovalPreview | null, t: ApprovalStrings): string {

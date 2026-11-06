@@ -126,6 +126,14 @@ input { letter-spacing: inherit; }
   stroke-linejoin: round; }
 .ac-expires[data-low] { color: var(--ac-low); }
 .ac-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 4px; min-width: 0; margin-left: auto; }
+/* An irreversible action: Approve is a slide (ui-slide-confirm, danger), the widest control in the row. */
+.ac-slide { flex: 1 1 220px; min-width: 200px; max-width: 300px; --slide-w: 300px; }
+.ac-irrev { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding: 7px 10px; border-radius: 9px;
+  background: color-mix(in srgb, var(--st-fail) calc(10% * var(--chroma)), var(--ac-bg));
+  color: color-mix(in srgb, var(--st-fail-text) calc(85% * var(--chroma)), var(--ac-ink)); font-size: 12.5px; font-weight: 600;
+  line-height: 18px; overflow-wrap: anywhere; }
+.ac-irrev-mark { display: inline-grid; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--st-fail); color: var(--surface); font-size: 11px; font-weight: 700; line-height: 1; }
 .ac-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 34px;
   padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
