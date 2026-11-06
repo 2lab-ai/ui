@@ -1414,9 +1414,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     // (pointerenter / pointerleave do not, and Chromium does not deliver them to a capture listener on the root).
     this.root.addEventListener('pointerover', (e) => this.#kinPointer(e as PointerEvent, true));
     this.root.addEventListener('pointerout', (e) => this.#kinPointer(e as PointerEvent, false));
-    this.root.addEventListener('focusin', (e) => this.#kin('focus', this.#cardOf(e.target as Element | null)));
+    this.root.addEventListener('focusin', (e) => this.#kin('focus', this.#cardAt(e.target as Element | null)));
     this.root.addEventListener('focusout', (e) =>
-      this.#kin('focus', this.#cardOf((e as FocusEvent).relatedTarget as Element | null)),
+      this.#kin('focus', this.#cardAt((e as FocusEvent).relatedTarget as Element | null)),
     );
     // Esc from a host's slotted body (light DOM) reaches the host, not the shadow root's own handler.
     this.addEventListener('keydown', (e) => this.#onHostKey(e));
@@ -1520,6 +1520,17 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return li ? (li.getAttribute('data-card') ?? null) : null;
   }
 
+  /**
+   * The card an element is in for the family mark (0.37.0) — also through its slot when it is the host's light-DOM
+   * body (`slot="body:<id>"`), which no `closest()` from the light tree reaches (#39 review, fable P3).
+   */
+  #cardAt(el: Element | null): string | null {
+    const own = this.#cardOf(el);
+    if (own !== null || !el) return own;
+    const slotted = el.closest?.('[slot]');
+    return slotted?.assignedSlot ? this.#cardOf(slotted.assignedSlot) : null;
+  }
+
   /** A click that ends a text selection (the person selected a title to copy) is not a toggle. */
   #selecting(): boolean {
     const said = (s: Selection | null | undefined) => {
@@ -1587,6 +1598,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     const child = target.closest?.('[data-child]');
     if (child) {
+      // Never the card's toggle, whatever a future face delegation does (#39 review, grok P3).
+      e.stopPropagation();
       const id = this.#cardOf(child);
       if (id !== null && this.emit('ui-child', { cardId: id, childId: child.getAttribute('data-child') ?? '' }))
         this.sound('navigate', { emphasis: 'subtle' }, e);
@@ -1595,6 +1608,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const kids = target.closest?.('[data-kids]');
     if (kids) {
       // The children list opens and closes in place (silent, as "+N more" is); the card stays as it is.
+      e.stopPropagation();
       const id = this.#cardOf(kids);
       if (id === null) return;
       if (this.#kidsOpen.delete(id)) this.#kidsFocus = null;
@@ -1673,12 +1687,12 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
    * a `relatedTarget` outside the shadow tree is the host (or null), which is in no card.
    */
   #kinPointer(e: PointerEvent, over: boolean): void {
-    const here = this.#cardOf(e.target as Element | null);
+    const here = this.#cardAt(e.target as Element | null);
     if (over) {
       this.#kin('pointer', here);
       return;
     }
-    const next = this.#cardOf(e.relatedTarget as Element | null);
+    const next = this.#cardAt(e.relatedTarget as Element | null);
     if (next !== here) this.#kin('pointer', next);
   }
 
