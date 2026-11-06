@@ -1009,11 +1009,18 @@ const FOLLOWUP_KINDS: readonly InboxFollowup['kind'][] = ['issue', 'pr'];
 
 /** The card's follow-ups that can be drawn: a known kind, an id and a text (0.34.0). */
 export function cardFollowups(c: InboxCard): InboxFollowup[] {
-  return (Array.isArray(c.followups) ? c.followups : []).filter(
-    (f): f is InboxFollowup =>
-      !!f && typeof f === 'object' && FOLLOWUP_KINDS.includes(f.kind) && !!str(f.id) && !!str(f.text).trim(),
-  );
+  const seen = new Set<string>();
+  return (Array.isArray(c.followups) ? c.followups : []).filter((f): f is InboxFollowup => {
+    if (!f || typeof f !== 'object' || !FOLLOWUP_KINDS.includes(f.kind) || !str(f.id) || !str(f.text).trim())
+      return false;
+    if (seen.has(str(f.id))) return false;
+    seen.add(str(f.id));
+    return true;
+  });
 }
+
+/** A follow-up line's focus key: the card and the follow-up as one JSON pair, so no two cards' keys meet. */
+const followupKey = (cardId: string, id: string): string => `u:${JSON.stringify([cardId, id])}`;
 
 /** The follow-up bar (0.34.0): one gradient line per follow-up, at most `FOLLOWUP_MAX_LINES` unless `all`. */
 function renderFollowups(c: InboxCard, t: Strings, all: boolean): string {
@@ -1031,9 +1038,7 @@ function renderFollowups(c: InboxCard, t: Strings, all: boolean): string {
       const href = /^https?:\/\/[^\s]+$/i.test(str(f.href)) ? str(f.href) : '';
       return `<button type="button" class="ib-fu-line is-${f.kind}" data-followup="${escAttr(id)}" data-fu-kind="${f.kind}"${
         href ? ` data-fu-href="${escAttr(href)}"` : ''
-      } data-key="${escAttr(
-        `u:${c.id}:${id}`,
-      )}" title="${escAttr(tip)}">${LINK_GLYPH[f.kind]}<span class="ib-fu-text">${esc(text)}${title ? ` · ${esc(title)}` : ''}</span>${
+      } data-key="${escAttr(followupKey(String(c.id), id))}" title="${escAttr(tip)}">${LINK_GLYPH[f.kind]}<span class="ib-fu-text">${esc(text)}${title ? ` · ${esc(title)}` : ''}</span>${
         status ? `<span class="ib-fu-st">${esc(status)}</span>` : ''
       }</button>`;
     })
@@ -1665,6 +1670,31 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return { el, head, label, count, list };
   }
 
+  /**
+   * Where focus goes when the focused follow-up line (`id`, `null` for "+N more") is gone: the first line still drawn
+   * after it in the old `order`, else the last one before it, else any line, else the card's face (made focusable
+   * when it is not a button).
+   */
+  #followupHeir(cardId: string, id: string | null, order: string[]): HTMLElement | undefined {
+    const face = this.#cards.get(cardId)?.face;
+    if (!face) return undefined;
+    const lines = Array.from(face.querySelectorAll<HTMLElement>('[data-followup]'));
+    const byId = new Map(lines.map((b) => [b.getAttribute('data-followup') ?? '', b]));
+    const at = id === null ? order.length : order.indexOf(id);
+    const after = order.slice(at + 1).find((x) => byId.has(x));
+    const before = order
+      .slice(0, Math.max(0, at))
+      .reverse()
+      .find((x) => byId.has(x));
+    const heir =
+      (after !== undefined ? byId.get(after) : undefined) ??
+      (before !== undefined ? byId.get(before) : undefined) ??
+      lines[lines.length - 1];
+    if (heir) return heir;
+    if (!face.hasAttribute('tabindex')) face.setAttribute('tabindex', '-1');
+    return face;
+  }
+
   #shell(id: string): Shell {
     const el = document.createElement('li');
     el.className = 'ib-card';
@@ -1756,8 +1786,19 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const d = this.data;
     const now = Date.now();
     const activeKey = (this.root.activeElement as HTMLElement | null)?.dataset?.key;
-    // A follow-up line the host drops (0.34.0) hands focus to the card's next line, else its face.
-    const activeCard = activeKey?.startsWith('u:') ? this.#cardOf(this.root.activeElement) : null;
+    // A follow-up line or "+N more" the host drops (0.34.0) hands focus to the card's next line, else its previous one,
+    // else its face — so the order the lines had is kept here.
+    const fuCard =
+      activeKey?.startsWith('u:') || activeKey?.startsWith('v:') ? this.#cardOf(this.root.activeElement) : null;
+    const fuWas =
+      fuCard !== null
+        ? {
+            id: (this.root.activeElement as HTMLElement | null)?.getAttribute('data-followup') ?? null,
+            order: Array.from(this.#cards.get(fuCard)?.face.querySelectorAll<HTMLElement>('[data-followup]') ?? []).map(
+              (b) => b.getAttribute('data-followup') ?? '',
+            ),
+          }
+        : null;
     const hidden = typeof document !== 'undefined' && document.hidden;
     const reduced = prefersReducedMotion();
     const live = this.#painted && !hidden;
@@ -2043,16 +2084,21 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       const keys = this.$$<HTMLElement>('[data-key]');
       // A TL;DR × the host took away with its box (0.20.0): focus goes to that card's face, never to the page.
       const fallback = activeKey.startsWith('d:') ? `f:${activeKey.slice(2)}` : '';
-      const fuNext =
-        activeCard !== null
-          ? (this.#cards.get(activeCard)?.face.querySelector<HTMLElement>('[data-followup]') ??
-            this.#cards.get(activeCard)?.face)
-          : undefined;
       const next =
         keys.find((el) => el.dataset.key === activeKey) ??
         (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined) ??
-        fuNext;
+        (fuCard !== null && fuWas ? this.#followupHeir(fuCard, fuWas.id, fuWas.order) : undefined);
       next?.focus({ preventScroll: true });
+    }
+    // "Show all" is kept only for cards the data still holds (a card in a closed group included).
+    if (this.#fuAll.size) {
+      const ids = new Set<string>();
+      for (const col of Array.isArray(d?.columns) ? d.columns : []) {
+        for (const c of Array.isArray(col?.cards) ? col.cards : []) if (c) ids.add(String(c.id));
+        for (const g of Array.isArray(col?.groups) ? col.groups : [])
+          for (const c of Array.isArray(g?.cards) ? g.cards : []) if (c) ids.add(String(c.id));
+      }
+      for (const id of Array.from(this.#fuAll)) if (!ids.has(id)) this.#fuAll.delete(id);
     }
     if (this.#fuFocus !== null) {
       const lines = this.#cards.get(this.#fuFocus)?.face.querySelectorAll<HTMLElement>('[data-followup]');

@@ -1802,6 +1802,74 @@ describe('face follow-up bar (0.34.0)', () => {
     expect(el.shadowRoot!.activeElement).toBe(lines[5]);
   });
 
+  // Review (astra-zhuge, ui#34): keys, successor focus, the overflow button, a face that is not a button, stale state.
+  const fu = (ids: string[]) => ids.map((id) => ({ id, kind: 'issue' as const, text: `#${id}` }));
+  const lineOf = (el: UiAgentInbox, cardId: string, id: string) =>
+    Array.from(card(el, cardId).querySelectorAll<HTMLButtonElement>('button.ib-fu-line')).find(
+      (b) => b.getAttribute('data-followup') === id,
+    )!;
+  const active = (el: UiAgentInbox) => el.shadowRoot!.activeElement as HTMLElement | null;
+
+  it('keys never collide across cards: "a:b"/"c" and "a"/"b:c" keep their own focus', () => {
+    const A = { ...DONE, id: 'a:b', followups: fu(['c']) };
+    const B = { ...DONE, id: 'a', followups: fu(['b:c', 'z']) };
+    const el = mount(board(A, B));
+    expect(lineOf(el, 'a:b', 'c').dataset.key).not.toBe(lineOf(el, 'a', 'b:c').dataset.key);
+    lineOf(el, 'a', 'b:c').focus();
+    el.data = board(A, { ...B, title: 'renamed' });
+    el.renderNow();
+    expect(active(el)).toBe(lineOf(el, 'a', 'b:c'));
+    // A repeated id in one card is drawn once.
+    document.body.innerHTML = '';
+    const dup = mount(board({ ...DONE, followups: fu(['x', 'x', 'y']) }));
+    expect(card(dup, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(2);
+  });
+
+  it('a dropped focused line hands focus to its successor, else its predecessor, else the face', () => {
+    const el = mount(board({ ...DONE, followups: fu(['A', 'B', 'C', 'D']) }));
+    lineOf(el, 'fix', 'C').focus();
+    el.data = board({ ...DONE, followups: fu(['A', 'B', 'D']) });
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-followup')).toBe('D');
+    el.data = board({ ...DONE, followups: fu(['A', 'B']) });
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-followup')).toBe('B');
+    el.data = board(DONE);
+    el.renderNow();
+    expect(active(el)?.classList.contains('ib-face')).toBe(true);
+  });
+
+  it('"+N more" taken away by the host hands focus to the last line', () => {
+    const el = mount(board({ ...DONE, followups: fu(['1', '2', '3', '4', '5', '6']) }));
+    card(el, 'fix').querySelector<HTMLButtonElement>('button.ib-fu-more')!.focus();
+    el.data = board({ ...DONE, followups: fu(['1', '2', '3', '4', '5']) });
+    el.renderNow();
+    expect(active(el)?.getAttribute('data-followup')).toBe('5');
+  });
+
+  it('a face that is not a button still takes the focus back', () => {
+    const bare: InboxCard = { id: 'bare', title: 'Bare', status: 'done', followups: fu(['only']) };
+    const el = mount({ columns: columnsByStatus([bare]), openLabel: false });
+    expect(card(el, 'bare').querySelector('.ib-face')!.hasAttribute('role')).toBe(false);
+    lineOf(el, 'bare', 'only').focus();
+    el.data = { columns: columnsByStatus([{ ...bare, followups: [] }]), openLabel: false };
+    el.renderNow();
+    expect(active(el)?.classList.contains('ib-face')).toBe(true);
+  });
+
+  it('"show all" is forgotten when the card leaves the board', () => {
+    const seven = { ...DONE, followups: fu(['1', '2', '3', '4', '5', '6', '7']) };
+    const el = mount(board(seven));
+    card(el, 'fix').querySelector<HTMLButtonElement>('button.ib-fu-more')!.click();
+    el.renderNow();
+    expect(card(el, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(7);
+    el.data = board(RUN);
+    el.renderNow();
+    el.data = board(RUN, seven);
+    el.renderNow();
+    expect(card(el, 'fix').querySelectorAll('button.ib-fu-line')).toHaveLength(5);
+  });
+
   it('drawn whatever rows the layout picked; none without follow-ups; Korean words', () => {
     const left = mount(board({ ...DONE, followups: FU, rows: ['task'] }));
     expect(card(left, 'fix').querySelector('.ib-fu')).not.toBeNull();
