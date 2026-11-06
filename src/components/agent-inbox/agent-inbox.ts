@@ -116,9 +116,36 @@ export interface InboxArtifact {
   kind?: ArtifactKind;
 }
 
+/** The most follow-up lines drawn before `+N more` (which opens the rest in place). */
+export const FOLLOWUP_MAX_LINES = 5;
+/**
+ * 0.34.0 — a follow-up the run left: an issue or PR still open after the work stopped. Drawn as one line in the
+ * follow-up bar right under the head, its words in a gradient; a press sends `ui-followup` and never toggles the card.
+ */
+export interface InboxFollowup {
+  /** The host's id for it (a URL) — sent back in `ui-followup`. */
+  id: string;
+  kind: 'issue' | 'pr';
+  /** Short reference: `#918`, `PROJ-12`. */
+  text: string;
+  /** The page's own title, after the reference. */
+  title?: string;
+  /** Its state in words (`Open`, `Draft`). */
+  status?: string;
+  /** The page (absolute http(s) URL) — sent back in `ui-followup`; anything else is sent as `''`. */
+  href?: string;
+}
+
 export interface InboxCard {
   id: string;
   title: string;
+  /**
+   * 0.34.0 — the follow-up bar, right under the head whatever `rows` says: one line per follow-up (at most
+   * `FOLLOWUP_MAX_LINES`, then a `+N more` button that shows the rest), each a button that sends `ui-followup`
+   * `{ cardId, id, kind, href }` and never toggles the card. The host owns the state: drop a follow-up once it is
+   * seen.
+   */
+  followups?: readonly InboxFollowup[];
   /** One or two sentences: why the card is here / where it stands (clamped to two lines). */
   summary?: string;
   /**
@@ -323,6 +350,9 @@ const STRINGS = {
     starOn: 'Unstar',
     tldr: 'TL;DR',
     tldrDismiss: 'Dismiss TL;DR',
+    followups: 'Follow-ups',
+    followupOpen: (text: string) => `Open follow-up ${text}`,
+    followupMore: (n: number) => `+${n} more`,
     badgeSelf: '(you)',
   },
   ko: {
@@ -358,6 +388,9 @@ const STRINGS = {
     starOn: '즐겨찾기 해제',
     tldr: 'TL;DR',
     tldrDismiss: 'TL;DR 닫기',
+    followups: '후속 작업',
+    followupOpen: (text: string) => `후속 작업 ${text} 열기`,
+    followupMore: (n: number) => `외 ${n}개`,
     badgeSelf: '(나)',
   },
 };
@@ -972,6 +1005,45 @@ function renderTldr(c: InboxCard, t: Strings): string {
     .join('')}</ul></div>`;
 }
 
+const FOLLOWUP_KINDS: readonly InboxFollowup['kind'][] = ['issue', 'pr'];
+
+/** The card's follow-ups that can be drawn: a known kind, an id and a text (0.34.0). */
+export function cardFollowups(c: InboxCard): InboxFollowup[] {
+  return (Array.isArray(c.followups) ? c.followups : []).filter(
+    (f): f is InboxFollowup =>
+      !!f && typeof f === 'object' && FOLLOWUP_KINDS.includes(f.kind) && !!str(f.id) && !!str(f.text).trim(),
+  );
+}
+
+/** The follow-up bar (0.34.0): one gradient line per follow-up, at most `FOLLOWUP_MAX_LINES` unless `all`. */
+function renderFollowups(c: InboxCard, t: Strings, all: boolean): string {
+  const list = cardFollowups(c);
+  if (!list.length) return '';
+  const shown = all ? list : list.slice(0, FOLLOWUP_MAX_LINES);
+  const more = list.length - shown.length;
+  return `<div class="ib-fu" role="group" aria-label="${escAttr(t.followups)}">${shown
+    .map((f) => {
+      const id = str(f.id);
+      const text = str(f.text).trim();
+      const title = str(f.title).trim();
+      const status = str(f.status).trim();
+      const tip = `${t.followupOpen(text)}${title ? ` — ${title}` : ''}${status ? ` · ${status}` : ''}`;
+      const href = /^https?:\/\/[^\s]+$/i.test(str(f.href)) ? str(f.href) : '';
+      return `<button type="button" class="ib-fu-line is-${f.kind}" data-followup="${escAttr(id)}" data-fu-kind="${f.kind}"${
+        href ? ` data-fu-href="${escAttr(href)}"` : ''
+      } data-key="${escAttr(
+        `u:${c.id}:${id}`,
+      )}" title="${escAttr(tip)}">${LINK_GLYPH[f.kind]}<span class="ib-fu-text">${esc(text)}${title ? ` · ${esc(title)}` : ''}</span>${
+        status ? `<span class="ib-fu-st">${esc(status)}</span>` : ''
+      }</button>`;
+    })
+    .join('')}${
+    more > 0
+      ? `<button type="button" class="ib-fu-more" data-fu-more data-key="${escAttr(`v:${c.id}`)}">${esc(t.followupMore(more))}</button>`
+      : ''
+  }</div>`;
+}
+
 function renderRow(c: InboxCard, row: InboxRow, t: Strings): string {
   switch (row) {
     case 'summary':
@@ -1026,10 +1098,11 @@ function renderLinks(c: InboxCard, t: Strings): string {
     .join('')}${more > 0 ? `<span class="ib-links-more">+${more}</span>` : ''}</div>`;
 }
 
-function renderFace(c: InboxCard, t: Strings = STRINGS.en): string {
-  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c, t)}${renderStar(c, t)}</div>${faceRows(
+function renderFace(c: InboxCard, t: Strings = STRINGS.en, allFollowups = false): string {
+  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c, t)}${renderStar(
     c,
-  )
+    t,
+  )}</div>${renderFollowups(c, t, allFollowups)}${faceRows(c)
     .map((r) => renderRow(c, r, t))
     .join('')}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
     statusOf(c),
@@ -1168,6 +1241,10 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #cols = new Map<string, ColShell>();
   #order: Record<string, string[]> = Object.create(null);
   #open = new Set<string>();
+  /** Cards whose follow-up bar shows every line (`+N more` was pressed, 0.34.0). */
+  #fuAll = new Set<string>();
+  /** The card whose `+N more` was pressed: its first newly shown line takes focus after the render. */
+  #fuFocus: string | null = null;
   /** Groups the person opened or closed (`gkey` → open); their choice rules over `group.open`. */
   #groupOpen = new Map<string, boolean>();
   /** Cards in a closed group this render: id → its column and group (for `reveal`). */
@@ -1362,6 +1439,32 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       const id = this.#cardOf(art);
       if (id !== null && this.emit('ui-artifact', { cardId: id, artifactId: art.getAttribute('data-art') ?? '' }))
         this.sound('navigate', { emphasis: 'subtle' }, e);
+      return;
+    }
+    const fu = target.closest?.('[data-followup]');
+    if (fu) {
+      const id = this.#cardOf(fu);
+      const href = fu.getAttribute('data-fu-href') ?? '';
+      if (
+        id !== null &&
+        this.emit('ui-followup', {
+          cardId: id,
+          id: fu.getAttribute('data-followup') ?? '',
+          kind: fu.getAttribute('data-fu-kind') ?? '',
+          href,
+        })
+      )
+        this.sound('navigate', { emphasis: 'subtle' }, e);
+      return;
+    }
+    const fuMore = target.closest?.('[data-fu-more]');
+    if (fuMore) {
+      const id = this.#cardOf(fuMore);
+      if (id === null) return;
+      this.#fuAll.add(id);
+      // The first line it showed takes focus (the button is gone).
+      this.#fuFocus = id;
+      this.requestRender();
       return;
     }
     const dismiss = target.closest?.('[data-dismiss]');
@@ -1653,6 +1756,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const d = this.data;
     const now = Date.now();
     const activeKey = (this.root.activeElement as HTMLElement | null)?.dataset?.key;
+    // A follow-up line the host drops (0.34.0) hands focus to the card's next line, else its face.
+    const activeCard = activeKey?.startsWith('u:') ? this.#cardOf(this.root.activeElement) : null;
     const hidden = typeof document !== 'undefined' && document.hidden;
     const reduced = prefersReducedMotion();
     const live = this.#painted && !hidden;
@@ -1938,10 +2043,21 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       const keys = this.$$<HTMLElement>('[data-key]');
       // A TL;DR × the host took away with its box (0.20.0): focus goes to that card's face, never to the page.
       const fallback = activeKey.startsWith('d:') ? `f:${activeKey.slice(2)}` : '';
+      const fuNext =
+        activeCard !== null
+          ? (this.#cards.get(activeCard)?.face.querySelector<HTMLElement>('[data-followup]') ??
+            this.#cards.get(activeCard)?.face)
+          : undefined;
       const next =
         keys.find((el) => el.dataset.key === activeKey) ??
-        (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined);
+        (fallback ? keys.find((el) => el.dataset.key === fallback) : undefined) ??
+        fuNext;
       next?.focus({ preventScroll: true });
+    }
+    if (this.#fuFocus !== null) {
+      const lines = this.#cards.get(this.#fuFocus)?.face.querySelectorAll<HTMLElement>('[data-followup]');
+      this.#fuFocus = null;
+      (lines?.[FOLLOWUP_MAX_LINES] ?? lines?.[lines.length - 1])?.focus({ preventScroll: true });
     }
     // 9. The viewer's own badges ride the document's shared orbit. Last, after every DOM move: a CSS animation exists
     //    only on a connected element and restarts when its card is drawn, rewritten or moved (re-inserted — a reorder,
@@ -1966,7 +2082,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     const attention = card.attention === true;
     if (sh.el.classList.contains('is-attention') !== attention) sh.el.classList.toggle('is-attention', attention);
-    const face = renderFace(card, t);
+    if (this.#fuAll.has(card.id) && cardFollowups(card).length <= FOLLOWUP_MAX_LINES) this.#fuAll.delete(card.id);
+    const face = renderFace(card, t, this.#fuAll.has(card.id));
     if (sh.faceHtml !== face) {
       sh.face.innerHTML = face;
       sh.faceHtml = face;

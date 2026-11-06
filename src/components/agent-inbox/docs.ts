@@ -97,6 +97,24 @@ function boardCards(now: number): InboxCard[] {
       id: 'digest',
       title: 'Weekly metrics digest',
       summary: 'Pulled numbers from three dashboards and posted the summary to #metrics.',
+      followups: [
+        {
+          id: 'https://github.com/acme/metrics/issues/918',
+          kind: 'issue',
+          text: '#918',
+          title: 'Retention chart for the weekly digest',
+          status: 'Open',
+          href: 'https://github.com/acme/metrics/issues/918',
+        },
+        {
+          id: 'https://github.com/acme/metrics/pull/921',
+          kind: 'pr',
+          text: '#921',
+          title: 'Cache the dashboard queries',
+          status: 'Draft',
+          href: 'https://github.com/acme/metrics/pull/921',
+        },
+      ],
       tldr: {
         lines: [
           'The week-43 digest is posted to #metrics.',
@@ -683,6 +701,12 @@ export const doc: ComponentDoc = {
         'A TL;DR box on the face, after the summary (0.20.0): the host’s plain lines (blanks dropped, at most 5) under a label (`title`, default TL;DR), on a quiet tint of the status colour. Unless `dismissible: false`, a × at its top right sends ui-dismiss and never toggles the card. The host owns the state: drop `tldr` when the person dismissed it.',
     },
     {
+      name: 'data.columns[].cards[].followups',
+      type: "Array<{ id: string; kind: 'issue' | 'pr'; text: string; title?: string; status?: string; href?: string }>",
+      description:
+        'The follow-up bar (0.34.0), right under the head whatever `rows` says: the issues and PRs the run left open, one line each — the kind’s mark, “#918 · title” in a gradient (still; it sweeps while the line is hovered or focused) and the state word — on a quiet purple tint. At most 5 lines, then a “+N more” button that shows the rest in place. A line is a button that sends ui-followup and never toggles the card. The host owns the state: drop a follow-up once the person has seen it. Entries without an id, a text or a known kind are skipped.',
+    },
+    {
       name: 'data.columns[].cards[].rows',
       type: "Array<'summary' | 'tldr' | 'task' | 'links' | 'agents' | 'usage' | 'artifacts'>",
       description:
@@ -839,6 +863,12 @@ export const doc: ComponentDoc = {
         'The × of the face’s TL;DR (`tldr`) was pressed. Cancelable. The card does not toggle and the box stays until the host drops `tldr`.',
     },
     {
+      name: 'ui-followup',
+      detail: "{ cardId: string; id: string; kind: 'issue' | 'pr'; href: string }",
+      description:
+        "A follow-up line (`followups[]`) was pressed — `href` is the follow-up’s http(s) page, or `''`. Cancelable. The card does not toggle and the line stays until the host drops it (for example once it has shown the page).",
+    },
+    {
       name: 'ui-group-toggle',
       detail: '{ columnId: string; groupId: string; open: boolean }',
       description:
@@ -864,6 +894,7 @@ export const doc: ComponentDoc = {
     'While the board loads it is aria-busy and makes no claims: no counts, no “Nothing here”, no announcement.',
     'Host face extras are text only (escaped): a metric’s label is its accessible name; a file chip button says “Open <name>” (`artOpen`).',
     'Reduced motion: no hold, no travel — a card that changes column fades in where it lands; the ring and pulses stop.',
+    'Follow-ups (0.34.0) are a group labelled “Follow-ups” of buttons, each named “Open follow-up #918 — title · state” by its tooltip and read as its words; the gradient is text colour only (each stop pulled toward ink, ≥ 4.5:1 in both themes), ButtonText under forced colours, and its sweep runs only on hover or focus, never under reduced motion. When the host drops the focused line, focus goes to the card’s next line, else its face; “+N more” hands focus to the first line it shows.',
     'Attention (0.32.0) is decorative: the waiting is already the status word and the owner the badge’s “(you)”. Its ping is 1.2 s in every 10 s, never a flash (no luminance swing, no more than one a second), stops while the card is open, held while a pointer is over it or a keyboard focus is in it, and is gone under reduced motion.',
     'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or closes a card or a group (not for reveal()), a tap for an action, a navigate for Open, a softer navigate for a file chip. Silent until the page turns sound on.',
   ],
