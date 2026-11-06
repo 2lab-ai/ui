@@ -2085,6 +2085,22 @@ describe('<ui-composer> end slot', () => {
     expect(endSlot(el)!.assignedElements()).toEqual([b]);
   });
 
+  it('… also when the composer lives in another component’s shadow root', async () => {
+    stubMic();
+    const outer = document.createElement('div');
+    document.body.append(outer);
+    const sr = outer.attachShadow({ mode: 'open' });
+    const el = document.createElement('ui-composer');
+    sr.append(el);
+    el.renderNow();
+    const b = own(el);
+    act(el, 'voice')!.click();
+    b.focus();
+    await tick();
+    expect(q(el, '.cp-rec')).toBeTruthy();
+    expect(sr.activeElement).toBe(b);
+  });
+
   it('Esc on the slotted control is its own: a recording goes on', async () => {
     stubMic();
     const el = mount();
