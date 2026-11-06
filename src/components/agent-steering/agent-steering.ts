@@ -206,13 +206,13 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
     this.addEventListener(
       'keydown',
       (e) => {
-        if (e.key === 'Enter' && this.#fromComposer(e)) this.#steerNext = e.metaKey || e.ctrlKey;
+        if (e.key === 'Enter' && this.#ownComposerKey(e)) this.#steerNext = e.metaKey || e.ctrlKey;
       },
       true,
     );
     // …and on the way back up the composer has had it (it prevents every Enter): a ⌘/Ctrl that did not send is spent.
     this.addEventListener('keydown', (e) => {
-      if (this.#fromComposer(e)) this.#steerNext = false;
+      if (this.#ownComposerKey(e)) this.#steerNext = false;
     });
     this.addEventListener('ui-submit', (e) => this.#onComposerSubmit(e as CustomEvent<ComposerSubmit>));
   }
@@ -1252,6 +1252,17 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   /** The event came from inside the slotted composer. */
   #fromComposer(e: Event): boolean {
     return !!this.#composer && e.composedPath().includes(this.#composer);
+  }
+
+  /**
+   * A key in the composer's own field or buttons — not in a control the host slotted into it (its slot "end", 0.34.0):
+   * the event starts in the composer's shadow root. Such a control may keep its keys (a model picker's open menu
+   * stops them), so arming steer on them would never be undone.
+   */
+  #ownComposerKey(e: Event): boolean {
+    const c = this.#composer;
+    const from = e.composedPath()[0] as Node | undefined;
+    return !!c && !!from && (from === c || (!!c.shadowRoot && from.getRootNode() === c.shadowRoot));
   }
 
   /** The first `slot="composer"` child that looks like a composer (value, focus, data) — else none. */

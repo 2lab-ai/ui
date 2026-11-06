@@ -575,7 +575,17 @@ export class UiComposer extends UiElement<ComposerData> {
 
   // ── Events ──
 
+  /**
+   * The event started in a control the host slotted in (slot "end"), not in the composer's own markup: its clicks,
+   * keys and pastes are that control's — they never send, move the caret, end a recording or attach files.
+   */
+  #fromSlot(e: Event): boolean {
+    const from = e.composedPath()[0] as Node | undefined;
+    return !!from && from !== this && from.getRootNode() !== this.root;
+  }
+
   #onClick(e: Event): void {
+    if (this.#fromSlot(e)) return;
     const target = e.target as HTMLElement | null;
     if (target === this.#ta) this.#sgEval();
     const btn = target?.closest?.<HTMLElement>('[data-act]');
@@ -623,7 +633,7 @@ export class UiComposer extends UiElement<ComposerData> {
   }
 
   #onKey(e: KeyboardEvent): void {
-    if (e.defaultPrevented) return;
+    if (e.defaultPrevented || this.#fromSlot(e)) return;
     if (this.#sg && this.#ta && e.target === this.#ta && this.#sgKey(e)) return;
     if (e.key === 'Escape' && (this.#rec || this.#recPending)) {
       e.preventDefault();
@@ -679,7 +689,7 @@ export class UiComposer extends UiElement<ComposerData> {
 
   /** Files in the clipboard are attached; a plain text paste is left alone. */
   #onPaste(e: ClipboardEvent): void {
-    if (this.#s.disabled) return;
+    if (this.#s.disabled || this.#fromSlot(e)) return;
     const cd = e.clipboardData;
     const files = cd?.files ? Array.from(cd.files) : [];
     if (!files.length) return;
