@@ -99,7 +99,7 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
 
   protected update(): void {
     const focus = this.#focusState();
-    if (this.#hydrate) {
+    if (this.#hydrate || this.patchesInPlace()) {
       // The first render over server-drawn nodes: patch, so a card that is already on screen does not enter again.
       this.#hydrate = false;
       morphInto(this.content, this.render());
@@ -115,6 +115,14 @@ export abstract class UiElement<D = unknown> extends HTMLElement {
             (el) => el.dataset.key === focus.key,
           );
     (next ?? this.focusFallback())?.focus({ preventScroll: true });
+  }
+
+  /**
+   * Whether this render patches the nodes on screen in place (`morphInto`) instead of replacing them — for a subclass
+   * whose markup holds a stateful child (a slide mid-gesture) that a replaced node would drop. Default: replace.
+   */
+  protected patchesInPlace(): boolean {
+    return false;
   }
 
   /** Where focus goes when the focused element is gone after a render (its key no longer rendered). Default: nowhere. */

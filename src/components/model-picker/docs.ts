@@ -201,7 +201,7 @@ export const doc: ComponentDoc = {
       type: 'boolean attribute',
       default: 'false',
       description:
-        'A tight row (a phone’s composer, 0.34.0): the trigger reads the maker’s mark and the level, and the model’s name moves to its label and a tooltip (“<name> · <level>”). A model without a level shows its `short` name instead, so the trigger never reads a mark alone. Set it from the host when the row is narrow.',
+        'A tight row (a phone’s composer, 0.36.0): the trigger reads the maker’s mark and the level, and the model’s name moves to its label and a tooltip (“<name> · <level>”). A model without a level shows its `short` name instead, so the trigger never reads a mark alone. Set it from the host when the row is narrow.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {

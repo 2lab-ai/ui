@@ -113,7 +113,7 @@ const plainKey = (e: KeyboardEvent): boolean => !e.shiftKey && !e.altKey && !e.m
 const floorSec = (ms: number): number => Math.floor(Math.max(0, ms) / 1000) * 1000;
 
 /**
- * The host's own controls at the end of the row (0.34.0): `<x slot="end">` sits before the hint, the counter, the
+ * The host's own controls at the end of the row (0.36.0): `<x slot="end">` sits before the hint, the counter, the
  * mode switch and Send, and in the recorder row before Cancel and Done, so it never leaves the row. The slot node
  * keeps its place in the patched markup (`data-mk`), so what is slotted stays assigned across renders.
  */

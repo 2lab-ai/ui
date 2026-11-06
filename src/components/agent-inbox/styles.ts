@@ -175,6 +175,55 @@ ${ownerBadgeCss('.ib-badge', (name) => `var(--${name})`, 'ib-badge')}
 .ib-tldr-lines li { overflow-wrap: anywhere; }
 .ib-tldr-lines li + li { margin-top: 2px; }
 .ib-card[data-status="idle"] .ib-tldr-lines { color: var(--ib-text-2); }
+/* The follow-up bar (0.34.0): right under the head, the issues and PRs the run left open — one line each, its words in
+   a gradient (accent → purple → red, each pulled a fifth toward ink so the text stays legible) on a quiet purple tint.
+   Still by default; the gradient sweeps while the line is hovered or focused. In mono (0.25.0) the gradient is ink. */
+.ib-fu {
+  --ib-fu-a: color-mix(in srgb, var(--accent) calc(80% * var(--chroma)), var(--ib-text));
+  --ib-fu-b: color-mix(in srgb, var(--purple) calc(80% * var(--chroma)), var(--ib-text));
+  --ib-fu-c: color-mix(in srgb, var(--red) calc(80% * var(--chroma)), var(--ib-text));
+  display: grid; gap: 1px; margin-top: 8px; padding: 3px; border-radius: 8px; min-width: 0;
+  background: color-mix(in srgb, var(--purple) calc(7% * var(--chroma)), var(--ib-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--purple) calc(24% + 46% * (1 - var(--chroma))), transparent);
+}
+.ib-fu-line {
+  display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 26px; padding: 2px 7px; margin: 0;
+  border: 0; border-radius: 6px; background: none; color: var(--ib-fu-b); font: inherit; font-size: 13px;
+  line-height: 1.35; text-align: start; cursor: pointer;
+  transition: background-color var(--dur-press) ease, transform var(--dur-press) var(--ease-out);
+}
+.ib-fu-line svg { inline-size: 14px; block-size: 14px; flex: none; }
+.ib-fu-line.is-issue svg { color: var(--ib-fu-a); }
+.ib-fu-line.is-pr svg { color: var(--ib-fu-b); }
+.ib-fu-text {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600;
+  background-image: linear-gradient(100deg, var(--ib-fu-a) 0%, var(--ib-fu-b) 33%, var(--ib-fu-c) 66%, var(--ib-fu-a) 100%);
+  background-size: 200% 100%; background-repeat: repeat-x;
+  color: transparent; -webkit-text-fill-color: transparent; -webkit-background-clip: text; background-clip: text;
+}
+.ib-fu-st {
+  flex: none; font-size: 11.5px; font-weight: 600; white-space: nowrap; padding: 1px 6px; border-radius: 999px;
+  color: var(--ib-fu-b); background: color-mix(in srgb, var(--purple) calc(12% * var(--chroma)), var(--ib-pill));
+}
+.ib-fu-more {
+  justify-self: start; margin: 1px 0 1px 4px; padding: 2px 7px; border: 0; border-radius: 6px; background: none;
+  color: var(--ib-text-2); font: inherit; font-size: 12px; cursor: pointer;
+}
+.ib-fu-line:focus-visible, .ib-fu-more:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 0; }
+.ib-fu-line:active:not(:focus-visible) { transform: scale(0.99); }
+.ib-fu-line:focus-visible .ib-fu-text { animation: ib-fu-flow 2.8s linear infinite; }
+@media (hover: hover) and (pointer: fine) {
+  .ib-fu-line:hover { background: color-mix(in srgb, var(--purple) calc(10% * var(--chroma)), var(--ib-pill)); }
+  .ib-fu-line:hover .ib-fu-text { animation: ib-fu-flow 2.8s linear infinite; }
+  .ib-fu-more:hover { color: var(--ib-text); background: var(--ib-pill); }
+}
+@keyframes ib-fu-flow { from { background-position: 0% 50%; } to { background-position: -200% 50%; } }
+@media (prefers-reduced-motion: reduce) { .ib-fu-text { animation: none; } .ib-fu-line:hover .ib-fu-text, .ib-fu-line:focus-visible .ib-fu-text { animation: none; } }
+@media (forced-colors: active) {
+  .ib-fu { box-shadow: none; border: 1px solid CanvasText; }
+  .ib-fu-text { background: none; color: ButtonText; -webkit-text-fill-color: ButtonText; animation: none; }
+  .ib-fu-line svg, .ib-fu-st { color: ButtonText; }
+}
 /* The task in progress. */
 .ib-task { margin-top: 8px; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--ib-text); background: var(--ib-pill); border-radius: 8px; padding: 5px 9px; }
 .ib-task-id { flex-shrink: 0; color: var(--ib-muted); font-variant-numeric: tabular-nums; font-size: 12px; }
