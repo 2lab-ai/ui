@@ -837,3 +837,85 @@ describe("the maker's mark", () => {
     ]);
   });
 });
+
+describe('compact (0.36.0): the trigger in a tight row', () => {
+  const trig = (el: UiModelPicker) => q(el, '.mp-trigger')!;
+
+  it('draws the maker’s mark and the level; the model’s name moves to the label and the tooltip', () => {
+    const el = mount(BASE, { compact: '' });
+    expect(q(el, '.mp-glyph')).toBeTruthy();
+    expect(q(el, '.mp-name')).toBeNull();
+    expect(q(el, '.mp-level')!.textContent).toBe('Extra high'); // no separator before it: nothing to separate
+    expect(trig(el).getAttribute('aria-label')).toBe('Model Opus 5.5 (1M), effort Extra high — change');
+    expect(trig(el).getAttribute('title')).toBe('Opus 5.5 (1M) · Extra high');
+  });
+
+  it('without a level it reads the short name instead, never the mark alone', () => {
+    const el = mount({ models: [{ ...MODELS[0], effortLevels: [] }], value: { model: 'opus' } }, { compact: '' });
+    expect(q(el, '.mp-level')).toBeNull();
+    expect(q(el, '.mp-name')!.textContent).toBe('opus[1m]');
+    expect(trig(el).getAttribute('title')).toBe('Opus 5.5 (1M)');
+    // Label in name: what is drawn leads the accessible name.
+    expect(trig(el).getAttribute('aria-label')).toBe('Model opus[1m] (Opus 5.5 (1M)) — change');
+  });
+
+  it('follows the attribute both ways; a read-only trigger keeps its reason as the tooltip', () => {
+    const el = mount(BASE);
+    expect(q(el, '.mp-name')!.textContent).toBe('Opus 5.5 (1M)');
+    expect(trig(el).hasAttribute('title')).toBe(false);
+    el.setAttribute('compact', '');
+    el.renderNow();
+    expect(q(el, '.mp-name')).toBeNull();
+    el.removeAttribute('compact');
+    el.renderNow();
+    expect(q(el, '.mp-name')!.textContent).toBe('Opus 5.5 (1M)');
+    const ro = mount({ ...BASE, disabled: 'Not your session' }, { compact: '' });
+    expect(q(ro, '.mp-name')).toBeNull();
+    expect(trig(ro).getAttribute('title')).toBe('Not your session');
+  });
+
+  it('escapes the name in the tooltip; lang="ko" names the level in Korean', () => {
+    const x = mount(
+      { models: [{ ...MODELS[0], label: XSS }], value: { model: 'opus', effort: 'high' } },
+      { compact: '' },
+    );
+    expect(x.shadowRoot!.querySelector('img')).toBeNull();
+    expect(trig(x).getAttribute('title')).toBe(`${XSS} · High`);
+    const ko = mount(BASE, { compact: '', lang: 'ko' });
+    expect(q(ko, '.mp-level')!.textContent).toContain('매우 높음');
+    expect(trig(ko).getAttribute('title')).toBe('Opus 5.5 (1M) · 매우 높음');
+  });
+});
+
+describe('an anchor that moves under an open menu (0.36.0)', () => {
+  it('closes the menu and gives focus that was in it back to the trigger — never to the page', () => {
+    vi.useFakeTimers();
+    try {
+      let top = 100;
+      const el = mount(BASE);
+      const trig = q(el, '.mp-trigger')!;
+      trig.getBoundingClientRect = () =>
+        ({
+          left: 40,
+          top,
+          right: 200,
+          bottom: top + 30,
+          width: 160,
+          height: 30,
+          x: 40,
+          y: top,
+          toJSON() {},
+        }) as DOMRect;
+      const list = openByKey(el);
+      vi.advanceTimersByTime(200); // placed: the anchor's spot is taken
+      expect(el.open).toBe(true);
+      expect(active(el)).toBe(list);
+      top = 140; // the row it sits in changed (a composer that starts recording)
+      vi.advanceTimersByTime(200);
+      expect(el.open).toBe(false);
+      expect(active(el)).toBe(q(el, '.mp-trigger'));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

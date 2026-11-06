@@ -96,6 +96,9 @@ img.cp-thumb { display: block; }
 .cp-tool[aria-busy="true"] { color: var(--ib-text); cursor: progress; }
 .cp-tool:disabled { opacity: 0.4; cursor: default; }
 .cp-end { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; margin-left: 6px; }
+/* The host's own controls (slot "end", 0.36.0): first on the row's end, before Send (or Cancel · Done while recording);
+   they shrink before the composer's own items and never push Send off the row. */
+::slotted([slot="end"]) { flex: 0 1 auto; min-width: 0; }
 .cp-hint { min-width: 0; overflow: hidden; color: var(--text-tertiary); font-size: 12px; white-space: nowrap;
   text-overflow: ellipsis; }
 .cp-count { flex: none; color: var(--text-tertiary); font-size: 12px; font-variant-numeric: tabular-nums;

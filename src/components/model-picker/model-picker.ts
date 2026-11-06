@@ -351,7 +351,7 @@ function currentIndex(opts: Opt[], cur: string): number {
 export class UiModelPicker extends UiElement<ModelPickerData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang', 'open', 'side'];
+    return ['lang', 'open', 'side', 'compact'];
   }
 
   #open = false;
@@ -497,8 +497,11 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     }
     const r = trig.getBoundingClientRect();
     if ((!r.width && !r.height) || anchorMoved(this.#at, anchorSpot(trig))) {
-      // The anchor left its place (another column, a reflow): close instead of pointing at the old spot.
-      this.#setOpen(false, { user: true });
+      // The anchor left its place (another column, a reflow): close instead of pointing at the old spot. A trigger
+      // still drawn takes back focus that was in the menu (a row it sits in changed — a composer that starts
+      // recording), so focus never falls to the page.
+      const inMenu = !!(r.width || r.height) && !!this.$('.mp-pop')?.contains(this.root.activeElement);
+      this.#setOpen(false, { user: true, returnFocus: inMenu });
       return;
     }
     // A scroll the document never heard of (inside another shadow root) still moves the menu along.
@@ -783,15 +786,22 @@ export class UiModelPicker extends UiElement<ModelPickerData> {
     const level = modelEffortLabel(levelKey, this.#langKey);
     const pending = typeof d.busy?.model === 'string' ? d.busy.model : '';
 
+    // compact (0.36.0): a tight row (a phone's composer) reads the maker's mark and the level; the name is in the
+    // label and the tooltip. Without a level the short name stands in, so the trigger never reads a mark alone.
+    const compact = this.hasAttribute('compact');
+    const shown = compact ? (level ? '' : (curOpt && curOpt.model.short) || name) : name;
+    const tip = why || (compact ? (level ? `${name} · ${level}` : name) : '');
     const trigger = `<button type="button" class="mp-trigger" part="trigger" data-key="mp-trigger" aria-haspopup="dialog" aria-expanded="${
       open ? 'true' : 'false'
-    }" aria-controls="mp-menu" aria-label="${escAttr(t.trigger(name, level, off))}"${busy ? ' aria-busy="true"' : ''}${
-      off ? ` aria-disabled="true"${why ? ` title="${escAttr(why)}" aria-describedby="mp-why"` : ''}` : ''
-    }>${modelMarkHtml(pickerVendor(curOpt ? curOpt.model : { label: name }), 'mp-glyph')}<span class="mp-name">${esc(
-      name,
-    )}</span>${
+    }" aria-controls="mp-menu" aria-label="${escAttr(
+      // The label holds what is drawn (label in name): a short name drawn in place of the model's name leads it.
+      t.trigger(shown && shown !== name ? `${shown} (${name})` : name, level, off),
+    )}"${busy ? ' aria-busy="true"' : ''}${off ? ' aria-disabled="true"' : ''}${tip ? ` title="${escAttr(tip)}"` : ''}${off && why ? ' aria-describedby="mp-why"' : ''}>${modelMarkHtml(
+      pickerVendor(curOpt ? curOpt.model : { label: name }),
+      'mp-glyph',
+    )}${shown ? `<span class="mp-name">${esc(shown)}</span>` : ''}${
       level
-        ? `<span class="mp-level">&middot; <span class="mp-fx" data-effort="${escAttr(levelKey)}">${esc(level)}</span></span>`
+        ? `<span class="mp-level">${shown ? '&middot; ' : ''}<span class="mp-fx" data-effort="${escAttr(levelKey)}">${esc(level)}</span></span>`
         : ''
     }<span class="mp-chev" aria-hidden="true"></span></button>`;
 
