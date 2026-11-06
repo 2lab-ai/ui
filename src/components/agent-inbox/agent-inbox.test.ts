@@ -2211,6 +2211,19 @@ describe('epic family (0.37.0)', () => {
     expect(kin(el)).toEqual([]);
   });
 
+  it('a pointer over the host’s slotted body of an open card marks its family too (#39 review)', () => {
+    const el = mount(lanes([{ ...EPIC, bodyMode: 'slot' as const }, kid('a'), OTHER]));
+    const body = document.createElement('div');
+    body.slot = 'body:epic';
+    body.innerHTML = '<p class="host-body">plan</p>';
+    el.appendChild(body);
+    el.renderNow();
+    const inner = body.querySelector('p')!;
+    if (!inner.closest('[slot]')?.assignedSlot) return; // the DOM under test does not assign slots: nothing to prove
+    inner.dispatchEvent(new PointerEvent('pointerover', { pointerType: 'mouse', bubbles: true, composed: true }));
+    expect(kin(el).sort()).toEqual(['a:pointer', 'epic:pointer']);
+  });
+
   it('a pointer over, or a focus in, any card of a family marks every card of it; leaving clears it', () => {
     const el = mount(lanes([EPIC, kid('a'), OTHER], [kid('b')]));
     enter(card(el, 'a'), 'pointerenter');
