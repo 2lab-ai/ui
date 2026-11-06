@@ -929,7 +929,10 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#rec = rec;
     this.#level = 0;
     const a = this.#activeInside();
-    if (!a || a.dataset.act === 'voice') this.#wantFocus = 'rec-done';
+    // Focus that moved on to a control slotted into the row (slot "end") while the microphone was asked stays there.
+    const doc = this.ownerDocument.activeElement;
+    const slotted = !!doc && doc !== this && this.contains(doc);
+    if (!slotted && (!a || a.dataset.act === 'voice')) this.#wantFocus = 'rec-done';
     rec.timer = window.setInterval(() => this.#tick(rec), 250);
     this.#paint();
     this.#meter(rec);

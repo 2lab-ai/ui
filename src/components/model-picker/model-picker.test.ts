@@ -855,6 +855,8 @@ describe('compact (0.34.0): the trigger in a tight row', () => {
     expect(q(el, '.mp-level')).toBeNull();
     expect(q(el, '.mp-name')!.textContent).toBe('opus[1m]');
     expect(trig(el).getAttribute('title')).toBe('Opus 5.5 (1M)');
+    // Label in name: what is drawn leads the accessible name.
+    expect(trig(el).getAttribute('aria-label')).toBe('Model opus[1m] (Opus 5.5 (1M)) — change');
   });
 
   it('follows the attribute both ways; a read-only trigger keeps its reason as the tooltip', () => {
@@ -882,5 +884,38 @@ describe('compact (0.34.0): the trigger in a tight row', () => {
     const ko = mount(BASE, { compact: '', lang: 'ko' });
     expect(q(ko, '.mp-level')!.textContent).toContain('매우 높음');
     expect(trig(ko).getAttribute('title')).toBe('Opus 5.5 (1M) · 매우 높음');
+  });
+});
+
+describe('an anchor that moves under an open menu (0.34.0)', () => {
+  it('closes the menu and gives focus that was in it back to the trigger — never to the page', () => {
+    vi.useFakeTimers();
+    try {
+      let top = 100;
+      const el = mount(BASE);
+      const trig = q(el, '.mp-trigger')!;
+      trig.getBoundingClientRect = () =>
+        ({
+          left: 40,
+          top,
+          right: 200,
+          bottom: top + 30,
+          width: 160,
+          height: 30,
+          x: 40,
+          y: top,
+          toJSON() {},
+        }) as DOMRect;
+      const list = openByKey(el);
+      vi.advanceTimersByTime(200); // placed: the anchor's spot is taken
+      expect(el.open).toBe(true);
+      expect(active(el)).toBe(list);
+      top = 140; // the row it sits in changed (a composer that starts recording)
+      vi.advanceTimersByTime(200);
+      expect(el.open).toBe(false);
+      expect(active(el)).toBe(q(el, '.mp-trigger'));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

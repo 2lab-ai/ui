@@ -2073,6 +2073,18 @@ describe('<ui-composer> end slot', () => {
     expect(el.value).toBe('Hello');
   });
 
+  it('a recording that starts while the slotted control has focus leaves focus there (the mic took a while)', async () => {
+    stubMic();
+    const el = mount();
+    const b = own(el);
+    act(el, 'voice')!.click(); // waiting for the microphone
+    b.focus(); // the reader moves on to the picker meanwhile
+    await tick();
+    expect(q(el, '.cp-rec')).toBeTruthy();
+    expect(document.activeElement).toBe(b);
+    expect(endSlot(el)!.assignedElements()).toEqual([b]);
+  });
+
   it('Esc on the slotted control is its own: a recording goes on', async () => {
     stubMic();
     const el = mount();
