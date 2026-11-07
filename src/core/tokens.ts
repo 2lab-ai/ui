@@ -23,6 +23,36 @@ export const SHARED: TokenSet = tokens.shared;
 export const MONO_LIGHT: TokenSet = tokens['mono-light'];
 export const MONO_DARK: TokenSet = tokens['mono-dark'];
 
+/**
+ * Designs (0.38.0): a whole look a page picks, not a layer over a theme. A design sets its own value for every colour
+ * name the themes define (so it reads the same on any OS setting) and is locked to one color scheme. With
+ * `@2lab.ai/ui/tokens.css` loaded, `data-design="<id>"` on `<html>` (or any ancestor) applies it; it replaces
+ * `data-theme` and `data-palette` there rather than combining with them. Its tone & manner — layout, type, how the
+ * parts are composed — lives in the repo at `designs/<id>/DESIGN.md`, and `designs/<id>/README.md` maps it onto
+ * these tokens and components.
+ */
+export interface Design {
+  /** The `data-design` value and the `designs/<id>/` folder. */
+  id: string;
+  name: string;
+  /** The one color scheme the design is drawn for. */
+  scheme: 'light' | 'dark';
+  summary: string;
+  /** Every name in LIGHT / DARK, this design's value. */
+  tokens: TokenSet;
+}
+export const DESIGNS: readonly Design[] = [
+  {
+    id: 'modern-mono',
+    name: 'Modern Mono',
+    scheme: 'dark',
+    summary:
+      'Near-black canvas, white type and aligned figures; colour only where it means something — green up, red down, yellow for favourites, lavender focus.',
+    tokens: tokens.designs['modern-mono'],
+  },
+];
+export const designById = (id: string): Design | undefined => DESIGNS.find((d) => d.id === id);
+
 function hostVars(set: TokenSet): string {
   return Object.entries(set)
     .map(([k, v]) => `--${k}: var(--ui-${k}, ${v});`)
@@ -39,9 +69,9 @@ function pageVars(set: TokenSet): string {
 export const baseCss = `
 :host { ${hostVars(SHARED)} ${hostVars(LIGHT)}
   display: block; box-sizing: border-box; color: var(--text); font-family: var(--font);
-  font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; color-scheme: light; }
-:host([theme="dark"]) { ${hostVars(DARK)} color-scheme: dark; }
-@media (prefers-color-scheme: dark) { :host(:not([theme="light"])) { ${hostVars(DARK)} color-scheme: dark; } }
+  font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; color-scheme: var(--ui-color-scheme, light); }
+:host([theme="dark"]) { ${hostVars(DARK)} color-scheme: var(--ui-color-scheme, dark); }
+@media (prefers-color-scheme: dark) { :host(:not([theme="light"])) { ${hostVars(DARK)} color-scheme: var(--ui-color-scheme, dark); } }
 :host([hidden]) { display: none; }
 /* Korean breaks between words, never inside them; long unbroken strings still wrap where an element says overflow-wrap. */
 :host([lang="ko"]), :host(:lang(ko)) { word-break: keep-all; }
@@ -63,12 +93,20 @@ button { cursor: pointer; }
  * Optional page-level tokens (`@2lab.ai/ui/tokens.css`): `data-theme="dark|light"` on any ancestor switches, and
  * `data-palette="mono"` on the same element turns that theme into its mono pair (light·mono / dark·mono). The mono
  * blocks only override; they follow the colour blocks so they win at their higher specificity.
+ *
+ * A design block (`data-design="<id>"`) comes last: on `:root` it ties the OS-dark rule and wins by order, on any
+ * other element it ties `data-theme` and wins the same way. It also sets `--ui-color-scheme`, which each component's
+ * host reads for its own `color-scheme`, so scrollbars and form controls inside follow the design, not the OS.
  */
-export const tokensCss = `/* @2lab.ai/ui design tokens — data-theme="dark|light" on any ancestor switches; data-palette="mono" beside it turns the theme mono */
+const designBlock = (d: Design): string =>
+  `:root[data-design="${d.id}"], [data-design="${d.id}"] { ${pageVars(d.tokens)} --ui-color-scheme: ${d.scheme}; color-scheme: ${d.scheme}; }`;
+
+export const tokensCss = `/* @2lab.ai/ui design tokens — data-theme="dark|light" on any ancestor switches; data-palette="mono" beside it turns the theme mono; data-design="<id>" applies a whole design (designs/<id>/) */
 :root, [data-theme="light"] { ${pageVars(SHARED)} ${pageVars(LIGHT)} color-scheme: light; }
 [data-theme="dark"] { ${pageVars(DARK)} color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${pageVars(DARK)} color-scheme: dark; } }
 [data-palette="mono"]:not([data-theme="dark"]) { ${pageVars(MONO_LIGHT)} }
 [data-palette="mono"][data-theme="dark"] { ${pageVars(MONO_DARK)} }
 @media (prefers-color-scheme: dark) { :root[data-palette="mono"]:not([data-theme="light"]) { ${pageVars(MONO_DARK)} } }
+${DESIGNS.map(designBlock).join('\n')}
 `;

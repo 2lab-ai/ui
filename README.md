@@ -84,6 +84,14 @@ alone or in a `<label>` with a leading word), `.ui-spinner` (the working ring; a
 `aria-current="page"`, keeps the hover fill). Korean prose (`lang="ko"`) breaks between words, never inside them, in every element and
 every kit class (`word-break: keep-all`).
 
+Designs — whole looks for a site built with these parts (0.38.0): `data-design="<id>"` on `<html>` (with `tokens.css`) recolours
+every element and kit class, locked to the design's color scheme, and `designs/<id>/DESIGN.md` in this repository holds its tone & manner
+(layout, type, composition, an acceptance list). Start at [`designs/README.md`](designs/README.md); live at https://2lab.ai/ui/docs/designs.
+
+| Design | Attribute | Look |
+|---|---|---|
+| Modern Mono | `data-design="modern-mono"` | Near-black canvas, white type, aligned figures; colour only for meaning — green up, red down, yellow favourite, lavender focus (dark only) |
+
 Server — `@2lab.ai/ui/server`, the one entry with no element in it: `authCardHtml(data)` renders the auth card as a declarative shadow
 root the element later hydrates in place, `authCardCss` is its sheet as data, with `tokensCss`, `kitCss`, `icon()` and the escapers. Nothing
 in it touches the DOM at load, so it runs on Node as ESM (`import`) or CommonJS (`require`, the `.cjs` build); its types resolve under
@@ -139,7 +147,8 @@ No build step: `<script type="module" src="https://2lab.ai/ui/lib/index.js"></sc
 </script>
 ```
 Data in (`el.data = {...}` — always assign a new object), events out (`ui-*`, bubbling + composed). Elements never fetch. English by default, Korean with
-`lang="ko"`. Light/dark follow the OS, `theme="light|dark"` pins one, `--ui-*` custom properties theme a page.
+`lang="ko"`. Light/dark follow the OS, `theme="light|dark"` pins one, `--ui-*` custom properties theme a page, and `data-design="modern-mono"`
+applies a whole design (see [`designs/README.md`](designs/README.md)).
 
 ## Develop
 ```

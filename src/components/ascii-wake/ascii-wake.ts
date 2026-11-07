@@ -379,9 +379,9 @@ export class UiAsciiWake extends UiElement<AsciiWakeData> {
     }
     if (typeof MutationObserver === 'function') {
       this.#mo = new MutationObserver(this.#onTheme);
-      const watch = { attributes: true, attributeFilter: ['data-theme', 'data-palette'] };
+      const watch = { attributes: true, attributeFilter: ['data-theme', 'data-palette', 'data-design'] };
       this.#mo.observe(document.documentElement, watch);
-      const near = this.parentElement?.closest('[data-theme]');
+      const near = this.parentElement?.closest('[data-theme], [data-design]');
       if (near && near !== document.documentElement) this.#mo.observe(near, watch);
     }
     if (typeof matchMedia === 'function') {

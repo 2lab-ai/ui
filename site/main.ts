@@ -1,11 +1,12 @@
 import '@2lab.ai/ui';
-import { DARK, LIGHT, tokensCss } from '@2lab.ai/ui/core/tokens';
+import { DARK, DESIGNS, LIGHT, tokensCss } from '@2lab.ai/ui/core/tokens';
 import { DOCS, docBySlug } from '@2lab.ai/ui/docs/registry';
 import type { ComponentDoc, DemoDoc } from '@2lab.ai/ui/docs/types';
 import { icon } from '@2lab.ai/ui/icons/icons';
 import { kitCss } from '@2lab.ai/ui/kit/kit';
 import { playSound } from '@2lab.ai/ui/sound/sound';
 import pkg from '../package.json';
+import { designsPage, mountDesignExample } from './designs';
 import { iconsPage, kitPage, wireKit } from './foundations';
 import { setSiteSound, soundButton, soundNow, soundPage, startSiteSound, wireSoundPage } from './sound';
 import { looksCollapsed, THUMB_CARD_W, THUMB_W, thumbFit } from './thumb-fit';
@@ -82,7 +83,7 @@ function shell(active: string, body: string): string {
 <div class="layout">
   <aside class="side" aria-label="Sections">
     <h4>Getting started</h4>
-    ${link('/', 'Introduction')}${link('/docs/installation', 'Installation')}${link('/docs/theming', 'Theming')}
+    ${link('/', 'Introduction')}${link('/docs/installation', 'Installation')}${link('/docs/theming', 'Theming')}${link('/docs/designs', 'Designs', `<small>${DESIGNS.length}</small>`)}
     <h4>Foundations</h4>
     ${link('/docs/icons', 'Icons')}${link('/docs/kit', 'UI kit', '<small>css</small>')}${link('/docs/sound', 'Sound', '<small>opt-in</small>')}
     <h4>Screens</h4>
@@ -182,7 +183,7 @@ function componentPage(d: ComponentDoc): string {
       <div class="seg pv-tabs" role="tablist" aria-label="Examples">${demos}</div>
       <div class="pv-tools">
         <div class="seg" aria-label="Width"><button data-width="desk" aria-pressed="true">Desktop</button><button data-width="mobile" aria-pressed="false">Mobile</button></div>
-        <div class="seg" aria-label="Preview theme"><button data-pv-theme="light" aria-pressed="${themeNow() === 'light'}">Light</button><button data-pv-theme="dark" aria-pressed="${themeNow() === 'dark'}">Dark</button><button data-pv-theme="light" data-pv-palette="mono" aria-pressed="false">Light mono</button><button data-pv-theme="dark" data-pv-palette="mono" aria-pressed="false">Dark mono</button></div>
+        <div class="seg" aria-label="Preview theme"><button data-pv-theme="light" aria-pressed="${themeNow() === 'light'}">Light</button><button data-pv-theme="dark" aria-pressed="${themeNow() === 'dark'}">Dark</button><button data-pv-theme="light" data-pv-palette="mono" aria-pressed="false">Light mono</button><button data-pv-theme="dark" data-pv-palette="mono" aria-pressed="false">Dark mono</button>${DESIGNS.map((x) => `<button data-pv-theme="${x.scheme}" data-pv-design="${esc(x.id)}" aria-pressed="false" title="Design: data-design=&quot;${esc(x.id)}&quot;">${esc(x.name)}</button>`).join('')}</div>
         <button class="icon-btn" id="replay" aria-label="Replay example">${ICON.replay}</button>
       </div>
     </div>
@@ -228,7 +229,7 @@ function themingPage(): string {
   return `<div class="crumb">Getting started</div><h1>Theming</h1>
   <p class="lede">Components follow <code>prefers-color-scheme</code> out of the box. Pin one with <code>theme="light|dark"</code>, or theme the whole page with <code>--ui-*</code> custom properties.</p>
   <h2>Three ways</h2>
-  <ul class="plain"><li><b>Nothing</b> — each element follows the OS theme.</li><li><b>Attribute</b> — <code>&lt;ui-agent-inbox theme="dark"&gt;</code>.</li><li><b>Page tokens</b> — load <code>@2lab.ai/ui/tokens.css</code> and set <code>data-theme="dark"</code> on any ancestor, or override single tokens.</li><li><b>Mono</b> — add <code>data-palette="mono"</code> beside <code>data-theme</code> for the restrained pair: decorative hues go grey, and the four task states keep their colour on icons, dots and borders only (no tinted fills). Components scale every status fill by <code>--ui-chroma</code> (1 in colour, 0 in mono).</li></ul>
+  <ul class="plain"><li><b>Nothing</b> — each element follows the OS theme.</li><li><b>Attribute</b> — <code>&lt;ui-agent-inbox theme="dark"&gt;</code>.</li><li><b>Page tokens</b> — load <code>@2lab.ai/ui/tokens.css</code> and set <code>data-theme="dark"</code> on any ancestor, or override single tokens.</li><li><b>Mono</b> — add <code>data-palette="mono"</code> beside <code>data-theme</code> for the restrained pair: decorative hues go grey, and the four task states keep their colour on icons, dots and borders only (no tinted fills). Components scale every status fill by <code>--ui-chroma</code> (1 in colour, 0 in mono).</li><li><b>Design</b> — <code>data-design="modern-mono"</code> on <code>&lt;html&gt;</code> applies a whole look in place of the theme and palette: every colour token, locked to the design's color scheme, with its tone &amp; manner written down beside it. See <a href="${at('docs/designs')}" data-link>Designs</a>.</li></ul>
   ${codeBlock(`:root {\n  --ui-accent: #7c3aed;\n  --ui-st-run: #7c3aed;\n}\n[data-theme="dark"] {\n  --ui-surface: #111113;\n}`, 'ov')}
   <p class="desc">Set <code>--ui-*</code> on an ancestor (<code>:root</code>, a wrapper), not on the element itself. Inside, each element defines <code>--border: var(--ui-border, …)</code> on its host, so a page that maps <code>--ui-border: var(--border)</code> on that same element makes a cycle and every token goes blank. On a wrapper the values arrive already resolved:</p>
   ${codeBlock(`/* the page already has --surface, --border, --text … */\n.tool-calls {\n  --ui-surface: var(--surface);\n  --ui-border: var(--border);\n  --ui-text: var(--text);\n}`, 'map')}
@@ -346,6 +347,9 @@ function route(): void {
   } else if (path === '/docs/theming') {
     body = themingPage();
     document.title = 'Theming — 2lab/ui';
+  } else if (path === '/docs/designs') {
+    body = designsPage(codeBlock);
+    document.title = 'Designs — 2lab/ui';
   } else if (path === '/docs/icons') {
     body = iconsPage(codeBlock);
     document.title = 'Icons — 2lab/ui';
@@ -364,6 +368,7 @@ function route(): void {
   document.body.classList.remove('nav-open');
   if (current) mountDemo();
   else if (path === '/docs/kit') wireKit(app);
+  else if (path === '/docs/designs') mountDesignExample(document.getElementById('frame')!);
   else if (path === '/docs/sound') wireSoundPage(app, route);
   else mountThumbs();
 }
@@ -429,6 +434,9 @@ document.addEventListener('click', (e) => {
     // 0.25.0 — the mono pair: data-palette="mono" beside data-theme (status colour on marks only).
     if (th.dataset.pvPalette === 'mono') stage?.setAttribute('data-palette', 'mono');
     else stage?.removeAttribute('data-palette');
+    // 0.38.0 — a design replaces the theme and palette: data-design="<id>" (its scheme rides in data-pv-theme).
+    if (th.dataset.pvDesign) stage?.setAttribute('data-design', th.dataset.pvDesign);
+    else stage?.removeAttribute('data-design');
     return;
   }
   if (t.closest('#replay')) {
