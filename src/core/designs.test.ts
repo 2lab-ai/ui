@@ -24,6 +24,15 @@ const files = import.meta.glob(['../../designs/README.md', '../../designs/*/READ
   eager: true,
 }) as Record<string, string>;
 const file = (path: string): string | undefined => files[`../../designs/${path}`];
+/** The release that first shipped data-design: the version a no-build page must load (or a later one). */
+const SINCE = '0.38';
+/** `v` (0.38, 0.38.0, 0.39 …) is the same as or later than `min`, compared part by part. */
+const atLeast = (v: string, min: string): boolean => {
+  const a = v.split('.').map(Number);
+  const b = min.split('.').map(Number);
+  for (let i = 0; i < b.length; i++) if ((a[i] ?? 0) !== b[i]) return (a[i] ?? 0) > b[i];
+  return true;
+};
 const entry = Object.values(
   import.meta.glob(['../../AGENTS.md', '../../README.md'], { query: '?raw', import: 'default', eager: true }),
 ) as string[];
@@ -251,6 +260,27 @@ describe('designs/ — what an agent reads to build a site with a design', () =>
     expect(spec.startsWith('# Modern Mono UI 기술 명세')).toBe(true);
     expect(spec).toContain('**한 문장 구현 지침:**');
     expect(spec).toContain('](ui-references/2115.jpg)');
+  });
+
+  it('loads a design from the npm release in its no-build snippets, not the docs site build', () => {
+    // The docs site's lib/ is whatever build the site last deployed; a design needs the package that has it.
+    for (const path of ['README.md', ...DESIGNS.map((d) => `${d.id}/README.md`)]) {
+      const md = file(path)!;
+      expect([path, md.includes('https://2lab.ai/ui/lib/')]).toEqual([path, false]);
+      // A minor (`@0.38`, newest patch) or an exact pin (`@0.38.0`), at or after the release that shipped designs.
+      for (const asset of ['tokens.css', 'ui-kit.css', 'index.js']) {
+        const pins = [
+          ...md.matchAll(
+            new RegExp(
+              `https://cdn\\.jsdelivr\\.net/npm/@2lab\\.ai/ui@([0-9.]+)/dist/${asset.replace('.', '\\.')}`,
+              'g',
+            ),
+          ),
+        ];
+        expect([path, asset, pins.length > 0]).toEqual([path, asset, true]);
+        for (const [, v] of pins) expect([path, v, atLeast(v, SINCE)]).toEqual([path, v, true]);
+      }
+    }
   });
 
   it('is reachable from the repo entry points (AGENTS.md and README.md link the catalog)', () => {
