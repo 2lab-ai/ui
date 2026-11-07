@@ -62,6 +62,15 @@ export interface AppBarBrand {
 export type AppBarTheme = 'light' | 'dark';
 /** The palette beside the theme (0.25.0): the colour themes, or their restrained mono pair (status colour on marks only). */
 export type AppBarPalette = 'color' | 'mono';
+/**
+ * A design the page can switch to (0.39.0) — a whole look applied with `data-design="<id>"` (see `DESIGNS` in
+ * `@2lab.ai/ui/server`). `scheme` is the one light / dark it is drawn for.
+ */
+export interface AppBarDesign {
+  id: string;
+  label: string;
+  scheme: AppBarTheme;
+}
 export type AppBarCollapse = 'auto' | 'always' | 'never';
 
 export interface AppBarData {
@@ -78,6 +87,14 @@ export interface AppBarData {
    * light·mono → dark·mono → light — and `ui-theme-change` carries the palette too. Unset: light ⇄ dark, as before.
    */
   palette?: AppBarPalette;
+  /**
+   * The designs the page offers (0.39.0). When set beside `theme`, the theme button opens one menu with every theme
+   * (light, dark and — with a palette — light·mono, dark·mono) and these designs, the current one checked; choosing
+   * sends `ui-theme-change` with `design` (the id, or null for a plain theme). Unset: the toggle, as before.
+   */
+  designs?: AppBarDesign[];
+  /** The page's current design id (0.39.0), or null / unset for none. Read only while `designs` lists it. */
+  design?: string | null;
   /**
    * The page's interface-sound choice (`@2lab.ai/ui/sound`). When set, a speaker toggle shows before the theme toggle
    * (pressed while on) and sends `ui-sound-change`; the host keeps the choice and calls `setSound`.
@@ -102,6 +119,8 @@ export interface AppBarNavigate {
 export interface AppBarThemeChange {
   theme: AppBarTheme;
   palette?: AppBarPalette;
+  /** With `designs` (0.39.0): the design chosen — its id, its scheme in `theme` — or null for a plain theme. */
+  design?: string | null;
 }
 
 /** One step of the theme cycle: light → dark → light·mono → dark·mono → light, or light ⇄ dark without a palette. */
@@ -129,6 +148,12 @@ const STRINGS = {
     toDark: 'Switch to dark theme',
     toLightMono: 'Switch to light mono theme',
     toDarkMono: 'Switch to dark mono theme',
+    theme: 'Theme',
+    light: 'Light',
+    dark: 'Dark',
+    lightMono: 'Light mono',
+    darkMono: 'Dark mono',
+    designs: 'Designs',
     soundOn: 'Turn sound on',
     soundOff: 'Turn sound off',
   },
@@ -140,6 +165,12 @@ const STRINGS = {
     toDark: '다크 테마로 전환',
     toLightMono: '라이트 모노 테마로 전환',
     toDarkMono: '다크 모노 테마로 전환',
+    theme: '테마',
+    light: '라이트',
+    dark: '다크',
+    lightMono: '라이트 모노',
+    darkMono: '다크 모노',
+    designs: '디자인',
     soundOn: '소리 켜기',
     soundOff: '소리 끄기',
   },
@@ -273,6 +304,91 @@ function paletteOf(v: unknown): AppBarPalette | undefined {
   return v === 'color' || v === 'mono' ? v : undefined;
 }
 
+const DESIGN_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const THEME_VALUE = 'theme:';
+const DESIGN_VALUE = 'design:';
+
+/** The well-formed designs (a kebab-case id, a label, a light / dark scheme), each id once, in order. */
+export function appBarDesigns(v: unknown): AppBarDesign[] {
+  if (!Array.isArray(v)) return [];
+  const out: AppBarDesign[] = [];
+  for (const x of v) {
+    if (!x || typeof x !== 'object') continue;
+    const d = x as AppBarDesign;
+    const id = str(d.id);
+    const label = str(d.label).trim();
+    const scheme = themeOf(d.scheme);
+    if (!DESIGN_ID.test(id) || !label || !scheme || out.some((o) => o.id === id)) continue;
+    out.push({ id, label, scheme });
+  }
+  return out;
+}
+
+/** What the theme menu reads: the bar's theme, palette, design and designs. */
+type ThemeState = Pick<AppBarData, 'theme' | 'palette' | 'design' | 'designs'>;
+
+/** The current design, when the page has one the list offers. */
+function currentDesign(d: ThemeState | undefined): AppBarDesign | undefined {
+  const id = str(d?.design);
+  return id ? appBarDesigns(d?.designs).find((x) => x.id === id) : undefined;
+}
+
+/** The plain themes a bar offers: light and dark, and their mono pair when it was given a palette. */
+function themeRows(palette: AppBarPalette | undefined): Array<{ theme: AppBarTheme; palette?: AppBarPalette }> {
+  const rows: Array<{ theme: AppBarTheme; palette?: AppBarPalette }> = [{ theme: 'light' }, { theme: 'dark' }];
+  if (palette) rows.push({ theme: 'light', palette: 'mono' }, { theme: 'dark', palette: 'mono' });
+  return rows;
+}
+
+function themeName(theme: AppBarTheme, palette: AppBarPalette | undefined, t: Strings): string {
+  if (palette === 'mono') return theme === 'dark' ? t.darkMono : t.lightMono;
+  return theme === 'dark' ? t.dark : t.light;
+}
+
+/**
+ * The theme menu's rows (0.39.0): one radio group — light, dark (and light·mono, dark·mono with a palette), then the
+ * designs under a heading. The current one is checked: the design when one is on, else the theme and palette.
+ */
+export function appBarThemeItems(d: ThemeState, lang: 'en' | 'ko' = 'en'): MenuItem[] {
+  const t = lang === 'ko' ? STRINGS.ko : STRINGS.en;
+  const theme = themeOf(d.theme);
+  const palette = paletteOf(d.palette);
+  const on = currentDesign(d);
+  const items: MenuItem[] = themeRows(palette).map((r) => ({
+    kind: 'radio',
+    group: 'theme',
+    value: `${THEME_VALUE}${r.theme}${r.palette === 'mono' ? ':mono' : ''}`,
+    label: themeName(r.theme, r.palette, t),
+    checked: !on && r.theme === theme && (r.palette === 'mono') === (palette === 'mono'),
+  }));
+  const designs = appBarDesigns(d.designs);
+  if (designs.length) items.push({ kind: 'heading', label: t.designs });
+  for (const x of designs)
+    items.push({ kind: 'radio', group: 'theme', value: DESIGN_VALUE + x.id, label: x.label, checked: on?.id === x.id });
+  return items;
+}
+
+/**
+ * The `ui-theme-change` a theme-menu row asks for (0.39.0): a theme row clears the design; a design row brings its
+ * scheme as the theme. The palette rides along only when the bar was given one (a design resets it to colour).
+ * null for a row the bar does not offer.
+ */
+export function appBarThemeChoice(value: string, d: ThemeState): AppBarThemeChange | null {
+  const palette = paletteOf(d.palette);
+  const v = str(value);
+  if (v.startsWith(DESIGN_VALUE)) {
+    const x = appBarDesigns(d.designs).find((o) => o.id === v.slice(DESIGN_VALUE.length));
+    if (!x) return null;
+    return palette ? { theme: x.scheme, palette: 'color', design: x.id } : { theme: x.scheme, design: x.id };
+  }
+  if (!v.startsWith(THEME_VALUE)) return null;
+  const row = themeRows(palette).find((r) => `${THEME_VALUE}${r.theme}${r.palette === 'mono' ? ':mono' : ''}` === v);
+  if (!row) return null;
+  return palette
+    ? { theme: row.theme, palette: row.palette ?? 'color', design: null }
+    : { theme: row.theme, design: null };
+}
+
 /**
  * The folded menu's rows: every link as a radio (checked = current, its badge on the right), then — when an
  * account is set — a separator and the account. No links, no menu.
@@ -307,7 +423,7 @@ export function appBarMenuItems(nav: unknown, account?: AppBarAccount | null): M
 export class UiAppBar extends UiElement<AppBarData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang', 'collapse'];
+    return ['lang', 'collapse', 'theme'];
   }
 
   #ro: ResizeObserver | null = null;
@@ -332,6 +448,10 @@ export class UiAppBar extends UiElement<AppBarData> {
   readonly #fold: HTMLElement;
   readonly #menu: UiMenu;
   readonly #trigger: HTMLButtonElement;
+  /** The theme menu (0.39.0, with `designs`): a live primitive like the folded menu, its button the trigger. */
+  readonly #themePick: HTMLElement;
+  readonly #themeMenu: UiMenu;
+  readonly #themeBtn: HTMLButtonElement;
   readonly #row: HTMLElement;
 
   constructor() {
@@ -357,7 +477,22 @@ export class UiAppBar extends UiElement<AppBarData> {
     this.#trigger.innerHTML = icon('menu');
     this.#menu.append(this.#trigger);
     this.#fold.append(this.#menu);
-    this.#bar.append(this.#parts, this.#fold);
+    // The theme menu sits where the toggle does — after the parts, before the folded menu — and shows only with designs.
+    this.#themePick = document.createElement('span');
+    this.#themePick.className = 'ab-theme-pick';
+    this.#themePick.hidden = true;
+    this.#themeMenu = document.createElement('ui-menu') as UiMenu;
+    this.#themeMenu.className = 'ab-theme-menu';
+    this.#themeMenu.setAttribute('placement', 'bottom-end');
+    this.#themeBtn = document.createElement('button');
+    this.#themeBtn.type = 'button';
+    this.#themeBtn.slot = 'trigger';
+    this.#themeBtn.className = 'ab-icon-btn';
+    // The same key as the toggle: focus moves between the two when designs come or go (update() finds it by key).
+    this.#themeBtn.dataset.key = 'theme';
+    this.#themeMenu.append(this.#themeBtn);
+    this.#themePick.append(this.#themeMenu);
+    this.#bar.append(this.#parts, this.#themePick, this.#fold);
     // The row under the bar. Its toolbar slot comes after the bar's in tree order, so it holds the toolbar only
     // while the bar draws none (toolbar-row): the host's nodes never move, only which slot shows them.
     this.#row = document.createElement('div');
@@ -368,8 +503,14 @@ export class UiAppBar extends UiElement<AppBarData> {
 
     this.root.addEventListener('click', (e) => this.#onClick(e as MouseEvent));
     // The menu's own events never leave the bar: its choice becomes ui-navigate / ui-account.
-    this.root.addEventListener('ui-select', (e) => this.#onMenuSelect(e as CustomEvent<MenuSelect>));
-    this.root.addEventListener('ui-open-change', (e) => e.stopPropagation());
+    // Only the bar's own menus: a host's <ui-menu> slotted into the bar sends its events through this shadow tree too.
+    this.root.addEventListener('ui-select', (e) => {
+      if (e.target === this.#themeMenu) this.#onThemeSelect(e as CustomEvent<MenuSelect>);
+      else if (e.target === this.#menu) this.#onMenuSelect(e as CustomEvent<MenuSelect>);
+    });
+    this.root.addEventListener('ui-open-change', (e) => {
+      if (e.target === this.#menu || e.target === this.#themeMenu) e.stopPropagation();
+    });
     // Slotted actions changed: the content's width did too. The toolbar moving between its two slots is not a
     // change of content (no child came, left or changed its slot): measuring again then would only loop.
     this.root.addEventListener('slotchange', () => {
@@ -519,6 +660,7 @@ export class UiAppBar extends UiElement<AppBarData> {
     for (const l of appBarLinks(d?.nav)) parts.push(l.label, str(l.icon), badgeText(l.badge));
     const acc = accountOf(d?.account);
     parts.push(acc.name, acc.role, String(!!themeOf(d?.theme)), String(typeof d?.sound === 'boolean'));
+    parts.push(String(appBarDesigns(d?.designs).length > 0));
     parts.push(this.getAttribute('lang') ?? '');
     return parts.join('\u0000');
   }
@@ -589,6 +731,36 @@ export class UiAppBar extends UiElement<AppBarData> {
     }
   }
 
+  /** A row of the theme menu was chosen (0.39.0): the menu mirrors this bar's data, so it never checks a row itself. */
+  #onThemeSelect(e: CustomEvent<MenuSelect>): void {
+    e.stopPropagation();
+    e.preventDefault();
+    this.#themeMenu.hide();
+    const d = this.data;
+    const cur = themeOf(d?.theme);
+    if (!d || !cur) return;
+    const next = appBarThemeChoice(str(e.detail?.value), d);
+    if (!next) return;
+    const was = currentDesign(d)?.id ?? null;
+    // Read before the event: a listener may change the data in place.
+    const pal = paletteOf(d.palette);
+    if (next.theme === cur && paletteOf(next.palette) === pal && next.design === was) return;
+    if (!this.emit<AppBarThemeChange>('ui-theme-change', next)) return;
+    // Like a folded-menu row: the cue plays without the menu's event (the row's own click is inside the menu).
+    this.sound('toggle', { direction: next.theme === 'dark' ? 'forward' : 'back' });
+    // Optimistic on the latest data: a listener that already set the theme wins.
+    const now = this.data;
+    if (
+      now &&
+      themeOf(now.theme) === cur &&
+      paletteOf(now.palette) === pal &&
+      (currentDesign(now)?.id ?? null) === was
+    ) {
+      this.#swapped = true;
+      this.data = { ...now, ...next };
+    }
+  }
+
   /** A row of the folded menu was chosen. The menu mirrors this bar's data, so it never checks a row itself. */
   #onMenuSelect(e: CustomEvent<MenuSelect>): void {
     e.stopPropagation();
@@ -636,10 +808,17 @@ export class UiAppBar extends UiElement<AppBarData> {
       this.#toolNeed = 0;
       this.removeAttribute('mark-only');
     }
-    const key = this.#active()?.dataset?.key;
+    // What had focus: its key, or — inside the theme menu (its button, or the menu host while a row has focus) — the
+    // theme control's key.
+    const before = this.#active();
+    const own = before?.dataset?.key;
+    const key = own ?? (before && this.#themePick.contains(before) ? 'theme' : undefined);
     morphInto(this.#parts, this.render());
     this.updated();
-    if (key && !this.#active()) {
+    // Focus was lost when its node left; when morph reused that node for another control (the toggle became the
+    // speaker: its key changed); or when it sits in the theme menu that just hid (designs went: the toggle takes it).
+    const at = this.#active();
+    if (key && (!at || at.dataset?.key !== own || (this.#themePick.hidden && this.#themePick.contains(at)))) {
       this.$$<HTMLElement>('[data-key]')
         .find((x) => x.dataset.key === key)
         ?.focus({ preventScroll: true });
@@ -653,11 +832,17 @@ export class UiAppBar extends UiElement<AppBarData> {
     this.#fold.hidden = !items.length;
     this.#fold.setAttribute('aria-label', label);
     this.#trigger.setAttribute('aria-label', this.#t.menu);
-    const lang = this.getAttribute('lang');
-    if (lang) this.#menu.setAttribute('lang', lang);
-    else this.#menu.removeAttribute('lang');
+    // The menus are elements of their own: the bar's lang and a pinned theme reach them.
+    for (const name of ['lang', 'theme']) {
+      const v = this.getAttribute(name);
+      for (const m of [this.#menu, this.#themeMenu]) {
+        if (v) m.setAttribute(name, v);
+        else m.removeAttribute(name);
+      }
+    }
     this.#menu.data = { label, items };
     if (!items.length && this.#menu.open) this.#menu.hide();
+    this.#syncThemePick();
     this.#sync();
     this.#fit();
     this.#fitBrand();
@@ -675,7 +860,7 @@ export class UiAppBar extends UiElement<AppBarData> {
       this.#status(d.status),
       this.#account(d.account, t),
       this.#sound(d.sound, t),
-      this.#theme(d.theme, d.palette, t),
+      this.#picker() ? '' : this.#theme(d.theme, d.palette, t),
     ].join('');
   }
 
@@ -753,6 +938,37 @@ export class UiAppBar extends UiElement<AppBarData> {
     return `<button type="button" class="ab-icon-btn ab-sound" aria-pressed="${on}" aria-label="${escAttr(
       on ? t.soundOff : t.soundOn,
     )}" data-act="sound" data-key="sound"><span class="ab-glyph" data-mk="${glyph}">${icon(glyph)}</span></button>`;
+  }
+
+  /** The theme menu replaces the toggle: a theme is set and the page offers designs (0.39.0). */
+  #picker(): boolean {
+    return !!themeOf(this.data?.theme) && appBarDesigns(this.data?.designs).length > 0;
+  }
+
+  /** The theme menu mirrors the data: shown with designs, its rows, the button's name and glyph. */
+  #syncThemePick(): void {
+    const on = this.#picker();
+    this.#themePick.hidden = !on;
+    // `.ab-theme` names the bar's one live theme control: this button only while it is the one.
+    this.#themeBtn.classList.toggle('ab-theme', on);
+    if (!on) {
+      if (this.#themeMenu.open) this.#themeMenu.hide();
+      return;
+    }
+    const d = this.data ?? {};
+    const t = this.#t;
+    const lang = this.getAttribute('lang');
+    this.#themeMenu.data = { label: t.theme, items: appBarThemeItems(d, lang === 'ko' ? 'ko' : 'en') };
+    const theme = themeOf(d.theme) ?? 'dark';
+    const name = currentDesign(d)?.label ?? themeName(theme, paletteOf(d.palette), t);
+    this.#themeBtn.setAttribute('aria-label', `${t.theme}: ${name}`);
+    // The same glyph as the toggle (a sun while dark, a moon while light); it enters when the person changed it here.
+    const glyph = theme === 'dark' ? 'sun' : 'moon';
+    const span = this.#themeBtn.firstElementChild as HTMLElement | null;
+    if (span?.dataset.mk !== glyph) {
+      this.#themeBtn.innerHTML = `<span class="${cls('ab-glyph', this.#swapped && 'is-in')}" data-mk="${glyph}">${icon(glyph)}</span>`;
+    }
+    this.#swapped = false;
   }
 
   #theme(theme: AppBarTheme | undefined, palette: AppBarPalette | undefined, t: Strings): string {
