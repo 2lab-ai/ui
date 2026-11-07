@@ -86,7 +86,7 @@ every kit class (`word-break: keep-all`).
 
 Designs — whole looks for a site built with these parts (0.38.0): `data-design="<id>"` on `<html>` (with `tokens.css`) recolours
 every element and kit class, locked to the design's color scheme, and `designs/<id>/DESIGN.md` in this repository holds its tone & manner
-(layout, type, composition, an acceptance list). Start at [`designs/README.md`](designs/README.md); live at https://2lab.ai/ui/docs/designs.
+(layout, type, composition, an acceptance list). Start at [`designs/README.md`](designs/README.md); docs site builds from 0.38.0 show them at https://2lab.ai/ui/docs/designs.
 
 | Design | Attribute | Look |
 |---|---|---|
