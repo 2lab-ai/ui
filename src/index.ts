@@ -84,7 +84,8 @@ export {
 } from './core/owner-badge';
 export type { PopAlign, PopPlace, PopRect, PopSide } from './core/popover';
 export { parsePlacement, placePopover } from './core/popover';
-export { baseCss, DARK, LIGHT, SHARED, tokensCss } from './core/tokens';
+export type { Design } from './core/tokens';
+export { baseCss, DARK, DESIGNS, designById, LIGHT, SHARED, tokensCss } from './core/tokens';
 export * from './icons';
 export * from './kit';
 export * from './sound';

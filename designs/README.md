@@ -46,19 +46,28 @@ The docs site's Designs page (https://2lab.ai/ui/docs/designs, in builds from 0.
 
 ## Let people switch
 
-To let the people using the site switch between the themes and the designs, give `<ui-app-bar>` the designs: its theme button then opens one menu with every theme and design (0.39.0). Map the list from the server entry, `DESIGNS` in `@2lab.ai/ui/server`, and apply what it sends:
+To let the people using the site switch between the themes and the designs, give `<ui-app-bar>` the designs and what the page shows now: its theme button then opens one menu with every theme and design, the current one checked (0.39.0). `DESIGNS` comes from the main entry (`@2lab.ai/ui`) in a browser and from `@2lab.ai/ui/server` on a server. Apply what the bar sends:
 
 ```js
-import { DESIGNS } from '@2lab.ai/ui/server'; // or pass the list from your server
-bar.data = { ...bar.data, theme: 'dark', palette: 'color', designs: DESIGNS.map((d) => ({ id: d.id, label: d.name, scheme: d.scheme })) };
+import { DESIGNS } from '@2lab.ai/ui';
+const root = document.documentElement;
+// Hand the bar what the page shows now, or the menu checks the wrong row (a design page would read "Dark").
+bar.data = {
+  ...bar.data,
+  theme: root.dataset.theme === 'light' ? 'light' : 'dark',
+  palette: root.dataset.palette === 'mono' ? 'mono' : 'color',
+  design: root.dataset.design ?? null,
+  designs: DESIGNS.map((d) => ({ id: d.id, label: d.name, scheme: d.scheme })),
+};
 bar.addEventListener('ui-theme-change', (e) => {
-  const { theme, palette, design } = e.detail; // design: an id, or null for a plain theme
-  const root = document.documentElement;
+  const { theme, palette, design } = e.detail; // design: an id (its scheme is in theme), or null for a plain theme
   root.dataset.theme = theme;
   if (palette === 'mono') root.dataset.palette = 'mono'; else delete root.dataset.palette;
   if (design) root.dataset.design = design; else delete root.dataset.design;
 });
 ```
+
+Keep the choice where your page keeps its theme (soma-work: `localStorage` `soma-design` beside `soma-theme` and `soma-palette`), and put it back on `<html>` before the first paint.
 
 ## Add a design
 

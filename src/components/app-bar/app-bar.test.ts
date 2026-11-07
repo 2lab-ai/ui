@@ -579,6 +579,90 @@ describe('events', () => {
     expect(q(plain, '.ab-parts .ab-theme')!.getAttribute('aria-label')).toBe('Switch to light mono theme');
   });
 
+  it('the menu never checks a row itself: a cancelled choice leaves its checked row as it was (no re-render needed)', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color', designs: DESIGNS });
+    record(el, 'ui-theme-change', true);
+    q(el, '.ab-theme')!.click();
+    themeMenu(el).renderNow();
+    const before = themeMenu(el).data;
+    themeRows(el)
+      .find((r) => r.textContent?.trim() === 'Modern Mono')!
+      .click();
+    // No el.renderNow(): the app bar answered ui-select during the menu's own dispatch, so the menu kept its items.
+    expect(themeMenu(el).data).toBe(before);
+    expect(
+      themeMenu(el)
+        .data!.items.filter((i) => i.checked)
+        .map((i) => i.value),
+    ).toEqual(['theme:dark']);
+  });
+
+  it('a listener that changed the palette itself wins over the optimistic update', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'mono', designs: DESIGNS });
+    el.addEventListener('ui-theme-change', () => {
+      el.data = { ...el.data!, palette: 'color' };
+    });
+    pick(el, 'Light mono');
+    expect([el.data!.theme, el.data!.palette]).toEqual(['dark', 'color']);
+  });
+
+  it('the theme menu button opens on the keyboard (↓) on the current row, and Esc gives focus back', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color', design: 'modern-mono', designs: DESIGNS });
+    const btn = q(el, '.ab-theme') as HTMLButtonElement;
+    btn.focus();
+    btn.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true, cancelable: true }),
+    );
+    themeMenu(el).renderNow();
+    expect(themeMenu(el).open).toBe(true);
+    const focused = themeMenu(el).shadowRoot!.activeElement as HTMLElement | null;
+    expect(focused?.textContent?.trim()).toBe('Modern Mono');
+    focused!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true, cancelable: true }),
+    );
+    expect(themeMenu(el).open).toBe(false);
+  });
+
+  it("a host's own <ui-menu> in a slot keeps its events: the bar answers only its own menus", () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color', designs: DESIGNS });
+    const mine = document.createElement('ui-menu') as unknown as UiMenu;
+    (mine as unknown as HTMLElement).slot = 'actions';
+    el.append(mine as unknown as HTMLElement);
+    const seen: Array<[string, boolean]> = [];
+    for (const n of ['ui-select', 'ui-open-change'])
+      document.addEventListener(n, (e) => seen.push([n, e.defaultPrevented]), { once: true });
+    for (const n of ['ui-select', 'ui-open-change'])
+      (mine as unknown as HTMLElement).dispatchEvent(
+        new CustomEvent(n, { detail: { value: 'x', open: true }, bubbles: true, composed: true, cancelable: true }),
+      );
+    expect(seen).toEqual([
+      ['ui-select', false],
+      ['ui-open-change', false],
+    ]);
+  });
+
+  it('focus follows the theme control when designs come or go (the toggle ⇄ the menu button)', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color' });
+    (q(el, '.ab-theme') as HTMLButtonElement).focus();
+    el.data = { ...el.data!, designs: DESIGNS };
+    el.renderNow();
+    expect(el.shadowRoot!.activeElement).toBe(q(el, '.ab-theme'));
+    expect(q(el, '.ab-theme')!.closest('.ab-theme-pick')).not.toBeNull();
+    el.data = { ...el.data!, designs: undefined };
+    el.renderNow();
+    expect(el.shadowRoot!.activeElement).toBe(q(el, '.ab-theme'));
+    expect(q(el, '.ab-theme')!.closest('.ab-parts')).not.toBeNull();
+  });
+
+  it('a pinned theme (theme="dark" on the bar) reaches its menus, as lang does', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color', designs: DESIGNS }, { theme: 'dark', lang: 'ko' });
+    for (const m of qa(el, 'ui-menu'))
+      expect([m.getAttribute('theme'), m.getAttribute('lang')]).toEqual(['dark', 'ko']);
+    el.removeAttribute('theme');
+    el.renderNow();
+    for (const m of qa(el, 'ui-menu')) expect(m.hasAttribute('theme')).toBe(false);
+  });
+
   it('names the menu, the themes and the design heading in Korean', () => {
     const el = mount({ ...DATA, theme: 'dark', palette: 'mono', designs: DESIGNS }, { lang: 'ko' });
     expect(q(el, '.ab-theme')!.getAttribute('aria-label')).toBe('테마: 다크 모노');
