@@ -5,6 +5,12 @@
 The site is built for the base `/ui/` (into `site-dist/ui/`): the 2lab.ai site proxies `/ui/*` to this Vercel project,
 and ui.2lab.ai redirects there. Internal links go through `at()` in `site/main.ts`, never a bare `/path`.
 
+## Building a site or dashboard with the library
+Asked to build a site "with 2lab-ai/ui" (or in a named look such as Modern Mono)? Start at `designs/README.md`: it lists
+the designs (whole looks: `data-design="<id>"` tokens + a tone & manner spec in `designs/<id>/DESIGN.md`), maps each one
+onto the elements and kit, and gives the steps. `site/designs.ts` is a worked dashboard. Designs live in
+`src/core/tokens.json` (`designs.<id>`) and `DESIGNS` in `src/core/tokens.ts`; `src/core/designs.test.ts` guards them.
+
 ## Gates (run before every commit)
 ```
 npm run check       # biome
