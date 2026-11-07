@@ -1,3 +1,4 @@
+import { DESIGNS } from '../../core/tokens';
 import type { ComponentDoc } from '../../docs/types';
 import { icon } from '../../icons/icons';
 import './app-bar';
@@ -109,7 +110,7 @@ function page(
       name === 'ui-navigate'
         ? `ui-navigate → ${(d as AppBarNavigate).id} (${(d as AppBarNavigate).href || 'no href'})`
         : name === 'ui-theme-change'
-          ? `ui-theme-change → ${(d as AppBarThemeChange).theme}${(d as AppBarThemeChange).palette === 'mono' ? ' · mono' : ''}`
+          ? `ui-theme-change → ${(d as AppBarThemeChange).design ?? (d as AppBarThemeChange).theme}${(d as AppBarThemeChange).palette === 'mono' ? ' · mono' : ''}`
           : name);
   // A client-side router would take every link over: the demo marks the page current instead of leaving.
   bar.addEventListener('ui-navigate', (e) => {
@@ -128,6 +129,9 @@ function page(
     win.dataset.theme = d.theme;
     if (d.palette === 'mono') win.dataset.palette = 'mono';
     else delete win.dataset.palette;
+    // 0.39.0 — a design from the theme menu: data-design on the page, its own scheme in data-theme.
+    if (d.design) win.dataset.design = d.design;
+    else delete win.dataset.design;
     line.textContent = say('ui-theme-change', d);
   });
   // The demo's speaker only reports: the site's own speaker (top right) turns sound on for the whole page.
@@ -221,6 +225,17 @@ export const doc: ComponentDoc = {
         'The page’s current palette (0.25.0). When set beside theme, the toggle cycles four themes — light → dark → light·mono → dark·mono → light — names the next one in its label, and ui-theme-change carries the palette. Unset: light ⇄ dark.',
     },
     {
+      name: 'data.designs',
+      type: "Array<{ id: string; label: string; scheme: 'light' | 'dark' }>",
+      description:
+        'The designs the page offers (0.39.0) — map DESIGNS (from @2lab.ai/ui, or @2lab.ai/ui/server on a server): { id, label: name, scheme }. Hand the bar the page’s current design too. When set beside theme, the theme button opens one menu with every theme (light, dark and, with a palette, light·mono and dark·mono) and these designs under a heading, the current one checked; ui-theme-change then carries design. Unset: the toggle.',
+    },
+    {
+      name: 'data.design',
+      type: 'string | null',
+      description: 'The page’s current design id (0.39.0), or null for none. Read only while designs lists it.',
+    },
+    {
       name: 'data.sound',
       type: 'boolean',
       description:
@@ -308,9 +323,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'ui-theme-change',
-      detail: "{ theme: 'light' | 'dark'; palette?: 'color' | 'mono' }",
+      detail: "{ theme: 'light' | 'dark'; palette?: 'color' | 'mono'; design?: string | null }",
       description:
-        'The toggle asks for the next theme (and palette, when the bar has one). Apply it to the page — data-theme, and data-palette="mono" beside it for the mono pair; preventDefault() keeps the toggle as it was.',
+        'The toggle asks for the next theme (and palette, when the bar has one); with designs, the theme menu asks for the row chosen — design is its id (its scheme in theme), or null for a plain theme. Apply it to the page — data-theme, data-palette="mono" beside it for the mono pair, data-design for a design; preventDefault() keeps the bar as it was.',
     },
     {
       name: 'ui-sound-change',
@@ -320,13 +335,23 @@ export const doc: ComponentDoc = {
     },
   ],
   keyboard: [
-    ['Tab', 'Brand, links, toolbar, actions, account, theme toggle, Menu (when folded); the toolbar row last'],
+    [
+      'Tab',
+      'Brand, links, toolbar, actions, account, theme toggle (or theme menu button), Menu (when folded); the toolbar row last',
+    ],
+    [
+      'Enter / Space / ↓ on the theme menu button',
+      'With designs: open the theme menu on the current theme (↑ on the last row)',
+    ],
     ['Enter', 'Follow the focused link (sends ui-navigate first)'],
     ['Enter / Space / ↓ on Menu', 'Open the folded menu on the current page'],
     ['↑ on Menu', 'Open it on the last row'],
     ['↑ / ↓ · Home / End · letters', 'Move inside the menu'],
-    ['Enter / Space in the menu', 'Choose a row (ui-navigate / ui-account); the menu closes'],
-    ['Esc / Tab in the menu', 'Close it; focus returns to Menu'],
+    [
+      'Enter / Space in the menu',
+      'Choose a row (ui-navigate / ui-account, or ui-theme-change in the theme menu); the menu closes',
+    ],
+    ['Esc / Tab in the menu', 'Close it; focus returns to its button'],
   ],
   a11y: [
     'Links are real <a href> in a <nav> named by navLabel ("Main"); the current page carries aria-current="page"; a link’s title is its hover hint and its folded row’s description. Put the bar in your page’s <header> for the banner landmark.',
@@ -336,10 +361,10 @@ export const doc: ComponentDoc = {
     'The status is role="status" aria-live="polite" and is patched in place, so each change is announced once; its description is read before the word (“Live updates: Connected”); narrow, the word is visually hidden but still read.',
     'Folded on a narrow bar, a brand name that would be cut shows as the mark alone (mark-only); the name stays the brand link’s accessible name.',
     'The account pill is named “Account: Mina Park, Admin” (the visible name included); the initials avatar is hidden from screen readers.',
-    'The theme toggle names the action (“Switch to dark theme”), not the state.',
+    'The theme toggle names the action (“Switch to dark theme”), not the state. With designs it is a Menu button named by the state (“Theme: Modern Mono”, aria-haspopup="menu", aria-expanded) over the shared <ui-menu>: menuitemradio rows — the themes, then a "Designs" heading that starts its own section with the designs — one choice across both, the current one checked.',
     'Focus ring 2px; 44px targets on coarse pointers; press scales to .97; hover changes colour only, on fine pointers.',
     'Reduced motion stills the live pulse; reduced transparency (or no backdrop-filter support) makes the bar opaque.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a link, the brand, the account or a folded-menu row plays navigate — also when the host cancels ui-navigate to route on the client; the theme toggle plays toggle (forward to dark, back to light); the speaker (data.sound) is where the person turns sound on and off, beside the theme switch. Silent until the page turns sound on.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a link, the brand, the account or a folded-menu row plays navigate — also when the host cancels ui-navigate to route on the client; the theme toggle — or a theme-menu row that changes the theme — plays toggle (forward to dark, back to light); the speaker (data.sound) is where the person turns sound on and off, beside the theme switch. Silent until the page turns sound on.',
   ],
   usage: `<header>
   <ui-app-bar lang="en">
@@ -398,6 +423,22 @@ export const doc: ComponentDoc = {
       create: () => {
         const bar = make(WORKBENCH);
         bar.append(newTask('New task'));
+        return page(bar, { height: 240 });
+      },
+    },
+    {
+      id: 'designs',
+      title: 'Theme menu with designs',
+      description:
+        'data.designs set (0.39.0): the theme button opens one menu — Light, Dark, Light mono, Dark mono and, under Designs, Modern Mono. Pick Modern Mono: the bar sends ui-theme-change with design: "modern-mono" and the page around it takes data-design; pick a theme to go back.',
+      height: 300,
+      frame: false,
+      create: () => {
+        const bar = make({
+          ...WORKBENCH,
+          palette: 'color',
+          designs: DESIGNS.map((d) => ({ id: d.id, label: d.name, scheme: d.scheme })),
+        });
         return page(bar, { height: 240 });
       },
     },

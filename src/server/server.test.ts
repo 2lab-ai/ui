@@ -39,6 +39,13 @@ describe('@2lab.ai/ui/server', () => {
     expect(s.esc('<b>')).toBe('&lt;b&gt;');
   });
 
+  it('lists the designs (0.39.0) so a server can offer them in an app bar theme menu', async () => {
+    const s = await import('./index');
+    expect(s.DESIGNS.map((d) => [d.id, d.name, d.scheme])).toContainEqual(['modern-mono', 'Modern Mono', 'dark']);
+    expect(s.designById('modern-mono')?.tokens.bg).toBe('#050505');
+    expect(s.tokensCss).toContain('[data-design="modern-mono"]');
+  });
+
   it('defines no element (that is the auth-card entry)', async () => {
     const s = (await import('./index')) as Record<string, unknown>;
     expect(s.UiAuthCard).toBeUndefined();

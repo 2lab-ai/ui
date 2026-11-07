@@ -44,6 +44,31 @@ The docs site's Designs page (https://2lab.ai/ui/docs/designs, in builds from 0.
 - Each element's host takes its `color-scheme` from `--ui-color-scheme`, which the design (and each theme block) sets, so scrollbars and form controls inside follow the design.
 - To change one token, set it on `<body>` or a wrapper, not on the element that carries `data-design`: the design block outranks any single-attribute rule there.
 
+## Let people switch
+
+To let the people using the site switch between the themes and the designs, give `<ui-app-bar>` the designs and what the page shows now: its theme button then opens one menu with every theme and design, the current one checked (0.39.0). `DESIGNS` comes from the main entry (`@2lab.ai/ui`) in a browser and from `@2lab.ai/ui/server` on a server. Apply what the bar sends:
+
+```js
+import { DESIGNS } from '@2lab.ai/ui';
+const root = document.documentElement;
+// Hand the bar what the page shows now, or the menu checks the wrong row (a design page would read "Dark").
+bar.data = {
+  ...bar.data,
+  theme: root.dataset.theme === 'light' ? 'light' : 'dark',
+  palette: root.dataset.palette === 'mono' ? 'mono' : 'color',
+  design: root.dataset.design ?? null,
+  designs: DESIGNS.map((d) => ({ id: d.id, label: d.name, scheme: d.scheme })),
+};
+bar.addEventListener('ui-theme-change', (e) => {
+  const { theme, palette, design } = e.detail; // design: an id (its scheme is in theme), or null for a plain theme
+  root.dataset.theme = theme;
+  if (palette === 'mono') root.dataset.palette = 'mono'; else delete root.dataset.palette;
+  if (design) root.dataset.design = design; else delete root.dataset.design;
+});
+```
+
+Keep the choice where your page keeps its theme (soma-work: `localStorage` `soma-design` beside `soma-theme` and `soma-palette`), and put it back on `<html>` before the first paint.
+
 ## Add a design
 
 1. Make `designs/<id>/` with `DESIGN.md` (the spec), `README.md` (the map onto the library, naming every token as `` `--ui-<name>` ``) and optional `ui-references/` images. Remove personal data from images first.
