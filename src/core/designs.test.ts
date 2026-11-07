@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { baseCss, DARK, DESIGNS, designById, tokensCss } from './tokens';
+import { baseCss, DARK, DESIGNS, type Design, designBlock, designById, tokensCss } from './tokens';
 
 // 0.38.0 — designs: a whole look a page picks with data-design="<id>" (tokens), plus its tone & manner in
 // designs/<id>/ (DESIGN.md, the spec; README.md, how it maps onto this library). The first one is modern-mono.
@@ -60,8 +60,9 @@ describe('modern-mono — the values the spec measured or set', () => {
     expect(t['ib-card']).toBe('#101012'); // bg.surfaceSubtle — panel insides
     expect([t.text, t['ib-text'], t.accent]).toEqual(['#f5f5f7', '#f5f5f7', '#f5f5f7']); // one ink, no hue accent
     expect([t['text-secondary'], t['ib-text-2']]).toEqual(['#9a99a7', '#9a99a7']);
-    // text.tertiary #7f7e8c reads 4.12:1 on a pill or a selected row: lifted until it passes there (README, derived).
-    expect([t['text-tertiary'], t['ib-muted']]).toEqual(['#888795', '#888795']);
+    // text.tertiary #7f7e8c reads 4.12:1 on a pill and 3.59:1 on the selected surface: lifted until it passes on
+    // both (README, derived).
+    expect([t['text-tertiary'], t['ib-muted']]).toEqual(['#92919f', '#92919f']);
     expect([t.border, t['ib-card-border']]).toEqual(['#242428', '#242428']); // border.subtle
     expect(t['border-focus']).toBe('#d3c7ff'); // focus
   });
@@ -85,9 +86,13 @@ describe('modern-mono — the values the spec measured or set', () => {
       for (const mark of [t['st-run'], t['st-wait'], t['st-done'], t['st-fail'], t['border-focus']])
         expect([mark, g, ratio(mark, g) >= 3]).toEqual([mark, g, true]);
     }
-    // The secondary and the quiet ink on a pill — a tag's word, the meta line of a selected row (.ui-row[aria-current]).
-    for (const ink of [t['ib-text-2'], t['ib-muted'], t['text-tertiary']])
-      expect([ink, ratio(ink, t['ib-pill']) >= 4.5]).toEqual([ink, true]);
+    // The secondary and the quiet ink on a pill and on the selected surface — a tag's word, the meta line of a
+    // selected row (.ui-row[aria-current] on the pill, .kp-row[aria-current] on ib-seg-on), a pressed chip.
+    for (const ground of [t['ib-pill'], t['ib-seg-on']])
+      for (const ink of [t['ib-text-2'], t['ib-muted'], t['text-tertiary']])
+        expect([ink, ground, ratio(ink, ground) >= 4.5]).toEqual([ink, ground, true]);
+    // …and the quiet ink stays a step below the secondary one (a hierarchy, not one grey).
+    expect(lum(t['ib-muted'])).toBeLessThan(lum(t['ib-text-2']));
     expect(ratio(t['ib-text'], t['ib-seg-on'])).toBeGreaterThanOrEqual(4.5);
   });
 });
@@ -114,23 +119,49 @@ describe('tokensCss — a design wins on the element that carries it, over the t
     }
   }
 
-  it('emits one block per design, last, with every token and the locked color scheme', () => {
-    const block = lines[lines.length - 1];
-    expect(block.startsWith('[data-design="modern-mono"]')).toBe(true);
-    expect(block).toContain('--ui-color-scheme: dark;');
-    expect(block).toMatch(/ color-scheme: dark; \}$/);
-    for (const [k, v] of Object.entries(t)) expect(block).toContain(`--ui-${k}: ${v};`);
+  /** The block of one design, found by its id (not by position: a second design comes after it). */
+  const blockOf = (id: string): number => lines.findIndex((l) => l.startsWith(`[data-design="${id}"]`));
+
+  it('emits one block per design, after every theme and palette rule, with every token and the locked scheme', () => {
+    const lastTheme = lines.findIndex((l) => l.includes(':root[data-palette="mono"]:not([data-theme="light"])'));
+    for (const d of DESIGNS) {
+      const at = blockOf(d.id);
+      expect([d.id, at > lastTheme]).toEqual([d.id, true]);
+      const block = lines[at];
+      expect(block).toContain(`--ui-color-scheme: ${d.scheme};`);
+      expect(block).toMatch(new RegExp(` color-scheme: ${d.scheme}; \\}$`));
+      for (const [k, v] of Object.entries(d.tokens)) expect(block).toContain(`--ui-${k}: ${v};`);
+    }
+    // Only design blocks follow the theme and palette rules.
+    expect(lines.slice(lastTheme + 1).every((l) => l.startsWith('[data-design="'))).toBe(true);
   });
 
-  it('outranks every theme and palette rule: one more attribute than the mono OS-dark :root rule (0,3,0)', () => {
+  it('outranks every theme and palette rule: as many attributes as the mono OS-dark :root rule (0,3,0), and later', () => {
     // Specificity by hand: the selector repeats its attribute, so it carries three attribute selectors whatever
     // element it is on — the OS-dark mono rule on :root has :root + an attribute + :not(attribute), also three, and
     // comes before it.
-    const selector = lines[lines.length - 1].slice(0, lines[lines.length - 1].indexOf(' {'));
-    expect(selector).toBe('[data-design="modern-mono"][data-design="modern-mono"][data-design="modern-mono"]');
-    expect(lines.findIndex((l) => l.includes(':root[data-palette="mono"]:not([data-theme="light"])'))).toBeLessThan(
-      lines.length - 1,
-    );
+    for (const d of DESIGNS) {
+      const line = lines[blockOf(d.id)];
+      const at = `[data-design="${d.id}"]`;
+      expect(line.slice(0, line.indexOf(' {'))).toBe(`${at}${at}${at}`);
+    }
+  });
+
+  it('emits a well-formed block for a design added later (the documented extension path)', () => {
+    const extra = { ...designById('modern-mono')!, id: 'paper-light', scheme: 'light' as const };
+    const registry = DESIGNS as Design[];
+    registry.push(extra);
+    try {
+      // tokensCss is built at import time; the generator is what a new entry goes through.
+      const css = designBlock(extra);
+      expect(
+        css.startsWith('[data-design="paper-light"][data-design="paper-light"][data-design="paper-light"] {'),
+      ).toBe(true);
+      expect(css).toContain('--ui-color-scheme: light;');
+      expect(designById('paper-light')).toBe(extra);
+    } finally {
+      registry.pop();
+    }
   });
 
   it('wins on <html> beside data-theme and data-palette="mono" (every token is the design\'s)', () => {

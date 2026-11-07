@@ -102,7 +102,7 @@ button { cursor: pointer; }
  * weaker. An element inside that sets its own `data-theme` still keeps it: the nearest declaration wins. The block
  * sets `--ui-color-scheme` to the design's scheme, so scrollbars and form controls inside follow the design, not the OS.
  */
-const designBlock = (d: Design): string => {
+export const designBlock = (d: Design): string => {
   const at = `[data-design="${d.id}"]`;
   return `${at}${at}${at} { ${pageVars(d.tokens)} --ui-color-scheme: ${d.scheme}; color-scheme: ${d.scheme}; }`;
 };
