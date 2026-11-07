@@ -62,6 +62,13 @@ describe('the example dashboard', () => {
     frame.remove();
   });
 
+  it('shows the same no-build snippet as designs/README.md: the npm release, not the lib/ of the site', () => {
+    const html = designsPage((code) => `<pre>${code}</pre>`);
+    expect(html).not.toContain('2lab.ai/ui/lib/');
+    for (const asset of ['tokens.css', 'ui-kit.css', 'index.js'])
+      expect(html).toContain(`https://cdn.jsdelivr.net/npm/@2lab.ai/ui@0.38/dist/${asset}`);
+  });
+
   it('lists every design on the page and puts the first on the example stage', () => {
     const html = designsPage((code) => `<pre>${code}</pre>`);
     for (const d of DESIGNS) expect(html).toContain(`data-design="${d.id}"`);
