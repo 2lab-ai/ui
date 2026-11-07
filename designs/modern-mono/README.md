@@ -43,8 +43,8 @@ Values marked "spec" are from §4.1. Values marked "derived" are decisions this 
 | `--ui-ib-text` | `#f5f5f7` | text.primary | spec |
 | `--ui-text-secondary` | `#9a99a7` | text.secondary | spec |
 | `--ui-ib-text-2` | `#9a99a7` | text.secondary | spec |
-| `--ui-text-tertiary` | `#888795` | text.tertiary: optional detail only, never a small key label | derived: the spec's `#7F7E8C` reads 4.12:1 on a pill or a selected row (below §12.2's 4.5:1), so it is lifted to 4.66:1 there |
-| `--ui-ib-muted` | `#888795` | text.tertiary: the quiet meta line | derived, as above |
+| `--ui-text-tertiary` | `#92919f` | text.tertiary: optional detail only, never a small key label | derived: the spec's `#7F7E8C` reads 4.12:1 on a pill and 3.59:1 on the selected surface (below §12.2's 4.5:1); lifted to 5.30:1 and 4.62:1 there, still a step below text.secondary |
+| `--ui-ib-muted` | `#92919f` | text.tertiary: the quiet meta line | derived, as above |
 | `--ui-accent` | `#f5f5f7` | general emphasis is achromatic (§3.4): one white ink, no hue accent | derived |
 | `--ui-accent-hover` | `#d9d9de` | the ink, slightly dimmed | derived |
 | `--ui-green` | `#35df97` | positive.text: rising prices, positive change | spec |

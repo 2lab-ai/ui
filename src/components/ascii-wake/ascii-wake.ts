@@ -379,10 +379,12 @@ export class UiAsciiWake extends UiElement<AsciiWakeData> {
     }
     if (typeof MutationObserver === 'function') {
       this.#mo = new MutationObserver(this.#onTheme);
-      const watch = { attributes: true, attributeFilter: ['data-theme', 'data-palette', 'data-design'] };
+      // Any theme, palette or design switch above it — on the page, on a preview stage, on a wrapper themed only
+      // later — re-reads the ink. subtree: the page's tree, and the shadow root it sits in when it is inside one.
+      const watch = { attributes: true, subtree: true, attributeFilter: ['data-theme', 'data-palette', 'data-design'] };
       this.#mo.observe(document.documentElement, watch);
-      const near = this.parentElement?.closest('[data-theme], [data-design]');
-      if (near && near !== document.documentElement) this.#mo.observe(near, watch);
+      const root = this.getRootNode();
+      if (root !== document && root instanceof ShadowRoot) this.#mo.observe(root, watch);
     }
     if (typeof matchMedia === 'function') {
       this.#scheme = matchMedia('(prefers-color-scheme: dark)');

@@ -167,6 +167,43 @@ function rowsHtml(rows: ModelRow[]): string {
     .join('')}</ul>`;
 }
 
+type PeriodKey = 'today' | '7d' | '30d';
+const PERIOD_OPTIONS = [
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+];
+/** Synthetic figures per period: the strip's totals are the chart's bars added up, so the two always agree. */
+export const PERIODS: Record<
+  PeriodKey,
+  { title: string; labels: string[]; done: number[]; failed: number[]; tokens: number; cost: number }
+> = {
+  today: {
+    title: 'today',
+    labels: ['00', '04', '08', '12', '16', '20'],
+    done: [42, 18, 160, 248, 290, 132],
+    failed: [1, 0, 6, 9, 11, 4],
+    tokens: 6_900_000,
+    cost: 183.2,
+  },
+  '7d': {
+    title: 'last 7 days',
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    done: [1020, 1184, 1240, 1102, 1310, 640, 590],
+    failed: [38, 52, 31, 47, 44, 18, 12],
+    tokens: 48_200_000,
+    cost: 1284.6,
+  },
+  '30d': {
+    title: 'last 30 days',
+    labels: ['W1', 'W2', 'W3', 'W4'],
+    done: [6480, 7012, 6895, 7086],
+    failed: [301, 266, 248, 242],
+    tokens: 201_400_000,
+    cost: 5402.9,
+  },
+};
+
 const DOCK: Array<[string, IconName]> = [
   ['Overview', 'board'],
   ['Runs', 'list'],
@@ -221,39 +258,38 @@ export function mountDesignExample(frame: HTMLElement): void {
   };
   bar.addEventListener('ui-navigate', (e) => e.preventDefault());
 
-  frame.querySelector('ui-stat-strip')!.data = {
-    period: {
-      value: '7d',
-      options: [
-        { value: 'today', label: 'Today' },
-        { value: '7d', label: '7 days' },
-        { value: '30d', label: '30 days' },
+  // The period drives the strip and the chart together: each choice swaps in its own synthetic figures and bars.
+  const strip = frame.querySelector('ui-stat-strip')!;
+  const chart = frame.querySelector('ui-bar-chart')!;
+  const show = (value: PeriodKey): void => {
+    const p = PERIODS[value];
+    const done = p.done.reduce((a, b) => a + b, 0);
+    const runs = done + p.failed.reduce((a, b) => a + b, 0);
+    strip.data = {
+      period: { value, options: PERIOD_OPTIONS },
+      metrics: [
+        { key: 'runs', label: 'Runs', value: runs },
+        { key: 'success', label: 'Success', value: Math.round((done / runs) * 1000) / 10, format: 'percent' },
+        { key: 'tokens', label: 'Tokens', value: p.tokens, format: 'tokens' },
+        { key: 'cost', label: 'Cost', value: p.cost, format: 'usd' },
       ],
-    },
-    metrics: [
-      { key: 'runs', label: 'Runs', value: 7911 },
-      { key: 'success', label: 'Success', value: 96.2, format: 'percent' },
-      { key: 'tokens', label: 'Tokens', value: 48_200_000, format: 'tokens' },
-      { key: 'cost', label: 'Cost', value: 1284.6, format: 'usd' },
-    ],
+    };
+    chart.data = {
+      title: `Runs · ${p.title}`,
+      series: [
+        { key: 'done', label: 'Done', color: 'done' },
+        { key: 'failed', label: 'Failed', color: 'fail' },
+      ],
+      bars: p.labels.map((label, i) => ({
+        key: label,
+        label,
+        title: `${label} — ${p.done[i]} done, ${p.failed[i]} failed`,
+        values: { done: p.done[i], failed: p.failed[i] },
+      })),
+    };
   };
-
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const done = [1020, 1184, 1240, 1102, 1310, 640, 590];
-  const failed = [38, 52, 31, 47, 44, 18, 12];
-  frame.querySelector('ui-bar-chart')!.data = {
-    title: 'Runs · last 7 days',
-    series: [
-      { key: 'done', label: 'Done', color: 'done' },
-      { key: 'failed', label: 'Failed', color: 'fail' },
-    ],
-    bars: days.map((label, i) => ({
-      key: label,
-      label,
-      title: `${label} — ${done[i]} done, ${failed[i]} failed`,
-      values: { done: done[i], failed: failed[i] },
-    })),
-  };
+  show('7d');
+  strip.addEventListener('ui-period', (e) => show((e as CustomEvent<{ value: PeriodKey }>).detail.value));
 
   frame.querySelector('ui-tabs')!.data = {
     label: 'Success rate by',

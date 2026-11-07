@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DESIGNS } from '../src/core/tokens';
-import { DX_CSS, designsPage, MODEL_ROWS, mountDesignExample, signedPoints } from './designs';
+import { DX_CSS, designsPage, MODEL_ROWS, mountDesignExample, PERIODS, signedPoints } from './designs';
 
 // 0.38.0 — the Designs page's example is the reference an agent copies: page markup drawn from tokens alone.
 
@@ -40,6 +40,25 @@ describe('the example dashboard', () => {
     star.click();
     expect(star.getAttribute('aria-pressed')).toBe('true');
     expect(document.getElementById('dx-css')?.textContent).toBe(DX_CSS);
+    frame.remove();
+  });
+
+  it('changes the strip and the chart together when the period changes (one source of figures)', () => {
+    const frame = document.createElement('div');
+    document.body.append(frame);
+    mountDesignExample(frame);
+    const strip = frame.querySelector('ui-stat-strip')!;
+    const chart = frame.querySelector('ui-bar-chart')!;
+    const runs = () => strip.data!.metrics.find((m) => m.key === 'runs')!.value;
+    const sum = (p: (typeof PERIODS)['7d']) => [...p.done, ...p.failed].reduce((a, b) => a + b, 0);
+    expect(runs()).toBe(sum(PERIODS['7d']));
+    strip.dispatchEvent(new CustomEvent('ui-period', { detail: { value: '30d', previous: '7d' } }));
+    expect(strip.data!.period!.value).toBe('30d');
+    expect(runs()).toBe(sum(PERIODS['30d']));
+    expect(chart.data!.title).toBe('Runs · last 30 days');
+    expect(chart.data!.bars!.map((b) => b.label)).toEqual(PERIODS['30d'].labels);
+    for (const p of Object.values(PERIODS))
+      expect([p.labels.length, p.failed.length]).toEqual([p.done.length, p.done.length]);
     frame.remove();
   });
 
