@@ -805,7 +805,7 @@ describe('<ui-ascii-wake>', () => {
     expect(gcs).toHaveBeenCalledTimes(2);
     expect(ctx.fillStyle).toBe('rgb(147, 147, 155)');
     expect(drawn.arcs.reduce((a, b) => a + b, 0)).not.toBeCloseTo(before, 3);
-    // data-theme on the page (and on the nearest themed ancestor).
+    // A theme, palette or design switch anywhere on the page.
     const mo = FakeMO.all[0];
     const [target, init] = mo.targets[0];
     expect(target).toBe(document.documentElement);
@@ -824,15 +824,29 @@ describe('<ui-ascii-wake>', () => {
     expect(ctx.font).toBe("500 14px 'Test Mono', monospace");
   });
 
-  it('watches the nearest themed ancestor too (a preview stage switches its own data-theme)', () => {
-    const stage = document.createElement('div');
-    stage.setAttribute('data-theme', 'light');
-    document.body.append(stage);
+  it('watches the whole page for theme, palette and design switches — a preview stage, a wrapper themed later', () => {
+    const wrap = document.createElement('div');
+    document.body.append(wrap);
     const el = document.createElement('ui-ascii-wake');
-    stage.append(el);
+    wrap.append(el);
+    el.renderNow();
+    const mo = FakeMO.all[0];
+    expect(mo.targets).toHaveLength(1);
+    const [target, init] = mo.targets[0];
+    expect(target).toBe(document.documentElement);
+    expect(init?.subtree).toBe(true);
+    expect(init?.attributeFilter).toEqual(['data-theme', 'data-palette', 'data-design']);
+  });
+
+  it('inside the shadow root of another element, watches that root too (the page subtree does not reach in)', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = host.attachShadow({ mode: 'open' });
+    const el = document.createElement('ui-ascii-wake');
+    root.append(el);
     el.renderNow();
     const targets = FakeMO.all[0].targets.map(([t]) => t);
-    expect(targets).toEqual([document.documentElement, stage]);
+    expect(targets).toEqual([document.documentElement, root]);
   });
 
   it('styles: fills its box in the quiet ink, lets touch pan the page, a crosshair for fine pointers only', () => {
