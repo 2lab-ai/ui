@@ -37,9 +37,10 @@ Live: https://2lab.ai/ui/docs/designs shows every design and an example dashboar
 ## How a design applies
 
 - `data-design="<id>"` on `<html>` (or any ancestor) applies the design when `tokens.css` is loaded.
-- A design replaces `data-theme` and `data-palette` on that element. It is drawn for one color scheme and keeps it whatever the OS prefers. Do not combine it with `data-palette="mono"`.
-- It also sets `--ui-color-scheme`, so scrollbars and form controls inside each element follow the design.
-- To change one token, set it on `<body>` or a wrapper, not on the element that carries `data-design`. The design block has the same specificity as the theme blocks and wins by order.
+- A design replaces `data-theme` and `data-palette` on that element: if they are there too, the design's values win for every token. It is drawn for one color scheme and keeps it whatever the OS prefers.
+- An element inside that sets its own `data-theme` keeps that theme (the nearest declaration wins).
+- Each element's host takes its `color-scheme` from `--ui-color-scheme`, which the design (and each theme block) sets, so scrollbars and form controls inside follow the design.
+- To change one token, set it on `<body>` or a wrapper, not on the element that carries `data-design`: the design block outranks any single-attribute rule there.
 
 ## Add a design
 

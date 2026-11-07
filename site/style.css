@@ -331,6 +331,20 @@ h3 {
   gap: 8px;
   margin-left: auto;
 }
+/* 0.38.0 — the theme group gained a design per button: on a phone it scrolls sideways like the examples, never past
+   the screen edge. */
+.pv-tools .seg {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pv-tools .seg::-webkit-scrollbar {
+  display: none;
+}
+.pv-tools .seg button {
+  flex: none;
+}
 @media (max-width: 900px) {
   .pv-bar {
     flex-wrap: wrap;

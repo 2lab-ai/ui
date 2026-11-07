@@ -60,7 +60,8 @@ describe('modern-mono — the values the spec measured or set', () => {
     expect(t['ib-card']).toBe('#101012'); // bg.surfaceSubtle — panel insides
     expect([t.text, t['ib-text'], t.accent]).toEqual(['#f5f5f7', '#f5f5f7', '#f5f5f7']); // one ink, no hue accent
     expect([t['text-secondary'], t['ib-text-2']]).toEqual(['#9a99a7', '#9a99a7']);
-    expect([t['text-tertiary'], t['ib-muted']]).toEqual(['#7f7e8c', '#7f7e8c']);
+    // text.tertiary #7f7e8c reads 4.12:1 on a pill or a selected row: lifted until it passes there (README, derived).
+    expect([t['text-tertiary'], t['ib-muted']]).toEqual(['#888795', '#888795']);
     expect([t.border, t['ib-card-border']]).toEqual(['#242428', '#242428']); // border.subtle
     expect(t['border-focus']).toBe('#d3c7ff'); // focus
   });
@@ -84,24 +85,106 @@ describe('modern-mono — the values the spec measured or set', () => {
       for (const mark of [t['st-run'], t['st-wait'], t['st-done'], t['st-fail'], t['border-focus']])
         expect([mark, g, ratio(mark, g) >= 3]).toEqual([mark, g, true]);
     }
-    // The secondary ink on a pill and on the selected toggle (a tag's word, a chip that is on).
-    expect(ratio(t['ib-text-2'], t['ib-pill'])).toBeGreaterThanOrEqual(4.5);
+    // The secondary and the quiet ink on a pill — a tag's word, the meta line of a selected row (.ui-row[aria-current]).
+    for (const ink of [t['ib-text-2'], t['ib-muted'], t['text-tertiary']])
+      expect([ink, ratio(ink, t['ib-pill']) >= 4.5]).toEqual([ink, true]);
     expect(ratio(t['ib-text'], t['ib-seg-on'])).toBeGreaterThanOrEqual(4.5);
   });
 });
 
-describe('tokensCss — a design block per design, after the themes and the mono pair', () => {
+describe('tokensCss — a design wins on the element that carries it, over the theme and the mono palette', () => {
   const lines = tokensCss.trim().split('\n');
+  const t = designById('modern-mono')!.tokens;
+  const KEYS = Object.keys(t);
 
-  it('applies a design on :root or any ancestor, locks its color scheme, and comes last so it wins ties', () => {
-    const at = lines.findIndex((l) => l.startsWith(':root[data-design="modern-mono"], [data-design="modern-mono"] {'));
-    expect(at).toBeGreaterThan(lines.findIndex((l) => l.includes('[data-palette="mono"][data-theme="dark"]')));
-    expect(at).toBeGreaterThan(lines.findIndex((l) => l.includes(':root[data-palette="mono"]:not')));
-    const block = lines[at];
+  /** Every --ui-* value the cascade gives `el` (happy-dom resolves specificity and order, like a browser). */
+  const resolved = (el: Element): Record<string, string> =>
+    Object.fromEntries(KEYS.map((k) => [k, getComputedStyle(el).getPropertyValue(`--ui-${k}`).trim()]));
+
+  function withTokens(run: () => void): void {
+    const style = document.createElement('style');
+    style.textContent = tokensCss;
+    document.head.append(style);
+    try {
+      run();
+    } finally {
+      style.remove();
+      for (const a of ['data-design', 'data-theme', 'data-palette']) document.documentElement.removeAttribute(a);
+      document.body.replaceChildren();
+    }
+  }
+
+  it('emits one block per design, last, with every token and the locked color scheme', () => {
+    const block = lines[lines.length - 1];
+    expect(block.startsWith('[data-design="modern-mono"]')).toBe(true);
     expect(block).toContain('--ui-color-scheme: dark;');
     expect(block).toMatch(/ color-scheme: dark; \}$/);
-    const t = designById('modern-mono')!.tokens;
     for (const [k, v] of Object.entries(t)) expect(block).toContain(`--ui-${k}: ${v};`);
+  });
+
+  it('outranks every theme and palette rule: one more attribute than the mono OS-dark :root rule (0,3,0)', () => {
+    // Specificity by hand: the selector repeats its attribute, so it carries three attribute selectors whatever
+    // element it is on — the OS-dark mono rule on :root has :root + an attribute + :not(attribute), also three, and
+    // comes before it.
+    const selector = lines[lines.length - 1].slice(0, lines[lines.length - 1].indexOf(' {'));
+    expect(selector).toBe('[data-design="modern-mono"][data-design="modern-mono"][data-design="modern-mono"]');
+    expect(lines.findIndex((l) => l.includes(':root[data-palette="mono"]:not([data-theme="light"])'))).toBeLessThan(
+      lines.length - 1,
+    );
+  });
+
+  it('wins on <html> beside data-theme and data-palette="mono" (every token is the design\'s)', () => {
+    withTokens(() => {
+      const h = document.documentElement;
+      h.setAttribute('data-design', 'modern-mono');
+      h.setAttribute('data-palette', 'mono');
+      expect(resolved(h)).toEqual(t);
+      h.setAttribute('data-theme', 'light');
+      expect(resolved(h)).toEqual(t);
+      h.setAttribute('data-theme', 'dark');
+      expect(resolved(h)).toEqual(t);
+    });
+  });
+
+  it('wins on <html> with the OS set to dark, where the mono palette rule on :root is strongest', () => {
+    const device = (window as unknown as { happyDOM: { settings: { device: { prefersColorScheme: string } } } })
+      .happyDOM.settings.device;
+    const was = device.prefersColorScheme;
+    device.prefersColorScheme = 'dark';
+    try {
+      withTokens(() => {
+        const h = document.documentElement;
+        h.setAttribute('data-palette', 'mono');
+        // The control: without a design that rule applies (mono dark ink as the accent).
+        expect(resolved(h).accent).not.toBe(t.accent);
+        h.setAttribute('data-design', 'modern-mono');
+        expect(resolved(h)).toEqual(t);
+      });
+    } finally {
+      device.prefersColorScheme = was;
+    }
+  });
+
+  it('wins on any element beside data-theme="dark" and data-palette="mono" (a preview stage, a wrapper)', () => {
+    withTokens(() => {
+      const el = document.createElement('div');
+      for (const [a, v] of [
+        ['data-theme', 'dark'],
+        ['data-palette', 'mono'],
+        ['data-design', 'modern-mono'],
+      ])
+        el.setAttribute(a, v);
+      document.body.append(el);
+      expect(resolved(el)).toEqual(t);
+      // …and an element inside that sets its own theme keeps it (the nearest declaration wins).
+      const inner = document.createElement('div');
+      inner.setAttribute('data-theme', 'light');
+      el.append(inner);
+      expect(resolved(inner).bg).not.toBe(t.bg);
+      // …including its color scheme, so native controls inside a light panel are light.
+      expect(getComputedStyle(el).getPropertyValue('--ui-color-scheme').trim()).toBe('dark');
+      expect(getComputedStyle(inner).getPropertyValue('--ui-color-scheme').trim()).toBe('light');
+    });
   });
 
   it('lets a component follow the page design for its native parts (scrollbars, form controls)', () => {
