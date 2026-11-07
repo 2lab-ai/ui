@@ -331,6 +331,20 @@ h3 {
   gap: 8px;
   margin-left: auto;
 }
+/* 0.38.0 — the theme group gained a design per button: on a phone it scrolls sideways like the examples, never past
+   the screen edge. */
+.pv-tools .seg {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pv-tools .seg::-webkit-scrollbar {
+  display: none;
+}
+.pv-tools .seg button {
+  flex: none;
+}
 @media (max-width: 900px) {
   .pv-bar {
     flex-wrap: wrap;
@@ -359,6 +373,57 @@ h3 {
 }
 .pv-stage[data-theme="light"] {
   background-color: #f6f6f5;
+}
+/* 0.38.0 — a design on the stage (data-design): its own canvas, the dots in its own ink. */
+.pv-stage[data-design] {
+  --s-canvas: var(--ui-bg);
+  background-color: var(--ui-bg);
+  background-image: radial-gradient(color-mix(in srgb, var(--ui-text) 6%, transparent) 1px, transparent 1px);
+  color-scheme: var(--ui-color-scheme, dark);
+}
+/* The Designs page: a dashboard edge to edge on the design's canvas (no dots); Mobile narrows it to a phone. */
+.pv-stage.dz-stage {
+  padding: 0;
+  background-image: none;
+}
+.dz-stage .pv-frame.mobile {
+  margin: 24px auto;
+  border: 1px solid var(--ui-border);
+  border-radius: 24px;
+  overflow: hidden;
+}
+.dz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 18px 0 8px;
+}
+.dz-card {
+  padding: 16px 18px;
+  border: 1px solid var(--s-line);
+  border-radius: 14px;
+  background: var(--s-panel);
+}
+.dz-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 4px;
+  font-size: 16px;
+}
+.dz-card p {
+  margin: 0 0 10px;
+  color: var(--s-text-2);
+}
+.dz-swatches {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--s-line);
+  border-radius: 10px;
+}
+.dz-swatches i {
+  flex: 1;
+  height: 36px;
 }
 .pv-frame {
   width: 100%;
