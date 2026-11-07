@@ -131,6 +131,9 @@ a.ab-brand { transition: transform var(--dur-press) var(--ease-out); }
 :host([collapsed]) :is(.ab-brand, .ab-heading, .ab-account), :host([collapsed]) ::slotted([slot="brand"]) {
   flex: 0 1 auto;
 }
+/* The theme menu (0.39.0, with designs): where the toggle sits, its button the menu's trigger. */
+.ab-theme-pick { display: flex; flex: none; }
+.ab-theme-pick[hidden] { display: none; }
 .ab-fold { display: none; flex: none; }
 :host([collapsed]) .ab-fold:not([hidden]) { display: flex; }
 :host([collapsed]) .ab-nav { display: none; }

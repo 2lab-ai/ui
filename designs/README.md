@@ -44,6 +44,22 @@ The docs site's Designs page (https://2lab.ai/ui/docs/designs, in builds from 0.
 - Each element's host takes its `color-scheme` from `--ui-color-scheme`, which the design (and each theme block) sets, so scrollbars and form controls inside follow the design.
 - To change one token, set it on `<body>` or a wrapper, not on the element that carries `data-design`: the design block outranks any single-attribute rule there.
 
+## Let people switch
+
+To let the people using the site switch between the themes and the designs, give `<ui-app-bar>` the designs: its theme button then opens one menu with every theme and design (0.39.0). Map the list from the server entry, `DESIGNS` in `@2lab.ai/ui/server`, and apply what it sends:
+
+```js
+import { DESIGNS } from '@2lab.ai/ui/server'; // or pass the list from your server
+bar.data = { ...bar.data, theme: 'dark', palette: 'color', designs: DESIGNS.map((d) => ({ id: d.id, label: d.name, scheme: d.scheme })) };
+bar.addEventListener('ui-theme-change', (e) => {
+  const { theme, palette, design } = e.detail; // design: an id, or null for a plain theme
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  if (palette === 'mono') root.dataset.palette = 'mono'; else delete root.dataset.palette;
+  if (design) root.dataset.design = design; else delete root.dataset.design;
+});
+```
+
 ## Add a design
 
 1. Make `designs/<id>/` with `DESIGN.md` (the spec), `README.md` (the map onto the library, naming every token as `` `--ui-<name>` ``) and optional `ui-references/` images. Remove personal data from images first.

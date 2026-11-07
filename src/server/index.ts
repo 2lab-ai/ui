@@ -28,7 +28,8 @@ export {
   authStrings,
 } from '../components/auth-card/markup';
 export { esc, escAttr, safeHref, safeLink, safeSrc } from '../core/html';
-export { baseCss, DARK, LIGHT, SHARED, tokensCss } from '../core/tokens';
+export type { Design } from '../core/tokens';
+export { baseCss, DARK, DESIGNS, designById, LIGHT, SHARED, tokensCss } from '../core/tokens';
 export type { IconName, IconOptions } from '../icons/icons';
 export { hasIcon, ICON_ALIASES, ICON_NAMES, icon, iconName } from '../icons/icons';
 export { KIT_CLASSES, kitCss } from '../kit/kit';
