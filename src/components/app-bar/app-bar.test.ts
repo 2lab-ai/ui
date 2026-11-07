@@ -654,6 +654,55 @@ describe('events', () => {
     expect(q(el, '.ab-theme')!.closest('.ab-parts')).not.toBeNull();
   });
 
+  it('designs going while the theme menu is open: the menu closes and focus lands on the toggle', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color', designs: DESIGNS });
+    const btn = q(el, '.ab-theme') as HTMLButtonElement;
+    btn.focus();
+    btn.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true, cancelable: true }),
+    );
+    themeMenu(el).renderNow();
+    expect(themeMenu(el).open).toBe(true);
+    el.data = { ...el.data!, designs: undefined };
+    el.renderNow();
+    expect(themeMenu(el).open).toBe(false);
+    expect(el.shadowRoot!.activeElement).toBe(q(el, '.ab-parts .ab-theme'));
+  });
+
+  it('a re-render while the theme menu is open leaves focus inside it', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color', designs: DESIGNS });
+    const btn = q(el, '.ab-theme') as HTMLButtonElement;
+    btn.focus();
+    btn.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true, cancelable: true }),
+    );
+    themeMenu(el).renderNow();
+    const inMenu = themeMenu(el).shadowRoot!.activeElement;
+    expect(inMenu).not.toBeNull();
+    el.data = { ...el.data!, status: { tone: 'run', label: 'Syncing' } };
+    el.renderNow();
+    expect(themeMenu(el).open).toBe(true);
+    expect(themeMenu(el).shadowRoot!.activeElement).toBe(inMenu);
+  });
+
+  it('focus stays with the theme control when the sound control takes the toggle place in the same render', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'color' });
+    (q(el, '.ab-theme') as HTMLButtonElement).focus();
+    el.data = { ...el.data!, sound: false, designs: DESIGNS };
+    el.renderNow();
+    expect((el.shadowRoot!.activeElement as HTMLElement | null)?.dataset.key).toBe('theme');
+    expect(el.shadowRoot!.activeElement).toBe(q(el, '.ab-theme'));
+  });
+
+  it('the palette guard reads the palette from before the event (a listener mutating data in place still wins)', () => {
+    const el = mount({ ...DATA, theme: 'dark', palette: 'mono', designs: DESIGNS });
+    el.addEventListener('ui-theme-change', () => {
+      Object.assign(el.data!, { palette: 'color' });
+    });
+    pick(el, 'Light mono');
+    expect([el.data!.theme, el.data!.palette]).toEqual(['dark', 'color']);
+  });
+
   it('a pinned theme (theme="dark" on the bar) reaches its menus, as lang does', () => {
     const el = mount({ ...DATA, theme: 'dark', palette: 'color', designs: DESIGNS }, { theme: 'dark', lang: 'ko' });
     for (const m of qa(el, 'ui-menu'))
