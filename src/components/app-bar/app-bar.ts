@@ -423,7 +423,7 @@ export function appBarMenuItems(nav: unknown, account?: AppBarAccount | null): M
 export class UiAppBar extends UiElement<AppBarData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang', 'collapse'];
+    return ['lang', 'collapse', 'theme'];
   }
 
   #ro: ResizeObserver | null = null;
@@ -488,7 +488,8 @@ export class UiAppBar extends UiElement<AppBarData> {
     this.#themeBtn.type = 'button';
     this.#themeBtn.slot = 'trigger';
     this.#themeBtn.className = 'ab-icon-btn';
-    this.#themeBtn.dataset.key = 'theme-pick';
+    // The same key as the toggle: focus moves between the two when designs come or go (update() finds it by key).
+    this.#themeBtn.dataset.key = 'theme';
     this.#themeMenu.append(this.#themeBtn);
     this.#themePick.append(this.#themeMenu);
     this.#bar.append(this.#parts, this.#themePick, this.#fold);
@@ -502,11 +503,14 @@ export class UiAppBar extends UiElement<AppBarData> {
 
     this.root.addEventListener('click', (e) => this.#onClick(e as MouseEvent));
     // The menu's own events never leave the bar: its choice becomes ui-navigate / ui-account.
+    // Only the bar's own menus: a host's <ui-menu> slotted into the bar sends its events through this shadow tree too.
     this.root.addEventListener('ui-select', (e) => {
       if (e.target === this.#themeMenu) this.#onThemeSelect(e as CustomEvent<MenuSelect>);
-      else this.#onMenuSelect(e as CustomEvent<MenuSelect>);
+      else if (e.target === this.#menu) this.#onMenuSelect(e as CustomEvent<MenuSelect>);
     });
-    this.root.addEventListener('ui-open-change', (e) => e.stopPropagation());
+    this.root.addEventListener('ui-open-change', (e) => {
+      if (e.target === this.#menu || e.target === this.#themeMenu) e.stopPropagation();
+    });
     // Slotted actions changed: the content's width did too. The toolbar moving between its two slots is not a
     // change of content (no child came, left or changed its slot): measuring again then would only loop.
     this.root.addEventListener('slotchange', () => {
@@ -744,7 +748,12 @@ export class UiAppBar extends UiElement<AppBarData> {
     this.sound('toggle', { direction: next.theme === 'dark' ? 'forward' : 'back' });
     // Optimistic on the latest data: a listener that already set the theme wins.
     const now = this.data;
-    if (now && themeOf(now.theme) === cur && (currentDesign(now)?.id ?? null) === was) {
+    if (
+      now &&
+      themeOf(now.theme) === cur &&
+      paletteOf(now.palette) === paletteOf(d.palette) &&
+      (currentDesign(now)?.id ?? null) === was
+    ) {
       this.#swapped = true;
       this.data = { ...now, ...next };
     }
@@ -800,7 +809,9 @@ export class UiAppBar extends UiElement<AppBarData> {
     const key = this.#active()?.dataset?.key;
     morphInto(this.#parts, this.render());
     this.updated();
-    if (key && !this.#active()) {
+    // Focus was lost: its node left, or it sits in the theme menu that just hid (designs went: the toggle takes it).
+    const at = this.#active();
+    if (key && (!at || (this.#themePick.hidden && this.#themePick.contains(at)))) {
       this.$$<HTMLElement>('[data-key]')
         .find((x) => x.dataset.key === key)
         ?.focus({ preventScroll: true });
@@ -814,9 +825,14 @@ export class UiAppBar extends UiElement<AppBarData> {
     this.#fold.hidden = !items.length;
     this.#fold.setAttribute('aria-label', label);
     this.#trigger.setAttribute('aria-label', this.#t.menu);
-    const lang = this.getAttribute('lang');
-    if (lang) this.#menu.setAttribute('lang', lang);
-    else this.#menu.removeAttribute('lang');
+    // The menus are elements of their own: the bar's lang and a pinned theme reach them.
+    for (const name of ['lang', 'theme']) {
+      const v = this.getAttribute(name);
+      for (const m of [this.#menu, this.#themeMenu]) {
+        if (v) m.setAttribute(name, v);
+        else m.removeAttribute(name);
+      }
+    }
     this.#menu.data = { label, items };
     if (!items.length && this.#menu.open) this.#menu.hide();
     this.#syncThemePick();
@@ -935,8 +951,6 @@ export class UiAppBar extends UiElement<AppBarData> {
     const d = this.data ?? {};
     const t = this.#t;
     const lang = this.getAttribute('lang');
-    if (lang) this.#themeMenu.setAttribute('lang', lang);
-    else this.#themeMenu.removeAttribute('lang');
     this.#themeMenu.data = { label: t.theme, items: appBarThemeItems(d, lang === 'ko' ? 'ko' : 'en') };
     const theme = themeOf(d.theme) ?? 'dark';
     const name = currentDesign(d)?.label ?? themeName(theme, paletteOf(d.palette), t);

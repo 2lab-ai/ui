@@ -228,7 +228,7 @@ export const doc: ComponentDoc = {
       name: 'data.designs',
       type: "Array<{ id: string; label: string; scheme: 'light' | 'dark' }>",
       description:
-        'The designs the page offers (0.39.0) — map DESIGNS from @2lab.ai/ui/server. When set beside theme, the theme button opens one menu with every theme (light, dark and, with a palette, light·mono and dark·mono) and these designs under a heading, the current one checked; ui-theme-change then carries design. Unset: the toggle.',
+        'The designs the page offers (0.39.0) — map DESIGNS (from @2lab.ai/ui, or @2lab.ai/ui/server on a server): { id, label: name, scheme }. Hand the bar the page’s current design too. When set beside theme, the theme button opens one menu with every theme (light, dark and, with a palette, light·mono and dark·mono) and these designs under a heading, the current one checked; ui-theme-change then carries design. Unset: the toggle.',
     },
     {
       name: 'data.design',
@@ -335,13 +335,23 @@ export const doc: ComponentDoc = {
     },
   ],
   keyboard: [
-    ['Tab', 'Brand, links, toolbar, actions, account, theme toggle, Menu (when folded); the toolbar row last'],
+    [
+      'Tab',
+      'Brand, links, toolbar, actions, account, theme toggle (or theme menu button), Menu (when folded); the toolbar row last',
+    ],
+    [
+      'Enter / Space / ↓ on the theme menu button',
+      'With designs: open the theme menu on the current theme (↑ on the last row)',
+    ],
     ['Enter', 'Follow the focused link (sends ui-navigate first)'],
     ['Enter / Space / ↓ on Menu', 'Open the folded menu on the current page'],
     ['↑ on Menu', 'Open it on the last row'],
     ['↑ / ↓ · Home / End · letters', 'Move inside the menu'],
-    ['Enter / Space in the menu', 'Choose a row (ui-navigate / ui-account); the menu closes'],
-    ['Esc / Tab in the menu', 'Close it; focus returns to Menu'],
+    [
+      'Enter / Space in the menu',
+      'Choose a row (ui-navigate / ui-account, or ui-theme-change in the theme menu); the menu closes',
+    ],
+    ['Esc / Tab in the menu', 'Close it; focus returns to its button'],
   ],
   a11y: [
     'Links are real <a href> in a <nav> named by navLabel ("Main"); the current page carries aria-current="page"; a link’s title is its hover hint and its folded row’s description. Put the bar in your page’s <header> for the banner landmark.',
@@ -351,7 +361,7 @@ export const doc: ComponentDoc = {
     'The status is role="status" aria-live="polite" and is patched in place, so each change is announced once; its description is read before the word (“Live updates: Connected”); narrow, the word is visually hidden but still read.',
     'Folded on a narrow bar, a brand name that would be cut shows as the mark alone (mark-only); the name stays the brand link’s accessible name.',
     'The account pill is named “Account: Mina Park, Admin” (the visible name included); the initials avatar is hidden from screen readers.',
-    'The theme toggle names the action (“Switch to dark theme”), not the state. With designs it is a Menu button named by the state (“Theme: Modern Mono”, aria-haspopup="menu", aria-expanded) over the shared <ui-menu>: one group of menuitemradio rows — the themes, then the designs under a heading — the current one checked.',
+    'The theme toggle names the action (“Switch to dark theme”), not the state. With designs it is a Menu button named by the state (“Theme: Modern Mono”, aria-haspopup="menu", aria-expanded) over the shared <ui-menu>: menuitemradio rows — the themes, then a "Designs" heading that starts its own section with the designs — one choice across both, the current one checked.',
     'Focus ring 2px; 44px targets on coarse pointers; press scales to .97; hover changes colour only, on fine pointers.',
     'Reduced motion stills the live pulse; reduced transparency (or no backdrop-filter support) makes the bar opaque.',
     'Sound (opt-in, @2lab.ai/ui/sound): a link, the brand, the account or a folded-menu row plays navigate — also when the host cancels ui-navigate to route on the client; the theme toggle — or a theme-menu row that changes the theme — plays toggle (forward to dark, back to light); the speaker (data.sound) is where the person turns sound on and off, beside the theme switch. Silent until the page turns sound on.',
