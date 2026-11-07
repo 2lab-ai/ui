@@ -835,6 +835,18 @@ describe('<ui-ascii-wake>', () => {
     expect(targets).toEqual([document.documentElement, stage]);
   });
 
+  it('re-reads its ink when a design is applied: data-design is watched, and a design wrapper is the nearest ancestor', () => {
+    const wrap = document.createElement('div');
+    wrap.setAttribute('data-design', 'modern-mono');
+    document.body.append(wrap);
+    const el = document.createElement('ui-ascii-wake');
+    wrap.append(el);
+    el.renderNow();
+    const mo = FakeMO.all[0];
+    expect(mo.targets.map(([t]) => t)).toEqual([document.documentElement, wrap]);
+    for (const [, init] of mo.targets) expect(init?.attributeFilter).toContain('data-design');
+  });
+
   it('styles: fills its box in the quiet ink, lets touch pan the page, a crosshair for fine pointers only', () => {
     expect(styles).toContain('height: 240px');
     expect(styles).toContain('color: var(--text-tertiary)');

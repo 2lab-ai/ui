@@ -50,7 +50,7 @@ export function designsPage(codeBlock: CodeBlock): string {
   <p class="desc">Load the page tokens and set <code>data-design</code> on <code>&lt;html&gt;</code>. A design replaces <code>data-theme</code> and <code>data-palette</code> there — it is drawn for one color scheme and keeps it whatever the OS says. Override a single token on <code>&lt;body&gt;</code> or a wrapper, not on the element that carries the design.</p>
   ${codeBlock(`<html lang="en" data-design="${d.id}">\n  <link rel="stylesheet" href="https://2lab.ai/ui/lib/tokens.css">\n  <link rel="stylesheet" href="https://2lab.ai/ui/lib/ui-kit.css">\n  <script type="module" src="https://2lab.ai/ui/lib/index.js"></script>\n\n// or with npm\nimport '@2lab.ai/ui';\nimport '@2lab.ai/ui/tokens.css';\nimport '@2lab.ai/ui/ui-kit.css';\ndocument.documentElement.dataset.design = '${d.id}';`, 'dz-apply')}
   <h2>Example — ${esc(d.name)} dashboard</h2>
-  <p class="desc">Only library parts: <code>&lt;ui-app-bar&gt;</code>, <code>&lt;ui-stat-strip&gt;</code>, <code>&lt;ui-bar-chart&gt;</code>, <code>&lt;ui-tabs&gt;</code>, <code>&lt;ui-task-runs&gt;</code> and kit classes. The model list and the phone dock are page markup drawn from <code>--ui-*</code> tokens alone — the row with the name on the left and aligned figures on the right, signed changes in green and red, a yellow star for a pinned row, the dock with its active capsule. Switch to Mobile for the phone layout.</p>
+  <p class="desc">Only library parts: <code>&lt;ui-app-bar&gt;</code>, <code>&lt;ui-stat-strip&gt;</code>, <code>&lt;ui-bar-chart&gt;</code>, <code>&lt;ui-tabs&gt;</code> and <code>&lt;ui-task-runs&gt;</code>. The model list and the phone dock are page markup drawn from <code>--ui-*</code> tokens alone — the row with the name on the left and aligned figures on the right, signed changes in green and red, a yellow star for a pinned row, the dock with its active capsule. Switch to Mobile for the phone layout.</p>
   <section class="preview" aria-label="Live example">
     <div class="pv-bar"><div class="pv-tools">
       <div class="seg" aria-label="Width"><button data-width="desk" aria-pressed="true">Desktop</button><button data-width="mobile" aria-pressed="false">Mobile</button></div>
@@ -101,7 +101,7 @@ export const DX_CSS = `
 .dx-star[aria-pressed="true"] { color: var(--ui-yellow); }
 .dx-star[aria-pressed="true"] svg { fill: currentColor; }
 .dx-star:focus-visible, .dx-dock a:focus-visible { outline: 2px solid var(--ui-border-focus); outline-offset: 2px; }
-/* The phone dock (DESIGN.md 5.2): five equal columns, the active item's icon on a capsule. Only at phone width. */
+/* The phone dock (DESIGN.md 5.2): equal columns — the spec's five, four sections here — the active icon on a capsule. Only at phone width. */
 .dx-dock { display: none; position: sticky; bottom: 0; grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 6px 4px 8px; background: var(--ui-surface-raised); }
 .dx-dock a { display: grid; justify-items: center; align-content: center; gap: 4px; min-width: 0; min-height: 56px;
@@ -116,11 +116,15 @@ export const DX_CSS = `
 }
 `;
 
-/** A change in points, signed with + and the true minus sign; exactly 0 is neutral; null is a dash (DESIGN.md 8). */
+/**
+ * A change in points (DESIGN.md §8): signed with + and the true minus sign; a change smaller than the shown precision
+ * keeps its direction as "+<0.1" / "−<0.1" (never a neutral 0); exactly 0 is neutral; null is a dash.
+ */
 export function signedPoints(v: number | null): { text: string; trend: 'up' | 'down' | 'flat' | 'unknown' } {
   if (v === null || !Number.isFinite(v)) return { text: '—', trend: 'unknown' };
-  const abs = Math.abs(v).toFixed(1);
-  if (Number(abs) === 0) return { text: '0.0 pts', trend: 'flat' };
+  if (v === 0) return { text: '0.0 pts', trend: 'flat' };
+  const shown = Math.abs(v).toFixed(1);
+  const abs = Number(shown) === 0 ? '<0.1' : shown;
   return v > 0 ? { text: `+${abs} pts`, trend: 'up' } : { text: `−${abs} pts`, trend: 'down' };
 }
 

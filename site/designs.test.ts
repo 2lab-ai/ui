@@ -11,12 +11,13 @@ describe('the example dashboard', () => {
     expect(DX_CSS).not.toMatch(/\b(?:rgba?|hsla?)\(/i);
   });
 
-  it('signs a change the way the spec does: +, the true minus, a neutral 0.0, a dash for no data', () => {
+  it('signs a change the way the spec does: +, the true minus, <0.1 for a tiny one, a neutral 0.0 only for 0, a dash for no data', () => {
     expect(signedPoints(1.24)).toEqual({ text: '+1.2 pts', trend: 'up' });
     expect(signedPoints(-0.8)).toEqual({ text: '−0.8 pts', trend: 'down' });
     expect(signedPoints(0)).toEqual({ text: '0.0 pts', trend: 'flat' });
-    // Rounds to zero: neutral, never "-0.0".
-    expect(signedPoints(-0.04)).toEqual({ text: '0.0 pts', trend: 'flat' });
+    // Smaller than the shown precision: keeps its direction and says how small (DESIGN.md §8) — never a neutral 0.
+    expect(signedPoints(-0.04)).toEqual({ text: '\u2212<0.1 pts', trend: 'down' });
+    expect(signedPoints(0.04)).toEqual({ text: '+<0.1 pts', trend: 'up' });
     expect(signedPoints(null)).toEqual({ text: '—', trend: 'unknown' });
   });
 
