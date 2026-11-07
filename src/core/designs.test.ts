@@ -24,6 +24,8 @@ const files = import.meta.glob(['../../designs/README.md', '../../designs/*/READ
   eager: true,
 }) as Record<string, string>;
 const file = (path: string): string | undefined => files[`../../designs/${path}`];
+/** The release that first shipped data-design: the version a no-build page must load (or a later one). */
+const SINCE = '0.38';
 const entry = Object.values(
   import.meta.glob(['../../AGENTS.md', '../../README.md'], { query: '?raw', import: 'default', eager: true }),
 ) as string[];
@@ -251,6 +253,19 @@ describe('designs/ — what an agent reads to build a site with a design', () =>
     expect(spec.startsWith('# Modern Mono UI 기술 명세')).toBe(true);
     expect(spec).toContain('**한 문장 구현 지침:**');
     expect(spec).toContain('](ui-references/2115.jpg)');
+  });
+
+  it('loads a design from the npm release in its no-build snippets, not the docs site build', () => {
+    // The docs site's lib/ is whatever build the site last deployed; a design needs the package that has it.
+    for (const path of ['README.md', ...DESIGNS.map((d) => `${d.id}/README.md`)]) {
+      const md = file(path)!;
+      expect([path, md.includes('https://2lab.ai/ui/lib/')]).toEqual([path, false]);
+      for (const asset of ['tokens.css', 'ui-kit.css', 'index.js'])
+        expect([path, md.includes(`https://cdn.jsdelivr.net/npm/@2lab.ai/ui@${SINCE}/dist/${asset}`)]).toEqual([
+          path,
+          true,
+        ]);
+    }
   });
 
   it('is reachable from the repo entry points (AGENTS.md and README.md link the catalog)', () => {

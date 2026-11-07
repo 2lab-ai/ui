@@ -13,7 +13,7 @@ Read this page first when someone asks for a site or dashboard "with 2lab-ai/ui"
 |---|---|---|---|---|
 | `modern-mono` | Modern Mono | dark | Near-black canvas, white type, aligned figures; colour only for meaning (green up, red down, yellow favourite, lavender focus) | [modern-mono](modern-mono/README.md) |
 
-Live: https://2lab.ai/ui/docs/designs shows every design and an example dashboard in Modern Mono. Every component page there has a preview button per design.
+The docs site's Designs page (https://2lab.ai/ui/docs/designs, in builds from 0.38.0) shows every design and an example dashboard in Modern Mono, and every component page there has a preview button per design. `site/designs.ts` is the same example as source.
 
 ## Build a site with a design
 
@@ -24,12 +24,14 @@ Live: https://2lab.ai/ui/docs/designs shows every design and an example dashboar
 
    ```html
    <html lang="en" data-design="modern-mono">
-     <link rel="stylesheet" href="https://2lab.ai/ui/lib/tokens.css">
-     <link rel="stylesheet" href="https://2lab.ai/ui/lib/ui-kit.css">
-     <script type="module" src="https://2lab.ai/ui/lib/index.js"></script>
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@2lab.ai/ui@0.38/dist/tokens.css">
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@2lab.ai/ui@0.38/dist/ui-kit.css">
+     <script type="module" src="https://cdn.jsdelivr.net/npm/@2lab.ai/ui@0.38/dist/index.js"></script>
    ```
 
-   With npm: `import '@2lab.ai/ui'`, `import '@2lab.ai/ui/tokens.css'`, `import '@2lab.ai/ui/ui-kit.css'`, then set `data-design="modern-mono"` on `<html>`.
+   Designs ship in `@2lab.ai/ui` 0.38.0 and later. The snippet loads the npm release through jsDelivr (`@0.38` is the newest 0.38.x; pin the version you build against). Do not load a design from the docs site's own `lib/` folder: it serves whatever build the site last deployed, which may predate designs.
+
+   With npm: `npm i @2lab.ai/ui@^0.38`, then `import '@2lab.ai/ui'`, `import '@2lab.ai/ui/tokens.css'`, `import '@2lab.ai/ui/ui-kit.css'`, and set `data-design="modern-mono"` on `<html>`.
 
 5. Compose from the library's elements first (`<ui-app-bar>`, `<ui-stat-strip>`, `<ui-tabs>` and so on — see the root README for all of them). Draw the rest as page markup with `--ui-*` tokens and `color-mix()` only, never a hex value. `site/designs.ts` is a worked example: a dashboard with library elements plus a list and a phone dock drawn from tokens.
 6. Check the result against the design's acceptance list at phone width (390px) and on a desktop, with a keyboard and at 200% text size.

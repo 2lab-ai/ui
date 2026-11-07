@@ -2,7 +2,7 @@
 
 Black background, white type and aligned figures. Colour appears only where it means something: green for up, red for down, yellow for a favourite, lavender for keyboard focus.
 
-`data-design="modern-mono"` · scheme: dark · spec: [DESIGN.md](DESIGN.md) (Korean) · live: https://2lab.ai/ui/docs/designs
+`data-design="modern-mono"` · scheme: dark · since `@2lab.ai/ui` 0.38.0 · spec: [DESIGN.md](DESIGN.md) (Korean) · example: `site/designs.ts`, https://2lab.ai/ui/docs/designs
 
 ## Files
 
@@ -14,9 +14,9 @@ Black background, white type and aligned figures. Colour appears only where it m
 
 ```html
 <html lang="en" data-design="modern-mono">
-  <link rel="stylesheet" href="https://2lab.ai/ui/lib/tokens.css">
-  <link rel="stylesheet" href="https://2lab.ai/ui/lib/ui-kit.css">
-  <script type="module" src="https://2lab.ai/ui/lib/index.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@2lab.ai/ui@0.38/dist/tokens.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@2lab.ai/ui@0.38/dist/ui-kit.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@2lab.ai/ui@0.38/dist/index.js"></script>
 ```
 
 No `data-theme` is needed: the design is dark on every OS setting. The library's font stack already starts with Inter and includes Pretendard and the system sans (§4.3). Figures need `font-variant-numeric: tabular-nums lining-nums`.
