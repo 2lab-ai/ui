@@ -742,7 +742,9 @@ export class UiAppBar extends UiElement<AppBarData> {
     const next = appBarThemeChoice(str(e.detail?.value), d);
     if (!next) return;
     const was = currentDesign(d)?.id ?? null;
-    if (next.theme === cur && paletteOf(next.palette) === paletteOf(d.palette) && next.design === was) return;
+    // Read before the event: a listener may change the data in place.
+    const pal = paletteOf(d.palette);
+    if (next.theme === cur && paletteOf(next.palette) === pal && next.design === was) return;
     if (!this.emit<AppBarThemeChange>('ui-theme-change', next)) return;
     // Like a folded-menu row: the cue plays without the menu's event (the row's own click is inside the menu).
     this.sound('toggle', { direction: next.theme === 'dark' ? 'forward' : 'back' });
@@ -751,7 +753,7 @@ export class UiAppBar extends UiElement<AppBarData> {
     if (
       now &&
       themeOf(now.theme) === cur &&
-      paletteOf(now.palette) === paletteOf(d.palette) &&
+      paletteOf(now.palette) === pal &&
       (currentDesign(now)?.id ?? null) === was
     ) {
       this.#swapped = true;
@@ -806,12 +808,17 @@ export class UiAppBar extends UiElement<AppBarData> {
       this.#toolNeed = 0;
       this.removeAttribute('mark-only');
     }
-    const key = this.#active()?.dataset?.key;
+    // What had focus: its key, or — inside the theme menu (its button, or the menu host while a row has focus) — the
+    // theme control's key.
+    const before = this.#active();
+    const own = before?.dataset?.key;
+    const key = own ?? (before && this.#themePick.contains(before) ? 'theme' : undefined);
     morphInto(this.#parts, this.render());
     this.updated();
-    // Focus was lost: its node left, or it sits in the theme menu that just hid (designs went: the toggle takes it).
+    // Focus was lost when its node left; when morph reused that node for another control (the toggle became the
+    // speaker: its key changed); or when it sits in the theme menu that just hid (designs went: the toggle takes it).
     const at = this.#active();
-    if (key && (!at || (this.#themePick.hidden && this.#themePick.contains(at)))) {
+    if (key && (!at || at.dataset?.key !== own || (this.#themePick.hidden && this.#themePick.contains(at)))) {
       this.$$<HTMLElement>('[data-key]')
         .find((x) => x.dataset.key === key)
         ?.focus({ preventScroll: true });
