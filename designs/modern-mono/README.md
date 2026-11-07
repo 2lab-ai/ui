@@ -2,7 +2,7 @@
 
 Black background, white type and aligned figures. Colour appears only where it means something: green for up, red for down, yellow for a favourite, lavender for keyboard focus.
 
-`data-design="modern-mono"` · scheme: dark · since `@2lab.ai/ui` 0.38.0 · spec: [DESIGN.md](DESIGN.md) (Korean) · example: `site/designs.ts`, https://2lab.ai/ui/docs/designs
+`data-design="modern-mono"` · scheme: dark · since `@2lab.ai/ui` 0.38.0 · spec: [DESIGN.md](DESIGN.md) (Korean) · example: `site/designs.ts` (on the docs site at https://2lab.ai/ui/docs/designs in builds from 0.38.0)
 
 ## Files
 
