@@ -25,6 +25,7 @@ describe('explainer kit', () => {
       'tools/narrate_soma.py',
       'tools/padcut.py',
       'tools/ko_say.py',
+      'tools/cwon_say.py',
       'tools/render_formulas.py',
       'tools/music.py',
       'tools/export.py',

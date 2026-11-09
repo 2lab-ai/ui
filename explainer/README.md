@@ -21,6 +21,7 @@ explainer/
 │   ├── narrate_soma.py  narration with the soma-voice API on blade-4090 (voice cwon), filler padding, timing
 │   ├── padcut.py        cuts the filler ("아아. [pause] … [pause] 아아.") off each take
 │   ├── ko_say.py        Korean spoken form: digits, symbols and Latin letters -> Hangul before the TTS
+│   ├── cwon_say.py      one-off voice clip (no video): text -> padded, cut, ear-checked cwon wav/mp3
 │   ├── narrate_edge.py  fallback narration with edge-tts when the GPU host is down
 │   ├── render_formulas.py  formulas.py -> formulas.json (Computer Modern glyph outlines)
 │   ├── music.py         original D-major piano + pad score, peak 0.8
@@ -94,7 +95,7 @@ So one colour per concept still holds where a concept appears as a mark.
 - Ear check. Structure alone cannot tell a missing filler from a short first or last word. So everything cut off (the whole prefix and the whole suffix) is transcribed with mlx-whisper, offline when the model is cached. It must be positively heard as filler (`아`, `아아`, …): empty output is a rejection. A failing take is re-synthesised with the next take seed, up to 3 rounds.
 - Take records. Each cached take has `cache_voice/<key>.json`: text, take seed, the seed the server used, the raw take it was cut from, the cutter version and whether the ear check ran. A take is used only when its record matches the current cutter and check. Otherwise it is re-cut from its raw take, or re-synthesised.
 - `--recut` re-cuts and re-checks every take from its recorded raw take, without the GPU. A take without a record (from an older version) is adopted only from a raw take of exactly the same text that passes both checks. Anything else is dropped and re-synthesised on the next run.
-- Tests: `python -m unittest explainer/tools/test_padcut.py explainer/tools/test_ko_say.py` (synthetic takes, no audio files).
+- Tests: `python -m unittest explainer/tools/test_padcut.py explainer/tools/test_ko_say.py explainer/tools/test_cwon_say.py` (synthetic takes, no audio files).
 - Takes are cached by voice, take seed and text. `--redo scene:k` re-rolls one sentence. The API has no per-turn seed (turn i of a job gets seed s+i), so the seed the server actually used is recorded next to each take in `cache_voice/<key>.json`.
 - The level is matched across sentences, and the whole track is set to −18.5 LUFS. The mix in `export.py` is tuned for that level.
 
@@ -122,6 +123,22 @@ Why 쩜, digit by digit. The National Institute of Korean Language has no rule f
 | `2.71원` (raw digits) | 8/10 — 3.14159 became "314159" |
 
 Tests: `python -m unittest explainer/tools/test_ko_say.py`.
+
+## One-off voice clips
+
+`cwon_say.py` is the same narration pipeline without a video project: text in, one file out.
+
+```bash
+python $K/tools/cwon_say.py "Claude가 GitHub에 PR 3개를 올렸어요. 회의는 3시에 시작해요." -o hello.wav \
+    --lex '{"Claude": "클로드", "GitHub": "기터브", "PR": "피알", "회의": "훼이"}'
+python $K/tools/cwon_say.py -f script.txt -o voice.mp3 --lex-file lexicon.json --dry-run   # spoken form only
+```
+
+- The text is split into sentences, and each sentence becomes one padded turn (`아아. [pause] … [pause] 아아.`). The filler is cut off again and must pass the ear check, exactly as in narration.
+- Numbers go through `ko_say.py`. Every Latin word needs a Hangul pronunciation in the lexicon. A missing one stops the run before any GPU job, and the missing words are printed as a lexicon template to fill in.
+- The lexicon may also respell Hangul words that the voice says wrongly. For example, cwon read 회의는 as "네이는"; `{"회의": "훼이"}` fixed it. The written text stays as it is.
+- Hearing check: at the end, whisper transcribes each sentence on its own and compares it with the text. A sentence it did not hear the same way is marked `CHECK` and the word is named. Re-roll it with `--redo k`, or respell the word.
+- Takes are cached in `<out>.cwon/`. A rerun only synthesises the sentences that changed. The output is set to −16 LUFS (`--lufs`).
 
 ## How to explain
 
