@@ -55,6 +55,13 @@ export const ORDER = [
   'slide-confirm',
   'ascii-wake',
   'copy-field',
+  'dock',
+  'dial',
+  'line-chart',
+  'sparkline',
+  'dot-grid',
+  'timeline',
+  'week-calendar',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });

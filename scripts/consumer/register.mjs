@@ -66,6 +66,13 @@ const slugs = [
   'ascii-wake',
   'working',
   'copy-field',
+  'dock',
+  'dial',
+  'line-chart',
+  'sparkline',
+  'dot-grid',
+  'timeline',
+  'week-calendar',
 ];
 // Subpaths that register more than their own tag.
 const extra = {

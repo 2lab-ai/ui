@@ -956,7 +956,7 @@ export const doc: ComponentDoc = {
       name: 'view',
       type: "'board' | 'list'",
       description:
-        'Attribute. Default: board from 640px of width (columns scroll sideways below 840px), list below. Switching it glides the cards and heads to their new places (FLIP).',
+        'Attribute. Default: board from 640px of width (columns scroll sideways below 720px), list below. Switching it glides the cards and heads to their new places (FLIP).',
     },
     {
       name: 'lang',
