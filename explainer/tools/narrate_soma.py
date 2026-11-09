@@ -60,8 +60,13 @@ def key_of(text, take):
 
 
 def wav_read(path):
+    """16-bit mono PCM -> float32. A wrong format or a payload shorter than the header declares raises wave.Error."""
     with wave.open(path) as w:
-        return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
+        if w.getnchannels() != 1 or w.getsampwidth() != 2:
+            raise wave.Error(f'{path}: expected 16-bit mono, got {w.getnchannels()} ch / {w.getsampwidth() * 8} bit')
+        n = w.getnframes(); data = w.readframes(n)
+    if len(data) != 2 * n: raise wave.Error(f'{path}: truncated ({len(data)} of {2 * n} bytes)')
+    return np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768
 
 
 def wav_write(path, a):
@@ -93,7 +98,7 @@ def process(raw_path):
     """raw take -> (clip, None) or (None, reason). Padded takes are cut and (if VERIFY) ear-checked."""
     try:
         a = wav_read(raw_path)
-    except (OSError, EOFError, wave.Error) as e:
+    except (OSError, EOFError, ValueError, wave.Error) as e:
         return None, f'unreadable raw take ({e.__class__.__name__})'
     if len(a) < SR // 10: return None, 'raw take too short'
     if not PAD: return a, None
@@ -124,9 +129,10 @@ def record_ok(rec, text, path):
 
 
 def store(path, clip, text, take, server_seed, raw):
-    """publish wav + record atomically: the old record goes first, both land via temp files, the record pins the wav digest."""
+    """publish wav + record via temp files and atomic replaces. The old record stays until the new one replaces it:
+    in between, the record's wav digest no longer matches, so the take reads as stale (re-cut from the recorded raw
+    take), never as record-less (which would allow adopting another take)."""
     side = path[:-4] + '.json'
-    if os.path.exists(side): os.remove(side)
     d = os.path.dirname(path)
     fd, tw = tempfile.mkstemp(suffix='.wav.tmp', dir=d); os.close(fd)
     wav_write(tw, clip)
