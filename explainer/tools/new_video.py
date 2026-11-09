@@ -62,9 +62,15 @@ def theme(name):
 
 
 def fetch(url, dst):
+    """download to a temp file, then move into place: an interrupted download never looks finished."""
     req = urllib.request.Request(url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=120) as r, open(dst, 'wb') as f:
-        shutil.copyfileobj(r, f)
+    tmp = dst + '.part'
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r, open(tmp, 'wb') as f:
+            shutil.copyfileobj(r, f)
+        os.replace(tmp, dst)
+    finally:
+        if os.path.exists(tmp): os.remove(tmp)
 
 
 def commons(title, dst, width=1400):
@@ -99,7 +105,8 @@ def main():
         shutil.copy(c, os.path.join(proj, 'fonts', f))
     pj_path = os.path.join(proj, 'project.json')
     pj = json.load(open(pj_path)) if os.path.exists(pj_path) else {}
-    pj.setdefault('slug', opt('--slug', os.path.basename(proj)))
+    if opt('--slug'): pj['slug'] = opt('--slug')
+    pj.setdefault('slug', os.path.basename(proj))
     if opt('--title'): pj['title'] = opt('--title')
     pj['theme'] = th['id']
     try:

@@ -2,14 +2,14 @@
 // Topic-specific helpers (the eras timeline, small icons) live here, not in the engine.
 'use strict';
 
-// eras timeline (used by several scenes)
+// eras timeline (used by several scenes). Colours are role names, resolved when drawn: the theme loads after this file.
 const ERAS = [
-  { label: '아주 먼 옛날', sym: 'pi_sym', col: C.yellow },
-  { label: '1500년대', sym: 'i_sym', col: C.blue },
-  { label: '1600년대', sym: 'e_sym', col: C.green },
-  { label: '1748', sym: null, col: C.purple },
-  { label: '1800 무렵', sym: null, col: C.teal },
-  { label: '20세기', sym: null, col: C.orange },
+  { label: '아주 먼 옛날', sym: 'pi_sym', col: 'yellow' },
+  { label: '1500년대', sym: 'i_sym', col: 'blue' },
+  { label: '1600년대', sym: 'e_sym', col: 'green' },
+  { label: '1748', sym: null, col: 'purple' },
+  { label: '1800 무렵', sym: null, col: 'teal' },
+  { label: '20세기', sym: null, col: 'orange' },
 ];
 function timeline(y, { a = 1, p = 1, active = -1, x0 = 260, x1 = 1660, size = 28, lit = null, marker = null } = {}) {
   if (a <= 0) return;
@@ -21,7 +21,7 @@ function timeline(y, { a = 1, p = 1, active = -1, x0 = 260, x1 = 1660, size = 28
       if (pk <= 0) return;
       const on = lit ? lit(k) : (k === active ? 1 : 0.35);
       withAlpha(pk, () => {
-        disc(x, y, 9 + 4 * (k === active ? 1 : 0), e.col, 0.35 + 0.65 * on);
+        disc(x, y, 9 + 4 * (k === active ? 1 : 0), C[e.col], 0.35 + 0.65 * on);
         text(e.label, x, y + 38, { size, font: SANS, color: on > 0.6 ? C.text : C.dim, weight: 500 });
       });
     });
@@ -99,7 +99,7 @@ SCENES.intro = (t, q) => {
   const tlA = prog(t, q.s(8) + 0.3, 0.8);
   timeline(870, { a: tlA, p: prog(t, q.s(8) + 0.3, 2.0), lit: () => 1 });
   const conv = prog(t, q.w('한', 8), 1.2) * (1 - prog(t, q.s(9) + 0.5, 0.8));
-  if (conv > 0) ERAS.slice(0, 3).forEach((e, k) => line(eraX(k), 850, fx, fy + 60, e.col, 2, conv, [5, 7]));
+  if (conv > 0) ERAS.slice(0, 3).forEach((e, k) => line(eraX(k), 850, fx, fy + 60, C[e.col], 2, conv, [5, 7]));
   // s9: the guide
   const ga = prog(t, q.w('길잡이', 9), 0.6);
   if (ga > 0) {

@@ -85,7 +85,7 @@ async def video(slices=12, t_from=0.0, t_to=None, name=None):
         jobs.append(render_slice(port, a, b, p))
     await asyncio.gather(*jobs)
     srv.shutdown()
-    lst = os.path.join(OUT, 'parts.txt'); open(lst, 'w').write(''.join(f"file '{p}'\n" for p in parts))
+    lst = os.path.join(OUT, 'parts.txt'); open(lst, 'w').write(''.join(f"file '{os.path.basename(p)}'\n" for p in parts))  # relative: no quoting issues
     silent = os.path.join(OUT, 'silent.mp4')
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-c', 'copy', silent], check=True)
     final = os.path.join(OUT, f'{name}.mp4')

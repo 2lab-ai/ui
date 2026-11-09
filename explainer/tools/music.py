@@ -67,7 +67,8 @@ def main(total):
         L[d:] += g * dr[:-d]; R[d:] += g * dl[:-d]
     m = int(total * SR)
     L, R = L[:m], R[:m]
-    tin = int(3 * SR); tout = int(5 * SR)
+    if m <= 0: sys.exit('music: total must be positive')
+    tin = min(int(3 * SR), m // 2); tout = min(int(5 * SR), m // 2)
     for ch in (L, R):
         ch[:tin] *= np.linspace(0, 1, tin); ch[-tout:] *= np.linspace(1, 0, tout)
     peak = max(np.abs(L).max(), np.abs(R).max())

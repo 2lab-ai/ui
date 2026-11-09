@@ -88,8 +88,12 @@ So one colour per concept still holds where a concept appears as a mark.
 
 - One async job per scene. The model loads once, then takes about 6 seconds per sentence.
 - One turn per sentence, so subtitles and cues land on exact sentence starts.
-- Filler padding. A bare sentence can start or stop with a clipped plosive, because the model begins and ends right at its edge. So each turn is sent as `아아. [pause] <sentence> [pause] 아아.`. `padcut.py` then cuts inside the two silences that `[pause]` leaves, with an 8 ms fade. If a take has no such pattern, it is re-synthesised with the next seed, up to 3 rounds.
-- Takes are cached by voice, seed and text. `--redo scene:k` re-rolls one sentence.
+- Filler padding. A bare sentence can start or stop with a clipped plosive, because the model begins and ends right at its edge. So each turn is sent as `아아. [pause] <sentence> [pause] 아아.`. `padcut.py` then cuts inside the two silences that `[pause]` leaves, with an 8 ms fade.
+- Strict structure. A take is cut only when it has filler, gap, speech, gap, filler. A missing, merged or swallowed filler means re-synthesis, never a guess.
+- Ear check. Structure alone cannot tell a missing filler from a short first or last word. So the two cut-off pieces are transcribed (mlx-whisper, offline when the model is cached) and must hold only the filler (`아`, `아아`, …). A failing take is re-synthesised with the next take seed, up to 3 rounds.
+- `--recut` re-applies the cut and the ear check to the raw takes kept in `cache_voice/job_*/` without the GPU. It drops failures, so the next run re-synthesises only those.
+- Tests: `python -m unittest explainer/tools/test_padcut.py` (synthetic takes, no audio files).
+- Takes are cached by voice, take seed and text. `--redo scene:k` re-rolls one sentence. The API has no per-turn seed (turn i of a job gets seed s+i), so the seed the server actually used is recorded next to each take in `cache_voice/<key>.json`.
 - The level is matched across sentences, and the whole track is set to −18.5 LUFS. The mix in `export.py` is tuned for that level.
 
 blade-4090 runs WSL with mirrored networking. Port 9999 answers only on the Windows loopback, so open the SSH tunnel above, or set `SOMA_VOICE_URL`.
