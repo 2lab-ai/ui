@@ -164,6 +164,7 @@ The voice model never sees a digit, a symbol or a Latin letter. `ko_say.py` turn
 
 - Sino-Korean numbers by default: `1748년` → 천칠백사십팔 년, `10000` → 만, `0` → 영.
 - Native numbers before counters that take them, up to 99: `2번` → 두 번, `20살` → 스무 살, `1시간` → 한 시간.
+- Months 6 and 10 as spoken: `6월` → 유월, `10월` → 시월 (`6개월` stays 육 개월).
 - Decimals: the point spelled 쩜, the fraction read digit by digit, every digit its own word: `2.71원` → 이 쩜 칠 일 원, `3.14159` → 삼 쩜 일 사 일 오 구.
 - Fractions, signs and percent: `1/2` → 이분의 일, `-1` → 마이너스 일, `100%` → 백 퍼센트.
 - Latin letters and words come from `project.json` `"say_lexicon"` (`{"e": "이", "i": "아이"}`). A letter missing from it is an error, never a guess.

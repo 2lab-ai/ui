@@ -11,6 +11,7 @@ Rules (standard Korean reading, see explainer/README.md "Numbers and letters"):
 - Decimals: 쩜 (how the point is said) and the fraction digit by digit, each its own word: 2.71 -> 이 쩜 칠 일,
   3.14159 -> 삼 쩜 일 사 일 오 구. Spelled "이 점 칠일" the voice model read 이 점 as "this point" / 이점 (advantage) and
   칠일 as "the 7th" (whisper heard "2.7일원", "이점 칠일팔"); joined "이쩜칠일" sometimes dropped a digit.
+- Months 6 and 10 drop a consonant: 6월 -> 유월, 10월 -> 시월 (6개월, a duration, stays 육 개월).
 - Fractions a/b -> b분의 a; a leading - -> 마이너스; 3-1 -> 삼 빼기 일; % -> 퍼센트.
   Ranges (1~2개: 한두 개? 일에서 이 개?), = : ^ and anything else not listed are errors: write the sentence's "say".
 - Latin letters and words come from the project lexicon (project.json "say_lexicon", e.g. {"e": "이", "i": "아이",
@@ -38,6 +39,8 @@ SPACED_COUNTERS = sorted(set(NATIVE_COUNTERS + SINO_COUNTERS) - {'분'}, key=len
 PARTICLE = re.compile(r'$|[^가-힣]|(?:을|를|이|가|은|는|에|의|와|과|도|만|로|으로|까지|부터|이나|나|처럼|보다|씩|마다|'
                       r'쯤|뿐|밖에|이면|면|이고|이에요|예요|이죠|죠|입니다|이다|였|이었|째)')
 POINT = '쩜'
+# months that drop a final consonant when spoken: 6월 is 유월 (not 육 월), 10월 is 시월 (not 십 월)
+IRREGULAR_MONTHS = {6: '유', 10: '시'}
 SYMBOLS = {'%': ' 퍼센트', '+': ' 더하기 ', '×': ' 곱하기 ', '÷': ' 나누기 ', 'π': '파이', '≈': ' 약 '}
 ALLOWED = re.compile(r"[가-힣\s.,?!…'\"‘’“”·;()]")
 
@@ -97,6 +100,8 @@ def _number(m, rest):
         elif n >= 1 and counter_after(rest, NATIVE_COUNTERS):
             # 101개 -> 백한 개: hundreds and up stay Sino, the last two digits go native
             s = native(n) if n <= 99 else sino(n - n % 100) + (native(n % 100) if n % 100 else '')
+        elif n in IRREGULAR_MONTHS and not neg and rest.startswith('월') and not rest.startswith('월요일'):
+            return IRREGULAR_MONTHS[n]                # 6월 -> 유월, 10월 -> 시월 (written joined, as spoken)
         else:
             s = sino(n)
     if neg: s = '마이너스 ' + s

@@ -40,6 +40,16 @@ class Numbers(unittest.TestCase):
         self.assertEqual(to_say('1500년대로'), '천오백 년대로')
         self.assertEqual(to_say('100퍼센트라고'), '백 퍼센트라고')
 
+    def test_irregular_months(self):
+        self.assertEqual(to_say('2018년 6월 마지막 주'), '이천십팔 년 유월 마지막 주')
+        self.assertEqual(to_say('그해 10월, 그는'), '그해 시월, 그는')
+        self.assertEqual(to_say('8월과 12월'), '팔 월과 십이 월')
+        self.assertEqual(to_say('6개월 뒤'), '육 개월 뒤')     # 개월 is a duration, read as written
+        self.assertEqual(to_say('10월에'), '시월에')
+        self.assertEqual(to_say('16월'), '십육 월')           # only 6 and 10 change
+        self.assertEqual(to_say('언제냐고요? 6월요.'), '언제냐고요? 유월요.')
+        self.assertEqual(to_say('-6월'), '마이너스 육 월')      # a sign keeps the plain reading
+
     def test_particles_stay_attached(self):
         self.assertEqual(to_say('0에서 위로'), '영에서 위로')
         self.assertEqual(to_say('1에 놓아'), '일에 놓아')
