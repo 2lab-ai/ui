@@ -24,6 +24,7 @@ describe('explainer kit', () => {
       'tools/new_video.py',
       'tools/narrate_soma.py',
       'tools/padcut.py',
+      'tools/ko_say.py',
       'tools/render_formulas.py',
       'tools/music.py',
       'tools/export.py',
@@ -31,6 +32,15 @@ describe('explainer kit', () => {
       'examples/euler-identity/script.json',
     ])
       expect(existsSync(resolve(ROOT, 'explainer', f)), f).toBe(true);
+  });
+
+  it('keeps digits and Latin letters out of the hand-written say in the example (ko_say.py makes the rest)', () => {
+    const script = JSON.parse(readFileSync(resolve(ROOT, 'explainer/examples/euler-identity/script.json'), 'utf8'));
+    const says: string[] = script.scenes.flatMap((sc: { sentences: { say?: string }[] }) =>
+      sc.sentences.map((s) => s.say).filter((s): s is string => typeof s === 'string'),
+    );
+    expect(says.length).toBeGreaterThan(0);
+    expect(says.filter((s) => /[0-9A-Za-z]/.test(s))).toEqual([]);
   });
 
   it('keeps hard-coded colours out of the example scenes (they take the theme)', () => {

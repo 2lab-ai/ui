@@ -4,13 +4,17 @@ import asyncio, hashlib, json, os, subprocess, sys, wave
 import numpy as np
 import edge_tts
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ko_say import check_script, load_lexicon, spoken  # noqa: E402
+
 HERE = os.getcwd()   # the project folder
+LEX = load_lexicon(HERE)
 SR = 48000
 LEAD_TITLE, LEAD, TAIL = 2.6, 0.7, 1.1
 EXTRA_PAUSE = 0.25          # added inside the take at every sentence boundary
 CACHE = os.path.join(HERE, 'cache'); os.makedirs(CACHE, exist_ok=True)
 
-def say_of(s): return s.get('say', s['text'])
+def say_of(s): return spoken(s, LEX)   # Hangul only: digits/Latin converted or rejected (ko_say.py)
 
 async def synth(text, voice, rate, mp3_path):
     comm = edge_tts.Communicate(text, voice, rate=rate, boundary='WordBoundary')
@@ -71,6 +75,7 @@ def take(scene, voice, rate):
 
 def main():
     script = json.load(open(os.path.join(HERE, 'script.json')))
+    check_script(script, LEX)   # nothing raw reaches the voice model
     voice, rate = script['voice'], script['rate']
     t = 0.0; scenes = []; track = []
     for sc in script['scenes']:

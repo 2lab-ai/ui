@@ -20,6 +20,7 @@ explainer/
 │   ├── new_video.py     scaffold or refresh a project: engine, theme.json, fonts, public-domain images
 │   ├── narrate_soma.py  narration with the soma-voice API on blade-4090 (voice cwon), filler padding, timing
 │   ├── padcut.py        cuts the filler ("아아. [pause] … [pause] 아아.") off each take
+│   ├── ko_say.py        Korean spoken form: digits, symbols and Latin letters -> Hangul before the TTS
 │   ├── narrate_edge.py  fallback narration with edge-tts when the GPU host is down
 │   ├── render_formulas.py  formulas.py -> formulas.json (Computer Modern glyph outlines)
 │   ├── music.py         original D-major piano + pad score, peak 0.8
@@ -38,7 +39,7 @@ Every tool runs inside a project folder:
 
 | File | Written by | What it is |
 |---|---|---|
-| `script.json` | you | `{title, subtitle, scenes: [{id, chip, title, subtitle, sentences: [{text, say?}]}]}`. `say` is the spoken form when it differs from the subtitle (numbers read out in Hangul, `i` → 아이) |
+| `script.json` | you | `{title, subtitle, scenes: [{id, chip, title, subtitle, sentences: [{text, say?}]}]}`. The spoken form is made from `text` by `ko_say.py`; write `say` only for what it cannot know (pauses, quotes read differently) |
 | `scenes.js` | you | one draw function per scene id: `SCENES.<id> = (t, q) => {…}`. It is keyed to the timeline: `q.s(k)` is sentence k's start, `q.w('단어', k)` is the first spoken word containing a string at or after sentence k, and `q.wx(token, k, n)` is an exact token |
 | `formulas.py` | you | `F = {id: (mathtext, colours)}`, where colours are theme names (`yellow`, `blue`, …) |
 | `project.json` | you + `new_video.py` | slug, title, `commons` (image name → Wikimedia Commons title), `youtube` title and description, `theme`, `ui_commit` |
@@ -93,11 +94,34 @@ So one colour per concept still holds where a concept appears as a mark.
 - Ear check. Structure alone cannot tell a missing filler from a short first or last word. So everything cut off (the whole prefix and the whole suffix) is transcribed with mlx-whisper, offline when the model is cached. It must be positively heard as filler (`아`, `아아`, …): empty output is a rejection. A failing take is re-synthesised with the next take seed, up to 3 rounds.
 - Take records. Each cached take has `cache_voice/<key>.json`: text, take seed, the seed the server used, the raw take it was cut from, the cutter version and whether the ear check ran. A take is used only when its record matches the current cutter and check. Otherwise it is re-cut from its raw take, or re-synthesised.
 - `--recut` re-cuts and re-checks every take from its recorded raw take, without the GPU. A take without a record (from an older version) is adopted only from a raw take of exactly the same text that passes both checks. Anything else is dropped and re-synthesised on the next run.
-- Tests: `python -m unittest explainer/tools/test_padcut.py` (synthetic takes, no audio files).
+- Tests: `python -m unittest explainer/tools/test_padcut.py explainer/tools/test_ko_say.py` (synthetic takes, no audio files).
 - Takes are cached by voice, take seed and text. `--redo scene:k` re-rolls one sentence. The API has no per-turn seed (turn i of a job gets seed s+i), so the seed the server actually used is recorded next to each take in `cache_voice/<key>.json`.
 - The level is matched across sentences, and the whole track is set to −18.5 LUFS. The mix in `export.py` is tuned for that level.
 
 blade-4090 runs WSL with mirrored networking. Port 9999 answers only on the Windows loopback, so open the SSH tunnel above, or set `SOMA_VOICE_URL`.
+
+## Numbers and letters
+
+The voice model never sees a digit, a symbol or a Latin letter. `ko_say.py` turns each sentence's `text` into Hangul, and both narrators refuse to start (before any GPU job) while anything else is left. Fish Speech has no Korean number normalisation of its own: digits reach its tokenizer as typed.
+
+- Sino-Korean numbers by default: `1748년` → 천칠백사십팔 년, `10000` → 만, `0` → 영.
+- Native numbers before counters that take them, up to 99: `2번` → 두 번, `20살` → 스무 살, `1시간` → 한 시간.
+- Decimals: the point spelled 쩜, the fraction read digit by digit, every digit its own word: `2.71원` → 이 쩜 칠 일 원, `3.14159` → 삼 쩜 일 사 일 오 구.
+- Fractions, signs and percent: `1/2` → 이분의 일, `-1` → 마이너스 일, `100%` → 백 퍼센트.
+- Latin letters and words come from `project.json` `"say_lexicon"` (`{"e": "이", "i": "아이"}`). A letter missing from it is an error, never a guess.
+- A sentence's own `say` still wins and is checked the same way.
+
+Why 쩜, digit by digit. The National Institute of Korean Language has no rule for writing decimals in Hangul. Speakers read the fraction digit by digit and say the point as [쩜]; the institute gives 소수점 as [소ː수쩜]. Spelled `이 점 칠일 원`, the model read `이 점` as "this point" (or 이점, "advantage") and `칠일` as "the 7th". We tested five spellings on cwon: 5 sentences × 2 seeds, every take transcribed by whisper. A take passes only when the number is heard as a number.
+
+| Spelling of 2.71원 | Heard as the number |
+|---|---|
+| `이 점 칠일 원` (the old `say`) | 7/10 — e.g. "2.7일원", "이점 칠일팔" |
+| `이 점 칠 일 원` | 6/10 — e.g. "이 점이 O1이" |
+| `이 쩜 칠 일 원` | **10/10** (used) |
+| `이쩜칠일 원` | 9/10 — 3.14159 became "3.1415", 2 takes failed the pad cut |
+| `2.71원` (raw digits) | 8/10 — 3.14159 became "314159" |
+
+Tests: `python -m unittest explainer/tools/test_ko_say.py`.
 
 ## How to explain
 

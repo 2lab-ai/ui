@@ -28,8 +28,10 @@ import numpy as np
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TOOLS)
 from padcut import PAD_HEAD, PAD_TAIL, cut, is_filler_text, removed  # noqa: E402
+from ko_say import check_script, load_lexicon, spoken  # noqa: E402
 
 PROJ = os.getcwd()
+LEX = load_lexicon(PROJ)
 API = os.environ.get('SOMA_VOICE_URL', 'http://127.0.0.1:19999')
 SR = 48000
 LEAD_TITLE, LEAD, TAIL = 2.6, 0.7, 1.1
@@ -45,7 +47,7 @@ JOB_ID = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 _whisper = None
 
 
-def say_of(s): return s.get('say', s['text'])
+def say_of(s): return spoken(s, LEX)   # Hangul only: digits/Latin converted or rejected (ko_say.py)
 
 
 def http(method, path, body=None, timeout=60):
@@ -299,6 +301,7 @@ def word_times(text, t0, dur):
 
 def main():
     script = json.load(open(os.path.join(PROJ, 'script.json')))
+    check_script(script, LEX)   # nothing raw reaches the voice model; fails before any GPU job
     seeds_path = os.path.join(PROJ, 'seeds.json')
     seeds = json.load(open(seeds_path)) if os.path.exists(seeds_path) else {}
     if '--redo' in ARGS:   # scene:k[:seed] -> new take for one sentence, so only it re-synthesises
