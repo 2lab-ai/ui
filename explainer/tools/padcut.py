@@ -16,7 +16,7 @@ import numpy as np
 PAD_HEAD, PAD_TAIL = '아아. [pause] ', ' [pause] 아아.'
 VOICED_DB = -40
 FILLER_MIN, FILLER_MAX = 0.08, 0.95   # seconds of voice in "아아"
-FILLER_TEXT = re.compile(r'^[\s아어오와하음ㅏ.,!?…~\-]*$')   # what a cut-off piece may transcribe as
+FILLER_TEXT = re.compile(r'^[\s.,!?…~\-]*[아어오와하음ㅏ][\s아어오와하음ㅏ.,!?…~\-]*$')   # at least one filler syllable, nothing else
 
 
 def envelope_db(a, sr, ms=10):
@@ -56,16 +56,16 @@ def cut(a, sr, min_gap=0.2, pre=0.05, post=0.08, fade=0.008):
     clip = a[int(s0 * sr):int(s1 * sr)].copy()
     f = min(int(fade * sr), len(clip) // 2); r = np.linspace(0, 1, f, dtype=np.float32)
     if f: clip[:f] *= r; clip[-f:] *= r[::-1]
-    return clip, {'cut': (round(s0, 2), round(s1, 2)), 'head': head, 'tail': tail,
+    return clip, {'cut': (s0, s1), 'head': head, 'tail': tail,
                   'head_gap': round(head_gap, 2), 'tail_gap': round(tail_gap, 2)}
 
 
-def removed(a, sr, info, pad=0.05):
-    """the two cut-off filler pieces (audio), for an ear check."""
-    h0, h1 = info['head']; t0, t1 = info['tail']
-    seg = lambda x0, x1: a[max(0, int((x0 - pad) * sr)):min(len(a), int((x1 + pad) * sr))]
-    return seg(h0, h1), seg(t0, t1)
+def removed(a, sr, info):
+    """everything cut off: the whole prefix before and the whole suffix after the kept clip (exact cut samples)."""
+    s0, s1 = info['cut']
+    return a[:int(s0 * sr)], a[int(s1 * sr):]
 
 
 def is_filler_text(text):
+    """True only when the piece was positively heard as filler; empty or unsure output is a rejection."""
     return bool(FILLER_TEXT.match(text or ''))

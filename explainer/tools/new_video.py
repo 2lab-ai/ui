@@ -11,7 +11,7 @@
 - fetches public-domain images listed in project.json "commons" (Wikimedia Commons titles) into <project>/img
 - records the repo commit it was made from in project.json "ui_commit"
 """
-import json, os, shutil, subprocess, sys, urllib.parse, urllib.request
+import json, os, shutil, subprocess, sys, tempfile, urllib.parse, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 EXPLAINER = os.path.dirname(HERE)
@@ -62,12 +62,17 @@ def theme(name):
 
 
 def fetch(url, dst):
-    """download to a temp file, then move into place: an interrupted download never looks finished."""
+    """download to a unique temp file beside dst, check the length, then move into place atomically:
+    an interrupted or short download never looks finished, and concurrent scaffolds do not collide."""
     req = urllib.request.Request(url, headers={'User-Agent': UA})
-    tmp = dst + '.part'
+    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(dst) + '.', suffix='.part', dir=os.path.dirname(dst) or '.')
     try:
-        with urllib.request.urlopen(req, timeout=120) as r, open(tmp, 'wb') as f:
+        with urllib.request.urlopen(req, timeout=120) as r, os.fdopen(fd, 'wb') as f:
+            want = r.headers.get('Content-Length')
             shutil.copyfileobj(r, f)
+            got = f.tell()
+        if want is not None and got != int(want): raise IOError(f'{url}: got {got} of {want} bytes')
+        if got == 0: raise IOError(f'{url}: empty response')
         os.replace(tmp, dst)
     finally:
         if os.path.exists(tmp): os.remove(tmp)

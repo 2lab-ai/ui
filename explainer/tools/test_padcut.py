@@ -52,8 +52,14 @@ class PadCut(unittest.TestCase):
         self.assertFalse(is_filler_text('반 바퀴'))
 
     def test_filler_text(self):
-        for t in ('', '아', '아아.', ' 아, 아… ', '음.', '어'): self.assertTrue(is_filler_text(t), t)
-        for t in ('일', '반바퀴', '감사합니다', '그게'): self.assertFalse(is_filler_text(t), t)
+        for t in ('아', '아아.', ' 아, 아… ', '음.', '어'): self.assertTrue(is_filler_text(t), t)
+        for t in ('', '  ', '.', '…', '일', '반바퀴', '감사합니다', '그게', '아 일'): self.assertFalse(is_filler_text(t), t)
+
+    def test_removed_covers_everything_outside_the_clip(self):
+        a = take(('s', .05), ('v', .3), ('s', .6), ('v', 1.2), ('s', .7), ('v', .35), ('s', .1))
+        clip, info = cut(a, SR)
+        head, tail = removed(a, SR, info)
+        self.assertEqual(len(head) + len(clip) + len(tail), len(a))
 
 
 if __name__ == '__main__':
