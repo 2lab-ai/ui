@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>explainer</title>
+<style>
+  /* fonts/ is filled by tools/new_video.py for the project's theme; a missing file just falls back */
+  @font-face { font-family: 'Pretendard'; src: url('fonts/Pretendard.ttf'); font-weight: 45 920; }
+  @font-face { font-family: 'LMRoman'; src: url('fonts/lmroman10-regular.otf'); }
+  @font-face { font-family: 'NotoSerifKR'; src: url('fonts/NotoSerifKR.ttf'); font-weight: 200 900; }
+  @font-face { font-family: 'NotoSansKR'; src: url('fonts/NotoSansKR.ttf'); font-weight: 100 900; }
+  html, body { margin: 0; background: #0b0c0e; color: #ececec; font-family: NotoSansKR, sans-serif; }
+  #wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px; }
+  canvas { width: min(96vw, calc((100vh - 90px) * 16 / 9)); aspect-ratio: 16 / 9; background: #101114; border-radius: 8px; }
+  #bar { display: flex; gap: 12px; align-items: center; width: min(96vw, calc((100vh - 90px) * 16 / 9)); }
+  #seek { flex: 1; } button { background: #23262d; color: #ececec; border: 1px solid #3a3d45; border-radius: 6px; padding: 6px 14px; font-size: 15px; cursor: pointer; }
+  #chap { display: flex; gap: 6px; flex-wrap: wrap; width: min(96vw, calc((100vh - 90px) * 16 / 9)); }
+  #chap button { font-size: 13px; padding: 4px 10px; color: #9aa0aa; }
+  body.export #bar, body.export #chap { display: none; }
+  body.export #wrap { padding: 0; } body.export canvas { width: 1920px; height: 1080px; border-radius: 0; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="1920" height="1080"></canvas>
+  <div id="bar"><button id="play">재생</button><input id="seek" type="range" min="0" max="1000" value="0"><span id="time">0:00</span></div>
+  <div id="chap"></div>
+</div>
+<audio id="aud" preload="auto"></audio>
+<script src="engine.js"></script>
+<script src="scenes.js"></script>
+<script>
+(async () => {
+  const exportMode = new URLSearchParams(location.search).has('export');
+  if (exportMode) document.body.classList.add('export');
+  await loadAll();
+  document.title = TL.title || document.title;
+  document.body.style.background = C.bg;
+  window.renderAt = renderAt;
+  window.missingCues = () => [...MISS];
+  if (exportMode) { renderAt(0); return; }
+  document.getElementById("aud").src = "mix.wav";
+  const aud = document.getElementById('aud'), seek = document.getElementById('seek'), tm = document.getElementById('time'), play = document.getElementById('play');
+  let t = Number(new URLSearchParams(location.search).get('t') || 0), playing = false, t0 = 0, w0 = 0;
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  TL.scenes.forEach(s => { const b = document.createElement('button'); b.textContent = s.chip; b.onclick = () => { t = s.start; aud.currentTime = t; }; document.getElementById('chap').appendChild(b); });
+  play.onclick = () => { playing = !playing; play.textContent = playing ? '일시정지' : '재생'; if (playing) { aud.currentTime = t; aud.play().catch(() => {}); t0 = performance.now(); w0 = t; } else aud.pause(); };
+  seek.oninput = () => { t = seek.value / 1000 * TL.total; aud.currentTime = t; w0 = t; t0 = performance.now(); };
+  const loop = () => {
+    if (playing) { t = aud.readyState >= 2 && !aud.paused ? aud.currentTime : w0 + (performance.now() - t0) / 1000; if (t >= TL.total) { playing = false; play.textContent = '재생'; } }
+    renderAt(t); seek.value = t / TL.total * 1000; tm.textContent = `${fmt(t)} / ${fmt(TL.total)}`;
+    requestAnimationFrame(loop);
+  };
+  loop();
+})();
+</script>
+</body>
+</html>
