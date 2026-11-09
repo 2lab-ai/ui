@@ -1,7 +1,7 @@
 {
   "name": "@2lab.ai/ui",
-  "version": "0.40.0",
-  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree, Agent Island, Action Node, Working; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Image Compare, Composer, Conversation, Work Log, Choice Form, Goal Card, Task Plan, Task Runs, Status Bar, Deck Nav; page parts Setting Row, Settings Nav, Knowledge Pages, Episode Log, Auth Card; primitives Segmented, Tabs, Menu, Tooltip, Hovercard, Dialog, Drawer, Disclosure, Log Scroller, Elapsed, Meter, Breadcrumbs, Step Track, Slide to Confirm, ASCII Wake, Copy Field; an icon set, a light-DOM CSS kit, opt-in interface sounds (Cuelume) and a server entry (ESM + CommonJS) that renders the auth card without a DOM.",
+  "version": "0.41.0",
+  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree, Agent Island, Action Node, Working; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Image Compare, Composer, Conversation, Work Log, Choice Form, Goal Card, Task Plan, Task Runs, Status Bar, Deck Nav; page parts Setting Row, Settings Nav, Knowledge Pages, Episode Log, Auth Card; primitives Segmented, Tabs, Menu, Tooltip, Hovercard, Dialog, Drawer, Disclosure, Log Scroller, Elapsed, Meter, Breadcrumbs, Step Track, Slide to Confirm, ASCII Wake, Copy Field, Dial, Sparkline; dashboard surfaces Line Chart, Dot Grid, Timeline, Week Calendar, Dock; an icon set, a light-DOM CSS kit, opt-in interface sounds (Cuelume) and a server entry (ESM + CommonJS) that renders the auth card without a DOM.",
   "type": "module",
   "license": "UNLICENSED",
   "repository": {
@@ -236,6 +236,34 @@
     "./copy-field": {
       "types": "./dist/components/copy-field/index.d.ts",
       "import": "./dist/copy-field.js"
+    },
+    "./dock": {
+      "types": "./dist/components/dock/index.d.ts",
+      "import": "./dist/dock.js"
+    },
+    "./dial": {
+      "types": "./dist/components/dial/index.d.ts",
+      "import": "./dist/dial.js"
+    },
+    "./line-chart": {
+      "types": "./dist/components/line-chart/index.d.ts",
+      "import": "./dist/line-chart.js"
+    },
+    "./sparkline": {
+      "types": "./dist/components/sparkline/index.d.ts",
+      "import": "./dist/sparkline.js"
+    },
+    "./dot-grid": {
+      "types": "./dist/components/dot-grid/index.d.ts",
+      "import": "./dist/dot-grid.js"
+    },
+    "./timeline": {
+      "types": "./dist/components/timeline/index.d.ts",
+      "import": "./dist/timeline.js"
+    },
+    "./week-calendar": {
+      "types": "./dist/components/week-calendar/index.d.ts",
+      "import": "./dist/week-calendar.js"
     },
     "./icons": {
       "types": "./dist/icons/index.d.ts",

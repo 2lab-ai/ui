@@ -42,6 +42,11 @@ Surfaces — the page-level pieces around the agent (0.6.0):
 | Media Grid | `<ui-media-grid>` | What pictures came with the message — a row of tiles (compact for a card's row), “+N” on the last for the rest, one picture whole in a wide box; each tile a button named by its action that opens it (`ui-open` with the index among all), lazy images, “No preview” for one that fails |
 | Artifact Viewer | `<ui-artifact-viewer>` | What the agent made — a strip or grid of files, a hover peek, and a lightbox with previous / next, preview and Download; a trusted page runs its scripts, a PDF opens in the browser’s viewer, `ui-before-view` / `ui-closed` for a host’s own body |
 | Image Compare | `<ui-image-compare>` | A change’s before and after — two pictures under one line you drag or flick (it glides to the edge), a slider on the keyboard, the labels in the corners, “No preview” for a picture that fails |
+| Line Chart | `<ui-line-chart>` | How a number moved over time and against the period before — an area line, the previous period dashed, a normal band, a figures row on top; a crosshair and a tooltip per point by pointer or arrow keys (0.41.0) |
+| Dot Grid | `<ui-dot-grid>` | A run history at a glance — a square per run (done ink, failed red, to come hatched) in a row per job, one tab stop with 2-D arrows, a legend and a “12 done · 2 failed · 1 to come” line; `size="lg"` for a tally (0.41.0) |
+| Timeline | `<ui-timeline>` | Today as a checklist — a time column, a rail with a marker per item, a card with its status pill, actions and a box to tick (`ui-check`, `ui-action`); the overdue row outlined; `compact` for a plain list (0.41.0) |
+| Week Calendar | `<ui-week-calendar>` | What runs when this week — day columns with hour rows, blocks by kind, the now line, drag (or Alt+arrows) to move a block (`ui-move`), a list grouped by day on phones (0.41.0) |
+| Dock | `<ui-dock>` | Where you can go, one press away — the phone’s bottom tab bar (a glyph on a capsule, counts, the action raised in the middle, More for the rest) or a floating rail on a wide screen (0.41.0) |
 | Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, `/` and `$` menus (commands, skills), Enter to send |
 
 Page parts — the pages around the app: settings, memory, sign-in (0.9.0):
@@ -73,6 +78,8 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Step Track | `<ui-step-track>` | Where a pipeline is — a dot per step (done, to do, failed, skipped) and the current one a pill filled to its progress (or a sweeping band), “Review · 3 of 5” under it; a change of step sends a wake through the dots crossed; `interactive` dots send `ui-select` |
 | Slide to Confirm | `<ui-slide-confirm>` | An action that cannot be taken back — push the handle across; past the mark it takes over, `ui-confirm` (cancelable), the handle opens out into “Confirmed”, then the host’s busy / done / failed; a slider on the keyboard (→ to the end, End) |
 | ASCII Wake | `<ui-ascii-wake>` | A quiet state that is still alive — a cube (or a whole field) of ink dots the pointer drags a wake of characters through, a press sends a ring; `activity` stirs it by itself while the agent works; still under reduced motion, no frames while idle |
+| Dial | `<ui-dial>` | One bounded score at a glance — ticks on a 270° arc or a ring, the number in the middle, a delta chip whose tone respects which end is good; `role="meter"` (0.41.0) |
+| Sparkline | `<ui-sparkline>` | The shape of a series in a row — a 72 × 24 smooth line in a tone or the row’s own colour (so it reads in an inverted row), its low, high and last read out (0.41.0) |
 | Copy Field | `<ui-copy-field>` | A value you will paste elsewhere — a link (the middle folds, the end stays) or a command block, copied in one press with proof (a check, “Copied”), masked with Show / Hide for a secret; `ui-copy` (cancelable) lets the host copy something it builds, then `confirm()` |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
@@ -81,7 +88,10 @@ Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set �
 alone or in a `<label>` with a leading word), `.ui-spinner` (the working ring; a still ring with a dot under reduced motion), `.ui-status`,
 `.ui-kbd`, `.ui-dl`, `.ui-skeleton`, `.ui-empty`, `.ui-status-line`, `.ui-avatar`, `.ui-owner-badge` (the board's name pill; `.is-self` orbits — `syncOwnerBadgeOrbit(el)` keeps it in step with the board's), `.ui-sr-only`, `.ui-expand`, `.ui-section-head` with a
 `.ui-count` badge, and for page parts `.ui-input`, `.ui-switch`, `.ui-card`, `.ui-notice`, `.ui-row` — the row that is the page,
-`aria-current="page"`, keeps the hover fill). Korean prose (`lang="ko"`) breaks between words, never inside them, in every element and
+`aria-current="page"`, keeps the hover fill), and for dashboard layout (0.41.0) `.ui-bento` (a 12-column card grid that reflows by its
+own width — a container query), `.ui-hatch` (what is planned or still to come), `.ui-card.is-inverse`, `.ui-kpi` (a figure with its
+unit and a round mark), `.ui-scroll-row` (a phone's chip row that scrolls sideways instead of wrapping), `.ui-date-tile` and
+`.ui-icon-tile`. Korean prose (`lang="ko"`) breaks between words, never inside them, in every element and
 every kit class (`word-break: keep-all`).
 
 Designs — whole looks for a site built with these parts (0.38.0): `data-design="<id>"` on `<html>` (with `tokens.css`) recolours
@@ -174,3 +184,8 @@ https://bencho.dev/licence): Slide to Confirm, Agent Island (Dynamic island), St
 Image Compare and ASCII Wake. Bencho Pro blocks may not be passed on inside a component library, so none is included.
 
 Their notices ship in `dist/THIRD_PARTY_NOTICES.md`.
+
+The dashboard-layout set of 0.41.0 (Dial, Line Chart, Sparkline, Dot Grid, Timeline, Week Calendar, Dock and the kit's bento, hatch,
+KPI, scroll row and tiles) follows patterns studied in the Halvi dashboard template by Code and Chill
+(https://demo.codeandchill.store/halvi/). Its licence forbids passing its source on in a component library, so none was used: each
+element was drawn from scratch in this library's tokens, type and motion, from what the demo shows.

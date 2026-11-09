@@ -1,5 +1,12 @@
 // Consumer smoke test: compiled against the installed package (packed tarball or registry), not the source.
 import { type ContextWindowData, fmtTokens, UiContextWindow } from '@2lab.ai/ui';
+import { type DialData, dialFraction, dialTickCount, UiDial } from '@2lab.ai/ui/dial';
+import { type DockData, dockSplit, UiDock } from '@2lab.ai/ui/dock';
+import { type DotGridData, dotCounts, dotSummary, UiDotGrid } from '@2lab.ai/ui/dot-grid';
+import { type LineChartData, niceTicks, UiLineChart } from '@2lab.ai/ui/line-chart';
+import { type SparklineData, sparkValues, UiSparkline } from '@2lab.ai/ui/sparkline';
+import { type TimelineData, timelineItems, timelineProgress, UiTimeline } from '@2lab.ai/ui/timeline';
+import { eventLanes, parseHm, UiWeekCalendar, type WeekCalendarData, weekDays } from '@2lab.ai/ui/week-calendar';
 import { type ActionNodeData, nodeInitials, UiActionNode } from '@2lab.ai/ui/action-node';
 import { UiAgentInbox } from '@2lab.ai/ui/agent-inbox';
 import { type AgentIslandData, islandClock, UiAgentIsland } from '@2lab.ai/ui/agent-island';
@@ -225,12 +232,43 @@ const permalink: CopyFieldData = {
 };
 const workingEl: HTMLElementTagNameMap['ui-working'] = document.createElement('ui-working');
 const copyEl: HTMLElementTagNameMap['ui-copy-field'] = document.createElement('ui-copy-field');
+// 0.41.0: the dashboard-layout elements (patterns studied from a dashboard template, no code used).
+const score: DialData = { value: 90, max: 100, label: 'Review score', delta: { value: 4 } };
+const dockCfg: DockData = {
+  action: { id: 'new', label: 'New task' },
+  items: [
+    { id: 'board', label: 'Board', icon: 'board', current: true, badge: 3 },
+    { id: 'chats', label: 'Chats', icon: 'chat' },
+  ],
+};
+const runsGrid: DotGridData = { rows: [{ id: 'nightly', label: 'Nightly report', cells: ['done', 'fail', 'pending'] }] };
+const tokensChart: LineChartData = { labels: ['Mon', 'Tue'], series: [{ id: 't', label: 'Tokens', values: [3, 5] }] };
+const spark: SparklineData = { values: [1, 3, 2], tone: 'run' };
+const today: TimelineData = { items: [{ id: 'a', time: '07:00', title: 'Usage report', checkable: true, checked: true }] };
+const week: WeekCalendarData = {
+  start: '2026-11-09',
+  events: [{ id: 'e', day: '2026-11-10', start: '09:30', title: 'Deploy window', kind: 'accent' }],
+};
+const dialEl: HTMLElementTagNameMap['ui-dial'] = document.createElement('ui-dial');
+const dockEl: HTMLElementTagNameMap['ui-dock'] = document.createElement('ui-dock');
+const dotEl: HTMLElementTagNameMap['ui-dot-grid'] = document.createElement('ui-dot-grid');
+const lineEl: HTMLElementTagNameMap['ui-line-chart'] = document.createElement('ui-line-chart');
+const sparkEl: HTMLElementTagNameMap['ui-sparkline'] = document.createElement('ui-sparkline');
+const timelineEl: HTMLElementTagNameMap['ui-timeline'] = document.createElement('ui-timeline');
+const weekEl: HTMLElementTagNameMap['ui-week-calendar'] = document.createElement('ui-week-calendar');
 // Sound: the policy from the root and the subpath is one API; the Cuelume player has the SoundPlayer shape.
 const player: SoundPlayer = cuelumeSound;
 const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
 const classes = [
+  UiDial,
+  UiDock,
+  UiDotGrid,
+  UiLineChart,
+  UiSparkline,
+  UiTimeline,
+  UiWeekCalendar,
   UiWorking,
   UiCopyField,
   UiSlideConfirm,
@@ -415,4 +453,24 @@ console.log(
   copyMiddle(permalink.value, 24),
   workingEl.tagName,
   copyEl.tagName,
+  dialFraction(score.value, score),
+  dialTickCount(40),
+  dockSplit(dockCfg.items, 4).shown.length,
+  dotCounts(runsGrid.rows).total,
+  dotSummary(dotCounts(runsGrid.rows), 'en'),
+  niceTicks(0, 5).ticks.length,
+  sparkValues('1,2,3').length,
+  spark.values.length,
+  timelineProgress(timelineItems(today)).total,
+  eventLanes(week.events).size,
+  parseHm('09:30'),
+  weekDays(week.start, 7).length,
+  tokensChart.series.length,
+  dialEl.tagName,
+  dockEl.tagName,
+  dotEl.tagName,
+  lineEl.tagName,
+  sparkEl.tagName,
+  timelineEl.tagName,
+  weekEl.tagName,
 );

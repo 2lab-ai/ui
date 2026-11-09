@@ -55,6 +55,13 @@ const COMPONENTS = [
   'ascii-wake',
   'working',
   'copy-field',
+  'dock',
+  'dial',
+  'line-chart',
+  'sparkline',
+  'dot-grid',
+  'timeline',
+  'week-calendar',
 ];
 /**
  * `@2lab.ai/ui/server` is not here: vite.server.config.ts builds it (ESM + CommonJS, self-contained) into the same
