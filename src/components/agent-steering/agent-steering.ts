@@ -437,6 +437,12 @@ export class UiAgentSteering extends UiElement<AgentSteeringData> {
   #onKey(e: KeyboardEvent): void {
     if (e.defaultPrevented || this.#fromComposer(e)) return;
     const target = e.target as HTMLElement | null;
+    // A held Enter / Space repeats the click: a Cancel moves focus to the next note's Send now, and a repeat there
+    // would stop the agent's run for a note nobody pressed.
+    if (e.repeat && (e.key === 'Enter' || e.key === ' ') && target?.tagName === 'BUTTON') {
+      e.preventDefault();
+      return;
+    }
     if (this.#built && target === this.#field) {
       if (e.key === 'Escape') {
         // Clears a typed note; on an empty field Esc still reaches the page (a panel closes).

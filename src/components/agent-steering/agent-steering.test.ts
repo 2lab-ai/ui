@@ -157,7 +157,13 @@ describe('logic', () => {
     expect(steeringActions(row({ canEdit: false }), on)).toEqual(['promote', 'cancel']);
     expect(steeringActions(row({ state: 'failed' }), on)).toEqual(['retry', 'cancel']);
     expect(steeringActions(row({ state: 'sending' }), on)).toEqual([]);
-    expect(steeringActions(row({ state: 'steered' }), on)).toEqual([]);
+    // Delivered but not read yet: the host can still pull it back or stop the turn for it — never Edit.
+    expect(steeringActions(row({ state: 'steered' }), on)).toEqual(['promote', 'cancel']);
+    expect(steeringActions(row({ state: 'steered', canEdit: false }), on)).toEqual(['promote', 'cancel']);
+    // A local row is never the host's to promote: even one a host marked steered gets no dead buttons.
+    expect(steeringActions(row({ local: true, state: 'steered' }), on)).toEqual([]);
+    expect(steeringActions(row({ state: 'steered' }), { canAct: false, disabled: false })).toEqual([]);
+    expect(steeringActions(row({ state: 'steered' }), { canAct: true, disabled: true })).toEqual([]);
     expect(steeringActions(row({ local: true }), on)).toEqual([]);
     expect(steeringActions(row({ local: true, state: 'failed' }), on)).toEqual(['retry', 'cancel']);
     expect(steeringActions(row({}), { canAct: false, disabled: false })).toEqual([]);
@@ -630,6 +636,70 @@ describe('<ui-agent-steering> note actions', () => {
     el.renderNow();
     expect(rows(el)).toHaveLength(2);
     expect(rows(el)[0].textContent).toContain('Already sent');
+  });
+
+  it('a delivered (steered) note offers Send now and Cancel, never Edit', () => {
+    const el = mount({ running: true, items: [item('a', { state: 'steered' }), item('b')] });
+    expect(rows(el)[0].textContent).toContain('Delivered · the agent reads it at its next tool call');
+    expect(act(el, 0, 'edit')).toBeNull();
+    const go = act(el, 0, 'promote') as HTMLElement;
+    expect(go).toBeTruthy();
+    expect(go.getAttribute('title')).toBe('Stop the current step and run it now');
+    expect(act(el, 0, 'cancel')?.getAttribute('aria-label')).toBe('Cancel “note a”');
+  });
+
+  it('Cancel on a delivered note: ui-cancel {id}, it leaves; a host that was too late rolls it back with why', () => {
+    const el = mount({ running: true, items: [item('a', { state: 'steered' }), item('b')] });
+    const got = events<{ id: string }>(el, 'ui-cancel');
+    act(el, 0, 'cancel')?.click();
+    expect(got).toEqual([{ id: 'a' }]);
+    expect(rows(el).map((r) => r.dataset.row)).toEqual(['h:b']);
+    expect(q(el, '.sr-only[role="status"]')?.textContent).toBe('Cancelled: note a');
+    el.setItemState('a', 'steered', 'The agent already read it');
+    el.renderNow();
+    expect(rows(el).map((r) => r.dataset.row)).toEqual(['h:a', 'h:b']);
+    expect(rows(el)[0].querySelector('.as-msg')?.textContent).toBe('The agent already read it');
+    // Withdrawn: the host's next list no longer has it, and nothing comes back.
+    set(el, { items: [item('b')] });
+    expect(rows(el).map((r) => r.dataset.row)).toEqual(['h:b']);
+  });
+
+  it('Send now on a delivered note: ui-promote {id}, Sending… until the list moves', () => {
+    const el = mount({ running: true, items: [item('a', { state: 'steered' })] });
+    const got = events<{ id: string }>(el, 'ui-promote');
+    act(el, 0, 'promote')?.click();
+    expect(got).toEqual([{ id: 'a' }]);
+    expect(rows(el)[0].textContent).toContain('Sending…');
+    expect(act(el, 0, 'promote')).toBeNull();
+    expect(act(el, 0, 'cancel')).toBeNull();
+    el.setItemState('a', 'steered', 'Another message is being sent');
+    el.renderNow();
+    expect(rows(el)[0].querySelector('.as-msg')?.textContent).toBe('Another message is being sent');
+    expect(act(el, 0, 'promote')).toBeTruthy();
+  });
+
+  it('lang="ko": Send now on a running session says it stops the current step', () => {
+    const el = mount({ running: true, items: [item('a', { state: 'steered' }), item('b')] }, { lang: 'ko' });
+    expect(act(el, 0, 'promote')?.textContent).toBe('지금 보내기');
+    expect(act(el, 0, 'promote')?.getAttribute('title')).toBe('하던 작업을 멈추고 지금 바로 실행');
+    expect(act(el, 0, 'cancel')?.getAttribute('aria-label')).toBe('취소: “note a”');
+    expect(act(el, 1, 'promote')?.getAttribute('title')).toBe('하던 작업을 멈추고 지금 바로 실행');
+    set(el, { running: false });
+    expect(act(el, 1, 'promote')?.getAttribute('title')).toBe('지금 실행');
+  });
+
+  it('a held Enter never repeats onto the next note: Cancel moves focus to its Send now, which would stop the run', () => {
+    const el = mount({ running: true, items: [item('a', { state: 'steered' }), item('b', { state: 'steered' })] });
+    el.openQueue();
+    const cancel = act(el, 0, 'cancel') as HTMLElement;
+    cancel.focus();
+    cancel.click();
+    expect(el.shadowRoot?.activeElement).toBe(act(el, 0, 'promote'));
+    const held = key(el.shadowRoot?.activeElement as HTMLElement, 'Enter', { repeat: true });
+    expect(held.defaultPrevented).toBe(true);
+    expect(key(el.shadowRoot?.activeElement as HTMLElement, ' ', { repeat: true }).defaultPrevented).toBe(true);
+    // A fresh press is the user's: it is left to the button.
+    expect(key(el.shadowRoot?.activeElement as HTMLElement, 'Enter').defaultPrevented).toBe(false);
   });
 
   it('focus on a note’s button survives a host update', () => {

@@ -249,14 +249,17 @@ export function steeringRows(
 }
 
 /**
- * The buttons a row offers. Queued: Send now, Edit (unless canEdit is false), Cancel. Failed: Retry, Cancel. Sending
- * and steered notes are the agent's now: none. Read-only or ended: none. A local row only offers Retry / Cancel once
- * the host reported it failed.
+ * The buttons a row offers. Queued: Send now, Edit (unless canEdit is false), Cancel. Steered (delivered, not read
+ * yet): Send now (stop the current step and run it now) and Cancel (the host withdraws it before the agent reads it,
+ * or rolls it back with why) — never Edit, the agent holds those words. Failed: Retry, Cancel. Sending: none.
+ * Read-only or ended: none. A local row only offers Retry / Cancel once the host reported it failed.
  */
 export function steeringActions(row: SteeringRow, opts: { canAct: boolean; disabled: boolean }): SteeringAction[] {
   if (!opts.canAct || opts.disabled) return [];
   if (row.state === 'failed') return ['retry', 'cancel'];
-  if (row.local || row.state !== 'queued') return [];
+  if (row.local) return [];
+  if (row.state === 'steered') return ['promote', 'cancel'];
+  if (row.state !== 'queued') return [];
   return row.canEdit ? ['promote', 'edit', 'cancel'] : ['promote', 'cancel'];
 }
 
