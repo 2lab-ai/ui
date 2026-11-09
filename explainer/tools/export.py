@@ -41,6 +41,7 @@ def chapters_meta(tl, pj):
     for i, sc in enumerate(scenes):
         a = int(round(sc['start'] * 1000))
         b = int(round((scenes[i + 1]['start'] if i + 1 < len(scenes) else tl['total']) * 1000))
+        b = max(a, b)   # ffmpeg rejects the whole file if a chapter ends before it starts
         out += ['[CHAPTER]', 'TIMEBASE=1/1000', f'START={a}', f'END={b}', f'title={_meta_escape(chapter_title(sc))}']
     return '\n'.join(out) + '\n'
 
@@ -59,8 +60,8 @@ def audiobook(cover=None, name=None):
     pj_path = os.path.join(HERE, 'project.json')
     pj = json.load(open(pj_path)) if os.path.exists(pj_path) else {}
     name = name or pj.get('slug', 'explainer')
-    meta = os.path.join(OUT, 'chapters.ffmeta'); open(meta, 'w').write(chapters_meta(tl, pj))
-    open(os.path.join(OUT, 'chapters.txt'), 'w').write(youtube_chapters(tl))
+    meta = os.path.join(OUT, 'chapters.ffmeta'); open(meta, 'w', encoding='utf-8').write(chapters_meta(tl, pj))
+    open(os.path.join(OUT, 'chapters.txt'), 'w', encoding='utf-8').write(youtube_chapters(tl))
     dst = os.path.join(OUT, f'{name}.m4a')
     cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(HERE, 'mix.wav'), '-i', meta]
     if cover: cmd += ['-i', cover]

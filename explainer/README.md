@@ -104,12 +104,12 @@ for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue
 | `achilles`, `tortoise`, `crab`, `ant` | ready characters (helmet with a red crest, shell, crab, ant) |
 | `bubble(x, y, w, h, {kind: 'speech' \| 'thought', tail, text, body, p})` | speech or thought bubble; `body(x, y, w, h)` draws a small picture inside |
 | `board`, `students`, `teach(term, {x, y, p})` | the named-idea classroom: presenter, board with the term, students from behind |
-| `sign`, `signCard` | a figure holding the chapter sign. Set `TITLE_CARD = signCard` in scenes.js to use it as every scene's title card |
+| `sign`, `signCard` | a figure holding the chapter sign. Set `TITLE_CARD = signCard` in scenes.js to use it as every scene's title card (engine.js calls `TITLE_CARD(sc, a, isFirst, lt)`) |
 | `hand(str, x, y, {size, color, p})`, `handBlock` | handwritten text, written on left to right |
 | `cross`, `ring`, `underline`, `eqSign`, `plusSign` | red X, red circle, underline, picture-equation signs |
 | `scrollList(x, y, w, title, items, {mark, strike, p})` | a handwritten list on paper, items ringed or struck through |
 | `bookCover`, `quote`, `chapterMap` | a drawn cover (never a real one), a short quote, a progress map for long videos |
-| `prop(name, x, y, s, {p, fill, t})` | 50+ everyday things: book door ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium … (`Object.keys(PROPS)`) |
+| `prop(name, x, y, s, {p, fill, t})` | 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium … (`Object.keys(PROPS)`) |
 | `shots(t, [[t0, draw], …])` | quick cuts: the last shot that has started is drawn, fading in over 0.22 s; `draw(t, lt)` gets the time since it started |
 | `pop(t, t0)`, `dp(t, t0, d)` | pop-in scale with a small overshoot; draw-on progress |
 

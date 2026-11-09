@@ -93,7 +93,7 @@ function inkArrow(x1, y1, x2, y2, { via = null, head = 22, p = 1, ...o } = {}) {
   const ang = Math.atan2(y2 - fy, x2 - fx);
   inkPath([[x2 - Math.cos(ang - 0.45) * head, y2 - Math.sin(ang - 0.45) * head], [x2, y2], [x2 - Math.cos(ang + 0.45) * head, y2 - Math.sin(ang + 0.45) * head]], { ...o, p: ph });
 }
-const inkDot = (x, y, r = 5, o = {}) => disc(x, y, r, o.color || INK(), o.a ?? 1);
+const inkDot = (x, y, r = 5, o = {}) => disc(x, y, r, o.color || INK(), (o.a ?? 1) * clamp01((o.p ?? 1) * 2));
 
 // ---------- handwritten text ----------
 // Written on left to right (clip reveal) as p goes 0 -> 1. Default colour is the keyword colour.
@@ -329,27 +329,29 @@ function sign(x, y, w, h, lines, { p = 1, a = 1, size = 54 } = {}) {
   L.forEach((l, i) => hand(l, x + w / 2, y + h / 2 + (i - (L.length - 1) / 2) * size * 1.25, { size: i === 0 && L.length > 1 ? size * 0.8 : size, p: clamp01(pt * L.length - i), a }));
 }
 // title card hook for engine.js (set TITLE_CARD = signCard in scenes.js): a figure holds the chapter sign
-function signCard(sc, a, isFirst) {
+function signCard(sc, a, isFirst, lt = 9) {
   if (a <= 0) return;
+  const p = clamp01(lt / 1.1);   // the card draws on over the first second of the lead
   if (isFirst) {
-    text(sc.title, W / 2, H / 2 - 40, { size: 112, a, font: HAND(), weight: 700, color: INK() });
-    if (sc.subtitle) hand(sc.subtitle, W / 2, H / 2 + 70, { size: 52, a });
+    hand(sc.title, W / 2, H / 2 - 40, { size: 112, a, p, color: INK() });
+    if (sc.subtitle) hand(sc.subtitle, W / 2, H / 2 + 70, { size: 52, a, p: clamp01(p * 1.5 - 0.5) });
     return;
   }
   const lines = [sc.subtitle || '', `"${sc.title}"`].filter(Boolean);
   const w = Math.max(560, handW(lines[lines.length - 1], 64) + 140);
   // the head sits above the sign, the sign covers the torso, the legs show below (s = 1.6: feet at 1010)
-  figure(W / 2, 1010, { pose: 'hold', face: 'happy', a, s: 1.6 });
-  sign(W / 2 - w / 2, 640, w, 240, lines, { a, size: 64 });
-  for (const d of [-1, 1]) inkCircle(W / 2 + d * (w / 2 - 6), 700, 16, { a, fill: PAPER(), w: 4 });   // hands on the edges
+  figure(W / 2, 1010, { pose: 'hold', face: 'happy', a, s: 1.6, p });
+  sign(W / 2 - w / 2, 640, w, 240, lines, { a, size: 64, p });
+  for (const d of [-1, 1]) inkCircle(W / 2 + d * (w / 2 - 6), 700, 16, { a, p, fill: PAPER(), w: 4 });   // hands on the edges
 }
 // red marks
-function cross(x, y, w, h, { p = 1, a = 1, color = null, lw = 6 } = {}) {
+function cross(x, y, w, h, { p = 1, a = 1, color = null, lw: lw0 = 6, w: wq = null } = {}) {
+  const lw = wq ?? lw0;
   inkLine(x, y, x + w, y + h, { p: clamp01(p * 2), a, w: lw, color: color || C.red });
   inkLine(x + w, y, x, y + h, { p: clamp01(p * 2 - 1), a, w: lw, color: color || C.red });
 }
-const ring = (cx, cy, rx, ry, { p = 1, a = 1, color = null, lw = 5 } = {}) => inkEllipse(cx, cy, rx, ry, { p, a, w: lw, color: color || C.red, start: -2.4 });
-const underline = (x1, x2, y, { p = 1, a = 1, color = null, lw = 5 } = {}) => inkLine(x1, y, x2, y + 3, { p, a, w: lw, color: color || C.red });
+const ring = (cx, cy, rx, ry, { p = 1, a = 1, color = null, lw = 5, w = null } = {}) => inkEllipse(cx, cy, rx, ry, { p, a, w: w ?? lw, color: color || C.red, start: -2.4 });
+const underline = (x1, x2, y, { p = 1, a = 1, color = null, lw = 5, w = null } = {}) => inkLine(x1, y, x2, y + 3, { p, a, w: w ?? lw, color: color || C.red });
 // picture-equation signs
 function eqSign(x, y, { p = 1, a = 1, s = 1, color = null } = {}) {
   inkLine(x - 34 * s, y - 14 * s, x + 34 * s, y - 14 * s, { p: clamp01(p * 2), a, w: 7 * s, color: color || KEY() });
@@ -393,7 +395,7 @@ function chapterMap(x, y, w, labels, cur, { p = 1, a = 1, size = 30 } = {}) {
   const n = labels.length;
   inkLine(x, y, x + w, y, { p, a, w: 3, color: C.dim });
   labels.forEach((l, i) => {
-    const xx = x + (w * i) / (n - 1), q = clamp01(p * n - i);
+    const xx = n > 1 ? x + (w * i) / (n - 1) : x + w / 2, q = clamp01(p * n - i);
     if (q <= 0) return;
     disc(xx, y, i === cur ? 13 : 8, i <= cur ? KEY() : C.dim, a * q);
     if (i === cur) { ring(xx, y, 26, 26, { a: a * q, color: KEY(), lw: 3.5 }); hand(l, xx, y - 52, { size: size * 1.25, a: a * q }); }
