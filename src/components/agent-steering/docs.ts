@@ -36,28 +36,27 @@ interface HostOpts {
   refuseEdit?: boolean;
   /** The first message fails to reach the session; Retry works. */
   failFirst?: boolean;
+  /** Refuse the first Cancel of a delivered note (the agent read it first). */
+  lateCancel?: boolean;
   ko?: boolean;
 }
 
 /**
  * Plays the host: the dashboard over soma-work's FollowupQueue. A note sent while the agent runs shows up in the
- * list half a second later (queued, or steered for ⌘↵); Send now hands it to the running turn (steered, then the
- * agent reads it and it leaves); Edit and Cancel are confirmed by the next list.
+ * list half a second later (queued, or steered for ⌘↵); Send now stops the current step and runs the note (it leaves);
+ * a steered note the agent has not read yet can still be cancelled; Edit and Cancel are confirmed by the next list.
  */
 function host(el: El, opts: HostOpts = {}): El {
   let seq = 40;
   let refused = false;
   let failed = false;
+  let late = false;
   const later = (ms: number, fn: () => void) => window.setTimeout(() => el.isConnected && fn(), ms);
   const patch = (fn: (items: SteeringItem[]) => SteeringItem[]) => {
     if (!el.data) return;
     el.data = { ...el.data, items: fn([...(el.data.items ?? [])]) };
   };
   const without = (id: string) => patch((items) => items.filter((i) => i.id !== id));
-  const steer = (id: string) => {
-    patch((items) => items.map((i) => (i.id === id ? { ...i, state: 'steered', reason: undefined } : i)));
-    later(2800, () => without(id));
-  };
   el.addEventListener('ui-submit', (e) => {
     const { text, mode, ref, files } = (e as CustomEvent<SteeringSubmitDetail>).detail;
     const names = files?.map((f) => f.name) ?? [];
@@ -103,8 +102,8 @@ function host(el: El, opts: HostOpts = {}): El {
       );
       return;
     }
-    if (el.data?.running) later(600, () => steer(id));
-    else later(700, () => without(id));
+    // Running or idle, the note runs now: running, the host stops the current step for it first.
+    later(el.data?.running ? 600 : 700, () => without(id));
   });
   el.addEventListener('ui-edit', (e) => {
     const { id, text } = (e as CustomEvent<SteeringEditDetail>).detail;
@@ -124,6 +123,20 @@ function host(el: El, opts: HostOpts = {}): El {
   });
   el.addEventListener('ui-cancel', (e) => {
     const { id } = (e as CustomEvent<SteeringItemDetail>).detail;
+    const note = el.data?.items?.find((i) => i.id === id);
+    if (opts.lateCancel && !late && note?.state === 'steered') {
+      // Too late: the agent read it first — the note comes back with why, then leaves as read.
+      late = true;
+      later(500, () =>
+        el.setItemState(
+          id,
+          'steered',
+          opts.ko ? '모델이 이미 읽어 취소하지 못했습니다' : 'The agent already read it — it couldn’t be cancelled',
+        ),
+      );
+      later(2600, () => without(id));
+      return;
+    }
     later(300, () => without(id));
   });
   return el;
@@ -188,7 +201,8 @@ export const doc: ComponentDoc = {
     'The composer plus the agent’s follow-up queue. While the agent works, Enter queues a note for its next step and ' +
     '⌘/Ctrl+Enter hands it to the running turn now; when it is idle, Enter simply sends. Queued notes are listed in ' +
     'order with Send now, Edit (inline: Enter saves, Esc cancels) and Cancel, and say what happened to them: sending, ' +
-    'delivered (the agent reads it at its next tool call), or failed with Retry. Every action shows at once and the ' +
+    'delivered (the agent reads it at its next tool call — until then Send now stops the current step for it and ' +
+    'Cancel pulls it back), or failed with Retry. Every action shows at once and the ' +
     'host confirms it with its next list or rolls it back with setItemState(). Owner-only like Stop: canAct: false ' +
     'leaves a read-only list. The field never resets under a host update, so an IME composition survives a live queue. ' +
     'Docked (the default since 0.33): a note shows above the field only on its way in; once the list has it, it waits ' +
@@ -281,7 +295,7 @@ export const doc: ComponentDoc = {
       name: 'ui-promote',
       detail: '{ id }',
       description:
-        'Send now (or Retry on a failed note): hand it to the running turn, or run it now when idle. Cancelable; shows Sending… until the list changes.',
+        'Send now on a queued or delivered note (or Retry on a failed one): stop the running step and run it now, or run it now when idle. Cancelable; shows Sending… until the list changes — roll back with setItemState(id, its state, why).',
     },
     {
       name: 'ui-edit',
@@ -291,7 +305,8 @@ export const doc: ComponentDoc = {
     {
       name: 'ui-cancel',
       detail: '{ id }',
-      description: 'Cancel a queued or failed note (id may be a submit ref). Cancelable; the note leaves at once.',
+      description:
+        "Cancel a queued, delivered (steered — withdraw it before the agent reads it) or failed note (id may be a submit ref). Cancelable; the note leaves at once — a host that was too late brings it back with setItemState(id, 'steered', why).",
     },
   ],
   keyboard: [
@@ -347,7 +362,7 @@ export const doc: ComponentDoc = {
       id: 'states',
       title: 'Every state',
       description:
-        'Queued, being sent, delivered to the running turn, failed (cut off by Stop — Retry runs it again), and one from Slack with a file.',
+        'Queued, being sent, delivered to the running turn (not read yet: Send now stops the current step for it, Cancel pulls it back), failed (cut off by Stop — Retry runs it again), and one from Slack with a file.',
       height: 560,
       create: () =>
         stage(
@@ -437,11 +452,25 @@ export const doc: ComponentDoc = {
       id: 'refused',
       title: 'Refused and failed',
       description:
-        'The host says no: the first Send now is refused (another dispatch is in flight), edits are refused (already handed over), and the first message fails — Retry sends it.',
-      height: 420,
+        'The host says no: the first Send now is refused (another dispatch is in flight), edits are refused (already handed over), the first message fails — Retry sends it — and the delivered note’s Cancel comes too late (the agent read it first).',
+      height: 460,
       create: () =>
         stage(
-          host(steering({ running: true, items: queue() }), { refuseOnce: true, refuseEdit: true, failFirst: true }),
+          host(
+            steering({
+              running: true,
+              items: [
+                ...queue(),
+                {
+                  id: 'C0AKY7W2UGZ:1793008217#33',
+                  text: 'Ignore my last note — sent by mistake',
+                  at: now() - 20_000,
+                  state: 'steered',
+                },
+              ],
+            }),
+            { refuseOnce: true, refuseEdit: true, failFirst: true, lateCancel: true },
+          ),
         ),
     },
     {
@@ -490,7 +519,7 @@ export const doc: ComponentDoc = {
       id: 'ko',
       title: '한국어 (lang="ko")',
       description:
-        '대시보드와 Slack 큐 문구 — 다음 단계에 전달 대기, 지금 보내기, 전달됨 · 모델이 다음 툴 호출에서 읽음.',
+        '대시보드와 Slack 큐 문구 — 다음 단계에 전달 대기, 지금 보내기(하던 작업을 멈추고 지금 바로 실행), 전달됨 · 모델이 다음 툴 호출에서 읽음 — 읽기 전엔 취소할 수 있음.',
       height: 460,
       create: () =>
         stage(
