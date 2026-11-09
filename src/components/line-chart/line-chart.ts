@@ -55,6 +55,9 @@ export class UiLineChart extends UiElement<LineChartData> {
   #model: LineChartModel = lineChartModel(undefined);
   #hot = -1;
   #src: HotSource = '';
+  /** Touch: the point a finger had already tapped when this tap began (-1 for none) — a tap selects only that point. */
+  #tapPrev = -1;
+  #touchTap = false;
   #ro: ResizeObserver | null = null;
   /** Tooltip and live region live beside the rendered tree: a re-render never resets their place or text. */
   readonly #tip: HTMLElement;
@@ -85,7 +88,10 @@ export class UiLineChart extends UiElement<LineChartData> {
     this.root.append(this.#tip, this.#live);
     this.root.addEventListener('pointermove', (e) => this.#onPointer(e as PointerEvent));
     this.root.addEventListener('pointerdown', (e) => {
-      if ((e as PointerEvent).pointerType === 'touch') this.#onPointer(e as PointerEvent);
+      this.#touchTap = (e as PointerEvent).pointerType === 'touch';
+      if (!this.#touchTap) return;
+      this.#tapPrev = this.#src === 'tap' ? this.#hot : -1;
+      this.#onPointer(e as PointerEvent);
     });
     // On the host, not the shadow root: pointerleave does not bubble, so the root never hears it.
     this.addEventListener('pointerleave', () => {
@@ -95,6 +101,11 @@ export class UiLineChart extends UiElement<LineChartData> {
       const plot = this.#plotOf(e.target);
       if (!plot || this.#model.empty) return;
       const i = this.#indexAt(plot, (e as MouseEvent).clientX);
+      // On touch the first tap only shows the point (a phone has no hover); a second tap on the same point selects it.
+      if (this.#touchTap) {
+        this.#touchTap = false;
+        if (this.#tapPrev !== i) return;
+      }
       if (this.#src !== 'tap') this.#setHot(i, 'ptr');
       this.#select(i);
     });

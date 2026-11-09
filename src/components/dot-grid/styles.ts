@@ -39,6 +39,10 @@ export const styles = `
   cursor: default; -webkit-tap-highlight-color: transparent;
   transition: background-color 300ms ease, box-shadow 300ms ease, outline-color 150ms ease; }
 .dg-cell::after { content: ""; position: absolute; inset: calc(var(--dg-rowgap) / -2) calc(var(--dg-gap) / -2); }
+/* A finger: the hit box is at least 24 × 24 (WCAG 2.5.8) around the mark's middle, whatever the cell's size. */
+@media (pointer: coarse) {
+  .dg-cell::after { inset: auto; left: 50%; top: 50%; width: max(24px, 100%); height: max(24px, 100%); transform: translate(-50%, -50%); }
+}
 .dg-cell:hover:not(:focus-visible) { outline: 1.5px solid color-mix(in srgb, var(--dg-ink) 45%, transparent);
   outline-offset: 1px; }
 .dg-cell:focus-visible { z-index: 1; outline-offset: 2px; }

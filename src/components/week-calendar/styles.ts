@@ -217,7 +217,7 @@ export const styles = `
   .wk-row:hover { background: color-mix(in srgb, var(--ib-text) 4%, transparent); }
 }
 @media (pointer: coarse) {
-  .wk-seg-b { min-height: 36px; }
+  .wk-seg-b { min-height: 44px; }
   .wk-nav-b { width: 36px; height: 36px; }
 }
 @container (max-width: 520px) {

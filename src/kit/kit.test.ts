@@ -290,6 +290,9 @@ describe('ui-kit.css', () => {
     );
     expect(css).toContain('.ui-bento > .is-span-4 { grid-column: span 4; }');
     expect(css).toContain('.ui-bento > * { grid-column: span 12; min-width: 0; }');
+    // The DOM order is the reading order unless the host opts into back-filling.
+    expect(css).toMatch(/\.ui-bento \{[^}]*grid-auto-flow: row;/);
+    expect(css).toContain('.ui-bento.is-dense { grid-auto-flow: row dense; }');
     expect(css).toContain('.ui-hatch { background-image: repeating-linear-gradient(135deg');
     expect(css).toContain(
       '.ui-card.is-inverse { border-color: var(--ui-ib-text); background: var(--ui-ib-text); color: var(--ui-ib-card);',

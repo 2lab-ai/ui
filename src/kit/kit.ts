@@ -79,11 +79,13 @@ const TONES: Array<[string, string, string]> = [
 const dashKitCss = `
 /* ── Bento: cards on a 12-column grid that reflows by its own width (a container query — the grid's width decides,
    not the viewport's): one column under 560px, halves to 900px, the spans from there. A cell spans with .is-span-<n>
-   (n = 2 … 12; 2–6 become a half, 7–12 the full width under 900px) and .is-tall takes two rows from 560px. ── */
+   (n = 2 … 12; 2–6 become a half, 7–12 the full width under 900px) and .is-tall takes two rows from 560px. Cells keep
+   the DOM order (the reading and Tab order); .is-dense back-fills holes — only where the order does not matter. ── */
 .ui-bento {
-  container: ui-bento / inline-size; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-flow: row dense;
+  container: ui-bento / inline-size; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-flow: row;
   gap: var(--ui-bento-gap, 16px); box-sizing: border-box; min-width: 0;
 }
+.ui-bento.is-dense { grid-auto-flow: row dense; }
 .ui-bento > * { grid-column: span 12; min-width: 0; }
 @container ui-bento (min-width: 560px) {
   .ui-bento > :is(.is-span-2, .is-span-3, .is-span-4, .is-span-5, .is-span-6) { grid-column: span 6; }
