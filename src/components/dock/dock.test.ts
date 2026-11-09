@@ -340,6 +340,27 @@ describe('<ui-dock> events', () => {
     expect(outer).not.toHaveBeenCalled();
   });
 
+  it('a row chosen in the real menu: a cancelled ui-navigate leaves every row as the data says (the menu never checks one itself)', () => {
+    const el = mount({ items: SIX.map((i, n) => ({ ...i, current: n === 0 })) });
+    const went: string[] = [];
+    el.addEventListener('ui-navigate', (e) => {
+      went.push((e as CustomEvent).detail.id);
+      e.preventDefault();
+    });
+    const menu = q(el, 'ui-menu') as UiMenu;
+    menu.show();
+    menu.renderNow();
+    const row = Array.from(menu.shadowRoot!.querySelectorAll<HTMLElement>('[data-i]')).find((r) =>
+      r.textContent?.includes('E'),
+    )!;
+    expect(row).toBeTruthy();
+    press(row);
+    expect(went).toEqual(['e']);
+    // The dock answers the menu's ui-select itself (prevented), so the menu skips its optimistic check.
+    expect(menu.data!.items.map((i) => i.checked)).toEqual([false, false, false]);
+    expect(q(el, '.dk-more-btn')!.classList.contains('is-current')).toBe(false);
+  });
+
   it('focus survives a re-render on the same tab', () => {
     const el = mount(FOUR);
     const a = q(el, 'a.dk-item[data-id="memory"]')!;

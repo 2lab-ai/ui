@@ -1,12 +1,5 @@
 // Consumer smoke test: compiled against the installed package (packed tarball or registry), not the source.
 import { type ContextWindowData, fmtTokens, UiContextWindow } from '@2lab.ai/ui';
-import { type DialData, dialFraction, dialTickCount, UiDial } from '@2lab.ai/ui/dial';
-import { type DockData, dockSplit, UiDock } from '@2lab.ai/ui/dock';
-import { type DotGridData, dotCounts, dotSummary, UiDotGrid } from '@2lab.ai/ui/dot-grid';
-import { type LineChartData, niceTicks, UiLineChart } from '@2lab.ai/ui/line-chart';
-import { type SparklineData, sparkValues, UiSparkline } from '@2lab.ai/ui/sparkline';
-import { type TimelineData, timelineItems, timelineProgress, UiTimeline } from '@2lab.ai/ui/timeline';
-import { eventLanes, parseHm, UiWeekCalendar, type WeekCalendarData, weekDays } from '@2lab.ai/ui/week-calendar';
 import { type ActionNodeData, nodeInitials, UiActionNode } from '@2lab.ai/ui/action-node';
 import { UiAgentInbox } from '@2lab.ai/ui/agent-inbox';
 import { type AgentIslandData, islandClock, UiAgentIsland } from '@2lab.ai/ui/agent-island';
@@ -40,6 +33,7 @@ import { UiContextWindow as UiContextWindowSub } from '@2lab.ai/ui/context-windo
 import { type ConversationData, initialOf, UiConversation } from '@2lab.ai/ui/conversation';
 import { type CopyFieldData, copyMiddle, UiCopyField } from '@2lab.ai/ui/copy-field';
 import { type DeckNavData, deckClamp, UiDeckNav } from '@2lab.ai/ui/deck-nav';
+import { type DialData, dialFraction, dialTickCount, UiDial } from '@2lab.ai/ui/dial';
 import {
   type DialogCloseDetail,
   type DialogClosedDetail,
@@ -48,6 +42,8 @@ import {
   UiDialog,
 } from '@2lab.ai/ui/dialog';
 import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
+import { type DockData, dockSplit, UiDock } from '@2lab.ai/ui/dock';
+import { type DotGridData, dotCounts, dotSummary, UiDotGrid } from '@2lab.ai/ui/dot-grid';
 import { clampDrawerWidth, DRAWER_MORPH_MS, type DrawerMode, type DrawerViewport, UiDrawer } from '@2lab.ai/ui/drawer';
 import { type ElapsedData, type ElapsedPrecision, elapsedText, fmtSpanCoarse, UiElapsed } from '@2lab.ai/ui/elapsed';
 import { EPISODE_ARM_MS, type EpisodeLogData, episodeDays, UiEpisodeLog } from '@2lab.ai/ui/episode-log';
@@ -58,6 +54,7 @@ import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { compareText, type ImageCompareData, UiImageCompare } from '@2lab.ai/ui/image-compare';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { filterPages, type KnowledgePagesData, UiKnowledgePages } from '@2lab.ai/ui/knowledge-pages';
+import { type LineChartData, niceTicks, UiLineChart } from '@2lab.ai/ui/line-chart';
 import { type LogScrollerData, logJumpText, UiLogScroller } from '@2lab.ai/ui/log-scroller';
 import { type MediaGridData, type MediaOpenDetail, mediaLabel, UiMediaGrid } from '@2lab.ai/ui/media-grid';
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
@@ -76,15 +73,18 @@ import { applySettingsFilter, type SettingsNavData, settingMatches, UiSettingsNa
 import { type SlideConfirmData, slideThreshold, UiSlideConfirm } from '@2lab.ai/ui/slide-confirm';
 import { bindSound, playSound, type SoundCue, type SoundPlayer, setSound } from '@2lab.ai/ui/sound';
 import { cuelumeSound, type SoundTheme, setSoundTheme, unlockSound } from '@2lab.ai/ui/sound-cuelume';
+import { type SparklineData, sparkValues, UiSparkline } from '@2lab.ai/ui/sparkline';
 import { fmtMetric, type StatStripData, UiStatStrip } from '@2lab.ai/ui/stat-strip';
 import { STATUS_ARM_MS, type StatusBarData, UiStatusBar } from '@2lab.ai/ui/status-bar';
 import { type StepTrackData, stepCaption, UiStepTrack } from '@2lab.ai/ui/step-track';
 import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
 import { type TaskPlanData, type TaskPlanMore, taskFateCounts, taskWindow, UiTaskPlan } from '@2lab.ai/ui/task-plan';
 import { type TaskRunsData, taskRunTotals, UiTaskRuns } from '@2lab.ai/ui/task-runs';
+import { type TimelineData, timelineItems, timelineProgress, UiTimeline } from '@2lab.ai/ui/timeline';
 import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
 import { tooltipDelay, UiTooltip } from '@2lab.ai/ui/tooltip';
+import { eventLanes, parseHm, UiWeekCalendar, type WeekCalendarData, weekDays } from '@2lab.ai/ui/week-calendar';
 import { normGroups, UiWorkLog, type WorkLogData, workMetaHtml } from '@2lab.ai/ui/work-log';
 import { UiWorking, type WorkingData, workingWords } from '@2lab.ai/ui/working';
 
@@ -241,10 +241,14 @@ const dockCfg: DockData = {
     { id: 'chats', label: 'Chats', icon: 'chat' },
   ],
 };
-const runsGrid: DotGridData = { rows: [{ id: 'nightly', label: 'Nightly report', cells: ['done', 'fail', 'pending'] }] };
+const runsGrid: DotGridData = {
+  rows: [{ id: 'nightly', label: 'Nightly report', cells: ['done', 'fail', 'pending'] }],
+};
 const tokensChart: LineChartData = { labels: ['Mon', 'Tue'], series: [{ id: 't', label: 'Tokens', values: [3, 5] }] };
 const spark: SparklineData = { values: [1, 3, 2], tone: 'run' };
-const today: TimelineData = { items: [{ id: 'a', time: '07:00', title: 'Usage report', checkable: true, checked: true }] };
+const today: TimelineData = {
+  items: [{ id: 'a', time: '07:00', title: 'Usage report', checkable: true, checked: true }],
+};
 const week: WeekCalendarData = {
   start: '2026-11-09',
   events: [{ id: 'e', day: '2026-11-10', start: '09:30', title: 'Deploy window', kind: 'accent' }],
