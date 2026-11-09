@@ -160,6 +160,8 @@ describe('logic', () => {
     // Delivered but not read yet: the host can still pull it back or stop the turn for it — never Edit.
     expect(steeringActions(row({ state: 'steered' }), on)).toEqual(['promote', 'cancel']);
     expect(steeringActions(row({ state: 'steered', canEdit: false }), on)).toEqual(['promote', 'cancel']);
+    // A local row is never the host's to promote: even one a host marked steered gets no dead buttons.
+    expect(steeringActions(row({ local: true, state: 'steered' }), on)).toEqual([]);
     expect(steeringActions(row({ state: 'steered' }), { canAct: false, disabled: false })).toEqual([]);
     expect(steeringActions(row({ state: 'steered' }), { canAct: true, disabled: true })).toEqual([]);
     expect(steeringActions(row({ local: true }), on)).toEqual([]);
@@ -684,6 +686,20 @@ describe('<ui-agent-steering> note actions', () => {
     expect(act(el, 1, 'promote')?.getAttribute('title')).toBe('하던 작업을 멈추고 지금 바로 실행');
     set(el, { running: false });
     expect(act(el, 1, 'promote')?.getAttribute('title')).toBe('지금 실행');
+  });
+
+  it('a held Enter never repeats onto the next note: Cancel moves focus to its Send now, which would stop the run', () => {
+    const el = mount({ running: true, items: [item('a', { state: 'steered' }), item('b', { state: 'steered' })] });
+    el.openQueue();
+    const cancel = act(el, 0, 'cancel') as HTMLElement;
+    cancel.focus();
+    cancel.click();
+    expect(el.shadowRoot?.activeElement).toBe(act(el, 0, 'promote'));
+    const held = key(el.shadowRoot?.activeElement as HTMLElement, 'Enter', { repeat: true });
+    expect(held.defaultPrevented).toBe(true);
+    expect(key(el.shadowRoot?.activeElement as HTMLElement, ' ', { repeat: true }).defaultPrevented).toBe(true);
+    // A fresh press is the user's: it is left to the button.
+    expect(key(el.shadowRoot?.activeElement as HTMLElement, 'Enter').defaultPrevented).toBe(false);
   });
 
   it('focus on a note’s button survives a host update', () => {
