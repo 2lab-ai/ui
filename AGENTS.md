@@ -11,6 +11,11 @@ the designs (whole looks: `data-design="<id>"` tokens + a tone & manner spec in 
 onto the elements and kit, and gives the steps. `site/designs.ts` is a worked dashboard. Designs live in
 `src/core/tokens.json` (`designs.<id>`) and `DESIGNS` in `src/core/tokens.ts`; `src/core/designs.test.ts` guards them.
 
+## Explainer videos
+Asked for an explainer video ("3b1b", "설명 영상", the `make-3b1b` skill)? Use `explainer/` — read `explainer/README.md`. It is
+plain JS + Python outside the TS build and the npm package; theme `mono-black` reads `designs.modern-mono` from
+`src/core/tokens.json` when a project is made, so keep those token names stable.
+
 ## Gates (run before every commit)
 ```
 npm run check       # biome
