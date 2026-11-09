@@ -351,7 +351,9 @@ export const doc: ComponentDoc = {
   });
   el.addEventListener('ui-promote', async (e) => {
     const res = await post('/session/' + key + '/followup/' + e.detail.id + '/send-now');
-    if (!res.ok) el.setItemState(e.detail.id, 'queued', await res.text());   // roll back and say why
+    // Roll back and say why — to the state the list has NOW (a delivered note stays delivered; never a blind 'queued').
+    const now = el.data.items.find((i) => i.id === e.detail.id);
+    if (!res.ok && now) el.setItemState(e.detail.id, now.state, await res.text());
   });
   // ui-edit { id, text } → editQueued, ui-cancel { id } → cancelItem (a steered note: the SDK withdraws it first,
   // then cancelSteered — or it was read, and the next list settles it). The pushed list confirms each one.
