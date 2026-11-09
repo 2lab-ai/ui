@@ -1,11 +1,14 @@
 """Scaffold or refresh an explainer video project from this repo.
 
-    python explainer/tools/new_video.py <project_dir> [--theme mono-black|3b1b] [--from explainer/examples/<name>]
+    python explainer/tools/new_video.py <project_dir> [--theme mono-black|sketch|3b1b] [--from explainer/examples/<name>]
                                                     [--slug <file-name>] [--title "<title>"]
 
-- copies engine/engine.js and engine/video.html into the project (refreshing them is safe: scenes are untouched)
+- copies engine/engine.js, engine/docent.js and engine/video.html into the project (refreshing them is safe: scenes
+  are untouched)
 - writes theme.json. `mono-black` is the Modern Mono design of @2lab.ai/ui (src/core/tokens.json designs.modern-mono):
-  near-black canvas, white type, colour only on the marks that mean something. `3b1b` is the classic manim palette.
+  near-black canvas, white type, colour only on the marks that mean something. `sketch` is the book-docent page: flat
+  light-blue paper, black ink, purple handwritten keywords (Gaegu), for docent.js stick-figure videos. `3b1b` is the
+  classic manim palette.
 - fetches the theme's fonts into <project>/fonts (cached in ~/.cache/2lab-explainer-fonts)
 - --from copies an example's script.json, scenes.js, formulas.py and project.json (only files the project lacks)
 - fetches public-domain images listed in project.json "commons" (Wikimedia Commons titles) into <project>/img
@@ -23,6 +26,8 @@ FONTS = {
     'lmroman10-regular.otf': 'https://mirrors.ctan.org/fonts/lm/fonts/opentype/public/lm/lmroman10-regular.otf',
     'NotoSerifKR.ttf': 'https://github.com/google/fonts/raw/main/ofl/notoserifkr/NotoSerifKR%5Bwght%5D.ttf',
     'NotoSansKR.ttf': 'https://github.com/google/fonts/raw/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf',
+    'Gaegu-Regular.ttf': 'https://github.com/google/fonts/raw/main/ofl/gaegu/Gaegu-Regular.ttf',   # OFL 1.1
+    'Gaegu-Bold.ttf': 'https://github.com/google/fonts/raw/main/ofl/gaegu/Gaegu-Bold.ttf',
 }
 
 
@@ -42,7 +47,23 @@ def theme(name):
             'text': 'LMRoman, NotoSerifKR, Georgia, serif', 'sans': 'NotoSansKR, "Apple SD Gothic Neo", sans-serif',
             'load': ['400 40px LMRoman', '400 40px NotoSerifKR', '500 40px NotoSerifKR', '500 40px NotoSansKR', '700 40px NotoSansKR']},
             'fontFiles': ['lmroman10-regular.otf', 'NotoSerifKR.ttf', 'NotoSansKR.ttf', 'Pretendard.ttf']}
-    if name != 'mono-black': sys.exit(f'unknown theme {name} (mono-black | 3b1b)')
+    if name == 'sketch':
+        # Book-docent page (docent.js): flat light-blue paper, black ink, purple handwritten keywords, red marks.
+        # Measured from the Productive Peter reference (page #bcd0e8); hues darkened to read on the light page.
+        ink = '#151515'
+        hand = 'Gaegu, Pretendard, "Apple SD Gothic Neo", sans-serif'
+        sans = 'Pretendard, "Apple SD Gothic Neo", sans-serif'
+        return {'id': 'sketch', 'titleWeight': 700, 'fontFiles': ['Pretendard.ttf', 'Gaegu-Regular.ttf', 'Gaegu-Bold.ttf'],
+                'fonts': {'text': hand, 'sans': sans, 'hand': hand,
+                          'load': ['400 40px Gaegu', '700 40px Gaegu'] + [f'{w} 40px Pretendard' for w in (400, 500, 600, 700)]},
+                'colors': {
+                    'bg': '#bcd0e8', 'ink': ink, 'text': ink, 'white': ink, 'dim': '#4b5a70',
+                    'grey': '#7d8ea8', 'track': '#5f7190', 'grid': '#aec3dd', 'gridFaint': '#b5c9e2',
+                    'key': '#5a3ec8', 'blue': '#5a3ec8', 'purple': '#5a3ec8', 'magenta': '#c13fbf',
+                    'yellow': '#c98a00', 'green': '#2e8b57', 'red': '#d2323c', 'orange': '#d9661c', 'teal': '#167f86',
+                    'panel': 'rgba(250,251,253,0.92)', 'panelText': ink, 'boxFill': 'rgba(255,255,255,0.35)',
+                    'paper': '#f6f3ea', 'paperLine': '#9fb2cc', 'paperInk': ink, 'paperMath': ink}}
+    if name != 'mono-black': sys.exit(f'unknown theme {name} (mono-black | sketch | 3b1b)')
     t = json.load(open(os.path.join(REPO, 'src', 'core', 'tokens.json')))['designs']['modern-mono']
     bg, text, tert = t['bg'], t['text'], t['text-tertiary']
     sans = 'Pretendard, "Apple SD Gothic Neo", sans-serif'
@@ -100,7 +121,7 @@ def main():
         for f in ('script.json', 'scenes.js', 'formulas.py', 'project.json'):
             if os.path.exists(os.path.join(src, f)) and not os.path.exists(os.path.join(proj, f)):
                 shutil.copy(os.path.join(src, f), proj)
-    for f in ('engine.js', 'video.html'):
+    for f in ('engine.js', 'docent.js', 'video.html'):
         shutil.copy(os.path.join(EXPLAINER, 'engine', f), proj)
     json.dump({k: v for k, v in th.items() if k != 'fontFiles'}, open(os.path.join(proj, 'theme.json'), 'w'), indent=1)
     os.makedirs(os.path.join(proj, 'fonts'), exist_ok=True); os.makedirs(FONT_CACHE, exist_ok=True)

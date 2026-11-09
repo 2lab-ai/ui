@@ -1,5 +1,7 @@
-"""Export: mix (music ducked under voice), stills, and the MP4 (Playwright frames -> ffmpeg, parallel slices).
-usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]"""
+"""Export: mix (music ducked under voice), stills, the MP4 (Playwright frames -> ffmpeg, parallel slices) and the
+audiobook (the mix as an M4A with one chapter marker per scene, plus out/chapters.txt for the YouTube description).
+usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]
+                        | audiobook [--cover still.jpg] [--out name]"""
 import asyncio, base64, json, os, subprocess, sys, threading, http.server, functools, socketserver
 
 HERE = os.getcwd()   # the project folder (video.html, timeline.json, narration.wav, score.wav)
@@ -18,6 +20,55 @@ def mix():
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(HERE, 'narration.wav'), '-i', os.path.join(HERE, 'score.wav'),
                     '-filter_complex', flt, '-map', '[out]', '-t', f'{T:.3f}', '-ar', '48000', os.path.join(HERE, 'mix.wav')], check=True)
     print('mix.wav', T)
+
+def _meta_escape(v):
+    """ffmetadata values: escape = ; # \\ and newlines with a backslash."""
+    return ''.join('\\' + c if c in '=;#\\\n' else c for c in str(v))
+
+def chapter_title(sc):
+    """'2 · 의미 없는 게임' chips already carry the number; a scene title is added when it says more."""
+    chip, title = sc.get('chip') or '', sc.get('title') or ''
+    return f'{chip} — {title}' if title and title not in chip else (chip or title)
+
+def chapters_meta(tl, pj):
+    """timeline.json + project.json -> ffmetadata text with one [CHAPTER] per scene (milliseconds)."""
+    book = pj.get('book') or {}
+    head = [';FFMETADATA1', f"title={_meta_escape(pj.get('title') or tl.get('title') or 'explainer')}",
+            f"artist={_meta_escape(book.get('author') or pj.get('narrator') or 'soma-voice')}",
+            f"album={_meta_escape(book.get('title') or pj.get('title') or '')}", 'genre=Audiobook']
+    out = head[:]
+    scenes = tl['scenes']
+    for i, sc in enumerate(scenes):
+        a = int(round(sc['start'] * 1000))
+        b = int(round((scenes[i + 1]['start'] if i + 1 < len(scenes) else tl['total']) * 1000))
+        out += ['[CHAPTER]', 'TIMEBASE=1/1000', f'START={a}', f'END={b}', f'title={_meta_escape(chapter_title(sc))}']
+    return '\n'.join(out) + '\n'
+
+def youtube_chapters(tl):
+    """'0:00 title' lines (YouTube needs the first at 0:00 and at least 10 s per chapter)."""
+    lines = []
+    for i, sc in enumerate(tl['scenes']):
+        t = 0 if i == 0 else int(sc['start'])
+        h, m, s_ = t // 3600, t // 60 % 60, t % 60
+        stamp = f'{h}:{m:02d}:{s_:02d}' if h else f'{m}:{s_:02d}'
+        lines.append(f'{stamp} {chapter_title(sc)}')
+    return '\n'.join(lines) + '\n'
+
+def audiobook(cover=None, name=None):
+    tl = json.load(open(os.path.join(HERE, 'timeline.json')))
+    pj_path = os.path.join(HERE, 'project.json')
+    pj = json.load(open(pj_path)) if os.path.exists(pj_path) else {}
+    name = name or pj.get('slug', 'explainer')
+    meta = os.path.join(OUT, 'chapters.ffmeta'); open(meta, 'w').write(chapters_meta(tl, pj))
+    open(os.path.join(OUT, 'chapters.txt'), 'w').write(youtube_chapters(tl))
+    dst = os.path.join(OUT, f'{name}.m4a')
+    cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(HERE, 'mix.wav'), '-i', meta]
+    if cover: cmd += ['-i', cover]
+    cmd += ['-map', '0:a', '-map_metadata', '1', '-map_chapters', '1']
+    if cover: cmd += ['-map', '2:v', '-c:v', 'mjpeg', '-disposition:v:0', 'attached_pic']
+    cmd += ['-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', dst]
+    subprocess.run(cmd, check=True)
+    print(dst, f"{len(tl['scenes'])} chapters", os.path.join(OUT, 'chapters.txt'))
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -106,3 +157,7 @@ if __name__ == '__main__':
         if '--to' in args: kw['t_to'] = float(args[args.index('--to') + 1])
         if '--out' in args: kw['name'] = args[args.index('--out') + 1]
         asyncio.run(video(**kw))
+    elif cmd == 'audiobook':
+        args = sys.argv[2:]
+        audiobook(cover=args[args.index('--cover') + 1] if '--cover' in args else None,
+                  name=args[args.index('--out') + 1] if '--out' in args else None)

@@ -228,6 +228,9 @@ function subtitle(str, a) {
 
 // ---------- scene registry & clock ----------
 const SCENES = {};   // id -> draw(t, q, local)
+// Optional title card: scenes.js may set TITLE_CARD = (sc, a, isFirst) => {...} to draw its own card during the lead
+// (docent.js offers signCard: a figure holding the chapter sign). Unset, the default centred title below is drawn.
+let TITLE_CARD = null;
 function sceneAt(t) {
   for (let i = ORDER.length - 1; i >= 0; i--) if (t >= SC[ORDER[i]].start) return SC[ORDER[i]];
   return SC[ORDER[0]];
@@ -240,7 +243,8 @@ function renderAt(t) {
   // title card during the lead
   const tc = win(t, sc.start, sc.start + sc.lead, 0.35, 0.45);
   const isFirst = sc.id === ORDER[0];
-  if (tc > 0) {
+  if (tc > 0 && typeof TITLE_CARD === 'function') TITLE_CARD(sc, tc, isFirst);
+  else if (tc > 0) {
     const big = isFirst ? 92 : 76;
     text(sc.title, W / 2, H / 2 - (sc.subtitle ? 30 : 0), { size: big, a: tc, weight: THEME.titleWeight || 500 });
     if (sc.subtitle) text(sc.subtitle, W / 2, H / 2 + (isFirst ? 62 : 52), { size: isFirst ? 38 : 36, color: isFirst ? C.dim : C.orange, a: tc, font: isFirst ? SERIF : SANS, weight: isFirst ? 400 : 500 });

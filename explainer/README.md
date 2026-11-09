@@ -15,6 +15,7 @@ The kit is not part of the npm package. It lives in this repo for 2 reasons:
 explainer/
 ├── engine/
 │   ├── engine.js        canvas helpers + the clock: renderAt(t) draws any frame from the time alone
+│   ├── docent.js        the hand-drawn layer for book videos: stick figures, bubbles, boards, props, quick cuts
 │   └── video.html       preview player (play, scrub, chapters) and export page (?export=1)
 ├── tools/
 │   ├── new_video.py     scaffold or refresh a project: engine, theme.json, fonts, public-domain images
@@ -26,6 +27,7 @@ explainer/
 │   ├── render_formulas.py  formulas.py -> formulas.json (Computer Modern glyph outlines)
 │   ├── music.py         original D-major piano + pad score, peak 0.8
 │   ├── export.py        mix (voice ducks the music) · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
+│   │                    · audiobook (M4A with one chapter per scene + chapters.txt for the YouTube description)
 │   ├── audio_check.py   QA: transcribes each scene (mlx-whisper) and diffs it against the script
 │   ├── sheets.py        contact sheets of stills for review
 │   ├── upload_slack.py  upload files to a Slack thread
@@ -72,6 +74,7 @@ Python needs `numpy matplotlib playwright pillow`. Add `edge-tts` for the fallba
 | id | Look | Source |
 |---|---|---|
 | `mono-black` (default) | near-black canvas `#050505`, white type in Pretendard, colour only on the marks that mean something | the Modern Mono design: `src/core/tokens.json` `designs.modern-mono`, read when the project is made |
+| `sketch` | flat light-blue paper `#bcd0e8`, black ink, purple handwritten keywords in Gaegu (OFL), red marks; subtitles stay in Pretendard | the book-docent page, measured from the Productive Peter reference (see Docent layer) |
 | `3b1b` | the classic manim palette on `#101114`, Latin Modern / Noto Serif KR | built in |
 
 Scenes name colours by role, not by value: `C.yellow`, `C.blue`, `C.green`, `C.track`, `C.grid`, `C.panel`, and `mix(C.green, 0.3)` for a tint.
@@ -83,6 +86,55 @@ In `mono-black`:
 - teal and purple go white, as the mono palette does
 
 So one colour per concept still holds where a concept appears as a mark.
+
+## Docent layer
+
+`engine/docent.js` draws book videos the way book-summary channels such as Productive Peter do (reference: "Life is
+Short (How to Spend It Wisely)", 16:51, 148 words a minute, a new picture every 3.7 seconds). One stick figure lives
+through the idea. Every idea gets a name on a board, an everyday picture and, when it helps, a picture equation. It
+works on every theme; it looks its best on `sketch`.
+
+Everything is ink drawn from the clock alone, with a slight fixed wobble so lines look hand-drawn, and every part takes
+`p`, its draw-on progress from 0 to 1. Colours are roles: `C.ink` for lines, `C.key` for handwritten keywords, `C.red`
+for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue`).
+
+| Function | What it draws |
+|---|---|
+| `figure(x, y, {pose, face, s, t, walk, flip, look, tie, glasses, hair, hat, helmet, shell, snout, blindfold, p})` | stick figure; (x, y) between the feet, `s: 1` is about 340 px. Poses: stand wave point present think shrug cheer hold akimbo reach slump facepalm carry. Faces: smile happy neutral sad surprised worried angry think cool wink sleepy |
+| `achilles`, `tortoise`, `crab`, `ant` | ready characters (helmet with a red crest, shell, crab, ant) |
+| `bubble(x, y, w, h, {kind: 'speech' \| 'thought', tail, text, body, p})` | speech or thought bubble; `body(x, y, w, h)` draws a small picture inside |
+| `board`, `students`, `teach(term, {x, y, p})` | the named-idea classroom: presenter, board with the term, students from behind |
+| `sign`, `signCard` | a figure holding the chapter sign. Set `TITLE_CARD = signCard` in scenes.js to use it as every scene's title card |
+| `hand(str, x, y, {size, color, p})`, `handBlock` | handwritten text, written on left to right |
+| `cross`, `ring`, `underline`, `eqSign`, `plusSign` | red X, red circle, underline, picture-equation signs |
+| `scrollList(x, y, w, title, items, {mark, strike, p})` | a handwritten list on paper, items ringed or struck through |
+| `bookCover`, `quote`, `chapterMap` | a drawn cover (never a real one), a short quote, a progress map for long videos |
+| `prop(name, x, y, s, {p, fill, t})` | 50+ everyday things: book door ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium … (`Object.keys(PROPS)`) |
+| `shots(t, [[t0, draw], …])` | quick cuts: the last shot that has started is drawn, fading in over 0.22 s; `draw(t, lt)` gets the time since it started |
+| `pop(t, t0)`, `dp(t, t0, d)` | pop-in scale with a small overshoot; draw-on progress |
+
+A scene is a list of shots keyed to cues:
+
+```js
+TITLE_CARD = signCard;
+SCENES.miu = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => teach('형식 체계', { p: dp(lt, 0, 1.2) })],
+  [q.w('규칙', 3), (t, lt) => scrollList(700, 160, 520, '규칙 네 개', RULES, { p: dp(lt, 0, 3) })],
+  [q.s(9), (t, lt) => { achilles(700, 900, { pose: 'think', face: 'worried', t });
+                        bubble(820, 260, 520, 170, { tail: [760, 560], text: '조금만 더…', p: dp(lt, 0.3, 0.4) }); }],
+]);
+```
+
+House rules for book videos: change the picture every 3 to 5 seconds; put 1 to 5 handwritten words on screen, never a
+sentence; show the picture before the name; keep the bottom 170 px clear for subtitles; draw everything (no real cover
+or artwork images unless they are public domain).
+
+## Audiobook
+
+`export.py audiobook [--cover still.jpg]` writes `out/<slug>.m4a`: the mix in AAC 128 kbps with one chapter marker per
+scene (`chip — title`), title, author and album from `project.json` (`book.author`, `book.title`). It also writes
+`out/chapters.txt`, the `0:00 title` lines for a YouTube description. Tests: `python -m unittest
+explainer/tools/test_audiobook.py`.
 
 ## Narration
 
