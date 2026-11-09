@@ -23,7 +23,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Agent Queue | `<ui-agent-queue>` | Provider capacity, rate limits, and the scheduled-job lane |
 | Context Window | `<ui-context-window>` | How full the context is and how far auto-compaction is |
 | Approval Card | `<ui-approval-card>` | What the agent wants to do and how risky it is — Approve / Deny, or answer its question, before it expires; an irreversible action (prod 배포, force push) is approved by sliding |
-| Agent Steering | `<ui-agent-steering>` | What you told the agent mid-run, whether it has it yet — queue a note for its next step, Send now, Edit, Cancel; queued notes wait behind a round count button (hover or press for the queue, a bottom sheet on phones) |
+| Agent Steering | `<ui-agent-steering>` | What you told the agent mid-run, whether it has it yet — queue a note for its next step, Send now (stop the current step and run it now), Edit, Cancel; a delivered note the agent has not read yet keeps Send now and Cancel (0.40.0); queued notes wait behind a round count button (hover or press for the queue, a bottom sheet on phones) |
 | Toaster | `<ui-toaster>` + `toast()` | Whether what you just did worked — results, failures with Retry, promise spinners, Undo |
 | Compact Breakdown | `<ui-compact-breakdown>` | One number and what it is made of — spend and tokens by model or by user |
 | Memory Panel | `<ui-memory-panel>` | What the agent remembers about you — search, edit, delete with undo |

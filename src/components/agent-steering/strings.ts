@@ -25,7 +25,8 @@ const en = {
   hintSend: 'send',
   hintNewline: 'new line',
   sendNow: 'Send now',
-  sendNowRunning: 'Hand it to the running turn now',
+  /** Send now while the agent works: the host stops the current step and runs the note now (soma-work's Send now). */
+  sendNowRunning: 'Stop the current step and run it now',
   sendNowIdle: 'Run it now',
   edit: 'Edit',
   cancel: 'Cancel',
@@ -82,7 +83,7 @@ const ko: SteeringStrings = {
   hintSend: '보내기',
   hintNewline: '줄바꿈',
   sendNow: '지금 보내기',
-  sendNowRunning: '실행 중인 턴에 바로 전달',
+  sendNowRunning: '하던 작업을 멈추고 지금 바로 실행',
   sendNowIdle: '지금 실행',
   edit: '수정',
   cancel: '취소',
