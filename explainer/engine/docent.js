@@ -317,7 +317,7 @@ function students(x, y, n = 4, { s = 1, p = 1, a = 1, gap = 120 } = {}) {
   }
 }
 // the named-idea classroom: presenter at the left pointing at a board with the term, students in front
-function teach(term, { x = 960, y = 760, p = 1, a = 1, t = 0, face = 'smile', fig = {} } = {}) {
+function teach(term, { x = 960, y = 720, p = 1, a = 1, t = 0, face = 'smile', fig = {} } = {}) {   // y 720: students end ~880, above the subtitles
   const bw = 760, bh = 300;
   figure(x - bw / 2 - 120, y + 10, { pose: 'present', face, p, a, t, ...fig });
   board(x - bw / 2 + 40, y - 520, bw, bh, { term, p: clamp01(p * 1.4 - 0.2), a });

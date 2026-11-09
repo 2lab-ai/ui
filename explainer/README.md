@@ -33,7 +33,8 @@ explainer/
 │   ├── upload_slack.py  upload files to a Slack thread
 │   └── blade/           ssh helpers for blade-4090 (WSL runs behind the Windows host)
 └── examples/
-    └── euler-identity/  "오일러 항등식의 역사" — script.json, scenes.js, formulas.py, project.json
+    ├── euler-identity/  "오일러 항등식의 역사" — script.json, scenes.js, formulas.py, project.json
+    └── geb/             "괴델, 에셔, 바흐" docent book (theme sketch, docent.js, 31 min, 12 chapters, ~440 shots)
 ```
 
 ## A project folder
@@ -124,6 +125,10 @@ SCENES.miu = (t, q) => shots(t, [
                         bubble(820, 260, 520, 170, { tail: [760, 560], text: '조금만 더…', p: dp(lt, 0.3, 0.4) }); }],
 ]);
 ```
+
+Worked example: `examples/geb` ('Gödel, Escher, Bach', 30 minutes). Its scenes.js starts with shared helpers
+(`tiles`, `ruleCard`, `pqString`, `penrose`, `drawingHands`, `screenLoop`, `dolls`, `antBand`) and then one block per
+chapter, about one shot per 4 seconds.
 
 House rules for book videos: change the picture every 3 to 5 seconds; put 1 to 5 handwritten words on screen, never a
 sentence; show the picture before the name; keep the bottom 170 px clear for subtitles; draw everything (no real cover
