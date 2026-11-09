@@ -37,6 +37,8 @@ class Numbers(unittest.TestCase):
         self.assertEqual(to_say('100퍼센트'), '백 퍼센트')
         self.assertEqual(to_say('100%'), '백 퍼센트')
         self.assertEqual(to_say('12,000원'), '만이천 원')
+        self.assertEqual(to_say('1500년대로'), '천오백 년대로')
+        self.assertEqual(to_say('100퍼센트라고'), '백 퍼센트라고')
 
     def test_particles_stay_attached(self):
         self.assertEqual(to_say('0에서 위로'), '영에서 위로')
@@ -46,7 +48,34 @@ class Numbers(unittest.TestCase):
 
     def test_signs_and_fractions(self):
         self.assertEqual(to_say('-1'), '마이너스 일')
+        self.assertEqual(to_say('-2.5원'), '마이너스 이 쩜 오 원')
+        self.assertEqual(to_say('3-1'), '삼 빼기 일')
         self.assertEqual(to_say('1/2'), '이분의 일')
+
+    def test_counter_must_end_its_word(self):
+        # review of #45: 개월/달러/개국 are not 개/달 and a counter never reaches across a space
+        self.assertEqual(to_say('5개월'), '오 개월')
+        self.assertEqual(to_say('5달러'), '오 달러')
+        self.assertEqual(to_say('3개국'), '삼 개국')
+        self.assertEqual(to_say('숫자 2 대신 3을'), '숫자 이 대신 삼을')
+        self.assertEqual(to_say('1번지'), '일 번지')
+        self.assertEqual(to_say('2번 곱하면'), '두 번 곱하면')
+        self.assertEqual(to_say('3바퀴를'), '세 바퀴를')
+        self.assertEqual(to_say('2배로'), '두 배로')
+
+    def test_ordinals_hundreds_codes_and_hangul_before_digits(self):
+        self.assertEqual(to_say('1번째'), '첫 번째')
+        self.assertEqual(to_say('11번째'), '열한 번째')
+        self.assertEqual(to_say('101개'), '백한 개')
+        self.assertEqual(to_say('120개'), '백스무 개')
+        self.assertEqual(to_say('007'), '영영칠')
+        self.assertEqual(to_say('제1장'), '제일장')
+        self.assertEqual(to_say('총3개'), '총세 개')
+
+    def test_what_it_cannot_read_is_left_for_the_check(self):
+        for raw in ['3:00', '2=2', '1~2개', 'x^2']:
+            with self.assertRaises(ValueError): check_say(to_say(raw, {'x': '엑스'}))
+        with self.assertRaises(ValueError): to_say('10000000000000000')
 
 
 class Letters(unittest.TestCase):
