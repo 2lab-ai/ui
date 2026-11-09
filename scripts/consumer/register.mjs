@@ -79,6 +79,7 @@ const extra = {
   'tool-call-card': ['ui-tool-call-group'],
   conversation: ['ui-log-scroller', 'ui-ai-answer'],
   'work-log': ['ui-log-scroller', 'ui-tool-call-card', 'ui-tool-call-group'],
+  dial: ['ui-meter'],
 };
 const missing = [];
 for (const slug of slugs) {

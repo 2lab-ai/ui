@@ -53,7 +53,9 @@ npm run consumer-check  # pack → install → NodeNext and node10 typecheck, ev
   for hosts lives in `src/kit/kit.ts` (`ui-kit.css`): tokens and `color-mix()` only, no hex / rgba literals.
 - Sound (`src/sound/`): a user action that went through plays one cue with `this.sound(cue, options, event)` — after the
   `emit` was not prevented and only when state changed; never from render, hover, timers, streams or data the app set
-  (toasts are the one code-driven exception). Pick the cue by the job (see https://2lab.ai/ui/docs/sound), test it with
+  (toasts are the one code-driven exception). Navigation is the one prevented-emit exception: a host cancels
+  `ui-navigate` to route on the client, so the person still went somewhere — the `navigate` cue plays either way
+  (app-bar, dock). Pick the cue by the job (see https://2lab.ai/ui/docs/sound), test it with
   `soundSpy()` from `src/sound/fixtures.ts`, and add one `Sound (opt-in …)` line to the docs' `a11y`.
 - Server entry (`src/server/index.ts` → `@2lab.ai/ui/server`): the one entry with no element in it. Nothing it reaches may
   touch `HTMLElement`, `customElements`, `document` or `window` at load (its test runs under `// @vitest-environment node`).

@@ -432,6 +432,27 @@ describe('<ui-line-chart> interaction', () => {
     expect(el.activeIndex).toBe(-1);
   });
 
+  it('on touch the first tap shows the point and a second tap on the same point selects it', () => {
+    const el = mount(RATE);
+    sized(el);
+    const got: number[] = [];
+    el.addEventListener('ui-select', (e) => got.push((e as CustomEvent).detail.index));
+    const tap = (x: number) => {
+      plot(el).dispatchEvent(
+        new PointerEvent('pointerdown', { clientX: x, pointerType: 'touch', bubbles: true, composed: true }),
+      );
+      plot(el).dispatchEvent(new MouseEvent('click', { clientX: x, bubbles: true, composed: true }));
+    };
+    tap(80);
+    expect(el.activeIndex).toBe(1);
+    expect(got).toEqual([]);
+    tap(300);
+    expect(el.activeIndex).toBe(4);
+    expect(got).toEqual([]);
+    tap(300);
+    expect(got).toEqual([4]);
+  });
+
   it('sends a cancelable, composed ui-select { index, label } on Enter, Space and click', () => {
     const el = mount(RATE);
     sized(el);
