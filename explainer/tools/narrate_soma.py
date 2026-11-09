@@ -22,7 +22,7 @@ usage: python narrate_soma.py [--voice cwon] [--no-pad] [--no-verify] [--redo sc
 The API is reached through an SSH tunnel to the Windows host (WSL uses mirrored networking):
     ssh -f -N -L 19999:127.0.0.1:9999 blade-4090-ps        (override the URL with SOMA_VOICE_URL)
 """
-import hashlib, json, os, re, subprocess, sys, time, urllib.request, wave
+import hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.request, wave
 import numpy as np
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
@@ -91,7 +91,11 @@ def ear(audio):
 
 def process(raw_path):
     """raw take -> (clip, None) or (None, reason). Padded takes are cut and (if VERIFY) ear-checked."""
-    a = wav_read(raw_path)
+    try:
+        a = wav_read(raw_path)
+    except (OSError, EOFError, wave.Error) as e:
+        return None, f'unreadable raw take ({e.__class__.__name__})'
+    if len(a) < SR // 10: return None, 'raw take too short'
     if not PAD: return a, None
     clip, info = cut(a, SR)
     if clip is None: return None, info
@@ -102,16 +106,35 @@ def process(raw_path):
     return clip, None
 
 
-def record_ok(rec, text):
-    return bool(rec and rec.get('text') == text and rec.get('cutter') == (CUTTER if PAD else 'none')
-                and (rec.get('verified') or not VERIFY))
+def sha1_file(path):
+    with open(path, 'rb') as f: return hashlib.sha1(f.read()).hexdigest()
+
+
+def read_record(path):
+    """the take's record, or None when absent or malformed (a malformed record counts as stale)."""
+    try:
+        return json.load(open(path[:-4] + '.json'))
+    except (OSError, ValueError):
+        return None
+
+
+def record_ok(rec, text, path):
+    return bool(rec and rec.get('text') == text and rec.get('voice') == VOICE and rec.get('cutter') == (CUTTER if PAD else 'none')
+                and (rec.get('verified') or not VERIFY) and os.path.exists(path) and rec.get('wav_sha1') == sha1_file(path))
 
 
 def store(path, clip, text, take, server_seed, raw):
-    wav_write(path, clip)
-    json.dump({'text': text, 'voice': VOICE, 'take': take, 'server_seed': server_seed, 'raw': os.path.relpath(raw, PROJ),
-               'cutter': CUTTER if PAD else 'none', 'verified': VERIFY},
-              open(path[:-4] + '.json', 'w'), ensure_ascii=False)
+    """publish wav + record atomically: the old record goes first, both land via temp files, the record pins the wav digest."""
+    side = path[:-4] + '.json'
+    if os.path.exists(side): os.remove(side)
+    d = os.path.dirname(path)
+    fd, tw = tempfile.mkstemp(suffix='.wav.tmp', dir=d); os.close(fd)
+    wav_write(tw, clip)
+    rec = {'text': text, 'voice': VOICE, 'take': take, 'server_seed': server_seed, 'raw': os.path.relpath(raw, PROJ),
+           'cutter': CUTTER if PAD else 'none', 'verified': VERIFY, 'wav_sha1': sha1_file(tw)}
+    fd, tj = tempfile.mkstemp(suffix='.json.tmp', dir=d)
+    with os.fdopen(fd, 'w') as f: json.dump(rec, f, ensure_ascii=False)
+    os.replace(tw, path); os.replace(tj, side)
 
 
 def drop(path):
@@ -121,12 +144,12 @@ def drop(path):
 
 def usable(path, text):
     """a cached take is used only with a matching record; a stale record is re-cut from its raw take."""
-    side = path[:-4] + '.json'
-    if not (os.path.exists(path) and os.path.exists(side)): return False
-    rec = json.load(open(side))
-    if record_ok(rec, text): return True
+    rec = read_record(path)
+    if not rec or not os.path.exists(path):
+        drop(path); return False
+    if record_ok(rec, text, path): return True
     raw = os.path.join(PROJ, rec.get('raw') or '')
-    if rec.get('text') == text and os.path.isfile(raw):
+    if rec.get('text') == text and rec.get('voice') == VOICE and os.path.isfile(raw):
         clip, why = process(raw)
         if clip is not None:
             store(path, clip, text, rec.get('take'), rec.get('server_seed'), raw); return True
@@ -184,18 +207,21 @@ def synth_scene(items, tag):
 
 
 def raw_takes():
-    """{text: [raw path, ...]} from every complete job folder (manifest.json, or a legacy status.json)."""
+    """{text: [raw path, ...]} from job folders whose voice and padding are positively known: a manifest naming both,
+    or a legacy status.json whose chunks name the voice and carry the padded text. Unknown provenance is skipped."""
     out = {}
     for d in sorted(os.listdir(CACHE)):
         jd = os.path.join(CACHE, d)
         if not d.startswith('job_') or not os.path.isdir(jd): continue
         try:
-            if os.path.exists(os.path.join(jd, 'manifest.json')):
-                m = json.load(open(os.path.join(jd, 'manifest.json')))
-                if m.get('voice', VOICE) != VOICE or m.get('pad', True) != PAD: continue
+            mp = os.path.join(jd, 'manifest.json')
+            m = json.load(open(mp)) if os.path.exists(mp) else {}
+            if 'voice' in m and 'pad' in m:
+                if m['voice'] != VOICE or m['pad'] != PAD: continue
                 texts = m['texts']
             else:
                 chunks = json.load(open(os.path.join(jd, 'status.json')))['result']['chunks']
+                if not all(c.get('voice') == VOICE and c['text'].startswith(PAD_HEAD) == PAD for c in chunks): continue
                 texts = [c['text'].removeprefix(PAD_HEAD).removesuffix(PAD_TAIL) for c in chunks]
         except (OSError, KeyError, TypeError, ValueError) as e:
             print(f'  skip incomplete job folder {d} ({e.__class__.__name__})', flush=True); continue
@@ -212,14 +238,17 @@ def recut(script, seeds):
         for k, s in enumerate(sc['sentences']):
             text, take = say_of(s), seeds.get(f'{sc["id"]}:{k}', 100 + 17 * j + k)
             path = os.path.join(CACHE, f'{key_of(text, take)}.wav'); side = path[:-4] + '.json'
-            rec = json.load(open(side)) if os.path.exists(side) else None
-            if rec and rec.get('text') == text and os.path.isfile(os.path.join(PROJ, rec.get('raw') or '')):
-                raw = os.path.join(PROJ, rec['raw'])
-                clip, why = process(raw)
-                if clip is not None:
-                    store(path, clip, text, take, rec.get('server_seed'), raw); kept += 1; continue
-                print(f'  {sc["id"]}:{k} its take fails now ({why})', flush=True)
-            elif os.path.exists(path):           # legacy take without a record: adopt a verified raw take of this text
+            rec = read_record(path)
+            if rec is not None or os.path.exists(side):    # a record exists (maybe malformed): only its own raw take counts
+                raw = os.path.join(PROJ, (rec or {}).get('raw') or '')
+                if rec and rec.get('text') == text and rec.get('voice') == VOICE and os.path.isfile(raw):
+                    clip, why = process(raw)
+                    if clip is not None:
+                        store(path, clip, text, take, rec.get('server_seed'), raw); kept += 1; continue
+                    print(f'  {sc["id"]}:{k} its take fails now ({why})', flush=True)
+                else:
+                    print(f'  {sc["id"]}:{k} its recorded raw take is gone or does not match', flush=True)
+            elif os.path.exists(path):           # legacy take without any record: adopt a verified raw take of this text
                 takes = takes if takes is not None else raw_takes()
                 found = None
                 for raw in takes.get(text, []):
