@@ -36,6 +36,12 @@ export const KIT_CLASSES = [
   'ui-notice',
   'ui-row',
   'ui-effort',
+  'ui-bento',
+  'ui-hatch',
+  'ui-kpi',
+  'ui-scroll-row',
+  'ui-date-tile',
+  'ui-icon-tile',
 ] as const;
 
 const T = (name: string): string => `var(--ui-${name})`;
@@ -64,6 +70,107 @@ const TONES: Array<[string, string, string]> = [
   ['done', T('st-done'), T('st-done')],
   ['fail', T('st-fail'), T('st-fail-text')],
 ];
+
+/**
+ * Dashboard layout (0.41.0): the pieces a dashboard page is laid out with — the bento grid, the hatch for what is
+ * planned or still to come, the inverse card, the KPI figure, the phone's scroll row, the date tile and the tinted
+ * icon tile. Patterns studied from a dashboard template and drawn in this kit's language; no code came with them.
+ */
+const dashKitCss = `
+/* ── Bento: cards on a 12-column grid that reflows by its own width (a container query — the grid's width decides,
+   not the viewport's): one column under 560px, halves to 900px, the spans from there. A cell spans with .is-span-<n>
+   (n = 2 … 12; 2–6 become a half, 7–12 the full width under 900px) and .is-tall takes two rows from 560px. Cells keep
+   the DOM order (the reading and Tab order); .is-dense back-fills holes — only where the order does not matter. ── */
+.ui-bento {
+  container: ui-bento / inline-size; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-flow: row;
+  gap: var(--ui-bento-gap, 16px); box-sizing: border-box; min-width: 0;
+}
+.ui-bento.is-dense { grid-auto-flow: row dense; }
+.ui-bento > * { grid-column: span 12; min-width: 0; }
+@container ui-bento (min-width: 560px) {
+  .ui-bento > :is(.is-span-2, .is-span-3, .is-span-4, .is-span-5, .is-span-6) { grid-column: span 6; }
+  .ui-bento > .is-tall { grid-row: span 2; }
+}
+@container ui-bento (min-width: 900px) {
+${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => `  .ui-bento > .is-span-${n} { grid-column: span ${n}; }`).join('\n')}
+}
+
+/* ── Hatch: thin diagonal lines in the ink — what is planned, held or still to come (a later run, an unused slot, a
+   goal bar not reached). Put it on any box; .is-outline adds the hairline of an empty slot. ── */
+.ui-hatch {
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, ${T('ib-text')} 16%, transparent) 0 1px, transparent 1px 6px);
+  background-color: color-mix(in srgb, ${T('ib-text')} 3%, transparent);
+}
+.ui-hatch.is-outline { box-shadow: inset 0 0 0 1px color-mix(in srgb, ${T('ib-text')} 18%, transparent); }
+
+/* ── Inverse card: the one card a dashboard leads with (the next run, the live incident) — the ink as its surface,
+   the card colour as its text; kit controls inside keep their own faces. ── */
+.ui-card.is-inverse { border-color: ${T('ib-text')}; background: ${T('ib-text')}; color: ${T('ib-card')}; box-shadow: ${T('ib-shadow-raised')}; }
+.ui-card.is-inverse > header { border-bottom-color: color-mix(in srgb, ${T('ib-card')} 16%, transparent); }
+.ui-card.is-inverse > header > :is(h1, h2, h3, h4) { color: ${T('ib-card')}; }
+.ui-card.is-inverse > header > p, .ui-card.is-inverse :is(small, .is-muted) { color: color-mix(in srgb, ${T('ib-card')} 66%, transparent); }
+
+/* ── KPI: a figure with its unit, what it is under it, and a round mark beside both —
+   <div class="ui-kpi"><span class="ui-kpi-mark">svg</span><strong>1.2M <small>tokens</small></strong><span>Spent today</span></div>
+   .is-accent fills the mark with the ink (the one to read first); data-tone tints it with a status. ── */
+.ui-kpi {
+  --ui-tone: ${T('ib-text')};
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 10px; box-sizing: border-box; min-width: 0;
+  color: ${T('ib-text')}; font-variant-numeric: tabular-nums;
+}
+.ui-kpi > .ui-kpi-mark {
+  grid-row: span 2; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: ${T('ib-card')}; box-shadow: inset 0 0 0 1px ${T('ib-card-border')}; color: var(--ui-tone);
+}
+.ui-kpi > .ui-kpi-mark > svg { width: 18px; height: 18px; }
+.ui-kpi > strong { min-width: 0; font-size: 20px; font-weight: 650; line-height: 1.15; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-kpi > strong > small { margin-left: 2px; font-size: 12px; font-weight: 500; letter-spacing: 0; color: ${T('ib-muted')}; }
+.ui-kpi > :not(.ui-kpi-mark):not(strong) { min-width: 0; font-size: 12px; line-height: 1.35; color: ${T('ib-muted')}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-kpi.is-accent > .ui-kpi-mark { background: ${T('ib-text')}; box-shadow: none; color: ${T('ib-card')}; }
+${TONES.map(([k, dot]) => `.ui-kpi[data-tone="${k}"] > .ui-kpi-mark { background: ${toneTint(dot)}; box-shadow: none; color: ${pick(dot, T('ib-text'))}; }`).join('\n')}
+
+/* ── Scroll row: a row of chips or figures that scrolls sideways (snapping) instead of wrapping into rows on a phone;
+   no scrollbar, the page never scrolls with it. .is-bleed runs it to the screen edge past the page padding
+   (--ui-bleed, default 16px); .is-wrap-wide wraps it again from 640px. ── */
+.ui-scroll-row {
+  display: flex; align-items: center; gap: 8px; box-sizing: border-box; min-width: 0; max-width: 100%;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ui-scroll-row::-webkit-scrollbar { display: none; }
+.ui-scroll-row > * { flex: none; scroll-snap-align: start; }
+.ui-scroll-row.is-bleed {
+  max-width: none; margin-inline: calc(-1 * var(--ui-bleed, 16px)); padding-inline: var(--ui-bleed, 16px); scroll-padding-inline: var(--ui-bleed, 16px);
+}
+@media (min-width: 640px) {
+  .ui-scroll-row.is-wrap-wide { flex-wrap: wrap; overflow: visible; }
+  .ui-scroll-row.is-wrap-wide.is-bleed { margin-inline: 0; padding-inline: 0; }
+}
+
+/* ── Date tile: the day big, the month small — <span class="ui-date-tile"><b>12</b><small>Nov</small></span>;
+   .is-accent is the ink tile (today, the next one). ── */
+.ui-date-tile {
+  display: inline-grid; flex: none; place-items: center; align-content: center; box-sizing: border-box; min-width: 44px; height: 48px;
+  padding: 0 6px; border-radius: 10px; background: ${T('ib-card')}; box-shadow: inset 0 0 0 1px ${T('ib-card-border')}; color: ${T('ib-text')};
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.ui-date-tile > b { font-size: 18px; font-weight: 650; letter-spacing: -0.02em; }
+.ui-date-tile > small { margin-top: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: ${T('ib-muted')}; }
+.ui-date-tile.is-accent { background: ${T('ib-text')}; box-shadow: none; color: ${T('ib-card')}; }
+.ui-date-tile.is-accent > small { color: color-mix(in srgb, ${T('ib-card')} 72%, transparent); }
+
+/* ── Icon tile: a glyph on a tinted rounded square — what kind each row of a feed is (a run, a message, a deploy);
+   data-tone tints it, without one it is the neutral pill. ── */
+.ui-icon-tile {
+  --ui-tone: ${T('ib-text-2')};
+  display: inline-grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 9px;
+  background: ${T('ib-pill')}; color: var(--ui-tone);
+}
+.ui-icon-tile > svg { width: 16px; height: 16px; }
+.ui-icon-tile.is-sm { width: 24px; height: 24px; border-radius: 7px; }
+.ui-icon-tile.is-sm > svg { width: 14px; height: 14px; }
+${TONES.map(([k, dot]) => `.ui-icon-tile[data-tone="${k}"] { --ui-tone: ${pick(dot, T('ib-text-2'))}; background: ${toneTint(dot)}; }`).join('\n')}
+`;
 
 /**
  * Page parts (0.9.0): form fields, the switch, the card a settings group sits in, the notice banner and the list
@@ -491,4 +598,5 @@ ${effortTextCss((level) => `.ui-effort[data-effort="${level}"]`, T, 'ui-effort')
 .ui-owner-badge { display: inline-block; max-inline-size: 168px; vertical-align: middle; }
 ${ownerBadgeCss('.ui-owner-badge', T, 'ui-owner-badge')}
 
-${pageKitCss}`;
+${pageKitCss}
+${dashKitCss}`;

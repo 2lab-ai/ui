@@ -80,6 +80,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('board width (0.41.0)', () => {
+  it('three columns fit side by side from 720px of board; below, they scroll sideways and snap', () => {
+    const css = monoStyles.replace(/\s+/g, ' ');
+    expect(css).toContain(
+      '@container ib (max-width: 719px) { .ib:not([data-view="list"]) .ib-board { grid-template-columns: repeat(var(--ib-cols, 3), minmax(min(300px, 84cqi), 1fr)); overflow-x: auto; scroll-snap-type: x mandatory;',
+    );
+    expect(css).not.toContain('@container ib (max-width: 839px)');
+  });
+});
+
 describe('pure helpers', () => {
   it('holds a card whose column changed until the deadline, then lets it go', () => {
     const first = holdLanes({ a: 'done' }, { a: 'running' }, {}, 1000, true);

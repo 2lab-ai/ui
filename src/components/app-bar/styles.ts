@@ -7,9 +7,12 @@
  * when it does not — on the same translucent surface, one hairline between the two.
  */
 export const styles = `
+/* overflow-x: clip — the first frames draw every part inline before the bar has measured and folded: clipped, that
+   width never reaches the page, so a phone's layout viewport does not widen to it (and a page reading its width
+   then, as a view default does, reads the phone's). Clip, not hidden: no scroll box, and the y axis stays visible. */
 :host {
   position: sticky; top: 0; z-index: var(--ui-app-bar-z, 30); isolation: isolate; height: 56px;
-  border-bottom: 1px solid var(--border); color: var(--ib-text);
+  border-bottom: 1px solid var(--border); color: var(--ib-text); overflow-x: clip;
 }
 /* The translucent layer is a pseudo-element, not the host: backdrop-filter on the host would make it the
    containing block of its position: fixed descendants, and the folded menu would be clipped by any scrolling

@@ -1265,6 +1265,10 @@ describe('D2 gaps: toolbar row, link title, brand heading, status description', 
     expect(el.hasAttribute('toolbar-row')).toBe(false);
   });
 
+  it('styles: the host clips its own width, so an unfolded first frame never widens the page (0.41.0)', () => {
+    expect(styles).toMatch(/:host \{[^}]*overflow-x: clip;/);
+    expect(styles).not.toMatch(/:host \{[^}]*overflow(-x)?: hidden/);
+  });
   it('styles: the row is the bar’s surface under a hairline, wraps, and grows the sticky host', () => {
     expect(styles).toMatch(/:host\(\[toolbar-row\]\) \{ height: auto; \}/);
     expect(styles).toMatch(/:host\(\[toolbar-row\]\) \.ab-row \{ display: flex; flex-wrap: wrap/);
