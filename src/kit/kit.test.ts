@@ -12,6 +12,8 @@ const KNOWN = new Set([
   'tone',
   'select-max',
   'owner-badge-hue',
+  'bento-gap',
+  'bleed',
 ]);
 
 describe('ui-kit.css', () => {
@@ -275,6 +277,35 @@ describe('ui-kit.css', () => {
     expect(kitCss.slice(0, kitCss.indexOf('@media (prefers-reduced-motion: reduce)'))).not.toContain(
       '.ui-spinner::after',
     );
+  });
+
+  it('dashboard layout (0.41.0): the bento reflows by its own width, the hatch, the inverse card, the KPI, the scroll row, tiles', () => {
+    const css = kitCss.replace(/\s+/g, ' ');
+    for (const c of ['ui-bento', 'ui-hatch', 'ui-kpi', 'ui-scroll-row', 'ui-date-tile', 'ui-icon-tile'])
+      expect(KIT_CLASSES).toContain(c);
+    // A container query on the grid, not a viewport one: a bento in a side panel reflows like one on a phone.
+    expect(css).toContain('container: ui-bento / inline-size');
+    expect(css).toMatch(
+      /@container ui-bento \(min-width: 560px\) \{ \.ui-bento > :is\(\.is-span-2, [^)]*\) \{ grid-column: span 6; \}/,
+    );
+    expect(css).toContain('.ui-bento > .is-span-4 { grid-column: span 4; }');
+    expect(css).toContain('.ui-bento > * { grid-column: span 12; min-width: 0; }');
+    // The DOM order is the reading order unless the host opts into back-filling.
+    expect(css).toMatch(/\.ui-bento \{[^}]*grid-auto-flow: row;/);
+    expect(css).toContain('.ui-bento.is-dense { grid-auto-flow: row dense; }');
+    expect(css).toContain('.ui-hatch { background-image: repeating-linear-gradient(135deg');
+    expect(css).toContain(
+      '.ui-card.is-inverse { border-color: var(--ui-ib-text); background: var(--ui-ib-text); color: var(--ui-ib-card);',
+    );
+    expect(css).toMatch(/\.ui-kpi\[data-tone="fail"\] > \.ui-kpi-mark \{ background: color-mix/);
+    // The phone's row scrolls sideways without a scrollbar and never drags the page; it may wrap again on wide screens.
+    expect(css).toMatch(
+      /\.ui-scroll-row \{[^}]*overflow-x: auto;[^}]*overscroll-behavior-x: contain;[^}]*scrollbar-width: none;/,
+    );
+    expect(css).toContain(
+      '@media (min-width: 640px) { .ui-scroll-row.is-wrap-wide { flex-wrap: wrap; overflow: visible; }',
+    );
+    expect(css).toMatch(/\.ui-icon-tile\[data-tone="done"\] \{ --ui-tone: color-mix/);
   });
 
   it('parses as CSS in the DOM', () => {

@@ -1,0 +1,33 @@
+export type {
+  DotAt,
+  DotCell,
+  DotCellModel,
+  DotCounts,
+  DotGridData,
+  DotLang,
+  DotRow,
+  DotRowModel,
+  DotSelect,
+  DotSize,
+  DotState,
+  DotStrings,
+} from './dot-grid';
+export { UiDotGrid } from './dot-grid';
+export {
+  DOT_STATES,
+  DOT_STRINGS,
+  dotAria,
+  dotColumns,
+  dotCounts,
+  dotLang,
+  dotLegend,
+  dotMove,
+  dotRows,
+  dotSize,
+  dotState,
+  dotStrings,
+  dotSummary,
+  dotTip,
+  dotWord,
+  dotWrap,
+} from './logic';

@@ -53,8 +53,10 @@ export const styles = `
 .ib[data-view="list"] .ib-col-name { flex: 0 1 auto; text-align: left; }
 .ib[data-view="list"] .ib-summary { -webkit-line-clamp: 1; }
 .ib[data-view="list"] .ib-empty { padding: 10px 8px 16px; }
-/* Narrow board: the columns scroll sideways inside the board (the page never scrolls sideways). */
-@container ib (max-width: 839px) {
+/* Narrow board: the columns scroll sideways inside the board (the page never scrolls sideways). From 720px the three
+   columns fit side by side (232px or more each — a tablet held upright, 768–834px, sees the whole board); below, each
+   column is 300px (or 84% of the board) and snaps. */
+@container ib (max-width: 719px) {
   .ib:not([data-view="list"]) .ib-board {
     grid-template-columns: repeat(var(--ib-cols, 3), minmax(min(300px, 84cqi), 1fr));
     overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; padding-bottom: 8px;
