@@ -244,7 +244,7 @@ function renderAt(t) {
   // title card during the lead
   const tc = win(t, sc.start, sc.start + sc.lead, 0.35, 0.45);
   const isFirst = sc.id === ORDER[0];
-  if (tc > 0 && typeof TITLE_CARD === 'function') TITLE_CARD(sc, tc, isFirst, t - sc.start);
+  if (tc > 0 && typeof TITLE_CARD === 'function') { ctx.save(); try { TITLE_CARD(sc, tc, isFirst, t - sc.start); } finally { ctx.restore(); } }
   else if (tc > 0) {
     const big = isFirst ? 92 : 76;
     text(sc.title, W / 2, H / 2 - (sc.subtitle ? 30 : 0), { size: big, a: tc, weight: THEME.titleWeight || 500 });

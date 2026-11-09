@@ -48,9 +48,10 @@ function inkPath(pts, { color = null, w = 4, p = 1, closed = false, jit = 1.4, s
   withAlpha(a, () => {
     ctx.save();
     if (fill && p > 0.6) {
-      ctx.globalAlpha *= fillA * smooth((p - 0.6) / 0.4);
+      const g = ctx.globalAlpha;
+      ctx.globalAlpha = g * fillA * smooth((p - 0.6) / 0.4);
       ctx.fillStyle = fill; ctx.beginPath(); q.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha /= fillA * smooth((p - 0.6) / 0.4) || 1;
+      ctx.globalAlpha = g;
     }
     ctx.strokeStyle = color || INK(); ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (dash) ctx.setLineDash(dash);
@@ -152,7 +153,7 @@ function figure(x, y, o = {}) {
   const { s = 1, pose = 'stand', face = 'smile', p = 1, a = 1, flip = false, t = 0, walk = 0, sit = false,
     tie = false, glasses = false, hair = false, helmet = false, shell = false, snout = false, hat = false,
     blindfold = false, look = 0, color = null, w = 4.2 } = o;
-  if (p <= 0 || a <= 0) return;
+  if (p <= 0 || a <= 0 || s <= 0) return;
   const P = POSES[pose] || POSES.stand;
   const ink = color || INK();
   const F = (dx, dy) => [x + (flip ? -dx : dx) * s, y + dy * s];   // local -> screen
