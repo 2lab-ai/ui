@@ -10,6 +10,7 @@
 // ---------- roles ----------
 const INK = () => C.ink || C.text;
 const KEY = () => C.key || C.blue;
+const MARK = () => C.red || C.orange || C.text;
 const PAPER = () => C.bg;
 const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 
@@ -347,11 +348,11 @@ function signCard(sc, a, isFirst, lt = 9) {
 // red marks
 function cross(x, y, w, h, { p = 1, a = 1, color = null, lw: lw0 = 6, w: wq = null } = {}) {
   const lw = wq ?? lw0;
-  inkLine(x, y, x + w, y + h, { p: clamp01(p * 2), a, w: lw, color: color || C.red });
-  inkLine(x + w, y, x, y + h, { p: clamp01(p * 2 - 1), a, w: lw, color: color || C.red });
+  inkLine(x, y, x + w, y + h, { p: clamp01(p * 2), a, w: lw, color: color || MARK() });
+  inkLine(x + w, y, x, y + h, { p: clamp01(p * 2 - 1), a, w: lw, color: color || MARK() });
 }
-const ring = (cx, cy, rx, ry, { p = 1, a = 1, color = null, lw = 5, w = null } = {}) => inkEllipse(cx, cy, rx, ry, { p, a, w: w ?? lw, color: color || C.red, start: -2.4 });
-const underline = (x1, x2, y, { p = 1, a = 1, color = null, lw = 5, w = null } = {}) => inkLine(x1, y, x2, y + 3, { p, a, w: w ?? lw, color: color || C.red });
+const ring = (cx, cy, rx, ry, { p = 1, a = 1, color = null, lw = 5, w = null } = {}) => inkEllipse(cx, cy, rx, ry, { p, a, w: w ?? lw, color: color || MARK(), start: -2.4 });
+const underline = (x1, x2, y, { p = 1, a = 1, color = null, lw = 5, w = null } = {}) => inkLine(x1, y, x2, y + 3, { p, a, w: w ?? lw, color: color || MARK() });
 // picture-equation signs
 function eqSign(x, y, { p = 1, a = 1, s = 1, color = null } = {}) {
   inkLine(x - 34 * s, y - 14 * s, x + 34 * s, y - 14 * s, { p: clamp01(p * 2), a, w: 7 * s, color: color || KEY() });

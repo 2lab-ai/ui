@@ -49,7 +49,7 @@ def youtube_chapters(tl):
     """'0:00 title' lines (YouTube needs the first at 0:00 and at least 10 s per chapter)."""
     lines = []
     for i, sc in enumerate(tl['scenes']):
-        t = 0 if i == 0 else int(sc['start'])
+        t = 0 if i == 0 else int(round(sc['start']))
         h, m, s_ = t // 3600, t // 60 % 60, t % 60
         stamp = f'{h}:{m:02d}:{s_:02d}' if h else f'{m}:{s_:02d}'
         lines.append(f'{stamp} {chapter_title(sc)}')
@@ -119,8 +119,10 @@ async def render_slice(port, f0, f1, path):
         for i in range(f0, f1):
             enc.stdin.write(await frame_jpeg(page, i / FPS))
         enc.stdin.close(); enc.wait()
+        miss = await page.evaluate('window.missingCues()')
         await browser.close()
         if errs: print('PAGE ERRORS', path, errs[:3])
+        if miss: print('MISSING CUES', path, miss[:10])
 
 async def video(slices=12, t_from=0.0, t_to=None, name=None):
     name = name or json.load(open(os.path.join(HERE, 'project.json'))).get('slug', 'explainer')
