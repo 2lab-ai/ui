@@ -91,10 +91,12 @@ function host(el: El, opts: HostOpts = {}): El {
     const { id } = (e as CustomEvent<SteeringItemDetail>).detail;
     if (opts.refuseOnce && !refused) {
       refused = true;
+      // Rolled back to the state the note had (a delivered one stays delivered).
+      const was = el.data?.items?.find((i) => i.id === id)?.state ?? 'queued';
       later(700, () =>
         el.setItemState(
           id,
-          'queued',
+          was,
           opts.ko
             ? '다른 메시지를 보내는 중입니다 — 잠시 후 다시'
             : 'Another message is being sent — try again in a moment',
@@ -306,7 +308,7 @@ export const doc: ComponentDoc = {
       name: 'ui-cancel',
       detail: '{ id }',
       description:
-        "Cancel a queued, delivered (steered — withdraw it before the agent reads it) or failed note (id may be a submit ref). Cancelable; the note leaves at once — a host that was too late brings it back with setItemState(id, 'steered', why).",
+        "Cancel a queued, delivered (steered — withdraw it before the agent reads it) or failed note (id may be a submit ref). Cancelable; the note leaves at once — a host that was too late brings it back with setItemState(id, 'steered', why), or lets its next list settle it.",
     },
   ],
   keyboard: [
@@ -314,6 +316,10 @@ export const doc: ComponentDoc = {
     ['⌘/Ctrl + Enter', 'Hand the note to the running turn now (idle: send)'],
     ['Shift + Enter', 'New line (on touch screens Enter is a new line too; the button sends)'],
     ['Esc', 'Clear the field (an empty field lets Esc reach the page); in an edit box: stop editing'],
+    [
+      'Enter / Space held (a note’s button)',
+      'Acts once: a held key does not repeat onto the next note (after a Cancel, focus is on its Send now)',
+    ],
     ['Enter / Space (dock)', 'Open the queue pinned, focus on its first note; again closes it'],
     ['Esc (queue open)', 'Close the queue, focus back on the dock (the page sees the key as used)'],
     ['Enter / Esc (editing)', 'Save the edit / keep the original'],
@@ -347,7 +353,8 @@ export const doc: ComponentDoc = {
     const res = await post('/session/' + key + '/followup/' + e.detail.id + '/send-now');
     if (!res.ok) el.setItemState(e.detail.id, 'queued', await res.text());   // roll back and say why
   });
-  // ui-edit { id, text } → editQueued, ui-cancel { id } → cancelItem. The pushed list confirms each one.
+  // ui-edit { id, text } → editQueued, ui-cancel { id } → cancelItem (a steered note: the SDK withdraws it first,
+  // then cancelSteered — or it was read, and the next list settles it). The pushed list confirms each one.
 </script>`,
   demos: [
     {
