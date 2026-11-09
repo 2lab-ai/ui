@@ -38,6 +38,8 @@ SPACED_COUNTERS = sorted(set(NATIVE_COUNTERS + SINO_COUNTERS) - {'분'}, key=len
 PARTICLE = re.compile(r'$|[^가-힣]|(?:을|를|이|가|은|는|에|의|와|과|도|만|로|으로|까지|부터|이나|나|처럼|보다|씩|마다|'
                       r'쯤|뿐|밖에|이면|면|이고|이에요|예요|이죠|죠|입니다|이다|였|이었|째)')
 POINT = '쩜'
+# months that drop a final consonant when spoken: 6월 is 유월 (not 육 월), 10월 is 시월 (not 십 월)
+IRREGULAR_MONTHS = {6: '유', 10: '시'}
 SYMBOLS = {'%': ' 퍼센트', '+': ' 더하기 ', '×': ' 곱하기 ', '÷': ' 나누기 ', 'π': '파이', '≈': ' 약 '}
 ALLOWED = re.compile(r"[가-힣\s.,?!…'\"‘’“”·;()]")
 
@@ -97,6 +99,8 @@ def _number(m, rest):
         elif n >= 1 and counter_after(rest, NATIVE_COUNTERS):
             # 101개 -> 백한 개: hundreds and up stay Sino, the last two digits go native
             s = native(n) if n <= 99 else sino(n - n % 100) + (native(n % 100) if n % 100 else '')
+        elif n in IRREGULAR_MONTHS and rest.startswith('월') and not rest.startswith('월요'):
+            return IRREGULAR_MONTHS[n]                # 6월 -> 유월, 10월 -> 시월 (written joined, as spoken)
         else:
             s = sino(n)
     if neg: s = '마이너스 ' + s
