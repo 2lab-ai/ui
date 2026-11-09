@@ -88,6 +88,10 @@ Designs — whole looks for a site built with these parts (0.38.0): `data-design
 every element and kit class, locked to the design's color scheme, and `designs/<id>/DESIGN.md` in this repository holds its tone & manner
 (layout, type, composition, an acceptance list). Start at [`designs/README.md`](designs/README.md); docs site builds from 0.38.0 show them at https://2lab.ai/ui/docs/designs.
 
+Explainer kit — 3Blue1Brown-style explainer videos (a canvas engine with one clock, formula write-on, subtitles, narration with
+filler padding, a synthesised score, export to 1080p MP4) in the library's look: theme `mono-black` is the Modern Mono design.
+Not in the npm package; it lives in [`explainer/`](explainer/README.md) and the `make-3b1b` skill drives it.
+
 | Design | Attribute | Look |
 |---|---|---|
 | Modern Mono | `data-design="modern-mono"` | Near-black canvas, white type, aligned figures; colour only for meaning — green up, red down, yellow favourite, lavender focus (dark only) |
