@@ -34,7 +34,7 @@ explainer/
 │   └── blade/           ssh helpers for blade-4090 (WSL runs behind the Windows host)
 └── examples/
     ├── euler-identity/  "오일러 항등식의 역사" — script.json, scenes.js, formulas.py, project.json
-    └── geb/             "괴델, 에셔, 바흐" docent book (theme sketch, docent.js, 31 min, 12 chapters, ~440 shots)
+    └── geb/             "괴델, 에셔, 바흐" docent book (theme sketch, docent.js, 12 chapters, ~440 shots; 30:31 narrated)
 ```
 
 ## A project folder
@@ -126,7 +126,7 @@ SCENES.miu = (t, q) => shots(t, [
 ]);
 ```
 
-Worked example: `examples/geb` ('Gödel, Escher, Bach', 30 minutes). Its scenes.js starts with shared helpers
+Worked example: `examples/geb` ('Gödel, Escher, Bach'; 30:31 once narrated with cwon). Its scenes.js starts with shared helpers
 (`tiles`, `ruleCard`, `pqString`, `penrose`, `drawingHands`, `screenLoop`, `dolls`, `antBand`) and then one block per
 chapter, about one shot per 4 seconds.
 
