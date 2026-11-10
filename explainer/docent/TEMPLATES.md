@@ -3,6 +3,8 @@
 Copy-and-adapt recipes for the beats every book video needs. Each one passes the gates in
 [REFERENCE.md](REFERENCE.md) §8 as written (they are linted in `docent-lab`). `lt` = seconds since the shot started.
 When a template produces a defect, fix the template here in the same PR as the scene fix, and log it in LESSONS.md.
+Timing rule for every recipe: everything in a shot finishes drawing by 60 % of the shot's length (a 2 s shot: by
+1.2 s), or the lint reports it half-drawn at rest.
 
 Map: S script.json · T1 cast block · T2 dialogue · T3 three people · T4 inner voice · T5 named idea · T6 picture
 equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd
@@ -73,7 +75,7 @@ think(b, '또 시작이네…', { p: dp(lt, 1.6, 0.4) });
 [q.w('개미핥기', 4), (t, lt) => {
   const z = animal('anteater', 820, 820, { s: 1.3, p: dp(lt, 0, 1.0), tag: '개미핥기' });
   for (let i = 0; i < 5; i++) ant(1380 + i * 90, 820, { t, dir: -1 });
-  say(z, '개미 군락은 대화 상대야', { p: dp(lt, 1.2, 0.4) });   // animals talk like people
+  say(z, '개미 군락은 대화 상대야', { p: dp(lt, 0.8, 0.3) });   // animals talk like people
 }],
 ```
 
@@ -98,7 +100,7 @@ think(b, '또 시작이네…', { p: dp(lt, 1.6, 0.4) });
 
 ## T10. List
 ```js
-[q.s(2), (t, lt) => scrollList(660, 150, 600, '네 가지 규칙', ['하나', '둘', '셋', '넷'], { p: dp(lt, 0, 2.0), mark: [2] })],
+[q.s(2), (t, lt) => scrollList(660, 150, 600, '네 가지 규칙', ['하나', '둘', '셋', '넷'], { p: dp(lt, 0, 1.4), mark: [2] })],
 ```
 
 ## T11. Crowd (people who are not characters)

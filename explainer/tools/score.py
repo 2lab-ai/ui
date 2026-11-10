@@ -5,7 +5,8 @@ Run inside a project folder after the real timeline exists (a draft timeline wor
 
 - Every chapter (scene) gets a mood: script.json scene "mood" (wonder curious tension triumph melancholy playful
   reflective urgent warm mystery epic-calm nostalgic), else one is guessed from the scene's words, else the chapter's
-  place in the video decides. A sentence may carry "music": "<mood>" to change cue exactly there (a turn in the story).
+  place in the video decides. A sentence may carry "music": "<mood>" to change cue exactly there (a turn in the story); that mood then
+  holds to the end of the chapter.
 - A chapter is cut into sections of about --target seconds at sentence starts; each section gets a different cue from
   explainer/music/cues.json. Inside a chapter the cues stay related (same mood family, a near key, the same pad when
   possible) and cross-fade over 2.5 s at a sentence gap; a new chapter starts a new key and instrument on its title
@@ -29,14 +30,14 @@ WORDS = {   # Korean cue words -> mood (a scene's text votes; ties go to the cha
     'tension': ['위기', '실패', '폭발', '위험', '두려', '불안', '갈등', '전쟁', '싸움', '경고', '파산', '추락', '모순', '역설'],
     'urgent': ['서둘', '급하', '마감', '시간이 없', '속도', '빨리', '지옥', '밤새', '24시간', '긴급'],
     'triumph': ['성공', '승리', '착륙', '해냈', '돌파', '최초', '우승', '환호', '기록'],
-    'melancholy': ['죽음', '슬픔', '잃', '외로', '눈물', '이별', '상처', '고통', '후회'],
-    'playful': ['장난', '농담', '웃', '게임', '놀이', '재미', '엉뚱', '말장난', '퍼즐'],
+    'melancholy': ['죽음', '슬픔', '잃어', '잃은', '외로', '눈물', '이별', '상처', '고통', '후회'],
+    'playful': ['장난', '농담', '웃음', '웃기', '게임', '놀이', '재미', '엉뚱', '말장난', '퍼즐'],
     'reflective': ['생각해', '돌아보', '의미', '깨달', '질문', '마음', '조용', '천천히'],
-    'warm': ['가족', '친구', '사랑', '함께', '고마', '따뜻', '아이', '엄마', '아빠'],
+    'warm': ['가족', '친구', '사랑', '함께', '고마', '따뜻', '아이들', '엄마', '아빠'],
     'mystery': ['비밀', '수수께끼', '이상한', '미스터리', '숨겨', '정체', '알 수 없', '무한'],
-    'wonder': ['우주', '별', '미래', '꿈', '상상', '아름다', '놀라운', '신비', '로켓'],
-    'curious': ['왜', '어떻게', '궁금', '실험', '발견', '탐구', '규칙', '원리'],
-    'epic-calm': ['역사', '문명', '세대', '거대', '시대', '인류', '산', '바다'],
+    'wonder': ['우주', '별빛', '별들', '미래', '꿈을', '상상', '아름다', '놀라운', '신비', '로켓'],
+    'curious': ['왜 ', '어떻게', '궁금', '실험', '발견', '탐구', '규칙', '원리'],
+    'epic-calm': ['역사', '문명', '세대', '거대한', '시대', '인류', '산맥', '바다'],
     'nostalgic': ['어린 시절', '어릴', '추억', '옛날', '그때', '고향', '처음으로'],
 }
 ARC = ['curious', 'warm', 'mystery', 'playful', 'tension', 'epic-calm', 'nostalgic', 'triumph', 'melancholy', 'urgent', 'wonder', 'reflective']
@@ -58,21 +59,30 @@ def chapter_moods(script, tl):
         out.append(m); prev = m
     return out
 
-def sections(sc, src, target):
-    """Cut a scene into sections at sentence starts, about `target` s each (forced cuts at "music")."""
+def sections(sc, src, target, shortest=10.0):
+    """Cut a scene into sections at sentence starts, about `target` s each. A sentence with "music" forces a cut there
+    and its mood holds to the end of the chapter (the story turned). Sections shorter than `shortest` s join the one
+    before (a cue needs room to reach its cadence)."""
     sents = sc['sentences']; start, end = sc['start'], sc['start'] + sc['dur']
     srcs = src.get('sentences', []) if src else []
-    cuts, last = [start], start
+    forced_at = {k: srcs[k]['music'] for k in range(1, min(len(srcs), len(sents))) if srcs[k].get('music') in ML.MOODS}
+    cuts, last = [(start, None)], start
     for k, s in enumerate(sents[1:], 1):
-        forced = k < len(srcs) and srcs[k].get('music')
-        if forced or (s['start'] - last >= target and end - s['start'] >= target * 0.5):
-            cuts.append(s['start']); last = s['start']
-    out = []
-    for i, c in enumerate(cuts):
-        e = cuts[i + 1] if i + 1 < len(cuts) else end
-        k = next((j for j, s in enumerate(sents) if abs(s['start'] - c) < 1e-3), 0)
-        forced = k < len(srcs) and srcs[k].get('music')
-        out.append({'start': c, 'end': e, 'mood': forced if forced in ML.MOODS else None, 'sentence': k})
+        if k in forced_at or (s['start'] - last >= target and end - s['start'] >= target * 0.5):
+            cuts.append((s['start'], forced_at.get(k))); last = s['start']
+    merged = []
+    for c, m in cuts:
+        if merged and c - merged[-1][0] < shortest and not m: continue
+        if merged and c - merged[-1][0] < shortest and m: merged[-1] = (merged[-1][0], m); continue
+        merged.append((c, m))
+    if len(merged) > 1 and end - merged[-1][0] < shortest:
+        last_m = merged.pop()[1]
+        if last_m: merged[-1] = (merged[-1][0], last_m)
+    out, held = [], None
+    for i, (c, m) in enumerate(merged):
+        e = merged[i + 1][0] if i + 1 < len(merged) else end
+        held = m or held
+        out.append({'start': c, 'end': e, 'mood': held, 'forced': bool(m)})
     return out
 
 def related(a, b):
@@ -86,9 +96,11 @@ def plan(script, tl, target=35.0):
         src = next((s for s in script['scenes'] if s['id'] == sc['id']), {})
         secs = sections(sc, src, target); anchor = None; prev = None
         for si, sec in enumerate(secs):
-            mood = sec['mood'] or (moods[ci] if si % 2 == 0 else NEAR[moods[ci]][(si // 2) % 3])
-            pool = ([c for c in cues if c['mood'] == mood and c['id'] not in used] or [c for c in cues if c['id'] not in used]
-                    or [c for c in cues if c['mood'] == mood])   # > 120 sections: reuse, rendered with another seed
+            base = sec['mood'] or moods[ci]
+            mood = base if (sec['forced'] or si % 2 == 0) else NEAR[base][(si // 2) % 3]
+            pool = ([c for c in cues if c['mood'] == mood and c['id'] not in used]
+                    or [c for c in cues if c['mood'] in NEAR[mood] and c['id'] not in used]
+                    or [c for c in cues if c['mood'] == mood])   # the family is used up: reuse, rendered with another seed
             def cost(c):
                 k = 0
                 if prev is not None: k += 0 if related(c['key'], prev['key']) else 6
@@ -99,8 +111,9 @@ def plan(script, tl, target=35.0):
                 return k + (abs(c['bpm'] - prev['bpm']) / 20 if prev else 0)
             c = min(pool, key=lambda c: (cost(c), c['id']))
             used.add(c['id']); anchor = anchor or c['pad']; prev = c
+            reuse = sum(1 for p in out if p['cue'] == c['id'])
             out.append({'scene': sc['id'], 'chapter': ci, 'section': si, 'start': round(sec['start'], 3), 'end': round(sec['end'], 3),
-                        'mood': mood, 'cue': c['id'], 'name': c['name'], 'chapter_start': si == 0})
+                        'mood': c['mood'], 'asked': mood, 'cue': c['id'], 'seed': reuse, 'name': c['name'], 'chapter_start': si == 0})
         prev_ch = prev
     return out
 
@@ -114,7 +127,7 @@ def assemble(pl, total, lufs=-20.0):
             t0 = s['start'] - (XF / 2 if not s['chapter_start'] else 0.0)
             t1 = s['end'] + (XF / 2 if joined else 0.0)
             path = os.path.join(td, f'{i}.wav')
-            ML.render(cat[s['cue']], t1 - t0, path, seed=i)
+            ML.render(cat[s['cue']], t1 - t0, path, seed=s.get('seed', 0))
             a, _ = ML.wav_read(path)
             L = len(a); env = np.ones(L, np.float32); x = int(XF * ML.SR)
             if not s['chapter_start'] and L > x: env[:x] *= np.sin(np.linspace(0, np.pi / 2, x)) ** 1
@@ -131,9 +144,12 @@ def assemble(pl, total, lufs=-20.0):
 def cue_sheet(pl):
     lines = ['# Cue sheet', '', f'{len(pl)} sections, {len({p["cue"] for p in pl})} distinct cues, '
              f'{len({p["mood"] for p in pl})} moods', '', '| time | chapter | mood | cue | music |', '|---|---|---|---|---|']
+    # mood = the cue's own mood (asked for something else only when that family was used up)
     for p in pl:
         m, s = divmod(int(p['start']), 60)
-        lines.append(f"| {m}:{s:02d} | {p['scene']}{' (new chapter)' if p['chapter_start'] else ''} | {p['mood']} | {p['cue']} | {p['name']} |")
+        asked = f" (asked {p['asked']})" if p.get('asked') and p['asked'] != p['mood'] else ''
+        again = f" · again, seed {p['seed']}" if p.get('seed') else ''
+        lines.append(f"| {m}:{s:02d} | {p['scene']}{' (new chapter)' if p['chapter_start'] else ''} | {p['mood']}{asked} | {p['cue']}{again} | {p['name']} |")
     return '\n'.join(lines) + '\n'
 
 if __name__ == '__main__':

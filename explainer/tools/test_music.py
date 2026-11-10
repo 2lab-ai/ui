@@ -31,16 +31,17 @@ class Catalogue(unittest.TestCase):
         self.assertEqual(len(n), 12); self.assertTrue(all(v >= 10 for v in n.values()))
 
     def test_catalogue_file_matches_builder(self):
-        self.assertEqual([c['id'] for c in ML.build()], [c['id'] for c in self.cues])
+        self.assertEqual(ML.build(), self.cues, 'music/cues.json is stale: run music_lib.py build')
 
 
 class Composer(unittest.TestCase):
     def test_every_cue_ends_on_its_home_chord_and_fits(self):
         for c in ML.catalogue():
-            for dur in (12.0, 37.5, 95.0):
+            for dur in (5.0, 6.0, 8.0, 12.0, 37.5, 95.0):
                 ev, length = ML.compose(c, dur)
                 self.assertLessEqual(max(st for st, *_ in ev), dur, c['id'])
                 last = max(st for st, _, ch, *_ in ev if ch == 0)
+                self.assertLessEqual(last, dur - 1.5 + 1e-6, f"{c['id']} {dur}: home chord at {last:.2f}s, after the fade starts")
                 pads = sorted({e[4] % 12 for e in ev if e[0] == last and e[2] == 0})
                 home = (c['key'] + ML.SCALES[c['mode']][0]) % 12
                 self.assertIn(home, pads, f"{c['id']} {dur}: last chord {pads} lacks the tonic {home}")
@@ -70,14 +71,31 @@ class Planner(unittest.TestCase):
             self.assertAlmostEqual(mine[-1]['end'], sc['start'] + sc['dur'], 3)
             self.assertGreaterEqual(len(mine), 2)   # a 75 s chapter changes cue at least once
 
+    def test_every_section_reports_its_cue_mood(self):
+        tl = tl_of(30, 12, 6.0); script = {'scenes': [{'id': s['id'], 'mood': 'mystery', 'sentences': []} for s in tl['scenes']]}
+        cat = {c['id']: c for c in ML.catalogue()}
+        for p in score.plan(script, tl, 20.0):
+            self.assertEqual(p['mood'], cat[p['cue']]['mood'])
+            self.assertIn(p['mood'], ['mystery'] + score.NEAR['mystery'] + [m for x in score.NEAR['mystery'] for m in score.NEAR[x]])
+
+    def test_short_sections_are_merged(self):
+        tl = tl_of(1, 12, 6.0)
+        script = {'scenes': [{'id': 's0', 'sentences': [{'text': 'a'}, {'text': 'b', 'music': 'tension'}] + [{'text': 'c'}] * 10}]}
+        secs = score.sections(tl['scenes'][0], script['scenes'][0], 30.0)
+        self.assertTrue(all(s['end'] - s['start'] >= 10.0 for s in secs), secs)
+        self.assertEqual(secs[0]['mood'], 'tension')   # the forced mood moved onto the merged section
+
     def test_mood_and_forced_change(self):
         tl = tl_of(2)
         script = {'scenes': [{'id': 's0', 'mood': 'tension', 'sentences': [{'text': 'a'}] * 5 + [{'text': 'b', 'music': 'triumph'}] + [{'text': 'c'}] * 6},
                              {'id': 's1', 'mood': 'warm', 'sentences': [{'text': 'a'}] * 12}]}
         pl = score.plan(script, tl, 30.0)
         self.assertEqual(pl[0]['mood'], 'tension')
-        forced = [p for p in pl if p['scene'] == 's0' and abs(p['start'] - tl['scenes'][0]['sentences'][5]['start']) < 1e-3]
+        t5 = tl['scenes'][0]['sentences'][5]['start']
+        forced = [p for p in pl if p['scene'] == 's0' and abs(p['start'] - t5) < 1e-3]
         self.assertEqual(forced[0]['mood'], 'triumph')
+        after = [p for p in pl if p['scene'] == 's0' and p['start'] > t5]
+        self.assertTrue(all(p['asked'] in ['triumph'] + score.NEAR['triumph'] for p in after), after)   # the turn holds
         self.assertEqual([p for p in pl if p['scene'] == 's1'][0]['mood'], 'warm')
 
     def test_more_sections_than_cues_still_plans(self):

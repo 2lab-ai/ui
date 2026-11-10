@@ -20,15 +20,26 @@ const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 // start of every renderAt, so the registry always describes exactly one frame.
 const SUB_Y = 905;   // ink below this line sits under the subtitle box
 const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people'];
-const DOCENT = { t: 0, shot: null };
-function DOCENT_FRAME(t) { DOCENT.t = t; DOCENT.shot = null; for (const k of DOCENT_KINDS) DOCENT[k] = []; }
+const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0 };
+function DOCENT_FRAME(t) { DOCENT.t = t; DOCENT.shot = null; for (const k of DOCENT_KINDS) DOCENT[k] = [];
+  DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [] }; }   // slots: where things are or will be (placement)
 DOCENT_FRAME(0);
 function docentNote(kind, what) { if (DOCENT[kind].length < 40) DOCENT[kind].push(what); }
 function docentReport() {
   const far = DOCENT.tails.filter(([tx, ty]) => !DOCENT.heads.some(([hx, hy, r]) => Math.hypot(tx - hx, ty - hy) < r + 70)
     && !DOCENT.mouths.some(([mx, my]) => Math.hypot(tx - mx, ty - my) < 90));
+  // cover is judged on the finished frame, so drawing order cannot hide it
+  const cover = [...DOCENT.cover];
+  DOCENT.bubbles.forEach(([x0, y0, x1, y1, tip], i) => {
+    for (const [hx, hy, hr] of DOCENT.heads) {
+      if (hx + hr * 0.7 > x0 && hx - hr * 0.7 < x1 && hy + hr * 0.7 > y0 && hy - hr * 0.7 < y1) cover.push(`bubble over a head @${Math.round(hx)}`);
+      if (tip && Math.hypot(tip[0] - hx, tip[1] - hy) < hr - 2) cover.push(`tail inside a head @${Math.round(hx)}`);
+    }
+    for (const g of DOCENT.tags) if (bubbleCrosses(x0, y0, x1 - x0, y1 - y0, tip, g)) cover.push(`bubble or tail over a name tag @${Math.round(g[0])}`);
+    DOCENT.bubbles.slice(i + 1).forEach((b) => { if (b[2] > x0 + 6 && b[0] < x1 - 6 && b[3] > y0 + 6 && b[1] < y1 - 6) cover.push(`bubble over bubble @${Math.round(b[0])}`); });
+  });
   return { t: DOCENT.t, shot: DOCENT.shot, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
-    empty: DOCENT.empty, wordy: DOCENT.wordy, cover: DOCENT.cover, overflow: DOCENT.overflow, tailFar: far,
+    empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far,
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals };
 }
 
@@ -75,10 +86,11 @@ function inkPath(pts, { color = null, w = 4, p = 1, closed = false, jit = 1.4, s
   if (p <= 0 || a <= 0 || pts.length < 2) return;
   if (round) pts = chaikin(pts, closed, round);
   if (p < 0.98) docentNote('partial', 'ink');
-  if (a < 0.55 && !ghostOk) docentNote('ghost', `ink a=${a.toFixed(2)}`);
-  { let lo = -1e9, l = 1e9, r = -1e9; for (const [px, py] of pts) { if (py > lo) lo = py; if (px < l) l = px; if (px > r) r = px; }
-    const m = ctx.getTransform(); const yy = m.d * lo + m.f, xl = m.a * l + m.e, xr = m.a * r + m.e;
-    if (yy > SUB_Y) docentNote('zone', Math.round(yy)); if (xl < -4 || xr > W + 4) docentNote('off', [Math.round(xl), Math.round(xr)]); }
+  const ea = a * ctx.globalAlpha;   // effective opacity, including withAlpha() from the drawing that contains this stroke
+  if (ea < 0.55 && !ghostOk && !DOCENT.ghostOk) docentNote('ghost', `ink a=${ea.toFixed(2)}`);
+  { const m = ctx.getTransform(); let lo = -1e9, l = 1e9, r = -1e9;   // full affine: rotation and mirroring included
+    for (const [px, py] of pts) { const sx = m.a * px + m.c * py + m.e, sy = m.b * px + m.d * py + m.f; if (sy > lo) lo = sy; if (sx < l) l = sx; if (sx > r) r = sx; }
+    if (lo > SUB_Y) docentNote('zone', Math.round(lo)); if (l < -4 || r > W + 4) docentNote('off', [Math.round(l), Math.round(r)]); }
   const q = wobble(pts, closed, jit, seed == null ? seedOf(pts) : seed);
   withAlpha(a, () => {
     ctx.save();
@@ -137,8 +149,12 @@ const inkDot = (x, y, r = 5, o = {}) => disc(x, y, r, o.color || INK(), (o.a ?? 
 function hand(str, x, y, { size = 54, color = null, p = 1, a = 1, align = 'center', weight = 700, rot = 0, base = 'middle', ghostOk = false } = {}) {
   if (p <= 0 || a <= 0 || !str) return;
   if (p < 0.98) docentNote('partial', 'hand:' + String(str).slice(0, 12));
-  if (a < 0.55 && !ghostOk) docentNote('ghost', 'hand:' + String(str).slice(0, 12));
-  { const yy = ctx.getTransform().d * (y + size * 0.4) + ctx.getTransform().f; if (yy > SUB_Y) docentNote('zone', 'hand:' + String(str).slice(0, 12)); }
+  if (a * ctx.globalAlpha < 0.55 && !ghostOk && !DOCENT.ghostOk) docentNote('ghost', 'hand:' + String(str).slice(0, 12));
+  { const m = ctx.getTransform(), yy = m.d * (y + size * 0.4) + m.f; if (yy > SUB_Y) docentNote('zone', 'hand:' + String(str).slice(0, 12));
+    ctx.font = `${weight} ${size}px ${HAND()}`; const tw = ctx.measureText(str).width, x0 = align === 'center' ? x - tw / 2 : align === 'right' ? x - tw : x;
+    const cs = Math.cos(rot), sn = Math.sin(rot), xs = [];
+    for (const [u, v] of [[x0 - x, -size * 0.5], [x0 - x + tw, -size * 0.5], [x0 - x, size * 0.5], [x0 - x + tw, size * 0.5]]) { const px = x + u * cs - v * sn, py = y + u * sn + v * cs; xs.push(m.a * px + m.c * py + m.e); }
+    if (Math.min(...xs) < -4 || Math.max(...xs) > W + 4) docentNote('off', 'hand:' + String(str).slice(0, 12)); }
   ctx.save();
   ctx.font = `${weight} ${size}px ${HAND()}`;
   const w = ctx.measureText(str).width;
@@ -153,7 +169,12 @@ const handW = (str, size = 54, weight = 700) => { ctx.font = `${weight} ${size}p
 function handLines(str, maxW, size = 54, weight = 700) {
   ctx.font = `${weight} ${size}px ${HAND()}`;
   const out = []; let cur = '';
-  for (const word of String(str).split(' ')) {
+  for (let word of String(str).split(' ')) {
+    while (ctx.measureText(word).width > maxW && word.length > 1) {   // a word wider than the line: break it by width
+      let k = word.length - 1; while (k > 1 && ctx.measureText(word.slice(0, k)).width > maxW) k--;
+      if (cur) { out.push(cur); cur = ''; }
+      out.push(word.slice(0, k)); word = word.slice(k);
+    }
     const t = cur ? cur + ' ' + word : word;
     if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = word; } else cur = t;
   }
@@ -211,7 +232,13 @@ function figure(x, y, o = {}) {
   const anchors = { head: hc, r: R, mouth: [hc[0] + dir * R * 0.15, hc[1] + R * 0.4], top: [hc[0], topY], dir,
     hands: [F(sh[0] + P.la[1][0] - (outfit ? 21 : 0), sh[1] + P.la[1][1]), F(sh[0] + P.ra[1][0] + (outfit ? 21 : 0), sh[1] + P.ra[1][1])],
     box: [x - 70 * s, topY, x + 70 * s, y] };
+  // the name tag sits beside the chest on the side the figure turns away from, clear of every bubble above
+  const tagS = Math.max(36, 42 * Math.min(1, s0)), tagW = tag ? handW(tag, tagS) / 2 + 6 : 0;
+  let tagX = x - dir * (100 * s + tagW); if (tagX - tagW < 40 || tagX + tagW > W - 40) tagX = x + dir * (100 * s + tagW);
+  const tagY = y - 205 * s, tagRect = [tagX - tagW, tagY - tagS * 0.6, tagX + tagW, tagY + tagS * 0.6];
+  if (s > 0) { DOCENT.slots.figs.push(anchors.box); DOCENT.slots.heads.push([hc[0], hc[1], R]); if (tag) DOCENT.slots.tags.push(tagRect); }
   if (p <= 0 || a <= 0 || s <= 0) return anchors;
+  if (o.ghostOk) DOCENT.ghostOk++;
   DOCENT.heads.push([hc[0], hc[1], R]); DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
   DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|') });
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
@@ -308,14 +335,10 @@ function figure(x, y, o = {}) {
         inkLine(hc[0] - (hr + 4) * s, hc[1] - 2 * s, hc[0] - (hr - 10) * s, hc[1] + 26 * s, { w: lw, color: ink });
         inkCurve([hc[0] - 34 * s, hc[1] - 50 * s], [hc[0] + 6 * s, hc[1] - 112 * s], [hc[0] + 56 * s, hc[1] - 40 * s], { w: lw * 2.6, color: C.red });
       }
-      if (tag) {   // the name sits beside the chest on the side the figure turns away from, clear of every bubble above
-        const ts = Math.max(36, 42 * Math.min(1, s0)), tw = handW(tag, ts) / 2 + 6;
-        let tx = x - dir * (100 * s + tw); if (tx - tw < 40 || tx + tw > W - 40) tx = x + dir * (100 * s + tw);
-        const ty = y - 205 * s;
-        DOCENT.tags.push([tx - tw, ty - ts * 0.6, tx + tw, ty + ts * 0.6]);
-        hand(tag, tx, ty, { size: ts, color: acc || KEY() }); }
+      if (tag) { DOCENT.tags.push(tagRect); hand(tag, tagX, tagY, { size: tagS, color: acc || KEY() }); }
     });
   });
+  if (o.ghostOk) DOCENT.ghostOk--;
   return anchors;
 }
 // ---------- cast: one fixed look per person ----------
@@ -501,16 +524,19 @@ function animal(kind, x, y, o = {}) {
   oo.dir = dir; oo.w = (o.w || 4) * Math.max(0.7, Math.sqrt(s));
   const T = (px, py) => [x + dir * px * s, y + py * s];
   const q = (k) => clamp01((oo.p * 5.6 - k) / 1.4);   // staged draw-on in five steps; every step is complete at p = 1
-  if (oo.p <= 0 || oo.a <= 0) return null;
-  const io = { p: oo.p, a: oo.a, color: oo.color, w: oo.w, s, dir, fill: oo.fill };
+  const hidden = oo.p <= 0 || oo.a <= 0;
+  const io = { p: hidden ? 0 : oo.p, a: oo.a, color: oo.color, w: oo.w, s, dir, fill: oo.fill };
   let anc = null;
-  withAlpha(1, () => { anc = f(T, io, q); });
+  withAlpha(hidden ? 0 : 1, () => { anc = f(T, io, hidden ? () => 0 : q); });   // p = 0 draws nothing but still yields the anchors
   const xs = [x - 270 * s, x + 270 * s].sort((u, v) => u - v);
   anc.box = [xs[0], anc.top[1], xs[1], y]; anc.dir = dir;
+  let tagRect = null, str = null;
+  if (o.tag) { str = typeof o.tag === 'string' ? o.tag : kind; const tw = handW(str, 40) / 2 + 6;
+    anc.top = [anc.top[0], anc.top[1] - 70]; anc.box[1] = anc.top[1]; tagRect = [anc.top[0] - tw, anc.top[1], anc.top[0] + tw, anc.top[1] + 48]; }
+  DOCENT.slots.figs.push(anc.box); DOCENT.slots.heads.push([anc.head[0], anc.head[1], anc.r]); if (tagRect) DOCENT.slots.tags.push(tagRect);
+  if (hidden) return anc;
   DOCENT.heads.push([anc.head[0], anc.head[1], anc.r]); DOCENT.mouths.push(anc.mouth); DOCENT.figs.push(anc.box); DOCENT.animals.push(kind);
-  if (o.tag) { const str = typeof o.tag === 'string' ? o.tag : kind, tw = handW(str, 40) / 2 + 6;
-    anc.top = [anc.top[0], anc.top[1] - 70]; anc.box[1] = anc.top[1]; DOCENT.tags.push([anc.top[0] - tw, anc.top[1], anc.top[0] + tw, anc.top[1] + 48]);
-    hand(str, anc.top[0], anc.top[1] + 24, { size: 40, p: oo.p, a: oo.a }); }
+  if (tagRect) { DOCENT.tags.push(tagRect); hand(str, anc.top[0], anc.top[1] + 24, { size: 40, p: oo.p, a: oo.a }); }
   return anc;
 }
 // Asset gallery: every cast look, animal and prop on one labelled sheet, for review before a scene uses them
@@ -563,18 +589,15 @@ function bubbleCrosses(x, y, w, h, tip, g) {
   for (let i = 0; i <= 14; i++) { const u = i / 14, px = lerp(bx, tip[0], u), py = lerp(by, tip[1], u); if (px > g[0] - 4 && px < g[2] + 4 && py > g[1] - 4 && py < g[3] + 4) return true; }
   return false;
 }
-function bubble(x, y, w, h, { tail = null, kind = 'speech', text: str = null, size = 44, p = 1, a = 1, body = null, color = null, tailOk = false } = {}) {
+function bubble(x, y, w, h, { tail = null, kind = 'speech', text: str = null, size = 44, p = 1, a = 1, body = null, color = null, tailOk = false, ghostOk: o_ghostOk = false } = {}) {
+  DOCENT.slots.bubbles.push([x, y, x + w, y + h]);   // reserved even before it pops in, so later bubbles do not move
   if (p <= 0 || a <= 0) return;
   if (!str && !body) docentNote('empty', `bubble@${Math.round(x)},${Math.round(y)}`);
   if (str && String(str).trim().split(/\s+/).length > 8) docentNote('wordy', String(str).slice(0, 16));
   if (tail && !tailOk) DOCENT.tails.push(tail);
-  for (const b of DOCENT.bubbles) if (b[2] > x + 6 && b[0] < x + w - 6 && b[3] > y + 6 && b[1] < y + h - 6) docentNote('cover', `bubble over bubble @${Math.round(b[0])}`);
-  DOCENT.bubbles.push([x, y, x + w, y + h]);
-  for (const [hx, hy, hr] of DOCENT.heads) if (hx + hr * 0.7 > x && hx - hr * 0.7 < x + w && hy + hr * 0.7 > y && hy - hr * 0.7 < y + h) docentNote('cover', `bubble over head @${Math.round(hx)}`);
-  for (const g of DOCENT.tags) {
-    const hitTag = bubbleCrosses(x, y, w, h, tail, g);
-    if (hitTag) docentNote('cover', `bubble or tail over a name tag @${Math.round(g[0])}`);
-  }
+  if (p < 0.98) docentNote('partial', 'bubble');
+  if (o_ghostOk) DOCENT.ghostOk++;
+  DOCENT.bubbles.push([x, y, x + w, y + h, tailOk ? null : tail]);
   if (str) { const n = handLines(str, w - 50, size).length; if (n * size * 1.25 > h - 16) docentNote('overflow', String(str).slice(0, 16)); }
   const sc = 0.6 + 0.4 * backOut(p);
   withAlpha(a * clamp01(p * 2.5), () => {
@@ -599,6 +622,7 @@ function bubble(x, y, w, h, { tail = null, kind = 'speech', text: str = null, si
     if (body) body(x, y, w, h);
     ctx.restore();
   });
+  if (o_ghostOk) DOCENT.ghostOk--;
 }
 // say(who, text, o) / think(who, text, o): a bubble next to a figure, placed where it covers no face, no other figure
 // and no earlier bubble, inside the safe frame (x 60..1860, y 70..860, above the subtitles), on the side the figure
@@ -608,14 +632,14 @@ function bubble(x, y, w, h, { tail = null, kind = 'speech', text: str = null, si
 function say(who, str, o = {}) { return placeBubble(who, str, { ...o, kind: o.kind || 'speech' }); }
 function think(who, str, o = {}) { return placeBubble(who, str, { ...o, kind: 'thought' }); }
 function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 = null, kind = 'speech', ...o } = {}) {
-  if (!who || !who.head) { MISS.add('say:no-figure'); return null; }
+  if (!who || !who.head) { if ((o.p ?? 1) > 0) MISS.add('say:no-figure'); return null; }
   const [hx, hy] = who.head, r = who.r, top = who.top[1];
   let w = w0, h = h0;
   if (!w || !h) {
-    const one = str ? handW(str, size) : 220;
-    const lines = str ? (one + 70 > 600 ? handLines(str, 530, size) : [str]) : [''];
-    const lw = str ? Math.max(...lines.map((l) => handW(l, size))) : 220;
-    w = w || Math.max(kind === 'thought' ? 260 : 200, Math.min(620, lw + (kind === 'thought' ? 110 : 76)));
+    const pad = kind === 'thought' ? 110 : 76;
+    if (!w) { const one = str ? handW(str, size) : 220; const ls = str ? (one + pad > 620 ? handLines(str, 620 - pad, size) : [str]) : [''];
+      w = Math.max(kind === 'thought' ? 260 : 200, Math.min(620, Math.max(...ls.map((l) => (l ? handW(l, size) : 220))) + pad)); }
+    const lines = str ? handLines(str, w - 50, size) : [''];   // the same wrap bubble() uses
     h = h || Math.max(kind === 'thought' ? 130 : 100, lines.length * size * 1.25 + (kind === 'thought' ? 64 : 40));
   }
   const gap = kind === 'thought' ? 70 : 46;
@@ -625,26 +649,30 @@ function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 =
     upR2: [hx + r + gap, top - h * 0.6], upL2: [hx - r - gap - w, top - h * 0.6],
     high: [hx - w / 2, top - h - gap - 150], highL: [hx - w * 0.9, top - h - gap - 120], highR: [hx - w * 0.1, top - h - gap - 120],
   };
-  const order = side === 'left' ? ['left', 'upL', 'upL2'] : side === 'right' ? ['right', 'upR', 'upR2'] : side === 'up' ? ['up']
-    : who.dir < 0 ? ['upL', 'left', 'upL2', 'up', 'upR', 'right', 'upR2', 'highL', 'high', 'highR'] : ['upR', 'right', 'upR2', 'up', 'upL', 'left', 'upL2', 'highR', 'high', 'highL'];
+  const all = who.dir < 0 ? ['upL', 'left', 'upL2', 'up', 'upR', 'right', 'upR2', 'highL', 'high', 'highR'] : ['upR', 'right', 'upR2', 'up', 'upL', 'left', 'upL2', 'highR', 'high', 'highL'];
+  const want = side === 'left' ? ['left', 'upL', 'upL2'] : side === 'right' ? ['right', 'upR', 'upR2'] : side === 'up' ? ['up', 'high'] : all;
+  const order = [...want, ...all.filter((k) => !want.includes(k))];   // a side that does not fit falls through to the others
   const hit = (b, x, y) => Math.max(0, Math.min(b[2], x + w) - Math.max(b[0], x)) * Math.max(0, Math.min(b[3], y + h) - Math.max(b[1], y));
   let best = null;
   for (const [k, key] of order.entries()) {
     let [x, y] = cand[key];
     const dx = Math.max(60 - x, 0) - Math.max(x + w - 1860, 0), dy = Math.max(70 - y, 0) - Math.max(y + h - 860, 0);
     x += dx; y += dy;   // slide inside the safe frame, then score what the slide made it cover
-    let cost = k * 400 + (Math.abs(dx) + Math.abs(dy)) * 2;
-    for (const b of DOCENT.figs) if (b !== who.box) cost += hit(b, x, y) * 0.5;
-    for (const b of DOCENT.bubbles) cost += hit(b, x, y) * 12 + (hit(b, x, y) > 0 ? 20000 : 0);
-    for (const [cx, cy, cr] of DOCENT.heads) cost += hit([cx - cr, cy - cr, cx + cr, cy + cr], x, y) * 12;
+    let cost = k * 400 + (k >= want.length ? 3000 : 0) + (Math.abs(dx) + Math.abs(dy)) * 2;
+    for (const b of DOCENT.slots.figs) if (b !== who.box) cost += hit(b, x, y) * 0.5;
+    for (const b of DOCENT.slots.bubbles) cost += hit(b, x, y) * 12 + (hit(b, x, y) > 0 ? 20000 : 0);
+    for (const [cx, cy, cr] of DOCENT.slots.heads) cost += hit([cx - cr, cy - cr, cx + cr, cy + cr], x, y) * 12;
     const [mx0, my0] = kind === 'thought' ? [hx, hy - r * 0.2] : who.mouth;
-    for (const g of DOCENT.tags) if (bubbleCrosses(x, y, w, h, [mx0, my0], g)) cost += 50000;
+    for (const g of DOCENT.slots.tags) if (bubbleCrosses(x, y, w, h, [mx0, my0], g)) cost += 50000;
     if (!best || cost < best.cost) best = { x, y, cost };
   }
   const { x, y } = best, bx = x + w / 2, by = y + h / 2;
   const [mx, my] = kind === 'thought' ? [hx, hy - r * 0.2] : who.mouth;
-  const th = Math.atan2(by - my, bx - mx), stop = kind === 'thought' ? r * 1.25 : r * 0.75;
-  const tail = [mx + Math.cos(th) * stop, my + Math.sin(th) * stop];
+  // aim at the mouth but stop outside the head: the first point on the ray mouth -> bubble that clears the head by 8 px
+  const ux = Math.cos(Math.atan2(by - my, bx - mx)), uy = Math.sin(Math.atan2(by - my, bx - mx));
+  const R2 = r + (kind === 'thought' ? 26 : 8), fx = mx - hx, fy = my - hy, B = fx * ux + fy * uy, Cq = fx * fx + fy * fy - R2 * R2;
+  const d = Math.max(kind === 'thought' ? 0 : r * 0.3, -B + Math.sqrt(Math.max(0, B * B - Cq)));
+  const tail = [mx + ux * d, my + uy * d];
   bubble(x, y, w, h, { ...o, kind, size, text: str, tail });
   return [x, y, w, h];
 }
@@ -838,7 +866,9 @@ function shots(t, list, { fade = 0.22, settle = 0.035 } = {}) {
   if (i < 0) return -1;
   const [t0, draw] = list[i], f = clamp01((t - t0) / fade);
   DOCENT.shot = { i, t0, t1: i + 1 < list.length ? list[i + 1][0] : null, n: list.length };
-  if (f < 1 && i > 0) withAlpha(1 - f, () => list[i - 1][1](t, t - list[i - 1][0]));
+  const fresh = () => ({ figs: [], heads: [], tags: [], bubbles: [] });
+  if (f < 1 && i > 0) { DOCENT.slots = fresh(); DOCENT.ghostOk++; withAlpha(1 - f, () => list[i - 1][1](t, t - list[i - 1][0])); DOCENT.ghostOk--; }
+  DOCENT.slots = fresh();
   withAlpha(i === 0 ? 1 : f, () => {
     const sc = 1 - settle * (1 - smooth(f));
     ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(sc, sc); ctx.translate(-W / 2, -H / 2);

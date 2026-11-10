@@ -8,6 +8,8 @@ and gaps match narrate_soma.py, so shot times written against the draft move onl
 replaces it. Refuses to overwrite a real timeline (one whose voice is not 'draft') unless --force.
 """
 import json, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ko_say import load_lexicon, spoken   # the same spoken form narrate_soma.py sends to cwon, so q.w() cues match
 
 LEAD_TITLE, LEAD, TAIL, GAP, GAP_Q = 2.6, 0.7, 1.1, 0.50, 0.70
 
@@ -17,14 +19,16 @@ def word_times(text, t0, d):
         wd = d * len(w) / n; out.append({'t': round(t, 3), 'd': round(wd * 0.9, 3), 'w': w.strip('.,?!"\'')}); t += wd
     return out
 
-def draft(script, cps=7.8):
+def draft(script, cps=7.8, lexicon=None):
     t = 0.0; scenes = []
     for sc in script['scenes']:
         lead = LEAD_TITLE if sc.get('subtitle') else LEAD
         start, cur, sents, words = t, t + lead, [], []
         ss = sc['sentences']
         for k, s in enumerate(ss):
-            say = s.get('say') or s['text']; d = max(1.2, len(s['text']) / cps)
+            try: say = spoken(s, lexicon or {})
+            except Exception: say = s.get('say') or s['text']   # unconvertible text: narrate_soma will stop on it anyway
+            d = max(1.2, len(s['text']) / cps)
             gap = (GAP_Q if say.rstrip().endswith('?') else GAP) if k + 1 < len(ss) else 0.0
             sents.append({'text': s['text'], 'say': say, 'start': round(cur, 3), 'end': round(cur + d, 3), 'dur': round(d + gap, 3)})
             words += word_times(say, cur + 0.06, d - 0.12); cur += d + gap
@@ -39,6 +43,6 @@ if __name__ == '__main__':
     a = sys.argv[1:]; cps = float(a[a.index('--cps') + 1]) if '--cps' in a else 7.8
     if os.path.exists('timeline.json') and json.load(open('timeline.json')).get('voice') != 'draft' and '--force' not in a:
         sys.exit('timeline.json comes from the voice; not overwriting (use --force)')
-    tl = draft(json.load(open('script.json')), cps)
+    tl = draft(json.load(open('script.json')), cps, load_lexicon(os.getcwd()))
     json.dump(tl, open('timeline.json', 'w'), ensure_ascii=False, indent=1)
     print(f"draft timeline: {len(tl['scenes'])} scenes, {tl['total']:.1f}s")

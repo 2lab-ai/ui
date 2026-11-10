@@ -8,8 +8,8 @@ a varied repeat and a real final cadence, so nothing loops and every scene can g
     python music_lib.py check            # distinctness + loudness over all previews
     python music_lib.py render <id> <seconds> <out.wav> [--seed N]
 
-Rules from the research (explainer/docent/REFERENCE.md "Music"): stay out of the voice band while someone speaks (no
-sustained melody between G3 and C6; chords C3-C4 voiced close, bass C2-C3, sparkle above C5), at most 2 note starts
+Rules from the research (explainer/docent/REFERENCE.md "Music"): stay out of the voice's core while someone speaks
+(pads voiced close at or below C5, bass at or below E3, every sustained texture note at or above C5), at most 2 note starts
 per beat in the middle register, end every cue on its home chord, normalise to -20 LUFS, high-pass 90 Hz and a 3 dB
 dip at 2.5 kHz to leave room for the voice.
 """
@@ -108,10 +108,10 @@ def compose(p, dur, seed=0):
     rng = random.Random(zlib.crc32(f"{p['id']}:{seed}".encode()))
     spb = 60.0 / p['bpm']; bar = 4 * spb
     scale = SCALES[p['mode']]; root = 48 + p['key'] if p['key'] < 8 else 36 + p['key']   # chords sit around C3-C4
-    nb = max(3, int(round((dur - 1.5) / bar)))                       # bars of music; the rest is the final ring-out
+    nb = max(1, min(int(round((dur - 1.5) / bar)), int((dur - 1.5) // bar) + 1))   # the home chord starts by dur - 1.5 s
     prog = list(p['prog'])
     seq = [prog[i % len(prog)] for i in range(nb - 1)]
-    if seq and seq[-1] == 0: seq[-1] = 4 if p['mode'] not in ('phrygian',) else 1   # approach the cadence
+    if len(seq) > 1 and seq[-1] == 0: seq[-1] = 4 if p['mode'] not in ('phrygian',) else 1   # approach the cadence
     seq.append(0)
     ev = []; prev = None
     tex_on = lambda b: b >= 1 and not (b == nb - 1)                   # texture enters after the intro bar
@@ -146,7 +146,7 @@ def compose(p, dur, seed=0):
             elif pat == 'sparkle':
                 for i in range(8):
                     if rng.random() < (0.45 if dense else 0.3): ev.append((t0 + i * spb / 2, spb * 1.5, 2, p['tex'], rng.choice(hi) + rng.choice([0, 12]), rng.randint(30, 44)))
-            elif pat == 'bell':   # a slow stepwise line above C6: melody without masking the voice
+            elif pat == 'bell':   # a slow stepwise line in the top register (C5 and up): melody kept above the voice's core
                 top = 84 + p['key'] % 12
                 degs = [scale.index(x % 12 - p['key']) if (x % 12 - p['key']) in scale else 0 for x in hi[:1]]
                 d = degs[0]
@@ -190,9 +190,17 @@ def write_midi(ev, path):
         a = int(st * tps); b = int((st + d) * tps)
         msgs.append((a, 1, mido.Message('note_on', channel=ch, note=int(pitch), velocity=int(vel))))
         msgs.append((b, 0, mido.Message('note_off', channel=ch, note=int(pitch), velocity=0)))
+    # the same pitch on one channel twice: end the first where the second starts, or its note_off cuts the second
     msgs.sort(key=lambda m: (m[0], m[1]))
+    last_on = {}
+    for i, (tick, kind, m) in enumerate(msgs):
+        if m.type == 'note_on': last_on[(m.channel, m.note)] = last_on.get((m.channel, m.note), 0) + 1
+        elif m.type == 'note_off':
+            k = (m.channel, m.note)
+            if last_on.get(k, 0) > 1: msgs[i] = None   # the later note's own note_off ends both
+            last_on[k] = max(0, last_on.get(k, 0) - 1)
     now = 0
-    for t, _, m in msgs: tr.append(m.copy(time=t - now)); now = t
+    for t, _, m in filter(None, msgs): tr.append(m.copy(time=t - now)); now = t
     mid.save(path)
 
 def wav_read(path):

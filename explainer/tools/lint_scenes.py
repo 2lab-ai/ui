@@ -18,7 +18,8 @@ import asyncio, base64, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from export import serve, open_page, OUT
 
-STEP = 0.25
+STEP = 0.1     # finer than the shortest shot worth judging
+FADE = 0.22    # shots() cross-fade: a frame inside it shows two shots at once
 
 def judge(r):
     """docentReport() of one rest frame -> list of (severity, code, detail)."""
@@ -32,9 +33,12 @@ def judge(r):
     if r['cover']: out.append(('P1', 'bubble-over-face', str(r['cover'][:3])))
     if r['overflow']: out.append(('P1', 'bubble-overflow', str(r['overflow'][:3])))
     if r['rig']: out.append(('P1', 'animal-on-rig', r['rig'][0]))
-    sigs = [p['sig'] for p in r['people'] if not p['crowd']]
-    dup = {s for s in sigs if sigs.count(s) > 1}
-    if dup: out.append(('P1', 'twins', f"{len(sigs)} people, {len(dup)} look(s) shared — give each person a cast() look"))
+    groups = {}
+    for p in r['people']:
+        if not p['crowd']: groups.setdefault(p['sig'], []).append(p['id'])
+    # the same cast id twice is one person shown twice (before/after, a memory): fine; two ids or anonymous copies are not
+    dup = [ids for ids in groups.values() if len(ids) > 1 and (None in ids or len(set(ids)) > 1)]
+    if dup: out.append(('P1', 'twins', f"{sum(len(g) for g in groups.values())} people, {len(dup)} look(s) shared by different people — give each person a cast() look"))
     if len(r['people']) >= 2 and any(p['id'] is None and not p['crowd'] for p in r['people']):
         out.append(('P2', 'no-cast', f"{len(r['people'])} people and some without a cast look"))
     if r['wordy']: out.append(('P2', 'wordy-bubble', str(r['wordy'][:3])))
@@ -63,7 +67,7 @@ async def main(only, strict):
                 ts = sorted(starts); rest = []
                 for k, t0 in enumerate(ts):
                     t1 = ts[k + 1] if k + 1 < len(ts) else end
-                    rest.append(max(t0 + 0.1, min(t1, end) - 0.3))
+                    rest.append(max(t0 + FADE + 0.03, min(t1, end) - 0.3))
                     held = min(t1, end) - max(t0, body0)
                     if held > 8.0: report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'long-hold', f'picture held {held:.1f}s (> 8 s)')]})
                     if 0 < held < 1.2 and k + 1 < len(ts): report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'short-shot', f'shot only {held:.1f}s')]})

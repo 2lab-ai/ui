@@ -60,9 +60,12 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 Built by `tools/score.py` from the cue library `music/cues.json` (120 original cues, 12 moods, `tools/music_lib.py`).
 - Change music at structural breaks, not every cut: every chapter gets a new key and instrument, and inside a chapter
   the cue changes about every 35 s at a sentence start, staying in the same mood family (cross-fade 2.5 s).
-- No cue twice in one video. A sentence that turns the story carries `"music": "<mood>"` in script.json.
-- Under narration the bed sits about 20 dB under the voice, swells in pauses and on title cards; cues avoid the voice
-  band (no sustained melody between G3 and C6), end on their home chord, and are normalised to -20 LUFS.
+- No cue twice in one video (past 120 sections a cue comes back with another seed). A sentence that turns the story
+  carries `"music": "<mood>"` in script.json; that mood holds to the end of the chapter. Sections shorter than 10 s
+  join their neighbour.
+- Under narration the bed sits about 20 dB under the voice, swells in pauses and on title cards. Cues keep out of the
+  voice's core: pads voiced close at or below C5, bass at or below E3, every sustained texture note at or above C5.
+  They end on their home chord before the last 1.5 s, and are normalised to -20 LUFS.
 - Moods: wonder curious tension triumph melancholy playful reflective urgent warm mystery epic-calm nostalgic. Give each
   chapter a `mood` in script.json; unset, score.py guesses from the words.
 
