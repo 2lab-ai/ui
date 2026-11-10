@@ -26,7 +26,8 @@ function DOCENT_FRAME(t) { DOCENT.t = t; DOCENT.shot = null; for (const k of DOC
 DOCENT_FRAME(0);
 function docentNote(kind, what) { if (DOCENT[kind].length < 40) DOCENT[kind].push(what); }
 function docentReport() {
-  const far = DOCENT.tails.filter(([tx, ty]) => !DOCENT.heads.some(([hx, hy, r]) => Math.hypot(tx - hx, ty - hy) < r + 70)
+  const far = DOCENT.tails.filter(([tx, ty]) => !DOCENT.heads.some(([hx, hy, r, top]) => Math.hypot(tx - hx, ty - hy) < r + 70
+      || (top != null && tx > hx - r * 1.4 && tx < hx + r * 1.4 && ty > top - 40 && ty < hy))
     && !DOCENT.mouths.some(([mx, my]) => Math.hypot(tx - mx, ty - my) < 90));
   // cover is judged on the finished frame, so drawing order cannot hide it
   const cover = [...DOCENT.cover];
@@ -153,10 +154,11 @@ function hand(str, x, y, { size = 54, color = null, p = 1, a = 1, align = 'cente
   if (p <= 0 || a <= 0 || !str) return;
   if (p < 0.98) docentNote('partial', 'hand:' + String(str).slice(0, 12));
   if (a * ctx.globalAlpha < 0.55 && !ghostOk && !DOCENT.ghostOk) docentNote('ghost', 'hand:' + String(str).slice(0, 12));
-  { const m = ctx.getTransform(); ctx.font = `${weight} ${size}px ${HAND()}`;
-    const tw = ctx.measureText(str).width, x0 = align === 'center' ? x - tw / 2 : align === 'right' ? x - tw : x;
+  { const m = ctx.getTransform(); ctx.font = `${weight} ${size}px ${HAND()}`; ctx.textBaseline = base;
+    const tm = ctx.measureText(str), tw = tm.width, x0 = align === 'center' ? x - tw / 2 : align === 'right' ? x - tw : x;
+    const asc = tm.actualBoundingBoxAscent ?? size * 0.5, desc = tm.actualBoundingBoxDescent ?? size * 0.45;
     const cs = Math.cos(rot), sn = Math.sin(rot), xs = [], ys = [];
-    for (const [u, v] of [[x0 - x, -size * 0.5], [x0 - x + tw, -size * 0.5], [x0 - x, size * 0.45], [x0 - x + tw, size * 0.45]]) {
+    for (const [u, v] of [[x0 - x, -asc], [x0 - x + tw, -asc], [x0 - x, desc], [x0 - x + tw, desc]]) {
       const px = x + u * cs - v * sn, py = y + u * sn + v * cs; xs.push(m.a * px + m.c * py + m.e); ys.push(m.b * px + m.d * py + m.f); }
     if (Math.max(...ys) > SUB_Y) docentNote('zone', 'hand:' + String(str).slice(0, 12));
     if (Math.min(...xs) < -4 || Math.max(...xs) > W + 4 || Math.min(...ys) < -4) docentNote('off', 'hand:' + String(str).slice(0, 12)); }
@@ -534,7 +536,7 @@ function animal(kind, x, y, o = {}) {
   let anc = null;
   withAlpha(hidden ? 0 : 1, () => { anc = f(T, io, hidden ? () => 0 : q); });   // p = 0 draws nothing but still yields the anchors
   const xs = [x - 270 * s, x + 270 * s].sort((u, v) => u - v);
-  anc.box = [xs[0], anc.top[1], xs[1], y]; anc.dir = dir;
+  anc.box = [xs[0], anc.top[1], xs[1], y]; anc.dir = dir; anc.animal = kind;
   let tagRect = null, str = null;
   if (o.tag) { str = typeof o.tag === 'string' ? o.tag : kind; const tw = handW(str, 40) / 2 + 6;
     anc.top = [anc.top[0], anc.top[1] - 70]; anc.box[1] = anc.top[1]; tagRect = [anc.top[0] - tw, anc.top[1], anc.top[0] + tw, anc.top[1] + 48]; }
@@ -678,7 +680,13 @@ function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 =
   const R2 = r + (kind === 'thought' ? 26 : 8), fx = mx - hx, fy = my - hy, B = fx * ux + fy * uy, Cq = fx * fx + fy * fy - R2 * R2;
   const d = Math.max(kind === 'thought' ? 0 : r * 0.3, -B + Math.sqrt(Math.max(0, B * B - Cq)));
   let tail = [mx + ux * d, my + uy * d];
-  if (uy < 0 && tail[1] > top - 8 && Math.abs(tail[0] - hx) < r * 1.2) { const e = (tail[1] - (top - 8)) / -uy; tail = [tail[0] + ux * e, tail[1] + uy * e]; }   // clear hair and hats
+  if (!who.animal && top < hy - r * 1.1) {   // hair or a hat rises above the bare head: keep the tip out of that band
+    const band = r * 1.1;
+    if (tail[1] > top - 8 && tail[1] < hy - r * 0.6 && Math.abs(tail[0] - hx) < band) {
+      const up = tail[1] - (top - 8), side = band - Math.abs(tail[0] - hx) + 6;
+      tail = up <= side ? [tail[0], top - 8] : [hx + Math.sign(tail[0] - hx || 1) * (band + 6), tail[1]];
+    }
+  }
   bubble(x, y, w, h, { ...o, kind, size, text: str, tail });
   return [x, y, w, h];
 }

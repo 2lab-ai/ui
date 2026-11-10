@@ -2,6 +2,7 @@ TITLE_CARD = signCard;
 cast('musk',  { name: '머스크', hair: 'short', outfit: 'suit', accent: 'red', h: 1.08 });
 cast('eng',   { name: '엔지니어', hair: 'curly', glasses: 'round', outfit: 'tshirt', accent: 'teal' });
 cast('cfo',   { name: '재무 담당', hair: 'ponytail', outfit: 'coat', accent: 'orange' });
+cast('gent',   { name: '신사', hat: 'top', mustache: true, outfit: 'suit', accent: 'green', h: 1.1 });
 cast('viewer',{ name: '나', hair: 'side', accent: 'purple' });
 SCENES.talk = (t, q) => shots(t, [
   [q.s(0), (t, lt) => {
@@ -51,5 +52,23 @@ SCENES.devices = (t, q) => shots(t, [
   [q.s(5), (t, lt) => {
     for (let i = 0; i < 6; i++) figure(300 + i * 260, 860, { s: 0.7, crowd: true, face: 'neutral', p: dp(lt, i * 0.08, 0.6) });
     hand('아무도 안 믿음', 960, 320, { size: 72, p: dp(lt, 0.8, 0.6) });
+  }],
+]);
+
+// edge cases the review asked for: a top hat speaking sideways, a hat thinking, animals talking
+SCENES.hats = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => {
+    const g = person('gent', 700, 870, { pose: 'present', face: 'smile', tag: true, p: dp(lt, 0, 0.6) });
+    say(g, '안녕하세요', { side: 'right', p: dp(lt, 0.7, 0.3) });
+  }],
+  [q.s(1), (t, lt) => {
+    const g = person('gent', 960, 870, { pose: 'think', face: 'think', p: dp(lt, 0, 0.6) });
+    think(g, '비가 오려나', { p: dp(lt, 0.7, 0.3) });
+  }],
+  [q.s(2), (t, lt) => {
+    const c = animal('cat', 620, 860, { s: 1.2, tag: '고양이', p: dp(lt, 0, 0.6) });
+    const r = animal('rabbit', 1300, 860, { s: 1.2, dir: -1, p: dp(lt, 0.1, 0.6) });
+    say(c, '야옹', { p: dp(lt, 0.6, 0.3) });
+    say(r, '나도!', { p: dp(lt, 0.9, 0.3) });
   }],
 ]);

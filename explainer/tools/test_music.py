@@ -79,14 +79,15 @@ class Planner(unittest.TestCase):
             self.assertIn(p['mood'], ['mystery'] + score.NEAR['mystery'] + [m for x in score.NEAR['mystery'] for m in score.NEAR[x]])
 
     def test_forced_cut_stays_put_and_automatic_short_ones_go(self):
-        tl = tl_of(1, 13, 6.0); sc = tl['scenes'][0]
-        script = {'scenes': [{'id': 's0', 'sentences': [{'text': 'a'}] * 12 + [{'text': 'z', 'music': 'triumph'}]}]}
+        tl = tl_of(1, 20, 6.0); sc = tl['scenes'][0]
+        script = {'scenes': [{'id': 's0', 'sentences': [{'text': 'a'}] * 19 + [{'text': 'z', 'music': 'triumph'}]}]}
         secs = score.sections(sc, script['scenes'][0], 30.0)
-        last = sc['sentences'][12]['start']
+        last = sc['sentences'][19]['start']
         self.assertAlmostEqual(secs[-1]['start'], last, 3); self.assertEqual(secs[-1]['mood'], 'triumph')
         self.assertTrue(all(s['mood'] is None for s in secs[:-1]))            # the turn is not pulled earlier
         auto = [s for s in secs if not s['forced']]
-        self.assertTrue(all(s['end'] - s['start'] >= 10.0 for s in auto[1:-1]), secs)
+        self.assertGreaterEqual(len(auto), 3)
+        self.assertTrue(all(s['end'] - s['start'] >= 10.0 for s in auto), secs)
 
     def test_mood_and_forced_change(self):
         tl = tl_of(2)
