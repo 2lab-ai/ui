@@ -142,4 +142,7 @@ if __name__ == '__main__':
     a = sys.argv[1:]
     only = a[a.index('--scene') + 1:] if '--scene' in a else []
     only = [x for x in only if not x.startswith('--')]
+    known = [sc['id'] for sc in json.load(open('timeline.json'))['scenes']] if os.path.exists('timeline.json') else []
+    bad = [x for x in only if known and x not in known]
+    if bad: sys.exit(f"unknown scene id: {' '.join(bad)} (timeline.json has: {' '.join(known)})")   # exit 1, not a false '0 issues'
     asyncio.run(main(only, '--strict' in a))

@@ -794,7 +794,8 @@ function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 =
     if (tail[1] > top - 8 && tail[1] < my - r * 0.2 && Math.abs(tail[0] - hx) < band) {   // hair also fills the temples (curls)
       // a bubble right above leaves by the top (going round the side grazed a top hat's brim); any other bubble ends
       // beside the face at mouth height, so the tail never reads as aimed at the hair (2026-11-10 lab frame: tip on curls)
-      tail = Math.abs(bx - hx) < band ? [tail[0], top - 8] : [hx + Math.sign(bx - hx || 1) * (band + 12), Math.max(tail[1], my - r * 0.1)];
+      const sd = Math.sign(bx - hx || 1), reach = who.brim && sd === who.brim ? r * 1.7 + 14 : band + 12;   // past a cap's brim (PR #58 review round 2)
+      tail = Math.abs(bx - hx) < band ? [tail[0], top - 8] : [hx + sd * reach, Math.max(tail[1], my - r * 0.1)];
     }
   }
   // a side bubble ends beside the face at mouth height, whatever the hair: the ray from the mouth to an upper bubble

@@ -194,6 +194,7 @@ if __name__ == '__main__':
     pj = json.load(open('project.json')) if os.path.exists('project.json') else {}
     project = pj.get('slug') or script.get('title') or os.path.basename(os.getcwd())
     lock = history_lock()   # plan and reserve under one lock: the next project scored now sees these cues
+    before = [v for v in load_history()['videos'] if v.get('project') == project]   # restored if this render fails
     pl = plan(script, tl, target, project, load_history())
     os.makedirs('out', exist_ok=True)
     if '--plan' in a:   # a proposal only: score.json/score.wav (the rendered score and its provenance) stay untouched
@@ -205,8 +206,8 @@ if __name__ == '__main__':
     try:
         assemble(pl, tl['total'], lufs)
     except BaseException:   # a failed or stopped render must not reserve its cues for the next ten videos
-        lock = history_lock(); h = load_history(); h['videos'] = [v for v in h['videos'] if v.get('project') != project]
-        json.dump(h, open(HISTORY, 'w'), indent=1); lock.close(); raise
+        lock = history_lock(); h = load_history(); h['videos'] = [v for v in h['videos'] if v.get('project') != project] + before
+        json.dump(h, open(HISTORY, 'w'), indent=1); lock.close(); raise   # the last good score.wav keeps its entry
     open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
     # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it);
     # written after the render, atomically
