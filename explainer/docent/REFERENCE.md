@@ -90,27 +90,29 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - Do not repeat the same shot template three shots in a row.
 
 ## 7. Music
-Built by `tools/score.py` from the cue library `music/cues.json` (120 original cues, 12 moods, `tools/music_lib.py`).
-- Change music at structural breaks, not every cut: every chapter gets a new key and instrument, and inside a chapter
-  the cue changes about every 35 s at a sentence start, staying in the same mood family (cross-fade 2.5 s).
-- No cue twice in one video (when a mood family runs out, a cue comes back with another seed). A sentence that turns
-  the story carries `"music": "<mood>"` in script.json: the cue changes exactly there and that mood holds to the end
-  of the chapter. Automatic cuts never leave a section under 10 s.
-- Under narration the bed sits about 20 dB under the voice, swells in pauses and on title cards. Cues keep out of the
-  voice's core: pads voiced close at or below C5, bass at or below E3, every sustained texture note at or above C5.
-  They end on their home chord before the last 1.5 s, and are normalised to -20 LUFS.
+Built by `tools/library_score.py` from `music/library.json`: recorded, human-composed CC BY tracks (README "Music").
+Generated MIDI cues (`score.py`) are the offline fallback only — under a documentary voice they sound like a toy.
+- A narration bed is sparse and textural: no drums, no lead melody, few attacks, steady dynamics, little energy in
+  1–4 kHz where consonants live. Only `bed: true` tracks qualify; a new track is measured and tagged before use.
+- One track per chapter, changed at structural breaks only: a chapter break is a 3 s cross-fade centred on the title
+  card; a chapter longer than its track chains a second track in the same mood family with a 4 s cross-fade at a
+  sentence gap. A sentence that turns the story carries `"music": "<mood>"`: the track changes exactly there.
+- Only a track's audible body is placed (no quiet intro, no fade-out tail under the voice), so the bed never goes
+  silent mid-chapter. No track twice in one video. Tracks are normalised to -20 LUFS; the bed dips 3 dB at 2.5 kHz.
+- Credits: CC BY needs the title, artist, licence and source of every track — `out/music_credits.txt` goes into the
+  YouTube description and the audiobook notes.
 - Moods: wonder curious tension triumph melancholy playful reflective urgent warm mystery epic-calm nostalgic. Give each
-  chapter a `mood` in script.json; unset, score.py guesses from the words. Pick by what the chapter does, not by the
+  chapter a `mood` in script.json; unset, the scorer guesses from the words. Pick by what the chapter does, not by the
   book's genre: a sea hunt is `tension`/`epic-calm`, a moral dilemma `tension`/`reflective`, a discovery `wonder`,
   a childhood memory `nostalgic`. `mystery` is for real unknowns, not a default.
-- Across videos: each project rotates the catalogue by its own name, and `~/.cache/2lab-explainer-music/history.json`
-  makes cues used by the last 10 videos cost more, so two books with the same mood do not open on the same cue.
-- Mix (`export.py mix` with a score.py score): the bed sits 20–22 dB under the voice while it speaks and swells only
-  ~4 dB in short gaps (volume 0.20, sidechain ratio 2.5, release 1.2 s). In every open stretch — title cards, chapter
-  breaks, the end (no voice for ≥ 1.2 s) — it rises +6 dB to about −27 dBFS so the new chapter's cue is heard, and the
-  end fades over 1.5 s, after the last word. Check: `mix_check.py` (`music_open_dbfs` −30…−22; before 2026-11-10 it
+- Across videos: `~/.cache/2lab-explainer-music/history.json` (shared by both scorers) makes tracks used by the last 10
+  videos cost more, so two books with the same mood do not open on the same track.
+- Mix (`export.py mix` with a library_score.py or score.py score): the bed sits 20–22 dB under the voice while it
+  speaks and swells only ~4 dB in short gaps (volume 0.20, sidechain ratio 2.5, release 1.2 s). In every open stretch —
+  title cards, chapter breaks, the end (no voice for ≥ 1.2 s) — it rises (+10.5 dB for a library bed, +6 dB for MIDI
+  cues) to about −29 dBFS so the new chapter's music is heard, and the end fades over 1.5 s, after the last word. Check: `mix_check.py` (`music_open_dbfs` −30…−22; before 2026-11-10 it
   sat near −33, which every reviewer called near-silent).
-- In a clip under ~20 s, do not force a `"music"` change: one cue is enough.
+- In a clip under ~20 s, do not force a `"music"` change: one track is enough.
 
 ## 8. Gates (in order, each one blocks the next)
 1. **Asset gallery** — `tools/gallery.py cast animals [props]`; look at every sheet. Fix looks before writing scenes.
@@ -123,7 +125,8 @@ Built by `tools/score.py` from the cue library `music/cues.json` (120 original c
    and answers per sentence: is its verb drawn? does every tail end at a mouth? is any tag on someone else? is the top
    of the frame used? does anything float (a whale over the water, a hill over its line)?
    Voice: `audio_check.py --sentences` (numbers normalised, names from project.json `names`): every sentence `ok`.
-4. **Music** — `out/cue_sheet.md`: distinct cues = sections; `mix_check.py` exits 0 (20–22 dB under the voice, swell ≤ 6 dB,
+4. **Music** — `out/cue_sheet.md`: distinct tracks = sections, moods that fit; `out/music_credits.txt` in the
+   description; `mix_check.py` exits 0 (20–22 dB under the voice, swell ≤ 6 dB,
    title cards −30…−22 dBFS); the mix stays near -15.5 LUFS.
 5. **Retro** — after delivery, append what went wrong to LESSONS.md and fix the rule/template/code (PR).
 

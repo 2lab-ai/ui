@@ -3,6 +3,19 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-10 · music of the two v2 videos — owner: "음악 너무 개쓰레기같음" (the music is garbage)
+- The music sounded like a toy under a documentary voice · `score.py` cues are General MIDI instruments (marimba,
+  xylophone, kalimba arpeggios) changing every ~35 s · recorded CC BY narration beds (`library_score.py`,
+  `music/library.json`), one track per chapter; MIDI stays as the offline fallback.
+- Busy tracks would fight the voice · nothing measured a track before use · every library track measured (percussive
+  share, attacks/s, 1–4 kHz energy, dynamics); only `bed: true` tracks are placed; test_library_score checks the limits.
+- 12–23 s near-silences mid-chapter in the first library mix · tracks' quiet outros played out under the voice ·
+  only the audible body (`body_start`…`body_end`) is placed, a track changes at a sentence gap ≥ 25 s before the
+  chapter ends; test: no dip > 0.5 s inside the bed.
+- Title cards at −33.5 dBFS with a library bed (recorded music is denser, so the voice ducks it lower) · the +6 dB
+  open-stretch lift was tuned for MIDI · +10.5 dB for `kind: library` scores; `mix_check` −29 dBFS.
+- CC BY needs attribution · `out/music_credits.txt`, pasted into the YouTube description.
+
 ## 2026-11-10 · v2 redraw of 'Elon Musk' (29:43) and '생각을 바꾸는 책 10권' (44:41) — same voice, new pictures
 Nine authors (parts/ + a private preview each), nine fresh Gate C reviewers, 24 scenes, ~1,330 shots. Lint said 0 on
 every scene; the reviewers still found 0–2 P1 and 1–14 P2 per scene. What they saw and what closed it:
