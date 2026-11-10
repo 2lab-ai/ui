@@ -36,14 +36,16 @@ def mix():
     sj, sw = os.path.join(HERE, 'score.json'), os.path.join(HERE, 'score.wav')
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from score import wav_sig
-        gentle = json.load(open(sj)).get('score_wav') == wav_sig(sw)
-    except Exception: gentle = False
-    print('mix: ' + ('docent score (score.py): gentle ducking, music ~20 dB under the voice' if gentle else 'classic ducking (music.py score)'))
+        sjd = json.load(open(sj)); gentle = sjd.get('score_wav') == wav_sig(sw); library = gentle and sjd.get('kind') == 'library'
+    except Exception: gentle = library = False
+    print('mix: ' + (('library score (library_score.py)' if library else 'docent score (score.py)') + ': gentle ducking, music ~20 dB under the voice' if gentle else 'classic ducking (music.py score)'))
     vol, duck = (0.20, 'threshold=0.05:ratio=2.5:attack=150:release=1200') if gentle else (0.42, 'threshold=0.03:ratio=6:attack=40:release=600')
     # Docent scores also breathe with the picture: in every open stretch (title cards, chapter breaks, the end; a gap of
     # >= 1.2 s between sentences) the music rises +6 dB and settles back 0.25 s before the voice returns, and the end
     # fades over 1.5 s (2026-11-10 review: the bed was flat, near-silent on title cards and gone in the last seconds).
-    env, fade = (open_envelope(T), 1.5) if gentle else ('1', 4.0)
+    # library_score.py beds (recorded music, denser than the MIDI cues) sit lower under the voice, so their open
+    # stretches lift +10.5 dB to reach the same ~-30 dBFS on title cards (2026-11-10: +6 dB left them at -33.5, +9 at -30.8)
+    env, fade = (open_envelope(T, 10.5 if library else 6.0), 1.5) if gentle else ('1', 4.0)
     flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol},volume='{env}':eval=frame,afade=t=out:st={T-fade:.2f}:d={fade}[m];"
            f"[0:a]aformat=channel_layouts=stereo,asplit=2[v][sc];"
            f"[m][sc]sidechaincompress={duck}[md];"
