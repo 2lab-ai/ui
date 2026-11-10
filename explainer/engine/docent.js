@@ -99,7 +99,8 @@ function docentReport() {
     const ov = Math.max(0, Math.min(b[2], g[2]) - Math.max(b[0], g[0])) * Math.max(0, Math.min(b[3], g[3]) - Math.max(b[1], g[1]));
     if (ov > 0.3 * (g[2] - g[0]) * (g[3] - g[1])) cover.push(`name tag over another figure or animal @${Math.round(g[0])}`);
   }
-  DOCENT.tags.forEach((g, i) => DOCENT.tags.slice(i + 1).forEach((h) => { if (h[2] > g[0] && h[0] < g[2] && h[3] > g[1] && h[1] < g[3]) cover.push(`name tag over name tag @${Math.round(g[0])}`); }));
+  const tagsS = DOCENT.tags.map((g) => scr(g));   // on screen, like the figure check above
+  tagsS.forEach((g, i) => tagsS.slice(i + 1).forEach((h) => { if (h[2] > g[0] && h[0] < g[2] && h[3] > g[1] && h[1] < g[3]) cover.push(`name tag over name tag @${Math.round(g[0])}`); }));
   return { t: DOCENT.t, shot: DOCENT.shot, ink: DOCENT.ink, textBig: DOCENT.textBig, propFace, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far, tailHigh: high.map(([x, y]) => [Math.round(x), Math.round(y)]),
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals };
