@@ -100,7 +100,8 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
   card; a chapter longer than its track chains a second track in the same mood family with a 4 s cross-fade at a
   sentence gap. A sentence that turns the story carries `"music": "<mood>"`: the track changes exactly there.
 - Only a track's audible body is placed (no quiet intro, no fade-out tail under the voice), so the bed never goes
-  silent mid-chapter. No track twice in one video. Tracks are normalised to -20 LUFS; the bed dips 3 dB at 2.5 kHz.
+  silent mid-chapter. No track twice in one video (23 beds; more than ~20 chapters warns). Tracks are normalised to
+  -20 LUFS; the bed dips 3 dB at 2.5 kHz.
 - Credits: CC BY needs the title, artist, licence and source of every track — `out/music_credits.txt` goes into the
   YouTube description and the audiobook notes.
 - Moods: wonder curious tension triumph melancholy playful reflective urgent warm mystery epic-calm nostalgic. Give each

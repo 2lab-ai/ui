@@ -19,8 +19,9 @@ under the voice with a small dip in the speech band (sources in music/library.js
   score.py does); a chapter longer than its track chains a second matching track with a 4 s cross-fade at a sentence
   gap; a sentence with "music": "<mood>" changes track exactly there (a turn in the first 5 s sets the chapter's mood).
   A chapter break is a 3 s cross-fade centred on the break: the new track starts 1.5 s before its title card. The
-  video's last track runs to the end; export.py mix fades it. No track twice in one video; tracks used by the last 10
-  videos cost more (history.json, shared with score.py).
+  video's last track runs to the end; export.py mix fades it. No track twice in one video while beds last (23 beds:
+  ~20 chapters; past that the least costly comes back, with a warning); tracks used by the last 10 videos cost more
+  (history.json, shared with score.py).
 - Only a track's audible body is placed (library.json body_start/body_end: quiet intros and fade-out tails cut; the
   first mix had 12-23 s near-silences where a track's outro fell under the voice), and a section never needs more
   than that body, cross-fades included. Each track is normalised to --lufs, the bed gets a 3 dB dip around 2.5 kHz
@@ -60,20 +61,29 @@ def path_of(t):
     return os.path.join(CACHE, t['file'])
 
 
+def download(url, dest):
+    """url -> dest, all or nothing: a per-process part file (two projects fetching the same track never share one), a
+    60 s timeout, and a short body is an error (http.client does not raise when the connection ends early; a
+    truncated track in the cache would leave a silent hole in every bed that uses it)."""
+    part = f'{dest}.{os.getpid()}.part'
+    try:
+        with urllib.request.urlopen(url, timeout=60) as r, open(part, 'wb') as f:
+            shutil.copyfileobj(r, f); want = r.headers.get('Content-Length')
+        got = os.path.getsize(part)
+        if want is not None and got != int(want): raise IOError(f'{url}: got {got} of {want} bytes')
+        os.replace(part, dest)
+    finally:
+        if os.path.exists(part): os.remove(part)
+
+
 def fetch(tracks):
     for t in tracks:
         p = path_of(t)
         if os.path.exists(p): continue
         os.makedirs(os.path.dirname(p), exist_ok=True)
         item = t['source'].rstrip('/').split('/')[-1]
-        url = f"https://archive.org/download/{item}/" + urllib.parse.quote(os.path.basename(t['file']))
-        part = f'{p}.{os.getpid()}.part'   # two projects fetching the same track never share a part file
         print('fetch', t['title'], flush=True)
-        try:
-            with urllib.request.urlopen(url, timeout=60) as r, open(part, 'wb') as f: shutil.copyfileobj(r, f)
-            os.replace(part, p)
-        finally:
-            if os.path.exists(part): os.remove(part)
+        download(f"https://archive.org/download/{item}/" + urllib.parse.quote(os.path.basename(t['file'])), p)
 
 
 def decode(path):
@@ -97,19 +107,23 @@ def write_wav(path, x):
 
 
 def holes(x, sr=None, depth=20.0, shortest=1.0):
-    """internal silences of a track body (mono or stereo samples): runs of quarter-seconds more than `depth` dB under
-    the body's median level lasting >= `shortest` s. A bed with a hole stops dead under the voice (2026-11-10: four
-    sparse tracks dropped to -30..-59 dB for 1.5-2.5 s, the Musk v2b mix went silent mid-sentence at 22:08)."""
+    """internal silences of a track body (mono or stereo samples): stretches more than `depth` dB under the body's
+    median level lasting >= `shortest` s, as (start, length) in seconds. Quarter-second windows every 1/16 s, so a
+    silence is found wherever it starts. A bed with a hole stops dead under the voice (2026-11-10: five sparse tracks
+    dropped to -30..-59 dB for 1.5-2.5 s, the Musk v2b mix went silent mid-sentence at 22:08)."""
     sr = sr or SR; x = x.mean(axis=1) if x.ndim == 2 else x
-    win = sr // 4; n = len(x) // win
-    if n == 0: return []
-    r = 20 * np.log10(np.sqrt(np.mean(x[:n * win].reshape(n, win) ** 2, axis=1)) + 1e-9)
-    med = float(np.median(r)); out = []; i = 0
+    win, hop = sr // 4, sr // 16
+    if len(x) < win: return []
+    c = np.concatenate([[0.0], np.cumsum(x.astype(np.float64) ** 2)])
+    starts = np.arange(0, len(x) - win + 1, hop)
+    r = 10 * np.log10((c[starts + win] - c[starts]) / win + 1e-18)
+    med = float(np.median(r)); quiet = r < med - depth; out = []; i = 0; n = len(r)
     while i < n:
-        if r[i] < med - depth:
+        if quiet[i]:
             j = i
-            while j < n and r[j] < med - depth: j += 1
-            if (j - i) * 0.25 >= shortest: out.append((i * 0.25, (j - i) * 0.25))
+            while j < n and quiet[j]: j += 1
+            length = (starts[j - 1] + win - starts[i]) / sr   # the quiet windows cover this much audio (up to one hop
+            if length >= shortest - hop / sr: out.append((round(starts[i] / sr, 3), round(length, 3)))   # short of it)
             i = j
         else: i += 1
     return out
@@ -120,13 +134,14 @@ def body(t):
 
 
 def measure(tracks_json=None):
-    """--measure: write each cached track's `holes` (count) into music/library.json; a bed needs none."""
+    """--measure: write each cached track's `holes` (count) into music/library.json. `bed` (the listening criteria) is
+    left alone; catalogue() skips any track with holes, so a re-measure that finds none brings a bed back."""
     path = tracks_json or CATALOGUE
     with open(path) as f: lib = json.load(f)
     for t in lib['tracks']:
-        if not os.path.exists(path_of(t)): continue
+        if not os.path.exists(path_of(t)): print(f"{t['id']}: not cached, not measured (--fetch)"); continue
         t['holes'] = len(holes(body(t)))
-        if t.get('bed') and t['holes']: print(f"{t['id']}: {t['holes']} internal silences -> bed: false"); t['bed'] = False
+        if t.get('bed') and t['holes']: print(f"{t['id']}: {t['holes']} internal silences -> not used as a bed")
     def dump(f):
         with open(f, 'w', encoding='utf-8') as fh: fh.write(json.dumps(lib, ensure_ascii=False, indent=1))
     write_atomic(path, dump)
@@ -165,7 +180,9 @@ def plan(chs, project, history):
             short = max(0.0, need - t['use']) / 60            # minutes the track falls short of the section
             return (rank * 3 + short * 2 + recent.get(t['id'], 0) * 4 + (t['id'] in used) * 100
                     + (t['id'] == avoid_last) * 1000, t['id'])
-        t = min(cues, key=cost); used.add(t['id']); return t
+        t = min(cues, key=cost)
+        if t['id'] in used: print(f"every bed is used: {t['id']} plays twice in this video", file=sys.stderr)
+        used.add(t['id']); return t
 
     for ch in chs:
         # sections: the chapter, cut at forced turns; a section longer than its track chains another at a gap
@@ -217,7 +234,10 @@ def assemble(pl, total, lufs):
             cache[p['cue']] = x * (10 ** ((lufs - lufs_of(x)) / 20))
         x = cache[p['cue']]
         pre, post, fi, fo = extent(pl, k)
-        L = min(len(x), int((p['end'] - p['start'] + pre + post) * SR))
+        L = int((p['end'] - p['start'] + pre + post) * SR)
+        if len(x) < L - SR // 100:   # plan() budgets every section to fit; a short file is a broken cache entry
+            raise RuntimeError(f"{p['cue']}: {len(x) / SR:.1f} s of audio for a {L / SR:.1f} s section — delete {path_of(cat[p['cue']])} and run again")
+        L = min(L, len(x))
         seg = x[:L].copy(); fi_n, fo_n = min(int(fi * SR), L), min(int(fo * SR), L)
         seg[:fi_n] *= np.linspace(0, 1, fi_n)[:, None]
         if fo_n: seg[L - fo_n:] *= np.linspace(1, 0, fo_n)[:, None]

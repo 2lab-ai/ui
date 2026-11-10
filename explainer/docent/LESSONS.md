@@ -15,9 +15,13 @@ that comes back means the fix was not structural: replace it with a check.
 - Title cards at −33.5 dBFS with a library bed (recorded music is denser, so the voice ducks it lower) · the +6 dB
   open-stretch lift was tuned for MIDI · +10.5 dB for `kind: library` scores; `mix_check` −29 dBFS.
 - CC BY needs attribution · `out/music_credits.txt`, pasted into the YouTube description.
-- The music stopped dead for 1.5–2.5 s mid-sentence (Musk v2b 22:08–22:40, 12:02–12:40; 10 books 3:37–4:20) · four
-  sparse tracks rest inside (−30…−59 dB) and passed every bed check (perc, attacks, speech band) · `holes()`:
-  `--measure` writes `holes` per track, a bed needs 0 (test); scanned the delivered beds, re-mixed both videos.
+- The music stopped dead for 1.5–2.5 s mid-sentence (Musk v2b 22:08–22:40, 12:02–12:40; 10 books 3:37–4:20) · five
+  sparse tracks rest inside (−30…−59 dB) and passed every bed check (perc, attacks, speech band) · `holes()`
+  (overlapping windows, found at any offset): `--measure` writes `holes` per track, catalogue() skips any with holes
+  (test); scanned the delivered beds, re-mixed both videos.
+- PR #59 re-review: `urlopen` accepts a body shorter than its Content-Length, so a dropped download would sit in the
+  cache and leave a silent stretch in every bed using it · `download()` checks the length; `assemble()` fails on a
+  file shorter than its section (tests with a local server).
 - PR #59 review: a section plus its cross-fades could need 2.5 s more than its track's body, so the fade-out ended
   early and 21 of ~800 simulated cross-fades dipped 6–11 dB; `--plan` overwrote the credits of the rendered score ·
   the planner budgets `use − XF − H`, a test checks every section + cross-fades fits on 150 random timelines; `--plan`

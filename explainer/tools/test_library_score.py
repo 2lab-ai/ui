@@ -26,7 +26,7 @@ class Catalogue(unittest.TestCase):
         self.beds = LS.catalogue()
 
     def test_every_bed_is_attributable_and_has_a_body(self):
-        self.assertGreaterEqual(len(self.beds), 24)
+        self.assertGreaterEqual(len(self.beds), 20)
         self.assertEqual(len({t['id'] for t in self.all}), len(self.all))
         for t in self.beds:
             self.assertTrue(t['moods'], t['id'])
@@ -42,19 +42,25 @@ class Catalogue(unittest.TestCase):
             self.assertLessEqual(t['band_1_4k'], 0.2, t['id'])     # little energy where consonants live
 
     def test_no_bed_has_an_internal_silence(self):
-        for t in self.all:
-            self.assertIn('holes', t, t['id'])                  # measured (library_score.py --measure)
-            if t.get('bed'): self.assertEqual(t['holes'], 0, t['id'])
+        for t in self.all: self.assertIn('holes', t, t['id'])   # measured (library_score.py --measure)
+        for t in self.beds: self.assertEqual(t['holes'], 0, t['id'])
 
     def test_holes_finds_a_silence_inside_a_track(self):
         sr = 8000; rng = np.random.default_rng(3)
         x = rng.standard_normal(sr * 20).astype(np.float32) * 0.1
         self.assertEqual(LS.holes(x, sr), [])
         x[sr * 8:sr * 10] *= 0.001                             # 2 s, 60 dB down
-        self.assertEqual(LS.holes(x, sr), [(8.0, 2.0)])
+        self.assertEqual(len(LS.holes(x, sr)), 1); self.assertAlmostEqual(LS.holes(x, sr)[0][1], 2.0, delta=0.07)
         y = rng.standard_normal(sr * 20).astype(np.float32) * 0.1
-        y[sr * 8:int(sr * 8.5)] *= 0.001                       # a half-second breath is not a hole
+        y[sr * 8:int(sr * 8.8)] *= 0.001                       # a breath under a second is not a hole
         self.assertEqual(LS.holes(y, sr), [])
+
+    def test_a_one_second_silence_is_found_wherever_it_starts(self):
+        sr = 8000; rng = np.random.default_rng(4)
+        for k in range(25):                                    # review of PR #59: missed at 24 of 25 offsets
+            x = rng.standard_normal(sr * 12).astype(np.float32) * 0.1
+            a = sr * 5 + k * sr // 25; x[a:a + sr] *= 0.001
+            self.assertEqual(len(LS.holes(x, sr)), 1, k)
 
     def test_every_script_mood_finds_beds(self):
         for mood, fam in LS.FAMILY.items():
@@ -166,6 +172,12 @@ class Assemble(unittest.TestCase):
 
     def tearDown(self): LS.decode, LS.lufs_of, LS.SR = self.saved
 
+    def test_a_short_cached_file_fails_loudly(self):
+        LS.decode = lambda path: np.zeros((int(20 * LS.SR), 2), np.float32)   # 20 s where the catalogue promises minutes
+        script, tl = timeline(n=1, sents=12)
+        pl = LS.plan(LS.chapters(script, tl), 'test', None)
+        with self.assertRaises(RuntimeError): LS.assemble(pl, tl['total'], -20.0)
+
     def test_no_silence_longer_than_a_fade(self):
         script, tl = timeline(n=3, sents=30)
         pl = LS.plan(LS.chapters(script, tl), 'test', None)
@@ -178,6 +190,36 @@ class Assemble(unittest.TestCase):
         for q in quiet[8:-2]:                        # skip the opening fade-in
             run = run + 1 if q else 0; longest = max(longest, run)
         self.assertEqual(longest, 0, f'{longest * 0.25:.2f} s more than 6 dB under the bed')
+
+
+class Download(unittest.TestCase):
+    """a body shorter than its Content-Length is an error, not a cached track (review of PR #59)"""
+
+    def serve(self, body, length):
+        import http.server, threading
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200); self.send_header('Content-Length', str(length)); self.end_headers()
+                self.wfile.write(body); self.wfile.flush(); self.connection.shutdown(1)
+            def log_message(self, *a): pass
+        srv = http.server.HTTPServer(('127.0.0.1', 0), H)
+        threading.Thread(target=srv.handle_request, daemon=True).start()
+        return f'http://127.0.0.1:{srv.server_address[1]}/x.flac', srv
+
+    def test_truncated_body_raises_and_caches_nothing(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            url, srv = self.serve(b'x' * 100, 1000); dest = os.path.join(d, 'x.flac')
+            with self.assertRaises(Exception): LS.download(url, dest)
+            srv.server_close()
+            self.assertEqual(os.listdir(d), [])
+
+    def test_full_body_is_cached(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            url, srv = self.serve(b'x' * 1000, 1000); dest = os.path.join(d, 'x.flac')
+            LS.download(url, dest); srv.server_close()
+            self.assertEqual(os.path.getsize(dest), 1000); self.assertEqual(os.listdir(d), ['x.flac'])
 
 
 class Main(unittest.TestCase):

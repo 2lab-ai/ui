@@ -190,7 +190,7 @@
     "dark",
     "reflective"
    ],
-   "bed": false,
+   "bed": true,
    "perc": 0.013,
    "onsets_per_s": 0.46,
    "band_1_4k": 0.001,
@@ -199,7 +199,7 @@
    "body_start": 0.0,
    "body_end": 135.5,
    "quiet_run_s": 5,
-   "holes": 2
+   "holes": 3
   },
   {
    "id": "lee-rosevere/4th-ave-walkup",
@@ -493,7 +493,7 @@
    "band_1_4k": 0.007,
    "centroid": 1273,
    "dyn_db": 15.2,
-   "holes": 2
+   "holes": 3
   },
   {
    "id": "lee-rosevere/not-alone",
@@ -572,7 +572,7 @@
     "dark",
     "curious"
    ],
-   "bed": false,
+   "bed": true,
    "perc": 0.046,
    "onsets_per_s": 0.54,
    "band_1_4k": 0.021,
@@ -581,7 +581,7 @@
    "body_start": 0.0,
    "body_end": 129.5,
    "quiet_run_s": 2,
-   "holes": 4
+   "holes": 7
   },
   {
    "id": "lee-rosevere/the-nightmare",
@@ -896,7 +896,7 @@
     "reflective",
     "warm"
    ],
-   "bed": false,
+   "bed": true,
    "perc": 0.013,
    "onsets_per_s": 2.64,
    "band_1_4k": 0.103,
@@ -970,7 +970,7 @@
    "moods": [
     "warm"
    ],
-   "bed": false,
+   "bed": true,
    "perc": 0.009,
    "onsets_per_s": 1.95,
    "band_1_4k": 0.047,
@@ -1186,7 +1186,7 @@
    "body_start": 0.0,
    "body_end": 115.5,
    "quiet_run_s": 2,
-   "holes": 0
+   "holes": 1
   },
   {
    "id": "lee-rosevere/heres-where-things-get-interesting",
