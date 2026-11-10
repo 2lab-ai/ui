@@ -117,7 +117,7 @@ Built by `tools/score.py` from the cue library `music/cues.json` (120 original c
    The gallery tests identity ("a wolf"); whether a drawing reads as the action ("nursing", "lifting") is checked at
    gate 3 by a fresh reviewer.
 2. **Scene lint** — `tools/lint_scenes.py` must exit 0 (no P0/P1) on the draft timeline and again on the real one, and
-   someone looks at `out/lint_sheet.jpg` (every rest frame): lint cannot see a wrong metaphor, a roof that does not
+   someone looks at every `out/lint_sheet*.jpg` page (every rest frame): lint cannot see a wrong metaphor, a roof that does not
    meet its wall, or an arm through a prop.
 3. **Contact sheets** — stills at every sentence start + 0.8 s and end − 0.3 s; a fresh reviewer looks at every sheet
    and answers per sentence: is its verb drawn? does every tail end at a mouth? is any tag on someone else? is the top

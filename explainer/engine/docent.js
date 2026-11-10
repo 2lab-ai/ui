@@ -47,8 +47,9 @@ function opaqueMix(hex, k, base = C.paper || PAPER()) {
 function docentTagInk(acc) {
   const rgb = (h) => { const m = /^#([0-9a-f]{6})$/i.exec(h || ''); if (!m) return null; const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
   const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-  const a = rgb(acc), bg = rgb(PAPER()); if (!a || !bg || lum(bg) < 0.4) return acc;   // dark pages (mono-black): accents already read
-  let c = a; for (let i = 0; i < 6; i++) { const L1 = lum(c), L2 = lum(bg); if ((Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05) >= 4.5) break; c = c.map((v) => Math.round(v * 0.8)); }
+  const a = rgb(acc), bg = rgb(PAPER()); if (!a || !bg) return acc;
+  const dark = lum(bg) < 0.4;   // on a dark page (mono-black) lighten toward white instead (grey there was 1.8:1)
+  let c = a; for (let i = 0; i < 8; i++) { const L1 = lum(c), L2 = lum(bg); if ((Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05) >= 4.5) break; c = c.map((v) => Math.round(dark ? v + (255 - v) * 0.2 : v * 0.8)); }
   return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
 }
 function docentTags() {
@@ -319,6 +320,7 @@ function figure(x, y, o = {}) {
   const hatH = { top: 2.2, true: 2.2, bowler: 1.3, cap: 1.5, beanie: 1.5, crown: 1.75, laurel: 1.2 }, hairH = { bun: 1.6, spiky: 1.45, curly: 1.32, ponytail: 1.25, long: 1.25, short: 1.25, side: 1.25 };
   const topY = hc[1] - R * (hat ? (hatH[hat] || 2.2) : (hair && hair !== 'bald' ? (hairH[hair === true ? 'long' : hair] || 1.25) : 1.05));
   const anchors = { head: hc, r: R, mouth: [hc[0] + dir * R * 0.15, hc[1] + R * 0.4], top: [hc[0], topY], dir,
+    brim: hat === 'cap' ? dir : 0,   // a cap's brim reaches 1.7 R on the facing side: say() keeps upper bubbles off that side
     hands: [F(sh[0] + P.la[1][0] - (outfit ? 21 : 0), sh[1] + P.la[1][1]), F(sh[0] + P.ra[1][0] + (outfit ? 21 : 0), sh[1] + P.ra[1][1])],
     box: [x - 70 * s, topY, x + 70 * s, y] };
   // the name tag sits beside the waist on the free side (not between two people), clear of every bubble above.
@@ -767,6 +769,7 @@ function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 =
     let cost = k * 400 + (k >= want.length ? 3000 : 0) + (Math.abs(dx) + Math.abs(dy)) * 2;
     for (const b of DOCENT.slots.figs) if (b !== who.box) cost += hit(b, x, y) * 0.5;
     if (kind !== 'thought' && !who.animal && Math.abs(x + w / 2 - hx) < r * 1.2) cost += 1500;   // right above the head: the tail would hit the scalp
+    if (kind !== 'thought' && who.brim && Math.sign(x + w / 2 - hx) === who.brim) cost += 2600;   // the brim side: the tail crosses or hugs the cap's brim (PR #58 review); the back of the head is free
     for (const b of DOCENT.slots.things) cost += hit(b, x, y) * 3;   // a bubble over a prop or a board hides the picture
     for (const b of DOCENT.slots.bubbles) cost += hit(b, x, y) * 12 + (hit(b, x, y) > 0 ? 20000 : 0);
     for (const [cx, cy, cr] of DOCENT.slots.heads) cost += hit([cx - cr, cy - cr, cx + cr, cy + cr], x, y) * 12;
@@ -798,7 +801,7 @@ function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 =
   // left the head at the temple, which read as a tail into the hair or a cap brim (2026-11-10 v2 redraw: 14 tails in
   // 9 blind reviews, none caught by the lint)
   if (kind !== 'thought' && !who.animal && Math.abs(bx - hx) >= r * 1.1 && tail[1] < my - r * 0.2)
-    tail = [hx + Math.sign(bx - hx) * (r + 14), my - r * 0.1];
+    tail = [hx + Math.sign(bx - hx) * ((who.brim && Math.sign(bx - hx) === who.brim ? r * 1.7 : r) + 14), my - r * 0.1];
   bubble(x, y, w, h, { ...o, kind, size, text: str, tail });
   return [x, y, w, h];
 }
@@ -928,7 +931,7 @@ const PROPS = {
     for (const d of [-1, 1]) { inkLine(x + d * 100 * s, y - 140 * s, x + d * 100 * s, y - 90 * s, o); inkArc(x + d * 100 * s, y - 90 * s, 40 * s, 20 * s, 0, Math.PI, o); } },
   bulb: (x, y, s, o) => {   // glass and neck are one closed shape that sits on the screw base (2026-11-10: the base floated 26 px under an open glass)
     const g = []; for (let k = 0; k <= 24; k++) { const a = Math.PI * (0.75 + 1.5 * k / 24); g.push([x + Math.cos(a) * 48 * s, y - 110 * s + Math.sin(a) * 48 * s]); }
-    inkPath([...g, [x + 18 * s, y - 50 * s], [x - 18 * s, y - 50 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.35) }); inkRect(x - 18 * s, y - 50 * s, 36 * s, 34 * s, { ...o, fill: (o.paperFill ? null : o.fill) || opaqueMix(C.grey, 0.5) }); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.55; inkLine(x + Math.cos(a) * 66 * s, y - 110 * s + Math.sin(a) * 66 * s, x + Math.cos(a) * 88 * s, y - 110 * s + Math.sin(a) * 88 * s, o); } },
+    inkPath([...g, [x + 18 * s, y - 50 * s], [x - 18 * s, y - 50 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || opaqueMix(C.yellow, 0.35) }); inkRect(x - 18 * s, y - 50 * s, 36 * s, 34 * s, { ...o, fill: (o.paperFill ? null : o.fill) || opaqueMix(C.grey, 0.5) }); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.55; inkLine(x + Math.cos(a) * 66 * s, y - 110 * s + Math.sin(a) * 66 * s, x + Math.cos(a) * 88 * s, y - 110 * s + Math.sin(a) * 88 * s, o); } },
   clock: (x, y, s, o) => { inkCircle(x, y - 80 * s, 72 * s, { ...o, fill: o.fill }); const h = (o.t || 0) * 0.4; inkLine(x, y - 80 * s, x + Math.sin(h) * 40 * s, y - 80 * s - Math.cos(h) * 40 * s, o); inkLine(x, y - 80 * s, x + Math.sin(h * 12) * 58 * s, y - 80 * s - Math.cos(h * 12) * 58 * s, { ...o, w: 2.6 }); },
   calendar: (x, y, s, o) => { inkRect(x - 70 * s, y - 140 * s, 140 * s, 140 * s, { ...o, fill: o.fill }); for (let i = 0; i < 7; i++) inkCircle(x - 54 * s + i * 18 * s, y - 140 * s, 6 * s, { ...o, w: 2.4 }); if (o.label) hand(o.label, x, y - 66 * s, { size: 36 * s, p: o.p, a: o.a }); },
   signpost: (x, y, s, o) => { inkLine(x, y, x, y - 220 * s, { ...o, w: 6 }); inkPath([[x, y - 200 * s], [x + 120 * s, y - 200 * s], [x + 144 * s, y - 180 * s], [x + 120 * s, y - 160 * s], [x, y - 160 * s]], o); inkPath([[x, y - 150 * s], [x - 120 * s, y - 150 * s], [x - 144 * s, y - 130 * s], [x - 120 * s, y - 110 * s], [x, y - 110 * s]], o); },
@@ -1473,8 +1476,8 @@ Object.assign(ANIMALS, {
   // tick, side view: a round flat body, a small pointed head with mouthparts, eight bent legs
   tick: (T, o, q) => {
     const s = o.s, f = docentAnimalFill(o, opaqueMix(C.red, 0.55));
-    for (let i = 0; i < 4; i++) { const x = -50 + i * 34;
-      inkPath([T(x, -70), T(x + (i < 2 ? -30 : 30), -110), T(x + (i < 2 ? -50 : 54), -4)], { ...o, w: o.w * 0.7, p: q(0) }); }
+    for (const far of [1, 0]) for (let i = 0; i < 4; i++) { const x = -50 + i * 34 + far * 12;   // eight legs: four far (darker), four near
+      inkPath([T(x, -70), T(x + (i < 2 ? -30 : 30), -110 + far * 8), T(x + (i < 2 ? -50 : 54) + far * 10, -4)], { ...o, w: o.w * 0.7, p: q(0), color: far ? C.dim : o.color }); }
     inkEllipse(...T(0, -76), 86 * s, 56 * s, { ...o, p: q(1), fill: f });
     inkEllipse(...T(-6, -96), 46 * s, 22 * s, { ...o, w: o.w * 0.5, p: q(2), fill: opaqueMix(C.red, 0.8) });
     inkPath([T(80, -92), T(126, -78), T(80, -62)], { ...o, closed: true, p: q(2), fill: opaqueMix(INK(), 0.7) });
@@ -1525,4 +1528,4 @@ PROPS.notebook = (x, y, s, o) => {
 };
 // cross() takes the top-left corner (like inkRect) while ring() takes the centre; one author placed every X off its
 // target. crossAt() is the centred one: crossAt(cx, cy, w, h).
-const crossAt = (cx, cy, w, h, o = {}) => cross(cx - w / 2, cy - h / 2, w, h, o);
+function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w, h, o); }   // a function: a project may redefine it

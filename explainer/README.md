@@ -162,7 +162,7 @@ name tags, people sharing a look, animals on the stick-figure rig. Three tools u
 |---|---|
 | `tools/timeline_draft.py` | a draft timeline from script.json (7.8 chars/s) so scenes, gallery and lint run before the voice is done |
 | `tools/gallery.py cast animals props` | asset sheets: look at every one before any scene uses the asset |
-| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md` and a still per bad frame |
+| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md`, a still per bad frame and `out/lint_sheet*.jpg` (every rest frame, 60 per page) |
 
 ### Music: one cue per section
 
@@ -261,5 +261,5 @@ These rules come from the spec's study of 3Blue1Brown lessons. Check them before
 - Run `audio_check.py`. It reports the transcript match per scene (number formatting is the usual difference), the sentence timing offsets and the diffs.
 - Run `export.py stills` at every sentence, then `sheets.py`. Look for overlaps, missing cues (the page reports `missingCues()`) and text over subtitles.
 - Measure loudness: the mix should sit near −15.5 LUFS with no clipping.
-- Docent videos: `tools/gallery.py` sheets reviewed, `tools/lint_scenes.py` exits 0 and `out/lint_sheet.jpg` looked at,
+- Docent videos: `tools/gallery.py` sheets reviewed, `tools/lint_scenes.py` exits 0 and every `out/lint_sheet*.jpg` page looked at,
   `audio_check.py --sentences` all ok, `out/cue_sheet.md` shows one cue per section, `mix_check.py` 20-22 dB under the voice.

@@ -26,7 +26,7 @@ every scene; the reviewers still found 0–2 P1 and 1–14 P2 per scene. What th
 - The hair × hat pairs ran out at ~15 people per video (Einstein got a cap) · 8 hairs × 7 hats, half of them odd on a
   scientist · open gap: more hair styles.
 - The whole-project lint crashed writing one 140,000 px sheet (JPEG max 65,535) and exited 1 with no P1 · one sheet
-  · `lint_sheet.jpg`, `lint_sheet_2.jpg`, … 60 frames each.
+  · `lint_sheet.jpg`, `lint_sheet_02.jpg`, … 60 frames each (look at every page).
 - Two videos scored at the same time opened on the same cue chain (curious-02 → playful-03) · history saved after a
   minutes-long render · saved right after planning.
 - The first armour, sized from a guessed head radius, covered a tall man's arms · scale from anchors (TEMPLATES L).

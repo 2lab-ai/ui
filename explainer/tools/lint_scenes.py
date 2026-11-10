@@ -5,7 +5,7 @@ easy to miss. Run inside a project folder (timeline.json may be a draft).
     python lint_scenes.py [--scene id ...] [--strict]
 
 Writes out/lint.json, out/lint.md, out/lint/<scene>_<t>.jpg for every frame with a P1 or worse, and out/lint_sheet.jpg
-(+ lint_sheet_2.jpg … past 60 frames): every rest frame on contact sheets, to look at before the voice is even done (lint cannot see everything).
+(+ lint_sheet_02.jpg … past 60 frames): every rest frame on contact sheets, to look at before the voice is even done (lint cannot see everything).
 Exit code 1 when a P0/P1 defect is found (--strict: also P2).
 
 P0  page errors, missing cues, missing props / animals / cast ids
@@ -119,21 +119,21 @@ async def main(only, strict):
     for r in report:
         for s, c, d in r['issues']: lines.append(f"- [{s}] {r['scene']} @{r['t']:.2f}s {c}: {d}")
     open(os.path.join(OUT, 'lint.md'), 'w').write('\n'.join(lines) + '\n')
-    if thumbs:   # every rest frame, 3 across, 60 per page: lint_sheet.jpg, lint_sheet_2.jpg, …
+    for f in os.listdir(OUT):   # no stale pages from an earlier run, even when this run has no frames
+        if f.startswith('lint_sheet') and f.endswith('.jpg'): os.remove(os.path.join(OUT, f))
+    if thumbs:   # every rest frame, 3 across, 60 per page: lint_sheet.jpg, lint_sheet_02.jpg, …
         # one sheet for a 45-minute video was ~140,000 px tall: past JPEG's 65,535 px limit, so the save crashed and
         # the lint exited 1 with no P1 (2026-11-10, ten-books v2, 1,000+ rest frames)
         import io
         from PIL import Image, ImageDraw
         cols, tw, th, per = 3, 640, 360, 60   # big enough to see an arm through a prop
-        for f in os.listdir(OUT):
-            if f.startswith('lint_sheet') and f.endswith('.jpg'): os.remove(os.path.join(OUT, f))   # no stale pages
         for pg in range(0, len(thumbs), per):
             part = thumbs[pg:pg + per]; rows = (len(part) + cols - 1) // cols
             sheet = Image.new('RGB', (cols * tw, rows * (th + 22)), 'white'); d = ImageDraw.Draw(sheet)
             for i, (sid, t, b64) in enumerate(part):
                 im = Image.open(io.BytesIO(base64.b64decode(b64))).resize((tw, th)); x, y = (i % cols) * tw, (i // cols) * (th + 22)
                 sheet.paste(im, (x, y)); d.text((x + 4, y + th + 4), f'{sid} @{t:.2f}s', fill='black')
-            sheet.save(os.path.join(OUT, 'lint_sheet.jpg' if pg == 0 else f'lint_sheet_{pg // per + 1}.jpg'), quality=80)
+            sheet.save(os.path.join(OUT, 'lint_sheet.jpg' if pg == 0 else f'lint_sheet_{pg // per + 1:02d}.jpg'), quality=80)   # names sort in page order
     print('\n'.join(lines[:60]))
     bad = counts.get('P0', 0) + counts.get('P1', 0) + (counts.get('P2', 0) if strict else 0)
     sys.exit(1 if bad else 0)

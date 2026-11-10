@@ -14,8 +14,10 @@ helpers whose names start with the scene id. Used for the v2 redraw of two video
 import json, os, shutil, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LINKS = ['engine.js', 'docent.js', 'video.html', 'theme.json', 'project.json', 'script.json', 'timeline.json',
-         'narration.wav', 'mix.wav', 'formulas.json', 'fonts', 'img']
+# small files are copied on every preview (a tool run in the preview, e.g. new_video.py, must not write through a link
+# into the project); large media are linked
+COPIES = ['engine.js', 'docent.js', 'video.html', 'theme.json', 'project.json', 'script.json', 'timeline.json', 'formulas.json']
+LINKS = ['narration.wav', 'mix.wav', 'fonts', 'img']
 
 
 def scene_ids():
@@ -59,8 +61,15 @@ def gate_stills(ids):
 
 
 def preview(author, ids, sheets=True):
+    known = scene_ids(); bad = [i for i in ids if i not in known]
+    if bad: print(f'unknown scene id: {" ".join(bad)} (script.json has: {" ".join(known)})'); return 2   # no false green
     proj = os.getcwd(); dest = f'{proj}-{author}'
     os.makedirs(os.path.join(dest, 'out'), exist_ok=True)
+    for f in COPIES:
+        src, dst = os.path.join(proj, f), os.path.join(dest, f)
+        if os.path.exists(src):
+            if os.path.lexists(dst): os.remove(dst)   # a link from an older preview, or last run's copy
+            shutil.copy(src, dst)
     for f in LINKS:
         src, dst = os.path.join(proj, f), os.path.join(dest, f)
         if os.path.exists(src) and not os.path.lexists(dst): os.symlink(src, dst)
