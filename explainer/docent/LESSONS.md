@@ -3,6 +3,38 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-10 · v2 redraw of 'Elon Musk' (29:43) and '생각을 바꾸는 책 10권' (44:41) — same voice, new pictures
+Nine authors (parts/ + a private preview each), nine fresh Gate C reviewers, 24 scenes, ~1,330 shots. Lint said 0 on
+every scene; the reviewers still found 0–2 P1 and 1–14 P2 per scene. What they saw and what closed it:
+- Speech tails ending in the hair, at the temple or on a cap brim (14 tails in 9 reviews, lint silent) · `say()` aimed
+  the tail along the mouth→bubble ray, which leaves an upper bubble's head at the temple; the lint excused any tip
+  within 70 px of the mouth · a side bubble's tail now ends beside the face at mouth height; `tail-high` excuses only
+  tips within 0.9 r of the mouth.
+- Name tags unreadable in grey (엔지니어, 도이치) · tags take the accent colour as is · `docentTagInk()` darkens a tag
+  until it reads at 4.5:1 on a light page.
+- See-through animals (cat, dog, turkey tail) · animal fills were translucent `mix()` · opaque fills.
+- The trophy read as a table lamp (two reviews), the bulb's glass floated above its base (three) · kit props · a cup
+  with handles; one closed glass on the base.
+- Isaacson's "notebook" was a music note (six authors drew their own) · `note` is a quaver · `PROPS.notebook`.
+- Three authors drew the same arms-up pose (a barbell overhead) · no pose · `POSES.lift`, `POSES.stop`.
+- Every red X off its target in one scene · `cross()` takes the top-left corner, `ring()` the centre · `crossAt()`.
+- `cool` used for calm and confident faces read as a censor bar (three reviews) · the name · README: cool = sunglasses.
+- Easel/board legs ending in mid-air, buildings and props floating above the ground line (most reviews) · authors
+  placed boards by eye · still open: needs a "stands on" check (open gap below).
+- Same person, two looks (Einstein in two chapters); a guest cast sharing a top hat in three chapters · each author
+  cast their own extras · shared people go in common.js; the whole-project lint (`cast-similar`) runs before Gate C.
+- The hair × hat pairs ran out at ~15 people per video (Einstein got a cap) · 8 hairs × 7 hats, half of them odd on a
+  scientist · open gap: more hair styles.
+- The whole-project lint crashed writing one 140,000 px sheet (JPEG max 65,535) and exited 1 with no P1 · one sheet
+  · `lint_sheet.jpg`, `lint_sheet_02.jpg`, … 60 frames each (look at every page).
+- Two videos scored at the same time opened on the same cue chain (curious-02 → playful-03) · history saved after a
+  minutes-long render · saved right after planning.
+- The first armour, sized from a guessed head radius, covered a tall man's arms · scale from anchors (TEMPLATES L).
+- Two contact-sheet stills per sentence missed the middle shots of long sentences (every reviewer rendered extras)
+  · open gap: a still at every shot's rest time in the sheets.
+- Open gaps: things standing on what holds them (lint cannot see support), a sitting figure that cannot lean onto a
+  desk, more hair styles, sheets with every shot.
+
 ## 2026-11-10 · research-skill run 1, round 2 (blind review of the 5 re-runs + the owner's v2 samples)
 - A name tag on the next person's chest (Elon · PayPal: Thiel's tag on an executive) · tags were placed before later
   figures existed · `docentTags()` places every tag when the shot is complete; lint `name tag over another figure`.

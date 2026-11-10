@@ -37,6 +37,12 @@ def load_history():
     if not isinstance(h, dict): h = {}
     h.setdefault('videos', []); return h
 
+def history_lock():
+    """an exclusive lock around read-modify-write of history.json (two projects scored at the same moment)"""
+    import fcntl
+    os.makedirs(os.path.dirname(HISTORY), exist_ok=True)
+    f = open(HISTORY + '.lock', 'w'); fcntl.flock(f, fcntl.LOCK_EX); return f
+
 def save_history(project, cues):
     h = load_history(); h['videos'] = [v for v in h['videos'] if v.get('project') != project][-49:]
     h['videos'].append({'project': project, 'at': int(time.time()), 'cues': sorted(set(cues))})
@@ -187,12 +193,21 @@ if __name__ == '__main__':
     script, tl = json.load(open('script.json')), json.load(open('timeline.json'))
     pj = json.load(open('project.json')) if os.path.exists('project.json') else {}
     project = pj.get('slug') or script.get('title') or os.path.basename(os.getcwd())
+    lock = history_lock()   # plan and reserve under one lock: the next project scored now sees these cues
+    before = [v for v in load_history()['videos'] if v.get('project') == project]   # restored if this render fails
     pl = plan(script, tl, target, project, load_history())
     os.makedirs('out', exist_ok=True)
     if '--plan' in a:   # a proposal only: score.json/score.wav (the rendered score and its provenance) stay untouched
         open('out/cue_plan.md', 'w').write(cue_sheet(pl)); print(cue_sheet(pl)); sys.exit(0)
-    assemble(pl, tl['total'], lufs)
-    save_history(project, [p['cue'] for p in pl])
+    # Record the cues before rendering (minutes): a second video scored meanwhile must see them. Saving after the
+    # render let two projects started together pick the same opening chain (2026-11-10: Musk v2 and ten-books v2 both
+    # opened on curious-02 then playful-03).
+    save_history(project, [p['cue'] for p in pl]); lock.close()
+    try:
+        assemble(pl, tl['total'], lufs)
+    except BaseException:   # a failed or stopped render must not reserve its cues for the next ten videos
+        lock = history_lock(); h = load_history(); h['videos'] = [v for v in h['videos'] if v.get('project') != project] + before
+        json.dump(h, open(HISTORY, 'w'), indent=1); lock.close(); raise   # the last good score.wav keeps its entry
     open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
     # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it);
     # written after the render, atomically

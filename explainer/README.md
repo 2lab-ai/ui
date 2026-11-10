@@ -32,6 +32,7 @@ explainer/
 │   ├── timeline_draft.py  draft timeline from script.json before the voice exists
 │   ├── gallery.py       asset sheets (cast, animals, props) to review before scenes use them
 │   ├── lint_scenes.py   renders every shot at rest; fails on half-drawn, ghosts, bad bubbles, look-alike people
+│   ├── parts.py         many authors at once: parts/<id>.js -> scenes.js, and a private preview (lint + Gate C sheets) per author
 │   ├── mix_check.py     how far the music sits under the voice and how much it swells (target 20-22 dB, <= 5 dB)
 │   ├── export.py        mix (voice ducks the music) · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
 │   │                    · audiobook (M4A with one chapter per scene + chapters.txt for the YouTube description)
@@ -110,20 +111,21 @@ for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue
 
 | Function | What it draws |
 |---|---|
-| `figure(x, y, {pose, face, s, t, walk, flip, look, tie, glasses, hair, hat, beard, mustache, outfit, accent, h, tag, crowd, p})` | stick figure; (x, y) between the feet, `s: 1` is about 340 px. Poses: stand wave point present think shrug cheer hold akimbo reach slump facepalm carry. Faces: smile happy neutral sad surprised worried angry think cool wink sleepy |
+| `figure(x, y, {pose, face, s, t, walk, flip, look, tie, glasses, hair, hat, beard, mustache, outfit, accent, h, tag, crowd, p})` | stick figure; (x, y) between the feet, `s: 1` is about 340 px. Poses: stand wave point present think shrug cheer hold akimbo reach slump facepalm carry lift stop. Faces: smile happy neutral sad surprised worried angry think cool (= sunglasses, not 'calm') wink sleepy |
 | `achilles`, `tortoise`, `crab`, `ant` | ready characters (helmet with a red crest, shell, crab, ant) |
 | `cast(id, look)`, `person(id, x, y, o)` | one fixed look per person (hair, hat, outfit, accent colour, height, name); `person` draws it and returns anchors `{head, r, mouth, top, hands, box, dir}`. `tag: true` writes the name beside the chest |
 | `say(who, text, o)`, `think(who, text, o)` | a speech / thought bubble placed beside the figure where it covers no face, figure, bubble or name tag, tail aimed at the mouth. Draw the figures first, then the bubbles |
-| `animal(kind, x, y, {s, dir, p, tag})` | anteater cat dog bird fish mouse rabbit elephant, each built from ovals with the features people name it by; returns anchors like `person` |
+| `animal(kind, x, y, {s, dir, p, tag})` | anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse hen swan blackswan octopus bat bee turtle tick, each built from the features people name it by; returns anchors like `person` |
+| `seated(id, x, y, o)` | a cast person in a wheelchair (chair, seated figure, wheel in front); returns the person's anchors |
 | `docentGallery(kind)` | every cast look / animal / prop / hair style on one labelled sheet (`tools/gallery.py`) |
 | `bubble(x, y, w, h, {kind: 'speech' \| 'thought', tail, text, body, p})` | speech or thought bubble; `body(x, y, w, h)` draws a small picture inside |
 | `board`, `students`, `teach(term, {x, y, p})` | the named-idea classroom: presenter, board with the term, students from behind |
 | `sign`, `signCard` | a figure holding the chapter sign. Set `TITLE_CARD = signCard` in scenes.js to use it as every scene's title card (engine.js calls `TITLE_CARD(sc, a, isFirst, lt)`) |
 | `hand(str, x, y, {size, color, p})`, `handBlock` | handwritten text, written on left to right |
-| `cross`, `ring`, `underline`, `eqSign`, `plusSign` | red X, red circle, underline, picture-equation signs |
+| `cross(x, y, w, h)`, `crossAt(cx, cy, w, h)`, `ring(cx, cy, rx, ry)`, `underline`, `eqSign`, `plusSign` | red X (`cross` from the top-left corner, `crossAt` from the centre), red circle (centre), underline, picture-equation signs |
 | `scrollList(x, y, w, title, items, {mark, strike, p})` | a handwritten list on paper, items ringed or struck through |
 | `bookCover`, `quote`, `chapterMap` | a drawn cover (never a real one), a short quote, a progress map for long videos |
-| `prop(name, x, y, s, {p, fill, t})` | 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium … (`Object.keys(PROPS)`) |
+| `prop(name, x, y, s, {p, fill, t})` | 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium ship whaleboat harpoon flask testtubes medal moon wind frame trolley lever bowl garage pcb fire barn crate rocket car mars factory moneybag satellite wheelchair barbell card seesaw notebook (`note` is a music note) … (`Object.keys(PROPS)`) |
 | `shots(t, [[t0, draw], …])` | quick cuts: the last shot that has started is drawn, fading in over 0.22 s; `draw(t, lt)` gets the time since it started |
 | `pop(t, t0)`, `dp(t, t0, d)` | pop-in scale with a small overshoot; draw-on progress |
 
@@ -160,7 +162,7 @@ name tags, people sharing a look, animals on the stick-figure rig. Three tools u
 |---|---|
 | `tools/timeline_draft.py` | a draft timeline from script.json (7.8 chars/s) so scenes, gallery and lint run before the voice is done |
 | `tools/gallery.py cast animals props` | asset sheets: look at every one before any scene uses the asset |
-| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md` and a still per bad frame |
+| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md`, a still per bad frame and `out/lint_sheet*.jpg` (every rest frame, 60 per page) |
 
 ### Music: one cue per section
 
@@ -259,5 +261,5 @@ These rules come from the spec's study of 3Blue1Brown lessons. Check them before
 - Run `audio_check.py`. It reports the transcript match per scene (number formatting is the usual difference), the sentence timing offsets and the diffs.
 - Run `export.py stills` at every sentence, then `sheets.py`. Look for overlaps, missing cues (the page reports `missingCues()`) and text over subtitles.
 - Measure loudness: the mix should sit near −15.5 LUFS with no clipping.
-- Docent videos: `tools/gallery.py` sheets reviewed, `tools/lint_scenes.py` exits 0 and `out/lint_sheet.jpg` looked at,
+- Docent videos: `tools/gallery.py` sheets reviewed, `tools/lint_scenes.py` exits 0 and every `out/lint_sheet*.jpg` page looked at,
   `audio_check.py --sentences` all ok, `out/cue_sheet.md` shows one cue per section, `mix_check.py` 20-22 dB under the voice.

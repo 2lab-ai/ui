@@ -34,7 +34,7 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
   (glasses, beard). `hair: 'long'` reads as a woman on the sheet; for a long-haired man add a beard.
 - Name tag (`tag: true`) the first time a person appears in a chapter; then the look carries the identity. The tag is
   the name the narration uses (never a bare "나"), sits beside the waist on the side the figure turns away from, at
-  42 px or more with a paper outline. Tags are placed when the shot is complete (`docentTags()`): free side, other
+  42 px or more with a paper outline, dark enough to read (a light accent such as grey is darkened to 4.5:1). Tags are placed when the shot is complete (`docentTags()`): free side, other
   side, then above the head, whichever covers nobody — so people, animals, props and bubbles drawn later count (lint:
   `name tag over name tag`, `name tag over another figure or animal`). Clothes are opaque; the body line is under them.
 - A quote is acted by the person who said it, in their look; the running figure only asks and reacts.
@@ -50,12 +50,15 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
   a picture inside passes `body`.
 - The tail must point at a head (lint: `tail-far`), the bubble must not cover a face (lint: `bubble-over-face`), text
   must fit (lint: `bubble-overflow`).
+- A speech tail ends beside the mouth: a bubble to the side ends at mouth height, never at the temple, the hair or a
+  cap brim (`say()` does this; lint `tail-high` flags a tip above the nose that is not next to the mouth). Put the
+  bubble on the side the speaker faces unless a brim or a raised arm is there.
 - Reading order: the first speaker's bubble is left/higher. In a dialogue, alternate shots or put speakers left and
   right facing each other (`flip: true` for the right one).
 
 ## 4. Animals and props
 - Animals come from `animal(kind, …)`: anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse
-  hen swan blackswan. Never build an animal on the stick-figure rig (`figure({snout})` is flagged: lint
+  hen swan blackswan octopus bat bee turtle tick. Never build an animal on the stick-figure rig (`figure({snout})` is flagged: lint
   `animal-on-rig`).
 - Each animal shows the 3 or 4 features people name it by (anteater: long tube snout, tiny head and eye, bushy tail
   as big as the body, thick clawed front legs, dark shoulder stripe). A new kind is added to `ANIMALS` in docent.js
@@ -80,7 +83,10 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - Two or three people: spread over the width (x ≈ 520 / 1180 / 1480), feet on one ground line (y 860 to 880).
 - Use the height: something drawn above y ≈ 450 in every shot with people — the named idea, a thought, a sky, a
   building, or a bigger subject (lint: `bottom-heavy`, P2; four of five verification clips left the top 40 % empty).
-- Things stand on what holds them: a whale in the water, a town on its hill, feet on the ground line.
+- Things stand on what holds them: a whale in the water, a town on its hill, feet on the ground line, a board's legs
+  on the floor, a phone in a hand or on a table, a building on the line the people stand on. The lint cannot see
+  support: Gate C asks it for every shot (the most common P2 of the 2026-11-10 v2 reviews).
+- A thing in front of lines is opaque: animals are; a prop needs `solid: true` (money bags, bowls, phones).
 - Do not repeat the same shot template three shots in a row.
 
 ## 7. Music
@@ -111,7 +117,7 @@ Built by `tools/score.py` from the cue library `music/cues.json` (120 original c
    The gallery tests identity ("a wolf"); whether a drawing reads as the action ("nursing", "lifting") is checked at
    gate 3 by a fresh reviewer.
 2. **Scene lint** — `tools/lint_scenes.py` must exit 0 (no P0/P1) on the draft timeline and again on the real one, and
-   someone looks at `out/lint_sheet.jpg` (every rest frame): lint cannot see a wrong metaphor, a roof that does not
+   someone looks at every `out/lint_sheet*.jpg` page (every rest frame): lint cannot see a wrong metaphor, a roof that does not
    meet its wall, or an arm through a prop.
 3. **Contact sheets** — stills at every sentence start + 0.8 s and end − 0.3 s; a fresh reviewer looks at every sheet
    and answers per sentence: is its verb drawn? does every tail end at a mouth? is any tag on someone else? is the top
