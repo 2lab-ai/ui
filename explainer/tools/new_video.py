@@ -137,6 +137,8 @@ def main():
     pj['theme'] = th['id']
     try:
         pj['ui_commit'] = subprocess.run(['git', '-C', REPO, 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
+        if not pj['ui_commit'] and os.path.exists(os.path.join(REPO, 'KIT_COMMIT')):   # a frozen copy (git archive) carries its commit in a file
+            pj['ui_commit'] = open(os.path.join(REPO, 'KIT_COMMIT')).read().split()[0]
         if subprocess.run(['git', '-C', REPO, 'status', '--porcelain', '--', 'explainer/engine'], capture_output=True, text=True).stdout.strip():
             pj['ui_commit'] += '+dirty'   # the engine copied has uncommitted edits: the commit alone does not describe it
     except OSError:

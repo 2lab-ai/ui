@@ -3,6 +3,7 @@ cast('musk',  { name: '머스크', hair: 'short', outfit: 'suit', accent: 'red',
 cast('eng',   { name: '엔지니어', hair: 'curly', glasses: 'round', outfit: 'tshirt', accent: 'teal' });
 cast('cfo',   { name: '재무 담당', hair: 'ponytail', outfit: 'coat', accent: 'orange' });
 cast('gent',   { name: '신사', hat: 'top', mustache: true, outfit: 'suit', accent: 'green', h: 1.1 });
+cast('marcus', { name: '아우렐리우스', hat: 'laurel', hair: 'short', beard: true, outfit: 'coat', accent: 'purple', h: 1.05 });
 cast('viewer',{ name: '나', hair: 'side', accent: 'purple' });
 SCENES.talk = (t, q) => shots(t, [
   [q.s(0), (t, lt) => {
@@ -93,5 +94,19 @@ SCENES.chart = (t, q) => shots(t, [
     inkPath(pts, { p: dp(lt, 0.4, 1.4), w: 6, color: KEY() });
     inkPath([[1560, 320], [1600, 780]], { p: dp(t, q.w('천한', 1), 0.3), w: 7, color: MARK() });
     hand('1,000일', 1560, 868, { size: 44, color: C.dim, p: dp(lt, 1.2, 0.4) });
+  }],
+]);
+
+// T14 and the placement notes: a thought with a picture inside; a bubble that must keep clear of a board; tagSide
+SCENES.idea = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => {
+    board(1060, 200, 640, 300, { term: '일', p: dp(lt, 0, 0.6) });
+    const v = person('marcus', 760, 880, { pose: 'point', face: 'worried', tag: true, tagSide: 'left', p: dp(lt, 0, 0.5) });
+    say(v, '이 일 때문이야', { p: dp(lt, 0.8, 0.3) });
+  }],
+  [q.s(1), (t, lt) => {
+    const v = person('marcus', 760, 880, { pose: 'think', face: 'think', p: dp(lt, 0, 0.5) });
+    prop('cloud', 1420, 520, 1.4, { p: dp(lt, 0.2, 0.5), fill: mix(C.dim, 0.5) }); cross(1300, 380, 240, 200, { p: dp(lt, 0.8, 0.4) });
+    think(v, null, { w: 420, h: 260, p: dp(lt, 1.0, 0.4), body: (x, y) => hand('내 판단', x + 210, y + 130, { size: 64 }) });
   }],
 ]);

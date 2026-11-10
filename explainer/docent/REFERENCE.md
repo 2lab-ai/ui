@@ -12,6 +12,11 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - Inside a shot things draw on (`p: dp(lt, 0, 0.8)`) and are **finished** before the shot ends: nothing half-drawn at
   rest (lint: `half-drawn`). A label reveal takes at most 0.8 s.
 - Picture before name: draw the thing, then write its name.
+- Draw the sentence's verb, not a label of it: "they drive him out" is a chase to the gate, "he boards" is a foot on
+  the gangway, "Demian appears" is a figure stepping in. A word on a board or in a bubble never stands in for the
+  action (2026-11-10 verification: 3 of 5 clips drew who but not what happened).
+- Shots cut in 0.3 s before their listed time (`shots()` `lead`), so the subject is already drawing when the voice
+  names it. Draw the subject first (`dp(lt, 0, 0.5)`), its details and labels after.
 - No faded "ghost" layers left behind (alpha < 0.55 is a ghost; lint: `ghost`). If something should recede, remove it
   or move it, do not fade it to 30 % and leave it.
 - Cuts are hard (`shots()` default): the old picture is gone when the new one starts drawing. A cross-fade
@@ -29,7 +34,9 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
   (glasses, beard). `hair: 'long'` reads as a woman on the sheet; for a long-haired man add a beard.
 - Name tag (`tag: true`) the first time a person appears in a chapter; then the look carries the identity. The tag is
   the name the narration uses (never a bare "나"), sits beside the waist on the side the figure turns away from, at
-  42 px or more with a paper outline (lint: `name tag over name tag`).
+  42 px or more with a paper outline. Tags are placed when the shot is complete (`docentTags()`): free side, other
+  side, then above the head, whichever covers nobody — so people, animals, props and bubbles drawn later count (lint:
+  `name tag over name tag`, `name tag over another figure or animal`). Clothes are opaque; the body line is under them.
 - A quote is acted by the person who said it, in their look; the running figure only asks and reacts.
 - A real person is a stand-in figure with their look, never a photo or caricature of the face.
 - One figure is the viewer's stand-in through the whole video ("the running figure"): keep its look.
@@ -71,6 +78,9 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - One idea per shot, one focal point. Main subject ≥ 30 % of frame height (lint: `small-subject` when everything drawn
   fits in less than 30 % of the height and half the width).
 - Two or three people: spread over the width (x ≈ 520 / 1180 / 1480), feet on one ground line (y 860 to 880).
+- Use the height: something drawn above y ≈ 450 in every shot with people — the named idea, a thought, a sky, a
+  building, or a bigger subject (lint: `bottom-heavy`, P2; four of five verification clips left the top 40 % empty).
+- Things stand on what holds them: a whale in the water, a town on its hill, feet on the ground line.
 - Do not repeat the same shot template three shots in a row.
 
 ## 7. Music
@@ -90,17 +100,25 @@ Built by `tools/score.py` from the cue library `music/cues.json` (120 original c
 - Across videos: each project rotates the catalogue by its own name, and `~/.cache/2lab-explainer-music/history.json`
   makes cues used by the last 10 videos cost more, so two books with the same mood do not open on the same cue.
 - Mix (`export.py mix` with a score.py score): the bed sits 20–22 dB under the voice while it speaks and swells only
-  ~4 dB in the gaps (volume 0.20, sidechain ratio 2.5, release 1.2 s). Check with the research run's `audio_facts.py`.
+  ~4 dB in short gaps (volume 0.20, sidechain ratio 2.5, release 1.2 s). In every open stretch — title cards, chapter
+  breaks, the end (no voice for ≥ 1.2 s) — it rises +6 dB to about −27 dBFS so the new chapter's cue is heard, and the
+  end fades over 1.5 s, after the last word. Check: `mix_check.py` (`music_open_dbfs` −30…−22; before 2026-11-10 it
+  sat near −33, which every reviewer called near-silent).
 - In a clip under ~20 s, do not force a `"music"` change: one cue is enough.
 
 ## 8. Gates (in order, each one blocks the next)
 1. **Asset gallery** — `tools/gallery.py cast animals [props]`; look at every sheet. Fix looks before writing scenes.
+   The gallery tests identity ("a wolf"); whether a drawing reads as the action ("nursing", "lifting") is checked at
+   gate 3 by a fresh reviewer.
 2. **Scene lint** — `tools/lint_scenes.py` must exit 0 (no P0/P1) on the draft timeline and again on the real one, and
    someone looks at `out/lint_sheet.jpg` (every rest frame): lint cannot see a wrong metaphor, a roof that does not
    meet its wall, or an arm through a prop.
-3. **Contact sheets** — stills at every sentence start + 0.8 s and end − 0.3 s; a fresh reviewer looks at every sheet.
+3. **Contact sheets** — stills at every sentence start + 0.8 s and end − 0.3 s; a fresh reviewer looks at every sheet
+   and answers per sentence: is its verb drawn? does every tail end at a mouth? is any tag on someone else? is the top
+   of the frame used? does anything float (a whale over the water, a hill over its line)?
    Voice: `audio_check.py --sentences` (numbers normalised, names from project.json `names`): every sentence `ok`.
-4. **Music** — `out/cue_sheet.md`: distinct cues = sections; the mix stays near -15.5 LUFS.
+4. **Music** — `out/cue_sheet.md`: distinct cues = sections; `mix_check.py` exits 0 (20–22 dB under the voice, swell ≤ 6 dB,
+   title cards −30…−22 dBFS); the mix stays near -15.5 LUFS.
 5. **Retro** — after delivery, append what went wrong to LESSONS.md and fix the rule/template/code (PR).
 
 ## 9. Sources

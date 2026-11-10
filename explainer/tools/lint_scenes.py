@@ -32,6 +32,7 @@ def judge(r):
     if r['off']: out.append(('P1', 'off-frame', f"ink off the frame: {r['off'][:3]}"))
     if r['empty']: out.append(('P1', 'empty-bubble', f"bubble with nothing inside: {r['empty'][:3]}"))
     if r['tailFar']: out.append(('P1', 'tail-far', f"bubble tail points at no head: {r['tailFar'][:3]}"))
+    if r.get('tailHigh'): out.append(('P1', 'tail-high', f"speech tail ends at the top or side of a head, not beside the mouth: {r['tailHigh'][:3]} — use say()"))
     if r['cover']: out.append(('P1', 'bubble-over-face', str(r['cover'][:3])))
     if r['overflow']: out.append(('P1', 'bubble-overflow', str(r['overflow'][:3])))
     if r['rig']: out.append(('P1', 'animal-on-rig', r['rig'][0]))
@@ -48,6 +49,8 @@ def judge(r):
     ink = r.get('ink')
     if ink and not r.get('textBig') and (ink[3] - ink[1]) < 0.3 * 1080 and (ink[2] - ink[0]) < 0.5 * 1920:
         out.append(('P2', 'small-subject', f"everything drawn fits in {int(ink[2] - ink[0])}x{int(ink[3] - ink[1])} px (< 30 % of the height): draw the subject bigger"))
+    if ink and not r.get('textBig') and ink[1] > 0.42 * 1080 and r.get('figures'):
+        out.append(('P2', 'bottom-heavy', f"nothing drawn above y {int(ink[1])}: the top 42 % is empty — bigger subject, higher ground, or the named idea above"))
     return out
 
 async def main(only, strict):
@@ -119,7 +122,7 @@ async def main(only, strict):
     if thumbs:   # every rest frame, 6 across
         import io
         from PIL import Image, ImageDraw
-        cols, tw, th = 6, 320, 180; rows = (len(thumbs) + cols - 1) // cols
+        cols, tw, th = 3, 640, 360; rows = (len(thumbs) + cols - 1) // cols   # big enough to see an arm through a prop
         sheet = Image.new('RGB', (cols * tw, rows * (th + 22)), 'white'); d = ImageDraw.Draw(sheet)
         for i, (sid, t, b64) in enumerate(thumbs):
             im = Image.open(io.BytesIO(base64.b64decode(b64))).resize((tw, th)); x, y = (i % cols) * tw, (i // cols) * (th + 22)

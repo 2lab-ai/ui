@@ -3,6 +3,37 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-10 · research-skill run 1, round 2 (blind review of the 5 re-runs + the owner's v2 samples)
+- A name tag on the next person's chest (Elon · PayPal: Thiel's tag on an executive) · tags were placed before later
+  figures existed · `docentTags()` places every tag when the shot is complete; lint `name tag over another figure`.
+- Speech tail aimed at the top of a helmet (GEB anteater, a hand-placed `bubble()` tail) · no check for a tail above
+  the eyes · lint `tail-high` (P1); `say()` avoids the spot right above the head and, if it must, runs the tail down to the mouth.
+- Music near-silent on title cards (−33 dBFS) and gone 4 s before the end (5/5 reviewers) · flat gain + a 4 s fade ·
+  +6 dB in open stretches, 1.5 s fade; `mix_check` fails `music_open_dbfs` < −30.
+- Shots opened on a blank page while the voice named the subject (2/5) · cut at the word · `shots()` `lead` 0.3 s.
+- The stick body showed through vests and togas (3/5) · body drawn over a translucent fill · body first, opaque clothes.
+- Heads read as unfilled holes (2/5) · filled with the page colour · a lighter paper tone.
+- Tags floated 80–100 px from their figure (3/5) · offset 112 px · 92 px.
+- The laurel ringed the whole face · leaves spread over 240° · on the crown only.
+- PR #56 review: the head-fill variable was named `face` and shadowed the expression (every face neutral) · caught by
+  all three reviewers before merge · renamed `headFill`; full-size still of a happy/worried pair is part of the check.
+- A tail tip on the curls at temple height (lab frame) · the hair band only covered the scalp · the band reaches the
+  mouth line; offset bubbles end beside the face at mouth height, a bubble right above still leaves by the top.
+- The top 40 % of the frame empty (4/5) · no rule · REFERENCE §6 + lint `bottom-heavy` (P2).
+- The verb not drawn: Jones never driven out, nobody boards, Demian just points (3/5) · skill text asked for a
+  picture, not the action · REFERENCE §1 "draw the verb"; Gate C asks it per sentence.
+
+## 2026-11-10 · research-skill run 1, verification round (5 re-runs on the merged kit)
+- A bubble landed on a board · placement only avoided figures, heads, tags, bubbles · props and boards reserve their box.
+- Name tags on a wolf's legs; a tag between Jones and the hen · tag side used only figures drawn earlier · `tagSide`;
+  TEMPLATES placement notes (people left to right, bubbles last).
+- `lint_sheet.jpg` thumbnails (320 px) too small to see a defect · 640 px, 3 across.
+- mix_check printed no swell and no verdict (22.3 dB passed a 20–22 target) · `swell_db`, `verdict`, exit 1 outside
+  18–26 dB or swell > 6 dB.
+- `q.w('모두')` hit "모두의" 1.3 s early · TEMPLATES: `q.wx` for the exact word.
+- `sheets.py` with no arguments and `audio_check.py` before the voice crashed · defaults and a clear message.
+- A frozen kit copy wrote an empty `ui_commit` · new_video reads `KIT_COMMIT`.
+
 ## 2026-11-10 · research-skill run 1 (10 random books × ~15 s probes, blind review)
 - Every cut double-exposed: the next picture drew through the fading one · `shots()` 0.22 s cross-fade · hard cuts by
   default; an optional fade shows the old picture first, then the new one.

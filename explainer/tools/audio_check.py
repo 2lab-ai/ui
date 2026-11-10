@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ko_say import to_say, load_lexicon
 HERE = os.getcwd()   # the project folder
 ARGS = sys.argv[1:]
+if not os.path.exists(os.path.join(HERE, 'narration.wav')): sys.exit('no narration.wav yet: run narrate_soma.py first (audio_check compares the voice with the script)')
 tl = json.load(open(os.path.join(HERE, 'timeline.json')))
 pj = json.load(open(os.path.join(HERE, 'project.json'))) if os.path.exists(os.path.join(HERE, 'project.json')) else {}
 LEX = load_lexicon(HERE)
