@@ -237,6 +237,7 @@ function sceneAt(t) {
   return SC[ORDER[0]];
 }
 function renderAt(t) {
+  if (typeof DOCENT_FRAME === 'function') DOCENT_FRAME(t);   // docent.js per-frame check registry (tools/lint_scenes.py)
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
   const sc = sceneAt(t); const q = Q(sc.id);

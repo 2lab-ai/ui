@@ -1,0 +1,151 @@
+"""Score: one original cue per musical section, so the music follows the story instead of looping one track.
+Run inside a project folder after the real timeline exists (a draft timeline works for planning).
+
+    python score.py [--plan] [--target 35] [--lufs -20]
+
+- Every chapter (scene) gets a mood: script.json scene "mood" (wonder curious tension triumph melancholy playful
+  reflective urgent warm mystery epic-calm nostalgic), else one is guessed from the scene's words, else the chapter's
+  place in the video decides. A sentence may carry "music": "<mood>" to change cue exactly there (a turn in the story).
+- A chapter is cut into sections of about --target seconds at sentence starts; each section gets a different cue from
+  explainer/music/cues.json. Inside a chapter the cues stay related (same mood family, a near key, the same pad when
+  possible) and cross-fade over 2.5 s at a sentence gap; a new chapter starts a new key and instrument on its title
+  card after the old cue has ended on its cadence. No cue is used twice in one video.
+- Writes score.wav (48 kHz stereo, --lufs integrated, default -20) and out/cue_sheet.md + score.json (time, section,
+  cue, mood, key, tempo, instruments). export.py mix then ducks it under the voice as before.
+"""
+import json, os, sys, tempfile
+import numpy as np
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import music_lib as ML
+
+XF = 2.5   # cross-fade inside a chapter (s)
+NEAR = {'wonder': ['epic-calm', 'reflective', 'mystery'], 'curious': ['playful', 'warm', 'mystery'],
+        'tension': ['urgent', 'mystery', 'melancholy'], 'triumph': ['epic-calm', 'warm', 'wonder'],
+        'melancholy': ['reflective', 'nostalgic', 'tension'], 'playful': ['curious', 'warm', 'triumph'],
+        'reflective': ['melancholy', 'warm', 'wonder'], 'urgent': ['tension', 'triumph', 'mystery'],
+        'warm': ['nostalgic', 'reflective', 'triumph'], 'mystery': ['tension', 'wonder', 'curious'],
+        'epic-calm': ['wonder', 'triumph', 'reflective'], 'nostalgic': ['warm', 'melancholy', 'reflective']}
+WORDS = {   # Korean cue words -> mood (a scene's text votes; ties go to the chapter's place)
+    'tension': ['위기', '실패', '폭발', '위험', '두려', '불안', '갈등', '전쟁', '싸움', '경고', '파산', '추락', '모순', '역설'],
+    'urgent': ['서둘', '급하', '마감', '시간이 없', '속도', '빨리', '지옥', '밤새', '24시간', '긴급'],
+    'triumph': ['성공', '승리', '착륙', '해냈', '돌파', '최초', '우승', '환호', '기록'],
+    'melancholy': ['죽음', '슬픔', '잃', '외로', '눈물', '이별', '상처', '고통', '후회'],
+    'playful': ['장난', '농담', '웃', '게임', '놀이', '재미', '엉뚱', '말장난', '퍼즐'],
+    'reflective': ['생각해', '돌아보', '의미', '깨달', '질문', '마음', '조용', '천천히'],
+    'warm': ['가족', '친구', '사랑', '함께', '고마', '따뜻', '아이', '엄마', '아빠'],
+    'mystery': ['비밀', '수수께끼', '이상한', '미스터리', '숨겨', '정체', '알 수 없', '무한'],
+    'wonder': ['우주', '별', '미래', '꿈', '상상', '아름다', '놀라운', '신비', '로켓'],
+    'curious': ['왜', '어떻게', '궁금', '실험', '발견', '탐구', '규칙', '원리'],
+    'epic-calm': ['역사', '문명', '세대', '거대', '시대', '인류', '산', '바다'],
+    'nostalgic': ['어린 시절', '어릴', '추억', '옛날', '그때', '고향', '처음으로'],
+}
+ARC = ['curious', 'warm', 'mystery', 'playful', 'tension', 'epic-calm', 'nostalgic', 'triumph', 'melancholy', 'urgent', 'wonder', 'reflective']
+
+def chapter_moods(script, tl):
+    out, prev = [], None
+    n = len(tl['scenes'])
+    for i, sc in enumerate(tl['scenes']):
+        src = next((s for s in script['scenes'] if s['id'] == sc['id']), {})
+        m = src.get('mood')
+        if m not in ML.MOODS:
+            text = ' '.join(s['text'] for s in sc['sentences'])
+            votes = {k: sum(text.count(w) for w in ws) for k, ws in WORDS.items()}
+            best = max(votes, key=votes.get)
+            if votes[best] >= 2 and best != prev: m = best
+            elif i == 0: m = 'wonder' if prev != 'wonder' else 'curious'
+            elif i == n - 1: m = 'reflective'
+            else: m = next(x for x in ARC[i % len(ARC):] + ARC if x != prev)
+        out.append(m); prev = m
+    return out
+
+def sections(sc, src, target):
+    """Cut a scene into sections at sentence starts, about `target` s each (forced cuts at "music")."""
+    sents = sc['sentences']; start, end = sc['start'], sc['start'] + sc['dur']
+    srcs = src.get('sentences', []) if src else []
+    cuts, last = [start], start
+    for k, s in enumerate(sents[1:], 1):
+        forced = k < len(srcs) and srcs[k].get('music')
+        if forced or (s['start'] - last >= target and end - s['start'] >= target * 0.5):
+            cuts.append(s['start']); last = s['start']
+    out = []
+    for i, c in enumerate(cuts):
+        e = cuts[i + 1] if i + 1 < len(cuts) else end
+        k = next((j for j, s in enumerate(sents) if abs(s['start'] - c) < 1e-3), 0)
+        forced = k < len(srcs) and srcs[k].get('music')
+        out.append({'start': c, 'end': e, 'mood': forced if forced in ML.MOODS else None, 'sentence': k})
+    return out
+
+def related(a, b):
+    d = (a - b) % 12
+    return d in (0, 5, 7, 3, 9)
+
+def plan(script, tl, target=35.0):
+    cues = ML.catalogue(); used = set(); out = []; prev_ch = None
+    moods = chapter_moods(script, tl)
+    for ci, sc in enumerate(tl['scenes']):
+        src = next((s for s in script['scenes'] if s['id'] == sc['id']), {})
+        secs = sections(sc, src, target); anchor = None; prev = None
+        for si, sec in enumerate(secs):
+            mood = sec['mood'] or (moods[ci] if si % 2 == 0 else NEAR[moods[ci]][(si // 2) % 3])
+            pool = ([c for c in cues if c['mood'] == mood and c['id'] not in used] or [c for c in cues if c['id'] not in used]
+                    or [c for c in cues if c['mood'] == mood])   # > 120 sections: reuse, rendered with another seed
+            def cost(c):
+                k = 0
+                if prev is not None: k += 0 if related(c['key'], prev['key']) else 6
+                if anchor is not None: k += 0 if c['pad'] == anchor else 2
+                if si == 0 and prev_ch is not None: k += (8 if c['key'] == prev_ch['key'] else 0) + (5 if c['pad'] == prev_ch['pad'] else 0)
+                if prev is not None and c['tex'] == prev['tex'] and c['pat'] == prev['pat']: k += 4
+                if prev is not None and c['key'] == prev['key'] and c['pad'] == prev['pad']: k += 5   # too close to the last cue
+                return k + (abs(c['bpm'] - prev['bpm']) / 20 if prev else 0)
+            c = min(pool, key=lambda c: (cost(c), c['id']))
+            used.add(c['id']); anchor = anchor or c['pad']; prev = c
+            out.append({'scene': sc['id'], 'chapter': ci, 'section': si, 'start': round(sec['start'], 3), 'end': round(sec['end'], 3),
+                        'mood': mood, 'cue': c['id'], 'name': c['name'], 'chapter_start': si == 0})
+        prev_ch = prev
+    return out
+
+def assemble(pl, total, lufs=-20.0):
+    n = int((total + 1) * ML.SR); mixb = np.zeros((n, 2), np.float32)
+    cat = {c['id']: c for c in ML.catalogue()}
+    with tempfile.TemporaryDirectory() as td:
+        for i, s in enumerate(pl):
+            nxt = pl[i + 1] if i + 1 < len(pl) else None
+            joined = nxt is not None and not nxt['chapter_start']           # cross-fade into the next section
+            t0 = s['start'] - (XF / 2 if not s['chapter_start'] else 0.0)
+            t1 = s['end'] + (XF / 2 if joined else 0.0)
+            path = os.path.join(td, f'{i}.wav')
+            ML.render(cat[s['cue']], t1 - t0, path, seed=i)
+            a, _ = ML.wav_read(path)
+            L = len(a); env = np.ones(L, np.float32); x = int(XF * ML.SR)
+            if not s['chapter_start'] and L > x: env[:x] *= np.sin(np.linspace(0, np.pi / 2, x)) ** 1
+            if joined and L > x: env[-x:] *= np.cos(np.linspace(0, np.pi / 2, x))
+            a0 = int(max(0, t0) * ML.SR); seg = a[: max(0, min(L, n - a0))] * env[: max(0, min(L, n - a0)), None]
+            mixb[a0:a0 + len(seg)] += seg
+            print(f"{s['start']:7.1f}-{s['end']:7.1f}  {s['scene']:10s} {s['mood']:10s} {s['cue']:14s} {s['name']}", flush=True)
+    mixb = mixb[: int(total * ML.SR)]
+    raw = 'score_raw.wav'; ML.wav_write(raw, mixb)
+    import subprocess
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', raw, '-af', f'loudnorm=I={lufs}:TP=-3:LRA=11', '-ar', str(ML.SR), '-ac', '2', 'score.wav'], check=True)
+    os.remove(raw)
+
+def cue_sheet(pl):
+    lines = ['# Cue sheet', '', f'{len(pl)} sections, {len({p["cue"] for p in pl})} distinct cues, '
+             f'{len({p["mood"] for p in pl})} moods', '', '| time | chapter | mood | cue | music |', '|---|---|---|---|---|']
+    for p in pl:
+        m, s = divmod(int(p['start']), 60)
+        lines.append(f"| {m}:{s:02d} | {p['scene']}{' (new chapter)' if p['chapter_start'] else ''} | {p['mood']} | {p['cue']} | {p['name']} |")
+    return '\n'.join(lines) + '\n'
+
+if __name__ == '__main__':
+    a = sys.argv[1:]
+    target = float(a[a.index('--target') + 1]) if '--target' in a else 35.0
+    lufs = float(a[a.index('--lufs') + 1]) if '--lufs' in a else -20.0
+    script, tl = json.load(open('script.json')), json.load(open('timeline.json'))
+    pl = plan(script, tl, target)
+    os.makedirs('out', exist_ok=True)
+    open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
+    json.dump({'sections': pl}, open('score.json', 'w'), ensure_ascii=False, indent=1)
+    if '--plan' in a:
+        print(cue_sheet(pl)); sys.exit(0)
+    assemble(pl, tl['total'], lufs)
+    print(f"score.wav: {len(pl)} sections, {len({p['cue'] for p in pl})} distinct cues, total {tl['total']:.1f}s")

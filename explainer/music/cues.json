@@ -1,0 +1,2419 @@
+{
+ "soundfont": "MuseScore_General.sf2 (MIT)",
+ "moods": [
+  "wonder",
+  "curious",
+  "tension",
+  "triumph",
+  "melancholy",
+  "playful",
+  "reflective",
+  "urgent",
+  "warm",
+  "mystery",
+  "epic-calm",
+  "nostalgic"
+ ],
+ "cues": [
+  {
+   "mode": "lydian",
+   "key": 0,
+   "bpm": 64,
+   "prog": [
+    0,
+    5,
+    3,
+    1
+   ],
+   "pad": 89,
+   "tex": 98,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-01",
+   "mood": "wonder",
+   "name": "C lydian, 64 bpm, crystal sparkle over warm pad"
+  },
+  {
+   "mode": "major",
+   "key": 7,
+   "bpm": 69,
+   "prog": [
+    0,
+    5,
+    3,
+    1
+   ],
+   "pad": 88,
+   "tex": 98,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-02",
+   "mood": "wonder",
+   "name": "G major, 69 bpm, crystal arpud over new-age pad"
+  },
+  {
+   "mode": "lydian",
+   "key": 2,
+   "bpm": 74,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 88,
+   "tex": 9,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-03",
+   "mood": "wonder",
+   "name": "D lydian, 74 bpm, glockenspiel sparkle over new-age pad"
+  },
+  {
+   "mode": "major",
+   "key": 9,
+   "bpm": 80,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 94,
+   "tex": 46,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-04",
+   "mood": "wonder",
+   "name": "A major, 80 bpm, harp sparkle over halo pad"
+  },
+  {
+   "mode": "lydian",
+   "key": 4,
+   "bpm": 67,
+   "prog": [
+    0,
+    1,
+    0,
+    4
+   ],
+   "pad": 49,
+   "tex": 46,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-05",
+   "mood": "wonder",
+   "name": "E lydian, 67 bpm, harp sparkle over slow strings"
+  },
+  {
+   "mode": "major",
+   "key": 11,
+   "bpm": 72,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 88,
+   "tex": 8,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-06",
+   "mood": "wonder",
+   "name": "B major, 72 bpm, celesta sparkle over new-age pad"
+  },
+  {
+   "mode": "lydian",
+   "key": 6,
+   "bpm": 78,
+   "prog": [
+    0,
+    5,
+    3,
+    1
+   ],
+   "pad": 89,
+   "tex": 8,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-07",
+   "mood": "wonder",
+   "name": "F# lydian, 78 bpm, celesta sparkle over warm pad"
+  },
+  {
+   "mode": "major",
+   "key": 1,
+   "bpm": 65,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 94,
+   "tex": 9,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-08",
+   "mood": "wonder",
+   "name": "Db major, 65 bpm, glockenspiel arpud over halo pad"
+  },
+  {
+   "mode": "lydian",
+   "key": 8,
+   "bpm": 71,
+   "prog": [
+    0,
+    5,
+    3,
+    1
+   ],
+   "pad": 49,
+   "tex": 9,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-09",
+   "mood": "wonder",
+   "name": "Ab lydian, 71 bpm, glockenspiel arpud over slow strings"
+  },
+  {
+   "mode": "major",
+   "key": 3,
+   "bpm": 76,
+   "prog": [
+    0,
+    5,
+    3,
+    1
+   ],
+   "pad": 49,
+   "tex": 8,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "wonder-10",
+   "mood": "wonder",
+   "name": "Eb major, 76 bpm, celesta sparkle over slow strings"
+  },
+  {
+   "mode": "dorian",
+   "key": 5,
+   "bpm": 88,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 11,
+   "tex": 45,
+   "pat": "sparkle",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-01",
+   "mood": "curious",
+   "name": "F dorian, 88 bpm, pizzicato sparkle over vibraphone"
+  },
+  {
+   "mode": "major",
+   "key": 0,
+   "bpm": 93,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 0,
+   "tex": 13,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-02",
+   "mood": "curious",
+   "name": "C major, 93 bpm, xylophone broken over piano"
+  },
+  {
+   "mode": "dorian",
+   "key": 7,
+   "bpm": 98,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 89,
+   "tex": 12,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-03",
+   "mood": "curious",
+   "name": "G dorian, 98 bpm, marimba broken over warm pad"
+  },
+  {
+   "mode": "major",
+   "key": 2,
+   "bpm": 104,
+   "prog": [
+    0,
+    1,
+    3,
+    4
+   ],
+   "pad": 4,
+   "tex": 13,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-04",
+   "mood": "curious",
+   "name": "D major, 104 bpm, xylophone broken over e-piano"
+  },
+  {
+   "mode": "dorian",
+   "key": 9,
+   "bpm": 91,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 89,
+   "tex": 45,
+   "pat": "sparkle",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-05",
+   "mood": "curious",
+   "name": "A dorian, 91 bpm, pizzicato sparkle over warm pad"
+  },
+  {
+   "mode": "major",
+   "key": 4,
+   "bpm": 96,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 0,
+   "tex": 12,
+   "pat": "sparkle",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-06",
+   "mood": "curious",
+   "name": "E major, 96 bpm, marimba sparkle over piano"
+  },
+  {
+   "mode": "dorian",
+   "key": 11,
+   "bpm": 102,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 4,
+   "tex": 12,
+   "pat": "broken",
+   "bass": 33,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-07",
+   "mood": "curious",
+   "name": "B dorian, 102 bpm, marimba broken over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 6,
+   "bpm": 89,
+   "prog": [
+    0,
+    1,
+    3,
+    4
+   ],
+   "pad": 0,
+   "tex": 12,
+   "pat": "broken",
+   "bass": 33,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-08",
+   "mood": "curious",
+   "name": "F# major, 89 bpm, marimba broken over piano"
+  },
+  {
+   "mode": "dorian",
+   "key": 1,
+   "bpm": 95,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 4,
+   "tex": 45,
+   "pat": "sparkle",
+   "bass": 33,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-09",
+   "mood": "curious",
+   "name": "Db dorian, 95 bpm, pizzicato sparkle over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 8,
+   "bpm": 100,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 4,
+   "tex": 108,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "curious-10",
+   "mood": "curious",
+   "name": "Ab major, 100 bpm, kalimba broken over e-piano"
+  },
+  {
+   "mode": "minor",
+   "key": 10,
+   "bpm": 70,
+   "prog": [
+    0,
+    0,
+    5,
+    6
+   ],
+   "pad": 95,
+   "tex": 12,
+   "pat": "ostinato",
+   "bass": 43,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-01",
+   "mood": "tension",
+   "name": "Bb minor, 70 bpm, marimba ostinato over sweep pad"
+  },
+  {
+   "mode": "phrygian",
+   "key": 5,
+   "bpm": 76,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 95,
+   "tex": 12,
+   "pat": "ostinato",
+   "bass": 42,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-02",
+   "mood": "tension",
+   "name": "F phrygian, 76 bpm, marimba ostinato over sweep pad"
+  },
+  {
+   "mode": "minor",
+   "key": 0,
+   "bpm": 83,
+   "prog": [
+    0,
+    0,
+    5,
+    6
+   ],
+   "pad": 50,
+   "tex": 12,
+   "pat": "ostinato",
+   "bass": 43,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-03",
+   "mood": "tension",
+   "name": "C minor, 83 bpm, marimba ostinato over synth strings"
+  },
+  {
+   "mode": "phrygian",
+   "key": 7,
+   "bpm": 90,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 50,
+   "tex": 12,
+   "pat": "ostinato",
+   "bass": 42,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-04",
+   "mood": "tension",
+   "name": "G phrygian, 90 bpm, marimba ostinato over synth strings"
+  },
+  {
+   "mode": "minor",
+   "key": 2,
+   "bpm": 74,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 48,
+   "tex": 45,
+   "pat": "pulse",
+   "bass": 42,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-05",
+   "mood": "tension",
+   "name": "D minor, 74 bpm, pizzicato pulse over strings"
+  },
+  {
+   "mode": "phrygian",
+   "key": 9,
+   "bpm": 81,
+   "prog": [
+    0,
+    0,
+    5,
+    6
+   ],
+   "pad": 50,
+   "tex": 45,
+   "pat": "pulse",
+   "bass": 43,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-06",
+   "mood": "tension",
+   "name": "A phrygian, 81 bpm, pizzicato pulse over synth strings"
+  },
+  {
+   "mode": "minor",
+   "key": 4,
+   "bpm": 87,
+   "prog": [
+    0,
+    0,
+    5,
+    6
+   ],
+   "pad": 50,
+   "tex": 11,
+   "pat": "pulse",
+   "bass": 43,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-07",
+   "mood": "tension",
+   "name": "E minor, 87 bpm, vibraphone pulse over synth strings"
+  },
+  {
+   "mode": "phrygian",
+   "key": 11,
+   "bpm": 72,
+   "prog": [
+    0,
+    0,
+    5,
+    6
+   ],
+   "pad": 95,
+   "tex": 45,
+   "pat": "pulse",
+   "bass": 43,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-08",
+   "mood": "tension",
+   "name": "B phrygian, 72 bpm, pizzicato pulse over sweep pad"
+  },
+  {
+   "mode": "minor",
+   "key": 6,
+   "bpm": 78,
+   "prog": [
+    0,
+    0,
+    5,
+    6
+   ],
+   "pad": 92,
+   "tex": 45,
+   "pat": "ostinato",
+   "bass": 43,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-09",
+   "mood": "tension",
+   "name": "F# minor, 78 bpm, pizzicato ostinato over bowed pad"
+  },
+  {
+   "mode": "phrygian",
+   "key": 1,
+   "bpm": 85,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 50,
+   "tex": 11,
+   "pat": "ostinato",
+   "bass": 42,
+   "bpat": "pulse",
+   "perc": null,
+   "id": "tension-10",
+   "mood": "tension",
+   "name": "Db phrygian, 85 bpm, vibraphone ostinato over synth strings"
+  },
+  {
+   "mode": "major",
+   "key": 3,
+   "bpm": 96,
+   "prog": [
+    3,
+    4,
+    0,
+    0
+   ],
+   "pad": 60,
+   "tex": 9,
+   "pat": "broken",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-01",
+   "mood": "triumph",
+   "name": "Eb major, 96 bpm, glockenspiel broken over horn"
+  },
+  {
+   "mode": "major",
+   "key": 10,
+   "bpm": 101,
+   "prog": [
+    0,
+    3,
+    4,
+    0
+   ],
+   "pad": 49,
+   "tex": 13,
+   "pat": "arpup",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-02",
+   "mood": "triumph",
+   "name": "Bb major, 101 bpm, xylophone arpup over slow strings"
+  },
+  {
+   "mode": "major",
+   "key": 5,
+   "bpm": 106,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 49,
+   "tex": 13,
+   "pat": "arpup",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-03",
+   "mood": "triumph",
+   "name": "F major, 106 bpm, xylophone arpup over slow strings"
+  },
+  {
+   "mode": "major",
+   "key": 0,
+   "bpm": 112,
+   "prog": [
+    3,
+    4,
+    0,
+    0
+   ],
+   "pad": 48,
+   "tex": 9,
+   "pat": "arpup",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-04",
+   "mood": "triumph",
+   "name": "C major, 112 bpm, glockenspiel arpup over strings"
+  },
+  {
+   "mode": "major",
+   "key": 7,
+   "bpm": 99,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 48,
+   "tex": 9,
+   "pat": "broken",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-05",
+   "mood": "triumph",
+   "name": "G major, 99 bpm, glockenspiel broken over strings"
+  },
+  {
+   "mode": "major",
+   "key": 2,
+   "bpm": 104,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 61,
+   "tex": 13,
+   "pat": "arpup",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-06",
+   "mood": "triumph",
+   "name": "D major, 104 bpm, xylophone arpup over brass"
+  },
+  {
+   "mode": "major",
+   "key": 9,
+   "bpm": 110,
+   "prog": [
+    3,
+    4,
+    0,
+    0
+   ],
+   "pad": 61,
+   "tex": 47,
+   "pat": "broken",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-07",
+   "mood": "triumph",
+   "name": "A major, 110 bpm, timpani broken over brass"
+  },
+  {
+   "mode": "major",
+   "key": 4,
+   "bpm": 97,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 61,
+   "tex": 47,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-08",
+   "mood": "triumph",
+   "name": "E major, 97 bpm, timpani broken over brass"
+  },
+  {
+   "mode": "major",
+   "key": 11,
+   "bpm": 103,
+   "prog": [
+    0,
+    3,
+    4,
+    0
+   ],
+   "pad": 61,
+   "tex": 9,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-09",
+   "mood": "triumph",
+   "name": "B major, 103 bpm, glockenspiel broken over brass"
+  },
+  {
+   "mode": "major",
+   "key": 6,
+   "bpm": 108,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 49,
+   "tex": 9,
+   "pat": "broken",
+   "bass": 58,
+   "bpat": "half",
+   "perc": "soft",
+   "id": "triumph-10",
+   "mood": "triumph",
+   "name": "F# major, 108 bpm, glockenspiel broken over slow strings"
+  },
+  {
+   "mode": "minor",
+   "key": 8,
+   "bpm": 58,
+   "prog": [
+    0,
+    3,
+    5,
+    4
+   ],
+   "pad": 49,
+   "tex": 46,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-01",
+   "mood": "melancholy",
+   "name": "Ab minor, 58 bpm, harp bell over slow strings"
+  },
+  {
+   "mode": "minor",
+   "key": 3,
+   "bpm": 62,
+   "prog": [
+    0,
+    6,
+    5,
+    4
+   ],
+   "pad": 49,
+   "tex": 46,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-02",
+   "mood": "melancholy",
+   "name": "Eb minor, 62 bpm, harp arpud over slow strings"
+  },
+  {
+   "mode": "minor",
+   "key": 10,
+   "bpm": 67,
+   "prog": [
+    0,
+    6,
+    5,
+    4
+   ],
+   "pad": 89,
+   "tex": 0,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-03",
+   "mood": "melancholy",
+   "name": "Bb minor, 67 bpm, piano bell over warm pad"
+  },
+  {
+   "mode": "minor",
+   "key": 5,
+   "bpm": 72,
+   "prog": [
+    0,
+    5,
+    2,
+    6
+   ],
+   "pad": 89,
+   "tex": 0,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-04",
+   "mood": "melancholy",
+   "name": "F minor, 72 bpm, piano arpud over warm pad"
+  },
+  {
+   "mode": "minor",
+   "key": 0,
+   "bpm": 61,
+   "prog": [
+    0,
+    3,
+    5,
+    4
+   ],
+   "pad": 49,
+   "tex": 0,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-05",
+   "mood": "melancholy",
+   "name": "C minor, 61 bpm, piano arpud over slow strings"
+  },
+  {
+   "mode": "minor",
+   "key": 7,
+   "bpm": 65,
+   "prog": [
+    0,
+    3,
+    5,
+    4
+   ],
+   "pad": 49,
+   "tex": 11,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-06",
+   "mood": "melancholy",
+   "name": "G minor, 65 bpm, vibraphone bell over slow strings"
+  },
+  {
+   "mode": "minor",
+   "key": 2,
+   "bpm": 70,
+   "prog": [
+    0,
+    5,
+    2,
+    6
+   ],
+   "pad": 52,
+   "tex": 11,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-07",
+   "mood": "melancholy",
+   "name": "D minor, 70 bpm, vibraphone arpud over choir"
+  },
+  {
+   "mode": "minor",
+   "key": 9,
+   "bpm": 59,
+   "prog": [
+    0,
+    6,
+    5,
+    4
+   ],
+   "pad": 89,
+   "tex": 8,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-08",
+   "mood": "melancholy",
+   "name": "A minor, 59 bpm, celesta arpud over warm pad"
+  },
+  {
+   "mode": "minor",
+   "key": 4,
+   "bpm": 64,
+   "prog": [
+    0,
+    6,
+    5,
+    4
+   ],
+   "pad": 52,
+   "tex": 8,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-09",
+   "mood": "melancholy",
+   "name": "E minor, 64 bpm, celesta bell over choir"
+  },
+  {
+   "mode": "minor",
+   "key": 11,
+   "bpm": 68,
+   "prog": [
+    0,
+    3,
+    5,
+    4
+   ],
+   "pad": 89,
+   "tex": 46,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "melancholy-10",
+   "mood": "melancholy",
+   "name": "B minor, 68 bpm, harp arpud over warm pad"
+  },
+  {
+   "mode": "major",
+   "key": 1,
+   "bpm": 104,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 24,
+   "tex": 108,
+   "pat": "pulse",
+   "bass": 70,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-01",
+   "mood": "playful",
+   "name": "Db major, 104 bpm, kalimba pulse over nylon guitar"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 8,
+   "bpm": 109,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 0,
+   "tex": 108,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-02",
+   "mood": "playful",
+   "name": "Ab mixolydian, 109 bpm, kalimba broken over piano"
+  },
+  {
+   "mode": "major",
+   "key": 3,
+   "bpm": 114,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 11,
+   "tex": 12,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-03",
+   "mood": "playful",
+   "name": "Eb major, 114 bpm, marimba broken over vibraphone"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 10,
+   "bpm": 120,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 4,
+   "tex": 13,
+   "pat": "broken",
+   "bass": 70,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-04",
+   "mood": "playful",
+   "name": "Bb mixolydian, 120 bpm, xylophone broken over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 5,
+   "bpm": 107,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 4,
+   "tex": 13,
+   "pat": "broken",
+   "bass": 58,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-05",
+   "mood": "playful",
+   "name": "F major, 107 bpm, xylophone broken over e-piano"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 0,
+   "bpm": 112,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 4,
+   "tex": 108,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-06",
+   "mood": "playful",
+   "name": "C mixolydian, 112 bpm, kalimba broken over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 7,
+   "bpm": 118,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 11,
+   "tex": 45,
+   "pat": "pulse",
+   "bass": 32,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-07",
+   "mood": "playful",
+   "name": "G major, 118 bpm, pizzicato pulse over vibraphone"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 2,
+   "bpm": 105,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 11,
+   "tex": 13,
+   "pat": "pulse",
+   "bass": 32,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-08",
+   "mood": "playful",
+   "name": "D mixolydian, 105 bpm, xylophone pulse over vibraphone"
+  },
+  {
+   "mode": "major",
+   "key": 9,
+   "bpm": 111,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 4,
+   "tex": 45,
+   "pat": "pulse",
+   "bass": 32,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-09",
+   "mood": "playful",
+   "name": "A major, 111 bpm, pizzicato pulse over e-piano"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 4,
+   "bpm": 116,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 11,
+   "tex": 13,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "stac",
+   "perc": "shaker",
+   "id": "playful-10",
+   "mood": "playful",
+   "name": "E mixolydian, 116 bpm, xylophone broken over vibraphone"
+  },
+  {
+   "mode": "major",
+   "key": 6,
+   "bpm": 58,
+   "prog": [
+    3,
+    0,
+    4,
+    5
+   ],
+   "pad": 88,
+   "tex": 11,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-01",
+   "mood": "reflective",
+   "name": "F# major, 58 bpm, vibraphone bell over new-age pad"
+  },
+  {
+   "mode": "lydian",
+   "key": 1,
+   "bpm": 62,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 89,
+   "tex": 46,
+   "pat": "sparkle",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-02",
+   "mood": "reflective",
+   "name": "Db lydian, 62 bpm, harp sparkle over warm pad"
+  },
+  {
+   "mode": "major",
+   "key": 8,
+   "bpm": 66,
+   "prog": [
+    0,
+    2,
+    3,
+    0
+   ],
+   "pad": 0,
+   "tex": 46,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-03",
+   "mood": "reflective",
+   "name": "Ab major, 66 bpm, harp bell over piano"
+  },
+  {
+   "mode": "lydian",
+   "key": 3,
+   "bpm": 70,
+   "prog": [
+    3,
+    0,
+    4,
+    5
+   ],
+   "pad": 88,
+   "tex": 8,
+   "pat": "sparkle",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-04",
+   "mood": "reflective",
+   "name": "Eb lydian, 70 bpm, celesta sparkle over new-age pad"
+  },
+  {
+   "mode": "major",
+   "key": 10,
+   "bpm": 60,
+   "prog": [
+    0,
+    2,
+    3,
+    0
+   ],
+   "pad": 88,
+   "tex": 46,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-05",
+   "mood": "reflective",
+   "name": "Bb major, 60 bpm, harp bell over new-age pad"
+  },
+  {
+   "mode": "lydian",
+   "key": 5,
+   "bpm": 64,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 88,
+   "tex": 24,
+   "pat": "sparkle",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-06",
+   "mood": "reflective",
+   "name": "F lydian, 64 bpm, nylon guitar sparkle over new-age pad"
+  },
+  {
+   "mode": "major",
+   "key": 0,
+   "bpm": 68,
+   "prog": [
+    3,
+    0,
+    4,
+    5
+   ],
+   "pad": 4,
+   "tex": 8,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-07",
+   "mood": "reflective",
+   "name": "C major, 68 bpm, celesta bell over e-piano"
+  },
+  {
+   "mode": "lydian",
+   "key": 7,
+   "bpm": 59,
+   "prog": [
+    0,
+    3,
+    0,
+    3
+   ],
+   "pad": 4,
+   "tex": 11,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-08",
+   "mood": "reflective",
+   "name": "G lydian, 59 bpm, vibraphone bell over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 2,
+   "bpm": 63,
+   "prog": [
+    0,
+    2,
+    3,
+    0
+   ],
+   "pad": 4,
+   "tex": 46,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-09",
+   "mood": "reflective",
+   "name": "D major, 63 bpm, harp sparkle over e-piano"
+  },
+  {
+   "mode": "lydian",
+   "key": 9,
+   "bpm": 67,
+   "prog": [
+    0,
+    2,
+    3,
+    0
+   ],
+   "pad": 4,
+   "tex": 11,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "reflective-10",
+   "mood": "reflective",
+   "name": "A lydian, 67 bpm, vibraphone sparkle over e-piano"
+  },
+  {
+   "mode": "minor",
+   "key": 11,
+   "bpm": 112,
+   "prog": [
+    0,
+    5,
+    6,
+    0
+   ],
+   "pad": 48,
+   "tex": 12,
+   "pat": "ostinato",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-01",
+   "mood": "urgent",
+   "name": "B minor, 112 bpm, marimba ostinato over strings"
+  },
+  {
+   "mode": "harmonic",
+   "key": 6,
+   "bpm": 117,
+   "prog": [
+    0,
+    3,
+    4,
+    4
+   ],
+   "pad": 50,
+   "tex": 38,
+   "pat": "ostinato",
+   "bass": 33,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-02",
+   "mood": "urgent",
+   "name": "F# harmonic, 117 bpm, synth bass ostinato over synth strings"
+  },
+  {
+   "mode": "minor",
+   "key": 1,
+   "bpm": 122,
+   "prog": [
+    0,
+    3,
+    4,
+    4
+   ],
+   "pad": 81,
+   "tex": 45,
+   "pat": "ostinato",
+   "bass": 33,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-03",
+   "mood": "urgent",
+   "name": "Db minor, 122 bpm, pizzicato ostinato over saw lead"
+  },
+  {
+   "mode": "harmonic",
+   "key": 8,
+   "bpm": 128,
+   "prog": [
+    0,
+    5,
+    6,
+    0
+   ],
+   "pad": 48,
+   "tex": 45,
+   "pat": "ostinato",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-04",
+   "mood": "urgent",
+   "name": "Ab harmonic, 128 bpm, pizzicato ostinato over strings"
+  },
+  {
+   "mode": "minor",
+   "key": 3,
+   "bpm": 115,
+   "prog": [
+    0,
+    6,
+    5,
+    4
+   ],
+   "pad": 92,
+   "tex": 12,
+   "pat": "pulse",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-05",
+   "mood": "urgent",
+   "name": "Eb minor, 115 bpm, marimba pulse over bowed pad"
+  },
+  {
+   "mode": "harmonic",
+   "key": 10,
+   "bpm": 120,
+   "prog": [
+    0,
+    3,
+    4,
+    4
+   ],
+   "pad": 50,
+   "tex": 12,
+   "pat": "pulse",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-06",
+   "mood": "urgent",
+   "name": "Bb harmonic, 120 bpm, marimba pulse over synth strings"
+  },
+  {
+   "mode": "minor",
+   "key": 5,
+   "bpm": 126,
+   "prog": [
+    0,
+    5,
+    6,
+    0
+   ],
+   "pad": 50,
+   "tex": 45,
+   "pat": "pulse",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-07",
+   "mood": "urgent",
+   "name": "F minor, 126 bpm, pizzicato pulse over synth strings"
+  },
+  {
+   "mode": "harmonic",
+   "key": 0,
+   "bpm": 113,
+   "prog": [
+    0,
+    5,
+    6,
+    0
+   ],
+   "pad": 92,
+   "tex": 12,
+   "pat": "pulse",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-08",
+   "mood": "urgent",
+   "name": "C harmonic, 113 bpm, marimba pulse over bowed pad"
+  },
+  {
+   "mode": "minor",
+   "key": 7,
+   "bpm": 119,
+   "prog": [
+    0,
+    5,
+    6,
+    0
+   ],
+   "pad": 50,
+   "tex": 11,
+   "pat": "pulse",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-09",
+   "mood": "urgent",
+   "name": "G minor, 119 bpm, vibraphone pulse over synth strings"
+  },
+  {
+   "mode": "harmonic",
+   "key": 2,
+   "bpm": 124,
+   "prog": [
+    0,
+    6,
+    5,
+    4
+   ],
+   "pad": 48,
+   "tex": 45,
+   "pat": "ostinato",
+   "bass": 38,
+   "bpat": "pulse",
+   "perc": "hat",
+   "id": "urgent-10",
+   "mood": "urgent",
+   "name": "D harmonic, 124 bpm, pizzicato ostinato over strings"
+  },
+  {
+   "mode": "major",
+   "key": 4,
+   "bpm": 72,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 52,
+   "tex": 25,
+   "pat": "arpup",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-01",
+   "mood": "warm",
+   "name": "E major, 72 bpm, steel guitar arpup over choir"
+  },
+  {
+   "mode": "major",
+   "key": 11,
+   "bpm": 77,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 48,
+   "tex": 24,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-02",
+   "mood": "warm",
+   "name": "B major, 77 bpm, nylon guitar broken over strings"
+  },
+  {
+   "mode": "major",
+   "key": 6,
+   "bpm": 82,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 4,
+   "tex": 25,
+   "pat": "arpup",
+   "bass": 43,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-03",
+   "mood": "warm",
+   "name": "F# major, 82 bpm, steel guitar arpup over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 1,
+   "bpm": 88,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 89,
+   "tex": 46,
+   "pat": "arpup",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-04",
+   "mood": "warm",
+   "name": "Db major, 88 bpm, harp arpup over warm pad"
+  },
+  {
+   "mode": "major",
+   "key": 8,
+   "bpm": 75,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 52,
+   "tex": 25,
+   "pat": "arpup",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-05",
+   "mood": "warm",
+   "name": "Ab major, 75 bpm, steel guitar arpup over choir"
+  },
+  {
+   "mode": "major",
+   "key": 3,
+   "bpm": 80,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 48,
+   "tex": 25,
+   "pat": "arpup",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-06",
+   "mood": "warm",
+   "name": "Eb major, 80 bpm, steel guitar arpup over strings"
+  },
+  {
+   "mode": "major",
+   "key": 10,
+   "bpm": 86,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 52,
+   "tex": 11,
+   "pat": "broken",
+   "bass": 43,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-07",
+   "mood": "warm",
+   "name": "Bb major, 86 bpm, vibraphone broken over choir"
+  },
+  {
+   "mode": "major",
+   "key": 5,
+   "bpm": 73,
+   "prog": [
+    0,
+    4,
+    5,
+    3
+   ],
+   "pad": 52,
+   "tex": 25,
+   "pat": "broken",
+   "bass": 43,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-08",
+   "mood": "warm",
+   "name": "F major, 73 bpm, steel guitar broken over choir"
+  },
+  {
+   "mode": "major",
+   "key": 0,
+   "bpm": 79,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 52,
+   "tex": 25,
+   "pat": "broken",
+   "bass": 43,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-09",
+   "mood": "warm",
+   "name": "C major, 79 bpm, steel guitar broken over choir"
+  },
+  {
+   "mode": "major",
+   "key": 7,
+   "bpm": 84,
+   "prog": [
+    0,
+    3,
+    1,
+    4
+   ],
+   "pad": 89,
+   "tex": 46,
+   "pat": "broken",
+   "bass": 32,
+   "bpat": "half",
+   "perc": null,
+   "id": "warm-10",
+   "mood": "warm",
+   "name": "G major, 84 bpm, harp broken over warm pad"
+  },
+  {
+   "mode": "phrygian",
+   "key": 9,
+   "bpm": 60,
+   "prog": [
+    0,
+    1,
+    0,
+    6
+   ],
+   "pad": 91,
+   "tex": 8,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-01",
+   "mood": "mystery",
+   "name": "A phrygian, 60 bpm, celesta sparkle over choir pad"
+  },
+  {
+   "mode": "harmonic",
+   "key": 4,
+   "bpm": 65,
+   "prog": [
+    0,
+    1,
+    0,
+    6
+   ],
+   "pad": 94,
+   "tex": 14,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-02",
+   "mood": "mystery",
+   "name": "E harmonic, 65 bpm, tubular bells bell over halo pad"
+  },
+  {
+   "mode": "dorian",
+   "key": 11,
+   "bpm": 70,
+   "prog": [
+    0,
+    1,
+    0,
+    6
+   ],
+   "pad": 94,
+   "tex": 14,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-03",
+   "mood": "mystery",
+   "name": "B dorian, 70 bpm, tubular bells sparkle over halo pad"
+  },
+  {
+   "mode": "phrygian",
+   "key": 6,
+   "bpm": 76,
+   "prog": [
+    0,
+    1,
+    0,
+    6
+   ],
+   "pad": 91,
+   "tex": 11,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-04",
+   "mood": "mystery",
+   "name": "F# phrygian, 76 bpm, vibraphone bell over choir pad"
+  },
+  {
+   "mode": "harmonic",
+   "key": 1,
+   "bpm": 63,
+   "prog": [
+    0,
+    3,
+    0,
+    1
+   ],
+   "pad": 94,
+   "tex": 11,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-05",
+   "mood": "mystery",
+   "name": "Db harmonic, 63 bpm, vibraphone sparkle over halo pad"
+  },
+  {
+   "mode": "dorian",
+   "key": 8,
+   "bpm": 68,
+   "prog": [
+    0,
+    3,
+    0,
+    1
+   ],
+   "pad": 92,
+   "tex": 14,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-06",
+   "mood": "mystery",
+   "name": "Ab dorian, 68 bpm, tubular bells bell over bowed pad"
+  },
+  {
+   "mode": "phrygian",
+   "key": 3,
+   "bpm": 74,
+   "prog": [
+    0,
+    1,
+    0,
+    6
+   ],
+   "pad": 92,
+   "tex": 8,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-07",
+   "mood": "mystery",
+   "name": "Eb phrygian, 74 bpm, celesta bell over bowed pad"
+  },
+  {
+   "mode": "harmonic",
+   "key": 10,
+   "bpm": 61,
+   "prog": [
+    0,
+    6,
+    5,
+    6
+   ],
+   "pad": 94,
+   "tex": 8,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-08",
+   "mood": "mystery",
+   "name": "Bb harmonic, 61 bpm, celesta bell over halo pad"
+  },
+  {
+   "mode": "dorian",
+   "key": 5,
+   "bpm": 67,
+   "prog": [
+    0,
+    6,
+    5,
+    6
+   ],
+   "pad": 91,
+   "tex": 8,
+   "pat": "bell",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-09",
+   "mood": "mystery",
+   "name": "F dorian, 67 bpm, celesta bell over choir pad"
+  },
+  {
+   "mode": "phrygian",
+   "key": 0,
+   "bpm": 72,
+   "prog": [
+    0,
+    3,
+    0,
+    1
+   ],
+   "pad": 91,
+   "tex": 98,
+   "pat": "sparkle",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "mystery-10",
+   "mood": "mystery",
+   "name": "C phrygian, 72 bpm, crystal sparkle over choir pad"
+  },
+  {
+   "mode": "major",
+   "key": 2,
+   "bpm": 66,
+   "prog": [
+    0,
+    3,
+    5,
+    4
+   ],
+   "pad": 52,
+   "tex": 46,
+   "pat": "arpup",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-01",
+   "mood": "epic-calm",
+   "name": "D major, 66 bpm, harp arpup over choir"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 9,
+   "bpm": 70,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 52,
+   "tex": 9,
+   "pat": "arpup",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-02",
+   "mood": "epic-calm",
+   "name": "A mixolydian, 70 bpm, glockenspiel arpup over choir"
+  },
+  {
+   "mode": "major",
+   "key": 4,
+   "bpm": 75,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 60,
+   "tex": 8,
+   "pat": "arpud",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-03",
+   "mood": "epic-calm",
+   "name": "E major, 75 bpm, celesta arpud over horn"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 11,
+   "bpm": 80,
+   "prog": [
+    0,
+    6,
+    3,
+    0
+   ],
+   "pad": 60,
+   "tex": 46,
+   "pat": "arpud",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-04",
+   "mood": "epic-calm",
+   "name": "B mixolydian, 80 bpm, harp arpud over horn"
+  },
+  {
+   "mode": "major",
+   "key": 6,
+   "bpm": 69,
+   "prog": [
+    0,
+    3,
+    5,
+    4
+   ],
+   "pad": 52,
+   "tex": 9,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-05",
+   "mood": "epic-calm",
+   "name": "F# major, 69 bpm, glockenspiel arpud over choir"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 1,
+   "bpm": 73,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 49,
+   "tex": 46,
+   "pat": "arpud",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-06",
+   "mood": "epic-calm",
+   "name": "Db mixolydian, 73 bpm, harp arpud over slow strings"
+  },
+  {
+   "mode": "major",
+   "key": 8,
+   "bpm": 78,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 48,
+   "tex": 46,
+   "pat": "arpup",
+   "bass": 43,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-07",
+   "mood": "epic-calm",
+   "name": "Ab major, 78 bpm, harp arpup over strings"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 3,
+   "bpm": 67,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 48,
+   "tex": 9,
+   "pat": "arpup",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-08",
+   "mood": "epic-calm",
+   "name": "Eb mixolydian, 67 bpm, glockenspiel arpup over strings"
+  },
+  {
+   "mode": "major",
+   "key": 10,
+   "bpm": 72,
+   "prog": [
+    0,
+    5,
+    3,
+    4
+   ],
+   "pad": 52,
+   "tex": 8,
+   "pat": "arpud",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-09",
+   "mood": "epic-calm",
+   "name": "Bb major, 72 bpm, celesta arpud over choir"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 5,
+   "bpm": 76,
+   "prog": [
+    0,
+    3,
+    5,
+    4
+   ],
+   "pad": 48,
+   "tex": 47,
+   "pat": "arpup",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "epic-calm-10",
+   "mood": "epic-calm",
+   "name": "F mixolydian, 76 bpm, timpani arpup over strings"
+  },
+  {
+   "mode": "major",
+   "key": 7,
+   "bpm": 70,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 89,
+   "tex": 10,
+   "pat": "arpud",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-01",
+   "mood": "nostalgic",
+   "name": "G major, 70 bpm, music box arpud over warm pad"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 2,
+   "bpm": 74,
+   "prog": [
+    0,
+    3,
+    2,
+    5
+   ],
+   "pad": 11,
+   "tex": 46,
+   "pat": "arpud",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-02",
+   "mood": "nostalgic",
+   "name": "D mixolydian, 74 bpm, harp arpud over vibraphone"
+  },
+  {
+   "mode": "major",
+   "key": 9,
+   "bpm": 79,
+   "prog": [
+    0,
+    2,
+    3,
+    4
+   ],
+   "pad": 4,
+   "tex": 46,
+   "pat": "arpud",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-03",
+   "mood": "nostalgic",
+   "name": "A major, 79 bpm, harp arpud over e-piano"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 4,
+   "bpm": 84,
+   "prog": [
+    0,
+    3,
+    2,
+    5
+   ],
+   "pad": 4,
+   "tex": 11,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-04",
+   "mood": "nostalgic",
+   "name": "E mixolydian, 84 bpm, vibraphone bell over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 11,
+   "bpm": 73,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 89,
+   "tex": 46,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-05",
+   "mood": "nostalgic",
+   "name": "B major, 73 bpm, harp bell over warm pad"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 6,
+   "bpm": 77,
+   "prog": [
+    0,
+    2,
+    3,
+    4
+   ],
+   "pad": 4,
+   "tex": 11,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-06",
+   "mood": "nostalgic",
+   "name": "F# mixolydian, 77 bpm, vibraphone bell over e-piano"
+  },
+  {
+   "mode": "major",
+   "key": 1,
+   "bpm": 82,
+   "prog": [
+    0,
+    5,
+    1,
+    4
+   ],
+   "pad": 11,
+   "tex": 24,
+   "pat": "arpud",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-07",
+   "mood": "nostalgic",
+   "name": "Db major, 82 bpm, nylon guitar arpud over vibraphone"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 8,
+   "bpm": 71,
+   "prog": [
+    0,
+    2,
+    3,
+    4
+   ],
+   "pad": 11,
+   "tex": 10,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-08",
+   "mood": "nostalgic",
+   "name": "Ab mixolydian, 71 bpm, music box bell over vibraphone"
+  },
+  {
+   "mode": "major",
+   "key": 3,
+   "bpm": 76,
+   "prog": [
+    0,
+    2,
+    3,
+    4
+   ],
+   "pad": 89,
+   "tex": 11,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-09",
+   "mood": "nostalgic",
+   "name": "Eb major, 76 bpm, vibraphone bell over warm pad"
+  },
+  {
+   "mode": "mixolydian",
+   "key": 10,
+   "bpm": 80,
+   "prog": [
+    0,
+    3,
+    2,
+    5
+   ],
+   "pad": 11,
+   "tex": 46,
+   "pat": "bell",
+   "bass": 32,
+   "bpat": "whole",
+   "perc": null,
+   "id": "nostalgic-10",
+   "mood": "nostalgic",
+   "name": "Bb mixolydian, 80 bpm, harp bell over vibraphone"
+  }
+ ]
+}
