@@ -18,7 +18,9 @@ with a break · A adding an asset · C one-scene clip
    {"text": "그리고 네 번째, 마침내 궤도에 올랐습니다.", "music": "triumph"}]}
 ```
 `mood` = the chapter's music family (REFERENCE §7); `music` on a sentence = change cue exactly there.
-Cue keys use the spoken form: a sentence "1911년엔…" is `q.w('천구백십일', k)`, not `q.w('1911', k)`
+Cue keys use the spoken form: a sentence "1911년엔…" is `q.w('천구백십일', k)`, not `q.w('1911', k)`.
+`q.w` matches the start of a word (`q.w('모두')` also hits "모두의" earlier in the sentence); use `q.wx` for the exact
+word when the same stem appears twice
 (`timeline_draft.py` already writes the spoken form, so a wrong key shows up as a missing cue before the voice).
 Put the names the voice must say in `project.json` `"names": ["이스마엘", "퀴퀘그"]`: audio_check hints whisper with them.
 
@@ -161,5 +163,27 @@ drawn after `person()` at its anchors, shown once on a still at Gate A.
 
 ## C. A one-scene clip (a 10 to 20 s probe, a trailer, a short)
 Keep the chapter shape's first, middle and last beat and drop the rest (biography: turning point → decision → cost;
-history: scene → consequence; philosophy: question → answer). Two or three sentences, 70 to 80 characters of text;
+history: scene → consequence; philosophy: question → answer; fiction: premise → the character's want → the question,
+never the ending — no picture that gives the ending away). Two or three sentences, 70 to 80 characters of text;
 one mood and no `"music"` change; the scene's `title` is the book's title (it is the title card); 2 to 4 shots.
+
+## T14. An idea inside a head (philosophy, psychology: "the judgment", "the story we tell")
+```js
+[q.s(2), (t, lt) => {
+  const v = person('marcus', 760, 880, { pose: 'think', face: 'think', p: dp(lt, 0, 0.5) });
+  prop('cloud', 1420, 520, 1.4, { p: dp(lt, 0.2, 0.5), fill: mix(C.dim, 0.5) }); cross(1300, 380, 240, 200, { p: dp(lt, 0.8, 0.4) });   // the event
+  think(v, null, { w: 420, h: 260, p: dp(lt, 1.0, 0.4), body: (x, y) => hand('내 판단', x + 210, y + 130, { size: 64 }) });   // the cause
+}],
+```
+The thing outside is crossed out, the thing inside is the answer. `think(who, null, { w, h, body })` draws a picture in
+the bubble.
+
+## Placement notes
+- Draw people in any order, bubbles last: name tags are placed when the shot is complete (`docentTags()`), clear of
+  every figure, animal, prop, board and bubble in it. Force a side with `tag: true, tagSide: 'left' | 'right'`.
+- Speech goes through `say()`, never a hand-placed `bubble(…, { tail })` next to a person: a tail you aim yourself
+  ends at the scalp more often than not (lint `tail-high`). Keep `bubble()` for things that are not a mouth (an
+  anthill, a radio) with `tailOk: true`.
+- Each shot cuts in 0.3 s before its word (`shots(t, list, { lead })`, default 0.3): put the subject first in the shot
+  (`p: dp(lt, 0, 0.5)`), labels and details after. Word-timed parts (`o('word', k, q.s(k))`) move with it.
+- Bubbles keep clear of props and boards (they reserve their box), so draw the props of a shot before its bubbles.

@@ -256,6 +256,7 @@ function renderAt(t) {
   if (body > 0) {
     ctx.save(); ctx.globalAlpha = body;
     SCENES[sc.id](t, q, sc);
+    if (typeof docentTags === 'function') docentTags();   // name tags not placed by shots() yet
     ctx.restore();
     chip(sc.chip, body * 0.95);
   }

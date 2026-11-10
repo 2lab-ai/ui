@@ -1,8 +1,9 @@
-"""Contact sheets (12 stills per page) for reviewing renders: python sheets.py 'out/still_*.jpg' out/sheet"""
+"""Contact sheets (12 stills per page) for reviewing renders: python sheets.py ['out/still_*.jpg' [out/sheet]]"""
 import sys, os, glob
 from PIL import Image, ImageDraw, ImageFont
-files = sorted(glob.glob(sys.argv[1]))
-out = sys.argv[2]; per = 12; cols = 4; tw, th = 480, 270
+files = sorted(glob.glob(sys.argv[1] if len(sys.argv) > 1 else 'out/still_*.jpg'))   # default: every still in out/
+out = sys.argv[2] if len(sys.argv) > 2 else 'out/sheet'; per = 12; cols = 4; tw, th = 480, 270
+if not files: sys.exit('no stills: run export.py stills <t...> first')
 try:
     font = ImageFont.truetype(next(p for p in ('fonts/Pretendard.ttf', 'fonts/NotoSansKR.ttf') if os.path.exists(p)), 20)
 except StopIteration:

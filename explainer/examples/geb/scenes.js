@@ -3672,8 +3672,8 @@ SCENES.ants = (t, q) => shots(t, [
   }],
   // 2 Achilles: friends with something it eats?
   [q.s(2), (t, lt) => {
-    ach(t, { x: 560, pose: 'shrug', face: 'surprised', s: 1.2, p: dp(lt, 0, 0.7) });
-    bubble(700, 150, 720, 220, { tail: [640, 470], text: '먹는데… 친구?', size: 70, p: dp(lt, 0.4, 0.5) });
+    const a = ach(t, { x: 560, pose: 'shrug', face: 'surprised', s: 1.2, p: dp(lt, 0, 0.7) });
+    say(a, '먹는데… 친구?', { side: 'right', size: 70, p: dp(lt, 0.4, 0.5) });   // the tail ends at his mouth, not his helmet
     animal('anteater', 1380, 870, { s: 0.6, t, p: dp(lt, 0.8, 0.6) });
     antsHill(1700, 870, 0.75, { p: dp(lt, 1, 0.6), t, n: 5 });
     hand('?', 400, 330, { size: 90, p: dp(lt, 1.6, 0.3), color: C.red });
@@ -3681,7 +3681,7 @@ SCENES.ants = (t, q) => shots(t, [
   // 3 one ant knows nothing
   [q.s(3), (t, lt) => {
     ant(900, 800, { s: 4.6, t, p: dp(lt, 0, 0.8) });
-    bubble(1150, 200, 400, 230, { kind: 'thought', tail: [1100, 600], text: '…', size: 100, p: dp(lt, 0.9, 0.5) });
+    bubble(1150, 200, 400, 230, { kind: 'thought', tail: [1100, 600], tailOk: true, text: '…', size: 100, p: dp(lt, 0.9, 0.5) });   // the ant's head (ant() is not a figure)
     hand('한 마리', 640, 380, { size: 84, p: dp(lt, 1.5, 0.6) });
   }],
   // 3b it follows a smell, bumps, turns
@@ -3691,13 +3691,13 @@ SCENES.ants = (t, q) => shots(t, [
     for (let i = 0; i < 4; i++) inkPath([[340 + i * 260, 700], [330 + i * 260, 670], [350 + i * 260, 640], [338 + i * 260, 610]], { p: dp(lt, 0.3 + i * 0.2, 0.4), color: C.green, w: 3.4 });
     hand('냄새', 300, 560, { size: 66, color: C.green, p: dp(lt, 0.6, 0.5) });
     prop('rock', 1540, 800, 1.7, { p: dp(lt, 0.2, 0.6) });
-    const go = dp(lt, 0.4, 2.6), back = dp(lt, 3.4, 2.0), bumped = lt > 3.1;
+    const go = dp(lt, 0.3, 1.9), back = dp(lt, 2.4, 1.0), bumped = lt > 2.2;   // all done by 3.4 s: the shot is ~4 s
     const x = bumped ? lerp(1330, 1000, back) : lerp(300, 1330, go), y = bumped ? lerp(760, 610, back) : 760;
     ant(x, y, { s: 1.8, t, dir: bumped ? -1 : 1 });
-    const bp = dp(lt, 3.0, 0.3) * (1 - dp(lt, 4.0, 0.4));
+    const bp = dp(lt, 2.1, 0.3) * (1 - dp(lt, 3.0, 0.3));
     if (bp > 0) for (let i = 0; i < 5; i++) { const ang = -Math.PI / 2 + (i - 2) * 0.5; inkLine(1420 + Math.cos(ang) * 40, 700 + Math.sin(ang) * 40, 1420 + Math.cos(ang) * 76, 700 + Math.sin(ang) * 76, { a: bp, color: C.red, w: 4 }); }
-    hand('쿵!', 1440, 560, { size: 70, color: C.red, p: dp(lt, 3.1, 0.3), a: 1 - dp(lt, 4.2, 0.4) });
-    inkArrow(1300, 690, 1080, 600, { via: [1230, 600], p: dp(lt, 3.6, 0.5), color: KEY(), w: 4.4 });
+    hand('쿵!', 1440, 560, { size: 70, color: C.red, p: dp(lt, 2.2, 0.3), a: 1 - dp(lt, 3.1, 0.3) });
+    inkArrow(1300, 690, 1080, 600, { via: [1230, 600], p: dp(lt, 2.6, 0.5), color: KEY(), w: 4.4 });
   }],
   // 4 the colony finds food, makes a path, faces danger
   [q.s(4), (t, lt) => {

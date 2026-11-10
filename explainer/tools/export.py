@@ -11,6 +11,22 @@ FPS = 30
 def total():
     return json.load(open(os.path.join(HERE, 'timeline.json')))['total']
 
+def open_gaps(T, min_gap=1.2):
+    """Stretches with no voice for >= min_gap s (before the first sentence, between sentences, after the last)."""
+    sents = sorted((s['start'], s['end']) for sc in json.load(open(os.path.join(HERE, 'timeline.json')))['scenes'] for s in sc['sentences'])
+    gaps, prev = [], 0.0
+    for a, b in sents + [(T + 10, T + 10)]:
+        if a - prev >= min_gap: gaps.append((prev, min(a, T + 10)))
+        prev = max(prev, b)
+    return gaps
+
+def open_envelope(T, lift_db=6.0):
+    """ffmpeg volume expression: 1 under the voice, 10^(lift/20) in open gaps; 0.6 s rise after the voice stops, back
+    down 0.25 s before it starts again."""
+    k = 10 ** (lift_db / 20) - 1
+    terms = [f"clip((t-{a + 0.15:.2f})/0.6,0,1)*clip(({b - 0.25:.2f}-t)/0.5,0,1)" for a, b in open_gaps(T) if b - a >= 1.2]
+    return f"1+{k:.3f}*({'+'.join(terms)})" if terms else '1'
+
 def mix():
     T = total()
     # Docent scores from score.py (score.json beside score.wav, cues at -20 LUFS): music ~20 dB under the voice while it
@@ -24,7 +40,11 @@ def mix():
     except Exception: gentle = False
     print('mix: ' + ('docent score (score.py): gentle ducking, music ~20 dB under the voice' if gentle else 'classic ducking (music.py score)'))
     vol, duck = (0.20, 'threshold=0.05:ratio=2.5:attack=150:release=1200') if gentle else (0.42, 'threshold=0.03:ratio=6:attack=40:release=600')
-    flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol},afade=t=out:st={T-4:.2f}:d=4[m];"
+    # Docent scores also breathe with the picture: in every open stretch (title cards, chapter breaks, the end; a gap of
+    # >= 1.2 s between sentences) the music rises +6 dB and settles back 0.25 s before the voice returns, and the end
+    # fades over 1.5 s (2026-11-10 review: the bed was flat, near-silent on title cards and gone in the last seconds).
+    env, fade = (open_envelope(T), 1.5) if gentle else ('1', 4.0)
+    flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol},volume='{env}':eval=frame,afade=t=out:st={T-fade:.2f}:d={fade}[m];"
            f"[0:a]aformat=channel_layouts=stereo,asplit=2[v][sc];"
            f"[m][sc]sidechaincompress={duck}[md];"
            f"[v][md]amix=inputs=2:normalize=0,volume=1.41,alimiter=limit=0.95[out]")
