@@ -26,13 +26,16 @@ XF = 2.5   # cross-fade inside a chapter (s)
 HISTORY = os.path.join(ML.CACHE, 'history.json')
 
 def load_history():
-    try: return json.load(open(HISTORY))
-    except Exception: return {'videos': []}
+    try: h = json.load(open(HISTORY))
+    except Exception: h = {}
+    if not isinstance(h, dict): h = {}
+    h.setdefault('videos', []); return h
 
 def save_history(project, cues):
     h = load_history(); h['videos'] = [v for v in h['videos'] if v.get('project') != project][-49:]
     h['videos'].append({'project': project, 'at': int(time.time()), 'cues': sorted(set(cues))})
-    os.makedirs(os.path.dirname(HISTORY), exist_ok=True); json.dump(h, open(HISTORY, 'w'), indent=1)
+    os.makedirs(os.path.dirname(HISTORY), exist_ok=True)
+    tmp = f'{HISTORY}.{os.getpid()}'; json.dump(h, open(tmp, 'w'), indent=1); os.replace(tmp, HISTORY)   # atomic
 NEAR = {'wonder': ['epic-calm', 'reflective', 'mystery'], 'curious': ['playful', 'warm', 'mystery'],
         'tension': ['urgent', 'mystery', 'melancholy'], 'triumph': ['epic-calm', 'warm', 'wonder'],
         'melancholy': ['reflective', 'nostalgic', 'tension'], 'playful': ['curious', 'warm', 'triumph'],
@@ -186,4 +189,6 @@ if __name__ == '__main__':
         print(cue_sheet(pl)); sys.exit(0)
     assemble(pl, tl['total'], lufs)
     save_history(project, [p['cue'] for p in pl])
+    # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it)
+    json.dump({'sections': pl, 'score_wav_mtime': os.path.getmtime('score.wav')}, open('score.json', 'w'), ensure_ascii=False, indent=1)
     print(f"score.wav: {len(pl)} sections, {len({p['cue'] for p in pl})} distinct cues, total {tl['total']:.1f}s")

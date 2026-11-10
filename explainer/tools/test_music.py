@@ -121,6 +121,10 @@ class AcrossVideos(unittest.TestCase):
         seeds = {score.plan(script, tl, 35.0, p, {'videos': []})[0]['seed'] for p in ['a', 'b', 'c', 'd']}
         self.assertGreater(len(seeds), 1)
 
+    def test_a_different_seed_changes_every_cue(self):
+        same = [c['id'] for c in ML.catalogue() if all(ML.compose(c, 40.0, 0) == ML.compose(c, 40.0, k) for k in (412, 77, 905))]
+        self.assertEqual(same, [], 'these cues sound the same whatever the seed')
+
 
 if __name__ == '__main__':
     unittest.main()

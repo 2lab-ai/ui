@@ -19,7 +19,7 @@ const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 // subtitle zone or off the frame, empty bubbles, bubble tails, figure heads. engine.js calls DOCENT_FRAME(t) at the
 // start of every renderAt, so the registry always describes exactly one frame.
 const SUB_Y = 905;   // ink below this line sits under the subtitle box
-const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props'];
+const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props', 'faces'];
 const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null };
 function DOCENT_FRAME(t) { DOCENT.t = t; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [] }; }   // slots: where things are or will be (placement)
@@ -42,7 +42,7 @@ function docentReport() {
     DOCENT.bubbles.slice(i + 1).forEach((b) => { if (b[2] > x0 + 6 && b[0] < x1 - 6 && b[3] > y0 + 6 && b[1] < y1 - 6) cover.push(`bubble over bubble @${Math.round(b[0])}`); });
   });
   const propFace = [];
-  for (const pr of DOCENT.props) for (const [hx, hy, hr, , seq] of DOCENT.heads) {
+  for (const pr of DOCENT.props) for (const [hx, hy, hr, seq] of DOCENT.faces) {
     if (seq == null || pr.seq < seq) continue;   // only a prop drawn after (over) the face
     const [x0, y0, x1, y1] = pr.box, ov = Math.max(0, Math.min(x1, hx + hr) - Math.max(x0, hx - hr)) * Math.max(0, Math.min(y1, hy + hr) - Math.max(y0, hy - hr));
     if (ov > 0.4 * 4 * hr * hr) propFace.push(`prop '${pr.name}' may cover a face @${Math.round(hx)}`);   // box test: look at the frame
@@ -103,8 +103,7 @@ function inkPath(pts, { color = null, w = 4, p = 1, closed = false, jit = 1.4, s
     let hi = 1e9; for (const [px, py] of pts) { const sy = m.b * px + m.d * py + m.f; if (sy < hi) hi = sy; }
     const box = (b) => b ? [Math.min(b[0], l), Math.min(b[1], hi), Math.max(b[2], r), Math.max(b[3], lo)] : [l, hi, r, lo];
     if (!DOCENT.ghostOk) DOCENT.ink = box(DOCENT.ink);
-    if (DOCENT.track) { let a0 = 1e9, b0 = 1e9, a1 = -1e9, b1 = -1e9; for (const [px, py] of pts) { a0 = Math.min(a0, px); b0 = Math.min(b0, py); a1 = Math.max(a1, px); b1 = Math.max(b1, py); }
-      const t = DOCENT.track.box; DOCENT.track.box = t ? [Math.min(t[0], a0), Math.min(t[1], b0), Math.max(t[2], a1), Math.max(t[3], b1)] : [a0, b0, a1, b1]; }   // local space, like the heads
+    if (DOCENT.track) DOCENT.track.box = box(DOCENT.track.box);   // screen space; heads are also kept in screen space (DOCENT.faces)
     if (lo > SUB_Y) docentNote('zone', Math.round(lo)); if (l < -4 || r > W + 4 || hi < -4) docentNote('off', [Math.round(l), Math.round(r), Math.round(hi)]); }
   const q = wobble(pts, closed, jit, seed == null ? seedOf(pts) : seed);
   withAlpha(a, () => {
@@ -173,6 +172,7 @@ function hand(str, x, y, { size = 54, color = null, p = 1, a = 1, align = 'cente
     for (const [u, v] of [[x0 - x, -asc], [x0 - x + tw, -asc], [x0 - x, desc], [x0 - x + tw, desc]]) {
       const px = x + u * cs - v * sn, py = y + u * sn + v * cs; xs.push(m.a * px + m.c * py + m.e); ys.push(m.b * px + m.d * py + m.f); }
     if (Math.max(...ys) > SUB_Y) docentNote('zone', 'hand:' + String(str).slice(0, 12));
+    if (!DOCENT.ghostOk) { const b = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], k = DOCENT.ink; DOCENT.ink = k ? [Math.min(k[0], b[0]), Math.min(k[1], b[1]), Math.max(k[2], b[2]), Math.max(k[3], b[3])] : b; }
     if (Math.min(...xs) < -4 || Math.max(...xs) > W + 4 || Math.min(...ys) < -4) docentNote('off', 'hand:' + String(str).slice(0, 12)); }
   ctx.save();
   ctx.font = `${weight} ${size}px ${HAND()}`;
@@ -264,7 +264,8 @@ function figure(x, y, o = {}) {
   if (s > 0) { DOCENT.slots.figs.push(anchors.box); DOCENT.slots.heads.push([hc[0], hc[1], R]); if (tag) DOCENT.slots.tags.push(tagRect); }
   if (p <= 0 || a <= 0 || s <= 0) return anchors;
   if (o.ghostOk) DOCENT.ghostOk++;
-  DOCENT.heads.push([hc[0], hc[1], R, topY, ++DOCENT.seq]); DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
+  DOCENT.heads.push([hc[0], hc[1], R, topY, ++DOCENT.seq]);
+  { const m = ctx.getTransform(); DOCENT.faces.push([m.a * hc[0] + m.c * hc[1] + m.e, m.b * hc[0] + m.d * hc[1] + m.f, R * Math.hypot(m.a, m.b), DOCENT.seq]); } DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
   DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|') });
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
   const ph = (k, n) => clamp01((p * n - k) / 1.4);   // staged draw-on: head, body, arms, legs, face
@@ -564,7 +565,8 @@ function animal(kind, x, y, o = {}) {
     anc.top = [anc.top[0], anc.top[1] - 70]; anc.box[1] = anc.top[1]; tagRect = [anc.top[0] - tw, anc.top[1], anc.top[0] + tw, anc.top[1] + 48]; }
   DOCENT.slots.figs.push(anc.box); DOCENT.slots.heads.push([anc.head[0], anc.head[1], anc.r]); if (tagRect) DOCENT.slots.tags.push(tagRect);
   if (hidden) return anc;
-  DOCENT.heads.push([anc.head[0], anc.head[1], anc.r, null, ++DOCENT.seq]); DOCENT.mouths.push(anc.mouth); DOCENT.figs.push(anc.box); DOCENT.animals.push(kind);
+  DOCENT.heads.push([anc.head[0], anc.head[1], anc.r, null, ++DOCENT.seq]); DOCENT.mouths.push(anc.mouth);
+  { const m = ctx.getTransform(); DOCENT.faces.push([m.a * anc.head[0] + m.c * anc.head[1] + m.e, m.b * anc.head[0] + m.d * anc.head[1] + m.f, anc.r * Math.hypot(m.a, m.b), DOCENT.seq]); } DOCENT.figs.push(anc.box); DOCENT.animals.push(kind);
   if (tagRect) { DOCENT.tags.push(tagRect); hand(str, anc.top[0], anc.top[1] + 24, { size: 40, p: oo.p, a: oo.a }); }
   return anc;
 }
@@ -711,7 +713,8 @@ function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 =
     const band = r * 1.1;
     if (tail[1] > top - 8 && tail[1] < hy - r * 0.6 && Math.abs(tail[0] - hx) < band) {
       const up = tail[1] - (top - 8), side = band - Math.abs(tail[0] - hx) + 6;
-      tail = up <= side ? [tail[0], top - 8] : [hx + Math.sign(tail[0] - hx || 1) * (band + 6), tail[1]];
+      // a bubble right above the head always leaves by the top (going round the side grazed a top hat's brim)
+      tail = up <= side || Math.abs(bx - hx) < band ? [tail[0], top - 8] : [hx + Math.sign(tail[0] - hx || 1) * (band + 6), tail[1]];
     }
   }
   bubble(x, y, w, h, { ...o, kind, size, text: str, tail });
@@ -895,14 +898,14 @@ const PROPS = {
 function prop(name, x, y, s = 1, o = {}) {
   const f = PROPS[name]; if (!f) { MISS.add('prop:' + name); return; }
   const oo = { p: 1, a: 1, w: 4 * Math.max(0.7, Math.sqrt(s)), ...o };
-  // solid: true fills the outline with the page colour, so a prop in front hides what is behind it (use it for simple
-  // props that overlap another; props with their own colour keep it, they test o.paperFill)
-  if (oo.solid && oo.fill === undefined) { oo.fill = PAPER(); oo.paperFill = true; }
   if (oo.p <= 0 || oo.a <= 0) return;
+  // solid: true first paints the prop's shape in the page colour (every part filled, thick paper strokes), then draws
+  // the prop as usual on top: what is behind it is hidden, its own parts and colours are untouched
+  if (oo.solid) { DOCENT.ghostOk++; f(x, y, s, { ...oo, fill: PAPER(), paperFill: true, color: PAPER(), w: oo.w * 2.2 }); DOCENT.ghostOk--; }
   const tr = DOCENT.track = { box: null };
   f(x, y, s, oo);
   DOCENT.track = null;
-  if (tr.box && !DOCENT.ghostOk) DOCENT.props.push({ name, box: tr.box, seq: ++DOCENT.seq });
+  if (tr.box && !DOCENT.ghostOk && !oo.faceOk) DOCENT.props.push({ name, box: tr.box, seq: ++DOCENT.seq });   // faceOk: covering a face is the joke
 }
 
 // ---------- library additions: research-skill make-docent-book, 2026-11-10 ----------

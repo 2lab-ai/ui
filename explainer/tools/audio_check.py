@@ -29,9 +29,10 @@ def spoken(s):
 norm = lambda s: re.sub(r'[^\w]', '', spoken(s))
 
 def hear(a, b):
-    wav = os.path.join(tempfile.gettempdir(), 'qa_clip.wav')
+    fd, wav = tempfile.mkstemp(suffix='.wav'); os.close(fd)   # one file per call: parallel checks do not collide
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', str(max(0, a)), '-t', str(b - a), '-i', os.path.join(HERE, 'narration.wav'), '-ar', '16000', '-ac', '1', wav], check=True)
-    return mlx_whisper.transcribe(wav, path_or_hf_repo='mlx-community/whisper-large-v3-turbo', language='ko', word_timestamps=True, initial_prompt=PROMPT)
+    try: return mlx_whisper.transcribe(wav, path_or_hf_repo='mlx-community/whisper-large-v3-turbo', language='ko', word_timestamps=True, initial_prompt=PROMPT)
+    finally: os.remove(wav)
 
 report, bad = [], 0
 for sc in tl['scenes']:

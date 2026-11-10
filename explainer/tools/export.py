@@ -17,7 +17,9 @@ def mix():
     # speaks, gentle ~4 dB swells in the gaps (research 2026-11-10: ratio 6 / release 600 ms pumped 8-15 dB between
     # sentences; this setting measured 20.4-21.6 dB under, 3.9-4.4 dB swell on 3 probes). music.py scores keep the
     # original balance.
-    gentle = os.path.exists(os.path.join(HERE, 'score.json'))
+    sj, sw = os.path.join(HERE, 'score.json'), os.path.join(HERE, 'score.wav')
+    try: gentle = abs(json.load(open(sj)).get('score_wav_mtime', -1) - os.path.getmtime(sw)) < 1.0
+    except Exception: gentle = False
     vol, duck = (0.20, 'threshold=0.05:ratio=2.5:attack=150:release=1200') if gentle else (0.42, 'threshold=0.03:ratio=6:attack=40:release=600')
     flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol},afade=t=out:st={T-4:.2f}:d=4[m];"
            f"[0:a]aformat=channel_layouts=stereo,asplit=2[v][sc];"
