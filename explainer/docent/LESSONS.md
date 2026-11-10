@@ -15,6 +15,10 @@ that comes back means the fix was not structural: replace it with a check.
 - Heads read as unfilled holes (2/5) · filled with the page colour · a lighter paper tone.
 - Tags floated 80–100 px from their figure (3/5) · offset 112 px · 92 px.
 - The laurel ringed the whole face · leaves spread over 240° · on the crown only.
+- PR #56 review: the head-fill variable was named `face` and shadowed the expression (every face neutral) · caught by
+  all three reviewers before merge · renamed `headFill`; full-size still of a happy/worried pair is part of the check.
+- A tail tip on the curls at temple height (lab frame) · the hair band only covered the scalp · the band reaches the
+  mouth line; offset bubbles end beside the face at mouth height, a bubble right above still leaves by the top.
 - The top 40 % of the frame empty (4/5) · no rule · REFERENCE §6 + lint `bottom-heavy` (P2).
 - The verb not drawn: Jones never driven out, nobody boards, Demian just points (3/5) · skill text asked for a
   picture, not the action · REFERENCE §1 "draw the verb"; Gate C asks it per sentence.
