@@ -1,7 +1,7 @@
 """Score: one original cue per musical section, so the music follows the story instead of looping one track.
 Run inside a project folder after the real timeline exists (a draft timeline works for planning).
 
-    python score.py [--plan] [--target 35] [--lufs -20]
+    python score.py [--plan] [--target 35] [--lufs -20]     # --plan: out/cue_plan.md only, nothing rendered
 
 - Every chapter (scene) gets a mood: script.json scene "mood" (wonder curious tension triumph melancholy playful
   reflective urgent warm mystery epic-calm nostalgic), else one is guessed from the scene's words, else the chapter's
@@ -183,12 +183,13 @@ if __name__ == '__main__':
     project = pj.get('slug') or script.get('title') or os.path.basename(os.getcwd())
     pl = plan(script, tl, target, project, load_history())
     os.makedirs('out', exist_ok=True)
-    open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
-    json.dump({'sections': pl}, open('score.json', 'w'), ensure_ascii=False, indent=1)
-    if '--plan' in a:
-        print(cue_sheet(pl)); sys.exit(0)
+    if '--plan' in a:   # a proposal only: score.json/score.wav (the rendered score and its provenance) stay untouched
+        open('out/cue_plan.md', 'w').write(cue_sheet(pl)); print(cue_sheet(pl)); sys.exit(0)
     assemble(pl, tl['total'], lufs)
     save_history(project, [p['cue'] for p in pl])
-    # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it)
-    json.dump({'sections': pl, 'score_wav_mtime': os.path.getmtime('score.wav')}, open('score.json', 'w'), ensure_ascii=False, indent=1)
+    open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
+    # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it);
+    # written after the render, atomically
+    tmp = f'score.json.{os.getpid()}'
+    json.dump({'sections': pl, 'score_wav_mtime': os.path.getmtime('score.wav')}, open(tmp, 'w'), ensure_ascii=False, indent=1); os.replace(tmp, 'score.json')
     print(f"score.wav: {len(pl)} sections, {len({p['cue'] for p in pl})} distinct cues, total {tl['total']:.1f}s")
