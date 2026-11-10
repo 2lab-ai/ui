@@ -25,6 +25,12 @@ XF = 2.5   # cross-fade inside a chapter (s)
 # videos makes recently used cues cost more.
 HISTORY = os.path.join(ML.CACHE, 'history.json')
 
+def wav_sig(path):
+    """size + hash of the first MB: survives copying the project (mtime does not)."""
+    import hashlib
+    with open(path, 'rb') as f: head = f.read(1 << 20)
+    return f"{os.path.getsize(path)}:{hashlib.sha1(head).hexdigest()[:16]}"
+
 def load_history():
     try: h = json.load(open(HISTORY))
     except Exception: h = {}
@@ -191,5 +197,5 @@ if __name__ == '__main__':
     # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it);
     # written after the render, atomically
     tmp = f'score.json.{os.getpid()}'
-    json.dump({'sections': pl, 'score_wav_mtime': os.path.getmtime('score.wav')}, open(tmp, 'w'), ensure_ascii=False, indent=1); os.replace(tmp, 'score.json')
+    json.dump({'sections': pl, 'score_wav': wav_sig('score.wav')}, open(tmp, 'w'), ensure_ascii=False, indent=1); os.replace(tmp, 'score.json')
     print(f"score.wav: {len(pl)} sections, {len({p['cue'] for p in pl})} distinct cues, total {tl['total']:.1f}s")

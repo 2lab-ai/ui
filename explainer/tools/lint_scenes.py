@@ -57,6 +57,12 @@ async def main(only, strict):
     os.makedirs(os.path.join(OUT, 'lint'), exist_ok=True)
     async with async_playwright() as pw:
         browser, page, errs = await open_page(pw, port)
+        # the project's engine copy must match these checks (an older docent.js silently skips the newer ones)
+        stale = await page.evaluate("typeof DOCENT_KINDS === 'undefined' || !DOCENT_KINDS.includes('faces') || typeof docentReport !== 'function'")
+        if stale:
+            await browser.close(); srv.shutdown()
+            print('[P0] the project\'s engine/docent.js is older than this lint: run tools/new_video.py <project> to refresh it, then lint again')
+            sys.exit(1)
         for sc in tl['scenes']:
             if only and sc['id'] not in only: continue
             body0, end = sc['start'] + sc['lead'] + 0.4, sc['start'] + sc['dur'] - 0.6

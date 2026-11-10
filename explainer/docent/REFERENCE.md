@@ -63,6 +63,9 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - 1 to 5 handwritten words, never a sentence. Keywords 56 to 90 px. Subject 40 to 60 % of frame height.
 - Nothing under y = 905 (subtitle box) (lint: `subtitle-zone`), nothing off the frame (lint: `off-frame`).
 - On `sketch`, `C.blue` is the purple keyword colour: use `C.teal` for water, rain and sky details.
+- Math and science books on `mono-black`: lead with the 3b1b devices (formula write-on, one running example, as in
+  `examples/euler-identity`); docent figures there lose their colours (hair and accents turn white), so give people
+  a hat or beard, not a colour, and keep handwriting for 1–2 labels. Formulas are not linted: check them on the sheet.
 
 ## 6. Composition
 - One idea per shot, one focal point. Main subject ≥ 30 % of frame height (lint: `small-subject` when everything drawn
