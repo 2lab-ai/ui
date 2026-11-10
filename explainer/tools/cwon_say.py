@@ -10,8 +10,10 @@
    the run before any GPU job, and the missing words are printed as a lexicon template to fill in.
 3. Each sentence is one turn on blade-4090 (soma-voice, Fish Speech S2 Pro), padded "아아. [pause] … [pause] 아아."; the
    filler is cut off again and the cut-off parts must be heard as filler by whisper (else a new take, up to 3 rounds).
-4. Sentences are level-matched, joined with pauses (0.5 s, 0.7 s after a question), set to -16 LUFS by default.
-5. Hearing check: whisper transcribes every sentence alone; a sentence whose words it did not hear is marked CHECK
+4. Sentences are level-matched, joined with pauses (0.5 s, 0.7 s after a question), with 0.15 s / 0.5 s of silence
+   around the file, set to -16 LUFS by default.
+5. Edge check: every sentence must start and end on silence (first/last 30 ms at least 30 dB under its speech);
+   a cut that lands on sound is a clipped syllable. Then the hearing check: whisper transcribes every sentence alone; a sentence whose words it did not hear is marked CHECK
    (re-roll it with --redo k, or respell the word in the lexicon as it is pronounced). --no-check skips it.
 
 Takes are cached in <out>.cwon/cache_voice (re-running only synthesises changed sentences); --redo k re-rolls sentence k.
@@ -23,6 +25,7 @@ TOOLS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TOOLS)
 from ko_say import leftovers, to_say  # noqa: E402
 
+LEAD, TAIL = 0.15, 0.5   # seconds of silence before the first and after the last sentence
 SENT = re.compile(r'(?<=[.?!…])\s+|\n+')
 LATIN_WORD = re.compile(r'[A-Za-z][A-Za-z0-9+#&.\'-]*[A-Za-z0-9+#]|[A-Za-z]')
 
@@ -123,33 +126,44 @@ def main():
     import narrate_soma as N
     import numpy as np
     items = [(say, seeds.get(str(k), a.seed + k)) for k, (_s, say) in enumerate(rows)]
-    clips = [N.trim(N.wav_read(p)) for p in N.synth_scene(items, 'say')]
+    clips = [N.wav_read(p) if N.PAD else N.trim(N.wav_read(p)) for p in N.synth_scene(items, 'say')]
     target = float(np.median([N.level(c) for c in clips]))
     pieces = []
     for k, c in enumerate(clips):
         pieces.append(c * (10 ** (np.clip(target - N.level(c), -6, 6) / 20)))
         if k + 1 < len(clips):
             pieces.append(np.zeros(int((N.GAP_Q if rows[k][1].rstrip().endswith('?') else N.GAP) * N.SR), np.float32))
+    # silence around the whole file, so no player or encoder ever eats the last syllable
+    pieces = [np.zeros(int(LEAD * N.SR), np.float32)] + pieces + [np.zeros(int(TAIL * N.SR), np.float32)]
     raw = os.path.join(work, 'raw.wav'); N.wav_write(raw, np.concatenate(pieces))
     m = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', raw, '-af', 'ebur128', '-f', 'null', '-'],
                        capture_output=True, text=True).stderr
     lufs = float(re.findall(r'I:\s+(-?[\d.]+) LUFS', m)[-1])
-    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', raw, '-af', f'volume={a.lufs - lufs:.2f}dB,alimiter=limit=0.89:level=false',
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', raw, '-af', f'volume={a.lufs - lufs:.2f}dB,alimiter=limit=0.89:level=false:latency=1',
                     '-ar', str(N.SR), '-ac', '1', out], check=True)
     dur = sum(len(p) for p in pieces) / N.SR
     print(f'{out}: {len(clips)} sentences, {dur:.1f} s, {lufs:.1f} -> {a.lufs} LUFS (takes in {work})')
-    if a.no_check: return
-    # hearing check: whisper each sentence alone; a word it did not hear is a word the listener may not hear either
+    # edge check (no whisper): every sentence must start and end on silence, not mid-syllable
+    from padcut import edge_db
+    edges = [edge_db(c, N.SR) for c in clips]
+    bad_edge = [k for k, (e0, e1) in enumerate(edges) if max(e0, e1) > -30]
+    for k in bad_edge:
+        print(f'CHECK {k:3d}  edges {edges[k][0]:+.0f} / {edges[k][1]:+.0f} dB vs speech: the cut lands on sound (clipped syllable)')
+    if a.no_check:
+        if bad_edge: sys.exit(1)
+        return
+    # hearing check: whisper each sentence alone; a word it did not hear is a word the listener may not hear either.
+    # Whisper completes a clipped ending from context ("…였습" -> "…였습니다"), so it is no proof of clean edges.
     import mlx_whisper
-    flagged = []
+    flagged = list(bad_edge)
     for k, c in enumerate(clips):
         x = np.concatenate([np.zeros(N.SR // 10, np.float32), c, np.zeros(N.SR // 10, np.float32)])[::3]
         heard = mlx_whisper.transcribe(x, path_or_hf_repo='mlx-community/whisper-large-v3-turbo', language='ko', temperature=0.0,
                                        condition_on_previous_text=False)['text'].strip()
         meant = to_say_safe(rows[k][0], {w: v for w, v in lexicon.items() if re.search(r'[A-Za-z]', w)})
         ratio, off = words_off(rows[k][1], heard, lexicon, meant)
-        mark = 'ok ' if ratio >= 0.9 and not off else 'CHECK'
-        if mark != 'ok ': flagged.append(k)
+        mark = 'ok ' if ratio >= 0.9 and not off and k not in bad_edge else 'CHECK'
+        if mark != 'ok ' and k not in flagged: flagged.append(k)
         print(f'{mark} {k:3d}  {ratio:.2f}  heard: {heard}' + (f'   (not heard: {" ".join(off)})' if off else ''))
     if flagged:
         print(f'listen to sentence(s) {flagged}: re-roll with --redo {",".join(map(str, flagged))}, or respell the word as it is '
