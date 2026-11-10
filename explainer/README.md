@@ -32,6 +32,7 @@ explainer/
 │   ├── timeline_draft.py  draft timeline from script.json before the voice exists
 │   ├── gallery.py       asset sheets (cast, animals, props) to review before scenes use them
 │   ├── lint_scenes.py   renders every shot at rest; fails on half-drawn, ghosts, bad bubbles, look-alike people
+│   ├── mix_check.py     how far the music sits under the voice and how much it swells (target 20-22 dB, <= 5 dB)
 │   ├── export.py        mix (voice ducks the music) · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
 │   │                    · audiobook (M4A with one chapter per scene + chapters.txt for the YouTube description)
 │   ├── audio_check.py   QA: transcribes each scene (mlx-whisper) and diffs it against the script
@@ -254,4 +255,5 @@ These rules come from the spec's study of 3Blue1Brown lessons. Check them before
 - Run `audio_check.py`. It reports the transcript match per scene (number formatting is the usual difference), the sentence timing offsets and the diffs.
 - Run `export.py stills` at every sentence, then `sheets.py`. Look for overlaps, missing cues (the page reports `missingCues()`) and text over subtitles.
 - Measure loudness: the mix should sit near −15.5 LUFS with no clipping.
-- Docent videos: `tools/gallery.py` sheets reviewed, `tools/lint_scenes.py` exits 0, `out/cue_sheet.md` shows one cue per section.
+- Docent videos: `tools/gallery.py` sheets reviewed, `tools/lint_scenes.py` exits 0 and `out/lint_sheet.jpg` looked at,
+  `audio_check.py --sentences` all ok, `out/cue_sheet.md` shows one cue per section, `mix_check.py` 20-22 dB under the voice.
