@@ -67,7 +67,7 @@ async def main(only, strict):
                 ts = sorted(starts); rest = []
                 for k, t0 in enumerate(ts):
                     t1 = ts[k + 1] if k + 1 < len(ts) else end
-                    rest.append(max(t0 + FADE + 0.03, min(t1, end) - 0.3))
+                    rest.append(min(max(t0 + FADE + 0.03, min(t1, end) - 0.3), min(t1, end) - 0.02))   # inside this shot, after its fade
                     held = min(t1, end) - max(t0, body0)
                     if held > 8.0: report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'long-hold', f'picture held {held:.1f}s (> 8 s)')]})
                     if 0 < held < 1.2 and k + 1 < len(ts): report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'short-shot', f'shot only {held:.1f}s')]})

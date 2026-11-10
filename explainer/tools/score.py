@@ -60,9 +60,9 @@ def chapter_moods(script, tl):
     return out
 
 def sections(sc, src, target, shortest=10.0):
-    """Cut a scene into sections at sentence starts, about `target` s each. A sentence with "music" forces a cut there
-    and its mood holds to the end of the chapter (the story turned). Sections shorter than `shortest` s join the one
-    before (a cue needs room to reach its cadence)."""
+    """Cut a scene into sections at sentence starts, about `target` s each. A sentence with "music" forces a cut exactly
+    there and its mood holds to the end of the chapter (the story turned). Automatic cuts that would leave a section
+    shorter than `shortest` s are dropped; forced cuts are never moved."""
     sents = sc['sentences']; start, end = sc['start'], sc['start'] + sc['dur']
     srcs = src.get('sentences', []) if src else []
     forced_at = {k: srcs[k]['music'] for k in range(1, min(len(srcs), len(sents))) if srcs[k].get('music') in ML.MOODS}
@@ -70,14 +70,15 @@ def sections(sc, src, target, shortest=10.0):
     for k, s in enumerate(sents[1:], 1):
         if k in forced_at or (s['start'] - last >= target and end - s['start'] >= target * 0.5):
             cuts.append((s['start'], forced_at.get(k))); last = s['start']
-    merged = []
-    for c, m in cuts:
-        if merged and c - merged[-1][0] < shortest and not m: continue
-        if merged and c - merged[-1][0] < shortest and m: merged[-1] = (merged[-1][0], m); continue
-        merged.append((c, m))
-    if len(merged) > 1 and end - merged[-1][0] < shortest:
-        last_m = merged.pop()[1]
-        if last_m: merged[-1] = (merged[-1][0], last_m)
+    # forced cuts never move (the story turns there); an automatic cut that would leave a section under `shortest`
+    # seconds is dropped instead. A forced section may be short: compose() still lands its home chord.
+    keep = []
+    for i, (c, m) in enumerate(cuts):
+        if m or i == 0: keep.append((c, m)); continue
+        nxt = next((cc for cc, mm in cuts[i + 1:] if mm), end)
+        if c - keep[-1][0] < shortest or min(nxt, end) - c < shortest: continue
+        keep.append((c, m))
+    merged = keep
     out, held = [], None
     for i, (c, m) in enumerate(merged):
         e = merged[i + 1][0] if i + 1 < len(merged) else end
