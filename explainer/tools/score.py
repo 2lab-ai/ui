@@ -191,8 +191,11 @@ if __name__ == '__main__':
     os.makedirs('out', exist_ok=True)
     if '--plan' in a:   # a proposal only: score.json/score.wav (the rendered score and its provenance) stay untouched
         open('out/cue_plan.md', 'w').write(cue_sheet(pl)); print(cue_sheet(pl)); sys.exit(0)
-    assemble(pl, tl['total'], lufs)
+    # Record the cues before rendering (minutes): a second video scored meanwhile must see them. Saving after the
+    # render let two projects started together pick the same opening chain (2026-11-10: Musk v2 and ten-books v2 both
+    # opened on curious-02 then playful-03).
     save_history(project, [p['cue'] for p in pl])
+    assemble(pl, tl['total'], lufs)
     open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
     # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it);
     # written after the render, atomically

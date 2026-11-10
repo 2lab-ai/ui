@@ -178,6 +178,30 @@ one mood and no `"music"` change; the scene's `title` is the book's title (it is
 The thing outside is crossed out, the thing inside is the answer. `think(who, null, { w, h, body })` draws a picture in
 the bubble.
 
+## M. Many authors on one video (parts/ + parts.py)
+Long videos are drawn by several authors at once. Each owns `parts/<id>.js`; `parts/common.js` holds the cast block,
+registered assets and shared helpers (written and passed through Gate A before any author starts).
+```
+python $K/tools/parts.py preview e swan influence      # ../<project>-e/: lint on those scenes + Gate C sheets
+python $K/tools/parts.py preview e swan --no-sheets     # lint only, while iterating
+python $K/tools/parts.py build                          # the project's scenes.js, in script order
+```
+Authors never share a scenes.js: two authors writing the project's own scenes.js overwrite each other. The brief for
+each author = REFERENCE + TEMPLATES + LESSONS + common.js + their scene ids; they finish at `LINT_EXIT=0` with every
+sheet opened.
+
+## L. A look helper (armour, a cape, a lab coat) drawn at a person's anchors
+```js
+function armor(fig, { p = 1, a = 1 } = {}) {          // Elon Musk v2: the '갑옷' running device
+  const [hx, hy] = fig.head, k = fig.r / 46;           // head radius is ≈ 46 px at s = 1: scale from it, not from s
+  const P = (dx, dy) => [hx + dx * k, hy + fig.r + 14 * k + dy * k];
+  inkPath([P(-38, 0), P(38, 0), P(44, 44), P(30, 86), P(0, 98), P(-30, 86), P(-44, 44)], { closed: true, p, a, fill: opaqueMix(C.grey, 0.75) });
+}
+const m = person('musk', 700, 870, { pose: 'akimbo', p: dp(lt, 0, 0.5) }); armor(m, { p: dp(lt, 0.4, 0.5) });
+```
+Scale from the anchors, not from a guessed `s` (the first armour, sized for r = 34, covered the arms of a tall figure).
+Show it once on a still at Gate A, on a tall adult and on a child.
+
 ## Placement notes
 - Draw people in any order, bubbles last: name tags are placed when the shot is complete (`docentTags()`), clear of
   every figure, animal, prop, board and bubble in it. Force a side with `tag: true, tagSide: 'left' | 'right'`.
