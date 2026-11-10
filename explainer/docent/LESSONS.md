@@ -19,9 +19,10 @@ that comes back means the fix was not structural: replace it with a check.
   no documented extension route · TEMPLATES "Adding an asset" (contract), and the 23 assets the probes drew are now
   in docent.js.
 - A rock drawn over a face, a tiny subject (29 % of the height), two tags overlapping passed the lint · new checks
-  `prop over a face`, `small-subject`, `name tag over name tag`; `out/lint_sheet.jpg` shows every rest frame early.
+  `prop-over-face` (P2, a box test), `small-subject`, `name tag over name tag`; `out/lint_sheet.jpg` shows every rest frame early.
 - The poet and the visitor were the same figure in two colours · lint `cast-similar` (hair and hat must differ).
-- Props were see-through (a table through a tent) · `prop()` fills with the page colour by default.
+- Props were see-through (a table through a tent) · props are outlines · `solid: true` fills a prop with the page
+  colour (opt-in: a default fill hid the liquid in the flask and the test tubes — PR #55 review).
 - Gallery sheets overlapped wide props · 8 per page, s 0.75.
 - The kit changed under running probes; `ui_commit` named a commit the copied engine did not match · `+dirty` when the
   engine has uncommitted edits; the skill pins the kit for the whole run.

@@ -53,8 +53,9 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - Each animal shows the 3 or 4 features people name it by (anteater: long tube snout, tiny head and eye, bushy tail
   as big as the body, thick clawed front legs, dark shoulder stripe). A new kind is added to `ANIMALS` in docent.js
   and passes the gallery gate (a stranger names it in 2 s) before any scene uses it.
-- Props: `prop(name, …)`, opaque by default (a prop in front hides what is behind it; lint: `prop over a face` when a
-  prop is drawn over someone's face). A missing animal, prop or pose is registered from scenes.js
+- Props: `prop(name, …)`. A simple prop that stands in front of another gets `solid: true` (filled with the page colour,
+  so the one behind does not show through; props with their own colours keep them). Lint `prop-over-face` (P2) flags
+  a prop whose box covers a face drawn before it: open the frame. A missing animal, prop or pose is registered from scenes.js
   (`ANIMALS.x = …`, `PROPS.x = …`, `POSES.x = …`, contract in TEMPLATES "Adding an asset") so it shows on the gallery
   sheet; the retro moves generic ones into docent.js.
 

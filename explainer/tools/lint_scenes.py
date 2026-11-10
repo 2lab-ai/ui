@@ -12,7 +12,7 @@ P0  page errors, missing cues, missing props / animals / cast ids
 P1  half-drawn element at rest; faded "ghost" element (a < 0.55); ink under the subtitles (y > 905) or off the frame;
     empty bubble; bubble tail that points at no head; bubble over a face; text overflowing its bubble; two people in
     one frame with the same look; an animal drawn on the stick-figure rig
-P2  bubble over 8 words; a picture held longer than 8 s; a shot shorter than 1.2 s; a scene without shots();
+P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at the frame); a picture held longer than 8 s; a shot shorter than 1.2 s; a scene without shots();
     two or more people in one frame and one of them without a cast look; two cast looks with the same silhouette
     (hair and hat), so they differ only by colour
 """
@@ -44,6 +44,7 @@ def judge(r):
     if len(r['people']) >= 2 and any(p['id'] is None and not p['crowd'] for p in r['people']):
         out.append(('P2', 'no-cast', f"{len(r['people'])} people and some without a cast look"))
     if r['wordy']: out.append(('P2', 'wordy-bubble', str(r['wordy'][:3])))
+    if r.get('propFace'): out.append(('P2', 'prop-over-face', str(r['propFace'][:3]) + ' — open the frame: a box test, it can be empty space'))
     ink = r.get('ink')
     if ink and not r.get('textBig') and (ink[3] - ink[1]) < 0.3 * 1080 and (ink[2] - ink[0]) < 0.5 * 1920:
         out.append(('P2', 'small-subject', f"everything drawn fits in {int(ink[2] - ink[0])}x{int(ink[3] - ink[1])} px (< 30 % of the height): draw the subject bigger"))

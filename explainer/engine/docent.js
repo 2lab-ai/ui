@@ -41,13 +41,14 @@ function docentReport() {
     for (const g of DOCENT.tags) if (bubbleCrosses(x0, y0, x1 - x0, y1 - y0, tip, g)) cover.push(`bubble or tail over a name tag @${Math.round(g[0])}`);
     DOCENT.bubbles.slice(i + 1).forEach((b) => { if (b[2] > x0 + 6 && b[0] < x1 - 6 && b[3] > y0 + 6 && b[1] < y1 - 6) cover.push(`bubble over bubble @${Math.round(b[0])}`); });
   });
+  const propFace = [];
   for (const pr of DOCENT.props) for (const [hx, hy, hr, , seq] of DOCENT.heads) {
     if (seq == null || pr.seq < seq) continue;   // only a prop drawn after (over) the face
     const [x0, y0, x1, y1] = pr.box, ov = Math.max(0, Math.min(x1, hx + hr) - Math.max(x0, hx - hr)) * Math.max(0, Math.min(y1, hy + hr) - Math.max(y0, hy - hr));
-    if (ov > 0.4 * 4 * hr * hr) cover.push(`prop '${pr.name}' over a face @${Math.round(hx)}`);
+    if (ov > 0.4 * 4 * hr * hr) propFace.push(`prop '${pr.name}' may cover a face @${Math.round(hx)}`);   // box test: look at the frame
   }
   DOCENT.tags.forEach((g, i) => DOCENT.tags.slice(i + 1).forEach((h) => { if (h[2] > g[0] && h[0] < g[2] && h[3] > g[1] && h[1] < g[3]) cover.push(`name tag over name tag @${Math.round(g[0])}`); }));
-  return { t: DOCENT.t, shot: DOCENT.shot, ink: DOCENT.ink, textBig: DOCENT.textBig, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
+  return { t: DOCENT.t, shot: DOCENT.shot, ink: DOCENT.ink, textBig: DOCENT.textBig, propFace, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far,
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals };
 }
@@ -101,7 +102,9 @@ function inkPath(pts, { color = null, w = 4, p = 1, closed = false, jit = 1.4, s
     for (const [px, py] of pts) { const sx = m.a * px + m.c * py + m.e, sy = m.b * px + m.d * py + m.f; if (sy > lo) lo = sy; if (sx < l) l = sx; if (sx > r) r = sx; }
     let hi = 1e9; for (const [px, py] of pts) { const sy = m.b * px + m.d * py + m.f; if (sy < hi) hi = sy; }
     const box = (b) => b ? [Math.min(b[0], l), Math.min(b[1], hi), Math.max(b[2], r), Math.max(b[3], lo)] : [l, hi, r, lo];
-    if (!DOCENT.ghostOk) DOCENT.ink = box(DOCENT.ink); if (DOCENT.track) DOCENT.track.box = box(DOCENT.track.box);
+    if (!DOCENT.ghostOk) DOCENT.ink = box(DOCENT.ink);
+    if (DOCENT.track) { let a0 = 1e9, b0 = 1e9, a1 = -1e9, b1 = -1e9; for (const [px, py] of pts) { a0 = Math.min(a0, px); b0 = Math.min(b0, py); a1 = Math.max(a1, px); b1 = Math.max(b1, py); }
+      const t = DOCENT.track.box; DOCENT.track.box = t ? [Math.min(t[0], a0), Math.min(t[1], b0), Math.max(t[2], a1), Math.max(t[3], b1)] : [a0, b0, a1, b1]; }   // local space, like the heads
     if (lo > SUB_Y) docentNote('zone', Math.round(lo)); if (l < -4 || r > W + 4 || hi < -4) docentNote('off', [Math.round(l), Math.round(r), Math.round(hi)]); }
   const q = wobble(pts, closed, jit, seed == null ? seedOf(pts) : seed);
   withAlpha(a, () => {
@@ -250,10 +253,14 @@ function figure(x, y, o = {}) {
   const anchors = { head: hc, r: R, mouth: [hc[0] + dir * R * 0.15, hc[1] + R * 0.4], top: [hc[0], topY], dir,
     hands: [F(sh[0] + P.la[1][0] - (outfit ? 21 : 0), sh[1] + P.la[1][1]), F(sh[0] + P.ra[1][0] + (outfit ? 21 : 0), sh[1] + P.ra[1][1])],
     box: [x - 70 * s, topY, x + 70 * s, y] };
-  // the name tag sits beside the chest on the side the figure turns away from, clear of every bubble above
+  // the name tag sits beside the waist on the free side (not between two people), clear of every bubble above
   const tagS = Math.max(42, 48 * Math.min(1, s0)), tagW = tag ? handW(tag, tagS) / 2 + 8 : 0;
-  let tagX = x - dir * (112 * s + tagW); if (tagX - tagW < 40 || tagX + tagW > W - 40) tagX = x + dir * (112 * s + tagW);
-  const tagY = y - 165 * s, tagRect = [tagX - tagW, tagY - tagS * 0.6, tagX + tagW, tagY + tagS * 0.6];
+  const tagY = y - 165 * s;
+  const tagCost = (tx) => (tx - tagW < 40 || tx + tagW > W - 40 ? 1e9 : 0) + DOCENT.slots.figs.reduce((c, b) =>
+    c + Math.max(0, Math.min(b[2], tx + tagW) - Math.max(b[0], tx - tagW)) * Math.max(0, Math.min(b[3], tagY + tagS) - Math.max(b[1], tagY - tagS)), 0);
+  const away = x - dir * (112 * s + tagW), toward = x + dir * (112 * s + tagW);
+  const tagX = tagCost(toward) < tagCost(away) ? toward : away;   // the free side; ties: the side the figure turns away from
+  const tagRect = [tagX - tagW, tagY - tagS * 0.6, tagX + tagW, tagY + tagS * 0.6];
   if (s > 0) { DOCENT.slots.figs.push(anchors.box); DOCENT.slots.heads.push([hc[0], hc[1], R]); if (tag) DOCENT.slots.tags.push(tagRect); }
   if (p <= 0 || a <= 0 || s <= 0) return anchors;
   if (o.ghostOk) DOCENT.ghostOk++;
@@ -686,6 +693,11 @@ function placeBubble(who, str, { side = 'auto', size = 46, w: w0 = null, h: h0 =
     for (const [cx, cy, cr] of DOCENT.slots.heads) cost += hit([cx - cr, cy - cr, cx + cr, cy + cr], x, y) * 12;
     const [mx0, my0] = kind === 'thought' ? [hx, hy - r * 0.2] : who.mouth;
     for (const g of DOCENT.slots.tags) if (bubbleCrosses(x, y, w, h, [mx0, my0], g)) cost += 50000;
+    if (kind !== 'thought' && !who.animal) {   // a tail that has to cross the whole head reads as aimed at the scalp
+      const th = Math.atan2(y + h / 2 - my0, x + w / 2 - mx0), ux = Math.cos(th), uy = Math.sin(th), fx = mx0 - hx, fy = my0 - hy;
+      const B = fx * ux + fy * uy, exit = -B + Math.sqrt(Math.max(0, B * B - (fx * fx + fy * fy - r * r)));
+      cost += Math.max(0, exit / r - 0.9) * 2500;
+    }
     if (!best || cost < best.cost) best = { x, y, cost };
   }
   const { x, y } = best, bx = x + w / 2, by = y + h / 2;
@@ -883,8 +895,9 @@ const PROPS = {
 function prop(name, x, y, s = 1, o = {}) {
   const f = PROPS[name]; if (!f) { MISS.add('prop:' + name); return; }
   const oo = { p: 1, a: 1, w: 4 * Math.max(0.7, Math.sqrt(s)), ...o };
-  if (oo.fill === undefined) { oo.fill = PAPER(); oo.paperFill = true; }   // opaque: a prop in front hides what is behind it
-  // (props with their own colour keep it: they test o.paperFill)
+  // solid: true fills the outline with the page colour, so a prop in front hides what is behind it (use it for simple
+  // props that overlap another; props with their own colour keep it, they test o.paperFill)
+  if (oo.solid && oo.fill === undefined) { oo.fill = PAPER(); oo.paperFill = true; }
   if (oo.p <= 0 || oo.a <= 0) return;
   const tr = DOCENT.track = { box: null };
   f(x, y, s, oo);
@@ -1196,7 +1209,8 @@ function shots(t, list, { fade = 0, settle = 0.035, settleT = 0.22 } = {}) {
   DOCENT.shot = { i, t0, t1: i + 1 < list.length ? list[i + 1][0] : null, n: list.length };
   const fresh = () => ({ figs: [], heads: [], tags: [], bubbles: [] });
   if (fade > 0 && i > 0 && t - t0 < fade) {   // optional cross-fade: only the old picture, fading out
-    DOCENT.slots = fresh(); DOCENT.ghostOk++; withAlpha(1 - (t - t0) / fade, () => list[i - 1][1](t, t - list[i - 1][0])); DOCENT.ghostOk--;
+    const lp = t - list[i - 1][0] - (i - 1 > 0 ? fade : 0);   // the old shot's own clock, as when it was current
+    DOCENT.slots = fresh(); DOCENT.ghostOk++; withAlpha(1 - (t - t0) / fade, () => list[i - 1][1](t, lp)); DOCENT.ghostOk--;
     return i;
   }
   DOCENT.slots = fresh();
