@@ -3657,24 +3657,24 @@ function antsGran(x, y, r, { p = 1, a = 1 } = {}) {
 SCENES.ants = (t, q) => shots(t, [
   // 0 the Anteater
   [q.s(0), (t, lt) => {
-    figure(820, 870, { snout: true, pose: 'wave', face: 'happy', s: 1.25, t, p: dp(lt, 0, 1) });
-    hand('개미핥기', 1380, 330, { size: 84, p: dp(lt, 1.3, 0.7) });
-    inkArrow(1300, 380, 1000, 470, { via: [1180, 460], p: dp(lt, 1.8, 0.5), color: KEY(), w: 4.4 });
+    animal('anteater', 800, 860, { s: 1.25, t, p: dp(lt, 0, 1) });
+    hand('개미핥기', 1400, 380, { size: 84, p: dp(lt, 1.3, 0.7) });
+    inkArrow(1330, 430, 1060, 640, { via: [1240, 580], p: dp(lt, 1.8, 0.5), color: KEY(), w: 4.4 });
     if (lt > 1) ant(1300, 860, { s: 0.8, t, a: dp(lt, 1, 0.5) });
   }],
   // 1 his friend the anthill, which talks
   [q.s(1), (t, lt) => {
-    figure(400, 870, { snout: true, pose: 'present', face: 'smile', s: 1.15, t, p: dp(lt, 0, 0.8) });
+    animal('anteater', 560, 860, { s: 1.0, t, p: dp(lt, 0, 0.8) });
     antsHill(1300, 860, 1.7, { p: dp(lt, 0.4, 0.8), t });
     prop('heart', 860, 620, 0.9, { p: dp(lt, 1.2, 0.5) });
     hand('친구', 860, 470, { size: 70, p: dp(lt, 1.5, 0.5) });
-    bubble(1100, 190, 440, 170, { tail: [1300, 600], text: '반가워!', size: 64, p: dp(lt, 2.6, 0.5) });
+    bubble(1100, 190, 440, 170, { tail: [1300, 600], tailOk: true, text: '반가워!', size: 64, p: dp(lt, 2.6, 0.5) });   // the anthill speaks
   }],
   // 2 Achilles: friends with something it eats?
   [q.s(2), (t, lt) => {
     ach(t, { x: 560, pose: 'shrug', face: 'surprised', s: 1.2, p: dp(lt, 0, 0.7) });
     bubble(700, 150, 720, 220, { tail: [640, 470], text: '먹는데… 친구?', size: 70, p: dp(lt, 0.4, 0.5) });
-    figure(1440, 870, { snout: true, face: 'smile', s: 0.75, t, p: dp(lt, 0.8, 0.6) });
+    animal('anteater', 1380, 870, { s: 0.6, t, p: dp(lt, 0.8, 0.6) });
     antsHill(1700, 870, 0.75, { p: dp(lt, 1, 0.6), t, n: 5 });
     hand('?', 400, 330, { size: 90, p: dp(lt, 1.6, 0.3), color: C.red });
   }],
@@ -3789,7 +3789,7 @@ SCENES.ants = (t, q) => shots(t, [
   }],
   // 10 the name: levels
   [q.s(10), (t, lt) => {
-    teach('층위', { y: 700, p: dp(lt, 0, 1.2), t, fig: { snout: true } });
+    teach('층위', { y: 700, p: dp(lt, 0, 1.2), t });
   }],
   // 11 ant level: walking. hill level: thinking. both true.
   [q.s(11), (t, lt) => {
