@@ -1,5 +1,5 @@
 {
- "about": "Narration beds: human-composed CC BY tracks, measured (perc = percussive energy share, onsets_per_s, band_1_4k = speech-band share, dyn_db) and tagged by mood. bed=false: drums, busy attacks, bright speech band, or a novelty tune.",
+ "about": "Narration beds: human-composed CC BY tracks, measured (perc = percussive energy share, onsets_per_s, band_1_4k = speech-band share, dyn_db) and tagged by mood. holes = internal silences (runs >= 1 s more than 20 dB under the body's median; library_score.py --measure). bed=false: drums, busy attacks, bright speech band, a novelty tune, or holes.",
  "tracks": [
   {
    "id": "lee-rosevere/heres-the-thing",
@@ -17,7 +17,8 @@
    "onsets_per_s": 4.1,
    "band_1_4k": 0.02,
    "centroid": 2484,
-   "dyn_db": 16.5
+   "dyn_db": 16.5,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/im-going-for-a-coffee",
@@ -35,7 +36,8 @@
    "onsets_per_s": 3.89,
    "band_1_4k": 0.011,
    "centroid": 1455,
-   "dyn_db": 19.4
+   "dyn_db": 19.4,
+   "holes": 2
   },
   {
    "id": "lee-rosevere/the-secret-to-growing-up",
@@ -59,7 +61,8 @@
    "dyn_db": 14.2,
    "body_start": 4.5,
    "body_end": 158.5,
-   "quiet_run_s": 1
+   "quiet_run_s": 1,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/pane-in-the-glass",
@@ -77,7 +80,8 @@
    "onsets_per_s": 4.28,
    "band_1_4k": 0.181,
    "centroid": 1813,
-   "dyn_db": 3.8
+   "dyn_db": 3.8,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/and-so-then",
@@ -100,7 +104,8 @@
    "dyn_db": 12.1,
    "body_start": 0.0,
    "body_end": 106.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/waves-of-sleep",
@@ -124,7 +129,8 @@
    "dyn_db": 10.5,
    "body_start": 5.5,
    "body_end": 151.5,
-   "quiet_run_s": 1
+   "quiet_run_s": 1,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/making-a-change",
@@ -148,7 +154,8 @@
    "dyn_db": 10.7,
    "body_start": 3.5,
    "body_end": 189.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/arcade-montage",
@@ -166,7 +173,8 @@
    "onsets_per_s": 3.59,
    "band_1_4k": 0.11,
    "centroid": 3030,
-   "dyn_db": 15.5
+   "dyn_db": 15.5,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/slow-lights",
@@ -182,7 +190,7 @@
     "dark",
     "reflective"
    ],
-   "bed": true,
+   "bed": false,
    "perc": 0.013,
    "onsets_per_s": 0.46,
    "band_1_4k": 0.001,
@@ -190,7 +198,8 @@
    "dyn_db": 19.4,
    "body_start": 0.0,
    "body_end": 135.5,
-   "quiet_run_s": 5
+   "quiet_run_s": 5,
+   "holes": 2
   },
   {
    "id": "lee-rosevere/4th-ave-walkup",
@@ -208,7 +217,8 @@
    "onsets_per_s": 3.7,
    "band_1_4k": 0.011,
    "centroid": 1154,
-   "dyn_db": 12.4
+   "dyn_db": 12.4,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/theme-from-penguins-on-parade",
@@ -226,7 +236,8 @@
    "onsets_per_s": 4.88,
    "band_1_4k": 0.277,
    "centroid": 1201,
-   "dyn_db": 11.7
+   "dyn_db": 11.7,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/old-regrets",
@@ -249,7 +260,8 @@
    "dyn_db": 6.4,
    "body_start": 0.5,
    "body_end": 87.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/i-believe-in-you",
@@ -273,7 +285,8 @@
    "dyn_db": 10.4,
    "body_start": 20.5,
    "body_end": 288.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/baldachin",
@@ -291,7 +304,8 @@
    "onsets_per_s": 0.05,
    "band_1_4k": 0.254,
    "centroid": 1562,
-   "dyn_db": 8.6
+   "dyn_db": 8.6,
+   "holes": 2
   },
   {
    "id": "lee-rosevere/as-i-was-saying",
@@ -309,7 +323,8 @@
    "onsets_per_s": 3.73,
    "band_1_4k": 0.006,
    "centroid": 864,
-   "dyn_db": 10.5
+   "dyn_db": 10.5,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/sad-marimba-planet",
@@ -327,7 +342,8 @@
    "onsets_per_s": 4.33,
    "band_1_4k": 0.017,
    "centroid": 1335,
-   "dyn_db": 12.1
+   "dyn_db": 12.1,
+   "holes": 2
   },
   {
    "id": "lee-rosevere/small-steps",
@@ -351,7 +367,8 @@
    "dyn_db": 12.2,
    "body_start": 11.5,
    "body_end": 118.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/new-day",
@@ -369,7 +386,8 @@
    "onsets_per_s": 4.22,
    "band_1_4k": 0.071,
    "centroid": 2583,
-   "dyn_db": 8.5
+   "dyn_db": 8.5,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/how-i-used-to-see-the-stars",
@@ -393,7 +411,8 @@
    "dyn_db": 6.7,
    "body_start": 0.5,
    "body_end": 273.5,
-   "quiet_run_s": 1
+   "quiet_run_s": 1,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/night-caves",
@@ -411,7 +430,8 @@
    "onsets_per_s": 4.83,
    "band_1_4k": 0.096,
    "centroid": 942,
-   "dyn_db": 8.3
+   "dyn_db": 8.3,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/expectations",
@@ -434,7 +454,8 @@
    "dyn_db": 16.3,
    "body_start": 2.5,
    "body_end": 73.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/more-on-that-later",
@@ -452,7 +473,8 @@
    "onsets_per_s": 4.98,
    "band_1_4k": 0.01,
    "centroid": 2033,
-   "dyn_db": 15.7
+   "dyn_db": 15.7,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/southside",
@@ -470,7 +492,8 @@
    "onsets_per_s": 3.74,
    "band_1_4k": 0.007,
    "centroid": 1273,
-   "dyn_db": 15.2
+   "dyn_db": 15.2,
+   "holes": 2
   },
   {
    "id": "lee-rosevere/not-alone",
@@ -494,7 +517,8 @@
    "dyn_db": 16.2,
    "body_start": 6.5,
    "body_end": 141.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/keeping-stuff-together",
@@ -512,7 +536,8 @@
    "onsets_per_s": 4.16,
    "band_1_4k": 0.025,
    "centroid": 2989,
-   "dyn_db": 10.7
+   "dyn_db": 10.7,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/vaping-in-la",
@@ -530,7 +555,8 @@
    "onsets_per_s": 4.3,
    "band_1_4k": 0.025,
    "centroid": 2464,
-   "dyn_db": 8.9
+   "dyn_db": 8.9,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/whats-behind-the-door",
@@ -546,7 +572,7 @@
     "dark",
     "curious"
    ],
-   "bed": true,
+   "bed": false,
    "perc": 0.046,
    "onsets_per_s": 0.54,
    "band_1_4k": 0.021,
@@ -554,7 +580,8 @@
    "dyn_db": 18.5,
    "body_start": 0.0,
    "body_end": 129.5,
-   "quiet_run_s": 2
+   "quiet_run_s": 2,
+   "holes": 4
   },
   {
    "id": "lee-rosevere/the-nightmare",
@@ -577,7 +604,8 @@
    "dyn_db": 12.1,
    "body_start": 2.5,
    "body_end": 137.5,
-   "quiet_run_s": 2
+   "quiet_run_s": 2,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/early-morning-song-finch-duet",
@@ -595,7 +623,8 @@
    "onsets_per_s": 0.68,
    "band_1_4k": 0.472,
    "centroid": 2273,
-   "dyn_db": 11.7
+   "dyn_db": 11.7,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/introducing-the-pre-roll",
@@ -613,7 +642,8 @@
    "onsets_per_s": 4.18,
    "band_1_4k": 0.017,
    "centroid": 2479,
-   "dyn_db": 10.7
+   "dyn_db": 10.7,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/all-the-answers",
@@ -637,7 +667,8 @@
    "dyn_db": 11.2,
    "body_start": 2.5,
    "body_end": 116.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/thinking-it-over",
@@ -655,7 +686,8 @@
    "onsets_per_s": 3.12,
    "band_1_4k": 0.023,
    "centroid": 1155,
-   "dyn_db": 7.8
+   "dyn_db": 7.8,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/youre-enough-version-a",
@@ -673,7 +705,8 @@
    "onsets_per_s": 0.62,
    "band_1_4k": 0.007,
    "centroid": 683,
-   "dyn_db": 22.4
+   "dyn_db": 22.4,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/start-the-day",
@@ -691,7 +724,8 @@
    "onsets_per_s": 4.59,
    "band_1_4k": 0.014,
    "centroid": 2175,
-   "dyn_db": 10.1
+   "dyn_db": 10.1,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/everywhere",
@@ -715,7 +749,8 @@
    "dyn_db": 8.2,
    "body_start": 0.5,
    "body_end": 112.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/awkward-silences-version-a",
@@ -738,7 +773,8 @@
    "dyn_db": 10.4,
    "body_start": 0.0,
    "body_end": 198.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/betrayal",
@@ -762,7 +798,8 @@
    "dyn_db": 13.4,
    "body_start": 0.0,
    "body_end": 98.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/i-bet-you-wonder-why",
@@ -785,7 +822,8 @@
    "dyn_db": 15.3,
    "body_start": 0.0,
    "body_end": 106.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/knowing-the-truth",
@@ -803,7 +841,8 @@
    "onsets_per_s": 2.71,
    "band_1_4k": 0.001,
    "centroid": 670,
-   "dyn_db": 9.3
+   "dyn_db": 9.3,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/youre-enough-version-b",
@@ -821,7 +860,8 @@
    "onsets_per_s": 3.99,
    "band_1_4k": 0.038,
    "centroid": 1373,
-   "dyn_db": 14.0
+   "dyn_db": 14.0,
+   "holes": 3
   },
   {
    "id": "lee-rosevere/not-my-problem",
@@ -839,7 +879,8 @@
    "onsets_per_s": 3.32,
    "band_1_4k": 0.003,
    "centroid": 1273,
-   "dyn_db": 18.3
+   "dyn_db": 18.3,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/decompress",
@@ -855,7 +896,7 @@
     "reflective",
     "warm"
    ],
-   "bed": true,
+   "bed": false,
    "perc": 0.013,
    "onsets_per_s": 2.64,
    "band_1_4k": 0.103,
@@ -863,7 +904,8 @@
    "dyn_db": 11.4,
    "body_start": 0.0,
    "body_end": 210.5,
-   "quiet_run_s": 2
+   "quiet_run_s": 2,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/well-figure-it-out-together",
@@ -887,7 +929,8 @@
    "dyn_db": 18.0,
    "body_start": 0.0,
    "body_end": 106.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/waiting-for-the-moment-that-never-comes",
@@ -911,7 +954,8 @@
    "dyn_db": 10.7,
    "body_start": 0.0,
    "body_end": 107.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/youre-enough-version-c",
@@ -926,7 +970,7 @@
    "moods": [
     "warm"
    ],
-   "bed": true,
+   "bed": false,
    "perc": 0.009,
    "onsets_per_s": 1.95,
    "band_1_4k": 0.047,
@@ -934,7 +978,8 @@
    "dyn_db": 11.5,
    "body_start": 0.0,
    "body_end": 136.5,
-   "quiet_run_s": 4
+   "quiet_run_s": 4,
+   "holes": 3
   },
   {
    "id": "lee-rosevere/awkward-silences-version-b",
@@ -957,7 +1002,8 @@
    "dyn_db": 7.7,
    "body_start": 0.0,
    "body_end": 199.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/let-that-sink-in",
@@ -975,7 +1021,8 @@
    "onsets_per_s": 4.11,
    "band_1_4k": 0.021,
    "centroid": 1690,
-   "dyn_db": 9.6
+   "dyn_db": 9.6,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/thought-bubbles",
@@ -993,7 +1040,8 @@
    "onsets_per_s": 4.31,
    "band_1_4k": 0.003,
    "centroid": 737,
-   "dyn_db": 13.6
+   "dyn_db": 13.6,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/going-in-circles",
@@ -1011,7 +1059,8 @@
    "onsets_per_s": 4.03,
    "band_1_4k": 0.005,
    "centroid": 1266,
-   "dyn_db": 10.5
+   "dyn_db": 10.5,
+   "holes": 3
   },
   {
    "id": "lee-rosevere/bigger-questions",
@@ -1029,7 +1078,8 @@
    "onsets_per_s": 4.18,
    "band_1_4k": 0.01,
    "centroid": 668,
-   "dyn_db": 7.3
+   "dyn_db": 7.3,
+   "holes": 2
   },
   {
    "id": "lee-rosevere/making-it-look-easy",
@@ -1047,7 +1097,8 @@
    "onsets_per_s": 4.03,
    "band_1_4k": 0.02,
    "centroid": 2673,
-   "dyn_db": 16.4
+   "dyn_db": 16.4,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/cloudloop",
@@ -1071,7 +1122,8 @@
    "dyn_db": 11.0,
    "body_start": 18.5,
    "body_end": 276.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/systematic",
@@ -1089,7 +1141,8 @@
    "onsets_per_s": 4.41,
    "band_1_4k": 0.019,
    "centroid": 1160,
-   "dyn_db": 14.5
+   "dyn_db": 14.5,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/heavn",
@@ -1107,7 +1160,8 @@
    "onsets_per_s": 4.11,
    "band_1_4k": 0.035,
    "centroid": 1641,
-   "dyn_db": 15.6
+   "dyn_db": 15.6,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/compassion-keys-version",
@@ -1131,7 +1185,8 @@
    "dyn_db": 8.1,
    "body_start": 0.0,
    "body_end": 115.5,
-   "quiet_run_s": 2
+   "quiet_run_s": 2,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/heres-where-things-get-interesting",
@@ -1154,7 +1209,8 @@
    "dyn_db": 13.6,
    "body_start": 9.5,
    "body_end": 88.5,
-   "quiet_run_s": 1
+   "quiet_run_s": 1,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/it-was-like-that-when-i-got-here",
@@ -1172,7 +1228,8 @@
    "onsets_per_s": 3.71,
    "band_1_4k": 0.096,
    "centroid": 2019,
-   "dyn_db": 14.7
+   "dyn_db": 14.7,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/dont-trust-the-cloud",
@@ -1190,7 +1247,8 @@
    "onsets_per_s": 3.87,
    "band_1_4k": 0.047,
    "centroid": 2636,
-   "dyn_db": 16.9
+   "dyn_db": 16.9,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/all-i-have-left-are-these-photographs",
@@ -1214,7 +1272,8 @@
    "dyn_db": 19.4,
    "body_start": 12.5,
    "body_end": 129.5,
-   "quiet_run_s": 1
+   "quiet_run_s": 1,
+   "holes": 0
   },
   {
    "id": "lee-rosevere/three-things-you-need-to-know-about-today",
@@ -1232,7 +1291,8 @@
    "onsets_per_s": 3.27,
    "band_1_4k": 0.004,
    "centroid": 2478,
-   "dyn_db": 48.0
+   "dyn_db": 48.0,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/where-was-i-",
@@ -1250,7 +1310,8 @@
    "onsets_per_s": 3.91,
    "band_1_4k": 0.001,
    "centroid": 881,
-   "dyn_db": 13.3
+   "dyn_db": 13.3,
+   "holes": 2
   },
   {
    "id": "lee-rosevere/the-little-painter-man",
@@ -1268,7 +1329,8 @@
    "onsets_per_s": 3.74,
    "band_1_4k": 0.018,
    "centroid": 1710,
-   "dyn_db": 9.3
+   "dyn_db": 9.3,
+   "holes": 1
   },
   {
    "id": "lee-rosevere/we-dont-know-how-it-ends",
@@ -1291,7 +1353,8 @@
    "dyn_db": 8.7,
    "body_start": 9.5,
    "body_end": 171.5,
-   "quiet_run_s": 0
+   "quiet_run_s": 0,
+   "holes": 0
   }
  ],
  "sources": [

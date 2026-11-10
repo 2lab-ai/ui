@@ -169,9 +169,11 @@ name tags, people sharing a look, animals on the stick-figure rig. Three tools u
 ### Music: recorded beds, one per chapter
 
 `tools/library_score.py` writes `score.wav` from `music/library.json`: human-composed tracks under CC BY (Lee Rosevere,
-"Music for Podcasts" 3-6, made for spoken word; 63 tracks, 28 usable as beds). Every track was measured — percussive
+"Music for Podcasts" 3-6, made for spoken word; 63 tracks, 24 usable as beds). Every track was measured — percussive
 share, attacks per second, energy in 1-4 kHz, dynamics, the audible body without the quiet intro and fade-out tail —
-and only quiet, sparse tracks with no lead melody are marked `bed: true` and tagged with moods. Each chapter gets one
+and only quiet, sparse tracks with no lead melody are marked `bed: true` and tagged with moods; a track with an
+internal silence (≥ 1 s more than 20 dB under its own level: `library_score.py --measure` writes `holes`) is never a
+bed — it would stop dead under the voice. Each chapter gets one
 track in its mood family (`"mood"` in script.json); a chapter longer than its track chains a second one with a 4 s
 cross-fade at a sentence gap, a sentence with `"music": "<mood>"` changes track exactly there, and a chapter break is a
 3 s cross-fade centred on the title card. No track twice in a video; tracks used by the last 10 videos cost more
@@ -179,7 +181,9 @@ cross-fade at a sentence gap, a sentence with `"music": "<mood>"` changes track 
 around 2.5 kHz. Output: `score.wav`, `score.json` (`kind: library`, so `export.py mix` ducks gently and lifts open
 stretches +10.5 dB), `out/cue_sheet.md` and `out/music_credits.txt` — paste the credits into the YouTube description
 and the audiobook notes; CC BY requires them. The audio (~540 MB) is downloaded from archive.org into
-`~/.cache/2lab-explainer-music/library/` on first use (`--fetch` gets all of it; `--plan` prints the cue sheet only).
+`~/.cache/2lab-explainer-music/library/` on first use (`--fetch` gets all of it; `--plan` writes only
+`out/cue_plan.md`). The cue sheet and the credits are written after the render, so they always name the tracks in
+`score.wav`.
 Tests: `python -m unittest explainer/tools/test_library_score.py`.
 
 Why not the alternatives (`music/library.json` "notes"): YouTube Audio Library tracks are licensed for YouTube only

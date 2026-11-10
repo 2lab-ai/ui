@@ -15,6 +15,13 @@ that comes back means the fix was not structural: replace it with a check.
 - Title cards at −33.5 dBFS with a library bed (recorded music is denser, so the voice ducks it lower) · the +6 dB
   open-stretch lift was tuned for MIDI · +10.5 dB for `kind: library` scores; `mix_check` −29 dBFS.
 - CC BY needs attribution · `out/music_credits.txt`, pasted into the YouTube description.
+- The music stopped dead for 1.5–2.5 s mid-sentence (Musk v2b 22:08–22:40, 12:02–12:40; 10 books 3:37–4:20) · four
+  sparse tracks rest inside (−30…−59 dB) and passed every bed check (perc, attacks, speech band) · `holes()`:
+  `--measure` writes `holes` per track, a bed needs 0 (test); scanned the delivered beds, re-mixed both videos.
+- PR #59 review: a section plus its cross-fades could need 2.5 s more than its track's body, so the fade-out ended
+  early and 21 of ~800 simulated cross-fades dipped 6–11 dB; `--plan` overwrote the credits of the rendered score ·
+  the planner budgets `use − XF − H`, a test checks every section + cross-fades fits on 150 random timelines; `--plan`
+  writes only `out/cue_plan.md`, the credits are written after the render.
 
 ## 2026-11-10 · v2 redraw of 'Elon Musk' (29:43) and '생각을 바꾸는 책 10권' (44:41) — same voice, new pictures
 Nine authors (parts/ + a private preview each), nine fresh Gate C reviewers, 24 scenes, ~1,330 shots. Lint said 0 on

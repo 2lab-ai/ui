@@ -93,7 +93,9 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 Built by `tools/library_score.py` from `music/library.json`: recorded, human-composed CC BY tracks (README "Music").
 Generated MIDI cues (`score.py`) are the offline fallback only — under a documentary voice they sound like a toy.
 - A narration bed is sparse and textural: no drums, no lead melody, few attacks, steady dynamics, little energy in
-  1–4 kHz where consonants live. Only `bed: true` tracks qualify; a new track is measured and tagged before use.
+  1–4 kHz where consonants live, no internal silence (a sparse piano piece that rests for 2 s goes dead under the
+  voice). Only `bed: true` tracks without `holes` qualify; a new track is measured (`library_score.py --measure`) and
+  tagged before use.
 - One track per chapter, changed at structural breaks only: a chapter break is a 3 s cross-fade centred on the title
   card; a chapter longer than its track chains a second track in the same mood family with a 4 s cross-fade at a
   sentence gap. A sentence that turns the story carries `"music": "<mood>"`: the track changes exactly there.
