@@ -114,26 +114,30 @@ def compose(p, dur, seed=0):
     if len(seq) > 1 and seq[-1] == 0: seq[-1] = 4 if p['mode'] not in ('phrygian',) else 1   # approach the cadence
     seq.append(0)
     ev = []; prev = None
-    tex_on = lambda b: b >= 1 and not (b == nb - 1)                   # texture enters after the intro bar
+    # the seed changes every pattern, not only the random ones: where the texture starts in the chord, how many bars of
+    # intro before it enters, and whether the bass answers on the fifth or the octave
+    turn = rng.randrange(3); intro = 1 + (nb >= 6 and rng.random() < 0.5); fifth = rng.random() < 0.5
+    tex_on = lambda b: b >= intro and not (b == nb - 1)              # texture enters after the intro
     var = nb // 2                                                     # the varied repeat starts here
     for b, deg in enumerate(seq):
         t0 = b * bar; last = b == nb - 1
         tones = chord_of(scale, root, deg, 4 if p['mood'] in ('wonder', 'reflective', 'warm', 'nostalgic') and b % 2 else 3)
         v = voice(prev, tones); prev = v
         L = bar * (2.2 if last else 1.0)
-        for x in v: ev.append((t0, L, 0, p['pad'], x, 46 if not last else 40))
+        for x in v: ev.append((t0, L, 0, p['pad'], x, (46 if not last else 40) + rng.randint(-3, 3)))   # a played chord is never perfectly even
         # bass
         br = root - 12 + scale[deg % 7]
         while br > 47: br -= 12
         while br < 34: br += 12
         bp = p['bpat']
         if last or bp == 'whole': ev.append((t0, L, 1, p['bass'], br, 52))
-        elif bp == 'half': ev += [(t0, 2 * spb, 1, p['bass'], br, 54), (t0 + 2 * spb, 2 * spb, 1, p['bass'], br + 7 if br + 7 <= 50 else br - 5, 48)]
+        elif bp == 'half': ev += [(t0, 2 * spb, 1, p['bass'], br, 54), (t0 + 2 * spb, 2 * spb, 1, p['bass'], (br + 7 if br + 7 <= 50 else br - 5) if fifth else (br + 12 if br + 12 <= 52 else br), 48)]
         elif bp == 'stac': ev += [(t0 + i * spb, spb * 0.45, 1, p['bass'], (br + 7 if br + 7 <= 50 else br - 5) if i % 2 else br, 58) for i in range(4)]
         elif bp == 'pulse': ev += [(t0 + i * spb / 2, spb * 0.4, 1, p['bass'], br, 50 + (8 if i % 4 == 0 else 0)) for i in range(8)]
         # texture (above C5 unless it is staccato), denser in the varied repeat
         if tex_on(b):
             hi = [x + 24 for x in v] if max(v) + 24 <= 96 else [x + 12 for x in v]
+            hi = hi[turn % len(hi):] + [x + 12 if x + 12 <= 100 else x for x in hi[:turn % len(hi)]]   # start elsewhere in the chord
             pat = p['pat']; dense = b >= var
             if pat in ('arpup', 'arpud'):
                 cyc = hi + [hi[0] + 12] if pat == 'arpup' else hi + [hi[0] + 12] + hi[::-1][1:-1]

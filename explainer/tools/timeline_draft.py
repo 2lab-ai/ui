@@ -28,7 +28,7 @@ def draft(script, cps=7.8, lexicon=None):
         for k, s in enumerate(ss):
             try: say = spoken(s, lexicon or {})
             except Exception: say = s.get('say') or s['text']   # unconvertible text: narrate_soma will stop on it anyway
-            d = max(1.2, len(s['text']) / cps)
+            d = max(1.2, max(len(s['text']), len(say)) / cps)   # numbers are longer spoken (1898 -> 천팔백구십팔)
             gap = (GAP_Q if say.rstrip().endswith('?') else GAP) if k + 1 < len(ss) else 0.0
             sents.append({'text': s['text'], 'say': say, 'start': round(cur, 3), 'end': round(cur + d, 3), 'dur': round(d + gap, 3)})
             words += word_times(say, cur + 0.06, d - 0.12); cur += d + gap
@@ -45,4 +45,5 @@ if __name__ == '__main__':
         sys.exit('timeline.json comes from the voice; not overwriting (use --force)')
     tl = draft(json.load(open('script.json')), cps, load_lexicon(os.getcwd()))
     json.dump(tl, open('timeline.json', 'w'), ensure_ascii=False, indent=1)
-    print(f"draft timeline: {len(tl['scenes'])} scenes, {tl['total']:.1f}s")
+    chars = sum(len(x['text']) for sc in tl['scenes'] for x in sc['sentences'])
+    print(f"draft timeline: {len(tl['scenes'])} scenes, {tl['total']:.1f}s, {chars} characters of text")

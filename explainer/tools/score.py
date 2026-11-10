@@ -1,7 +1,7 @@
 """Score: one original cue per musical section, so the music follows the story instead of looping one track.
 Run inside a project folder after the real timeline exists (a draft timeline works for planning).
 
-    python score.py [--plan] [--target 35] [--lufs -20]
+    python score.py [--plan] [--target 35] [--lufs -20]     # --plan: out/cue_plan.md only, nothing rendered
 
 - Every chapter (scene) gets a mood: script.json scene "mood" (wonder curious tension triumph melancholy playful
   reflective urgent warm mystery epic-calm nostalgic), else one is guessed from the scene's words, else the chapter's
@@ -14,12 +14,34 @@ Run inside a project folder after the real timeline exists (a draft timeline wor
 - Writes score.wav (48 kHz stereo, --lufs integrated, default -20) and out/cue_sheet.md + score.json (time, section,
   cue, mood, key, tempo, instruments). export.py mix then ducks it under the voice as before.
 """
-import json, os, sys, tempfile
+import json, os, sys, tempfile, time, zlib
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import music_lib as ML
 
 XF = 2.5   # cross-fade inside a chapter (s)
+# Across videos: the same mood must not open every video with the same cue (research 2026-11-10: three of ten probes
+# got mystery-01 with seed 0). Each project rotates the catalogue by its own key, and a history of cues used by earlier
+# videos makes recently used cues cost more.
+HISTORY = os.path.join(ML.CACHE, 'history.json')
+
+def wav_sig(path):
+    """size + hash of the first MB: survives copying the project (mtime does not)."""
+    import hashlib
+    with open(path, 'rb') as f: head = f.read(1 << 20)
+    return f"{os.path.getsize(path)}:{hashlib.sha1(head).hexdigest()[:16]}"
+
+def load_history():
+    try: h = json.load(open(HISTORY))
+    except Exception: h = {}
+    if not isinstance(h, dict): h = {}
+    h.setdefault('videos', []); return h
+
+def save_history(project, cues):
+    h = load_history(); h['videos'] = [v for v in h['videos'] if v.get('project') != project][-49:]
+    h['videos'].append({'project': project, 'at': int(time.time()), 'cues': sorted(set(cues))})
+    os.makedirs(os.path.dirname(HISTORY), exist_ok=True)
+    tmp = f'{HISTORY}.{os.getpid()}'; json.dump(h, open(tmp, 'w'), indent=1); os.replace(tmp, HISTORY)   # atomic
 NEAR = {'wonder': ['epic-calm', 'reflective', 'mystery'], 'curious': ['playful', 'warm', 'mystery'],
         'tension': ['urgent', 'mystery', 'melancholy'], 'triumph': ['epic-calm', 'warm', 'wonder'],
         'melancholy': ['reflective', 'nostalgic', 'tension'], 'playful': ['curious', 'warm', 'triumph'],
@@ -90,8 +112,13 @@ def related(a, b):
     d = (a - b) % 12
     return d in (0, 5, 7, 3, 9)
 
-def plan(script, tl, target=35.0):
+def plan(script, tl, target=35.0, project='', history=None):
     cues = ML.catalogue(); used = set(); out = []; prev_ch = None
+    recent = {}   # cue id -> how many of the last 10 other videos used it
+    for v in (history or {}).get('videos', [])[-10:]:
+        if v.get('project') != project:
+            for cid in v.get('cues', []): recent[cid] = recent.get(cid, 0) + 1
+    spin = lambda cid: zlib.crc32(f'{project}:{cid}'.encode())   # this project's own order among equals
     moods = chapter_moods(script, tl)
     for ci, sc in enumerate(tl['scenes']):
         src = next((s for s in script['scenes'] if s['id'] == sc['id']), {})
@@ -110,11 +137,11 @@ def plan(script, tl, target=35.0):
                 if prev is not None and c['tex'] == prev['tex'] and c['pat'] == prev['pat']: k += 4
                 if prev is not None and c['key'] == prev['key'] and c['pad'] == prev['pad']: k += 5   # too close to the last cue
                 return k + (abs(c['bpm'] - prev['bpm']) / 20 if prev else 0)
-            c = min(pool, key=lambda c: (cost(c), c['id']))
+            c = min(pool, key=lambda c: (cost(c) + 3 * recent.get(c['id'], 0), spin(c['id'])))
             used.add(c['id']); anchor = anchor or c['pad']; prev = c
             reuse = sum(1 for p in out if p['cue'] == c['id'])
             out.append({'scene': sc['id'], 'chapter': ci, 'section': si, 'start': round(sec['start'], 3), 'end': round(sec['end'], 3),
-                        'mood': c['mood'], 'asked': mood, 'cue': c['id'], 'seed': reuse, 'name': c['name'], 'chapter_start': si == 0})
+                        'mood': c['mood'], 'asked': mood, 'cue': c['id'], 'seed': reuse * 1000 + zlib.crc32(project.encode()) % 997, 'name': c['name'], 'chapter_start': si == 0})
         prev_ch = prev
     return out
 
@@ -149,7 +176,7 @@ def cue_sheet(pl):
     for p in pl:
         m, s = divmod(int(p['start']), 60)
         asked = f" (asked {p['asked']})" if p.get('asked') and p['asked'] != p['mood'] else ''
-        again = f" · again, seed {p['seed']}" if p.get('seed') else ''
+        again = f" · again, seed {p['seed']}" if p.get('seed', 0) >= 1000 else ''
         lines.append(f"| {m}:{s:02d} | {p['scene']}{' (new chapter)' if p['chapter_start'] else ''} | {p['mood']}{asked} | {p['cue']}{again} | {p['name']} |")
     return '\n'.join(lines) + '\n'
 
@@ -158,11 +185,17 @@ if __name__ == '__main__':
     target = float(a[a.index('--target') + 1]) if '--target' in a else 35.0
     lufs = float(a[a.index('--lufs') + 1]) if '--lufs' in a else -20.0
     script, tl = json.load(open('script.json')), json.load(open('timeline.json'))
-    pl = plan(script, tl, target)
+    pj = json.load(open('project.json')) if os.path.exists('project.json') else {}
+    project = pj.get('slug') or script.get('title') or os.path.basename(os.getcwd())
+    pl = plan(script, tl, target, project, load_history())
     os.makedirs('out', exist_ok=True)
-    open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
-    json.dump({'sections': pl}, open('score.json', 'w'), ensure_ascii=False, indent=1)
-    if '--plan' in a:
-        print(cue_sheet(pl)); sys.exit(0)
+    if '--plan' in a:   # a proposal only: score.json/score.wav (the rendered score and its provenance) stay untouched
+        open('out/cue_plan.md', 'w').write(cue_sheet(pl)); print(cue_sheet(pl)); sys.exit(0)
     assemble(pl, tl['total'], lufs)
+    save_history(project, [p['cue'] for p in pl])
+    open('out/cue_sheet.md', 'w').write(cue_sheet(pl))
+    # export.py mix uses the gentle docent ducking only for the score.wav this file describes (music.py rewrites it);
+    # written after the render, atomically
+    tmp = f'score.json.{os.getpid()}'
+    json.dump({'sections': pl, 'score_wav': wav_sig('score.wav')}, open(tmp, 'w'), ensure_ascii=False, indent=1); os.replace(tmp, 'score.json')
     print(f"score.wav: {len(pl)} sections, {len({p['cue'] for p in pl})} distinct cues, total {tl['total']:.1f}s")

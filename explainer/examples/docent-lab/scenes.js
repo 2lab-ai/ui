@@ -33,9 +33,9 @@ SCENES.talk = (t, q) => shots(t, [
 SCENES.devices = (t, q) => shots(t, [
   [q.s(0), (t, lt) => teach('형식 체계', { p: dp(lt, 0, 1.2), t })],
   [q.s(1), (t, lt) => {
-    prop('gear', 520, 640, 1.2, { p: dp(lt, 0, 0.6) }); plusSign(760, 560, { p: dp(lt, 0.5, 0.3) });
-    prop('loop', 980, 640, 1.2, { p: dp(lt, 0.7, 0.6) }); eqSign(1220, 560, { p: dp(lt, 1.2, 0.3) });
-    hand('나', 1440, 560, { size: 110, p: dp(lt, 1.4, 0.5) });
+    prop('gear', 480, 720, 2.0, { p: dp(lt, 0, 0.6) }); plusSign(780, 560, { s: 1.5, p: dp(lt, 0.5, 0.3) });
+    prop('loop', 1080, 720, 2.0, { p: dp(lt, 0.7, 0.6) }); eqSign(1380, 560, { s: 1.5, p: dp(lt, 1.2, 0.3) });
+    hand('나', 1620, 560, { size: 170, p: dp(lt, 1.4, 0.5) });
   }],
   [q.s(2), (t, lt) => {
     inkArrow(160, 560, 1760, 560, { p: dp(lt, 0, 0.8) });
@@ -70,5 +70,28 @@ SCENES.hats = (t, q) => shots(t, [
     const r = animal('rabbit', 1300, 860, { s: 1.2, dir: -1, p: dp(lt, 0.1, 0.6) });
     say(c, '야옹', { p: dp(lt, 0.6, 0.3) });
     say(r, '나도!', { p: dp(lt, 0.9, 0.3) });
+  }],
+]);
+
+// T12 and T13 from TEMPLATES.md
+SCENES.poem = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => {
+    prop('frame', 960, 640, 2.2, { p: dp(lt, 0, 0.6), inside: (x, y, w, h, p) => {
+      prop('moon', x + w * 0.7, y + h * 0.45, 0.8, { p }); prop('star', x + w * 0.3, y + h * 0.4, 0.5, { p }); } });
+    hand('서시', 960, 760, { size: 60, color: INK(), p: dp(lt, 0.7, 0.4) });
+  }],
+  [q.w('부끄럼', 1), (t, lt) => {
+    quote(960, 440, 1300, '한 점 부끄럼이 없기를', { who: '윤동주', size: 96, p: dp(lt, 0, 0.9) });
+    ring(1235, 440, 165, 80, { p: dp(lt, 1.0, 0.4) });
+  }],
+]);
+SCENES.chart = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => { const z = animal('turkey', 960, 820, { s: 1.4, p: dp(lt, 0, 0.8) }); prop('bowl', 1300, 820, 1.2, { p: dp(lt, 0.5, 0.5) }); }],
+  [q.s(1), (t, lt) => {
+    inkArrow(260, 820, 260, 220, { p: dp(lt, 0, 0.4) }); inkArrow(260, 820, 1660, 820, { p: dp(lt, 0, 0.4) });
+    const pts = []; for (let i = 0; i <= 40; i++) pts.push([280 + i * 32, 800 - Math.pow(i / 40, 1.4) * 480]);
+    inkPath(pts, { p: dp(lt, 0.4, 1.4), w: 6, color: KEY() });
+    inkPath([[1560, 320], [1600, 780]], { p: dp(t, q.w('천한', 1), 0.3), w: 7, color: MARK() });
+    hand('1,000일', 1560, 868, { size: 44, color: C.dim, p: dp(lt, 1.2, 0.4) });
   }],
 ]);

@@ -7,7 +7,8 @@ Timing rule for every recipe: everything in a shot finishes drawing by 60 % of t
 1.2 s), or the lint reports it half-drawn at rest.
 
 Map: S script.json · T1 cast block · T2 dialogue · T3 three people · T4 inner voice · T5 named idea · T6 picture
-equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd
+equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd · T12 a poem on the wall · T13 a chart
+with a break · A adding an asset · C one-scene clip
 
 ## S. script.json fields that drive pictures and music
 ```json
@@ -17,6 +18,9 @@ equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 cro
    {"text": "그리고 네 번째, 마침내 궤도에 올랐습니다.", "music": "triumph"}]}
 ```
 `mood` = the chapter's music family (REFERENCE §7); `music` on a sentence = change cue exactly there.
+Cue keys use the spoken form: a sentence "1911년엔…" is `q.w('천구백십일', k)`, not `q.w('1911', k)`
+(`timeline_draft.py` already writes the spoken form, so a wrong key shows up as a missing cue before the voice).
+Put the names the voice must say in `project.json` `"names": ["이스마엘", "퀴퀘그"]`: audio_check hints whisper with them.
 
 ## T1. Cast block (top of scenes.js, once per book)
 ```js
@@ -64,9 +68,9 @@ think(b, '또 시작이네…', { p: dp(lt, 1.6, 0.4) });
 ## T6. Picture equation
 ```js
 [q.s(6), (t, lt) => {
-  prop('gear', 520, 640, 1.2, { p: dp(lt, 0, 0.6) }); plusSign(760, 560, { p: dp(lt, 0.5, 0.3) });
-  prop('loop', 980, 640, 1.2, { p: dp(lt, 0.7, 0.6) }); eqSign(1220, 560, { p: dp(lt, 1.2, 0.3) });
-  hand('나', 1440, 560, { size: 110, p: dp(lt, 1.4, 0.5) });
+  prop('gear', 480, 720, 2.0, { p: dp(lt, 0, 0.6) }); plusSign(780, 560, { s: 1.5, p: dp(lt, 0.5, 0.3) });
+  prop('loop', 1080, 720, 2.0, { p: dp(lt, 0.7, 0.6) }); eqSign(1380, 560, { s: 1.5, p: dp(lt, 1.2, 0.3) });
+  hand('나', 1620, 560, { size: 170, p: dp(lt, 1.4, 0.5) });   // props at s 2: the equation fills the frame
 }],
 ```
 
@@ -107,3 +111,55 @@ think(b, '또 시작이네…', { p: dp(lt, 1.6, 0.4) });
 ```js
 for (let i = 0; i < 6; i++) figure(300 + i * 230, 860, { s: 0.7, crowd: true, face: 'neutral', p: dp(lt, i * 0.08, 0.6) });
 ```
+
+## T12. A poem on the wall (poetry, essays: the docent's gallery tour)
+```js
+[q.s(0), (t, lt) => {
+  prop('frame', 960, 640, 2.2, { p: dp(lt, 0, 0.6), inside: (x, y, w, h, p) => {
+    prop('moon', x + w * 0.7, y + h * 0.45, 0.8, { p }); prop('star', x + w * 0.3, y + h * 0.4, 0.5, { p }); } });
+  hand('서시', 960, 760, { size: 60, color: INK(), p: dp(lt, 0.7, 0.4) });
+}],
+[q.w('부끄럼', 1), (t, lt) => {
+  quote(960, 440, 1300, '한 점 부끄럼이 없기를', { who: '윤동주', size: 96, p: dp(lt, 0, 0.9) });
+  ring(1235, 440, 165, 80, { p: dp(lt, 1.0, 0.4) });   // the word the narration dwells on
+}],
+```
+One short line, named; the frame's `inside(x, y, w, h, p)` draws the picture in the mat.
+
+## T13. A chart with a break (idea and science books: the turkey, a crash, an exponential)
+```js
+[q.s(1), (t, lt) => {
+  inkArrow(260, 820, 260, 220, { p: dp(lt, 0, 0.4) }); inkArrow(260, 820, 1660, 820, { p: dp(lt, 0, 0.4) });
+  const pts = []; for (let i = 0; i <= 40; i++) pts.push([280 + i * 32, 800 - Math.pow(i / 40, 1.4) * 480]);
+  inkPath(pts, { p: dp(lt, 0.4, 1.4), w: 6, color: KEY() });
+  inkPath([[1560, 320], [1600, 780]], { p: dp(t, q.w('천한', 1), 0.3), w: 7, color: MARK() });   // the break
+  hand('1,000일', 1560, 868, { size: 44, color: C.dim, p: dp(lt, 1.2, 0.4) });
+}],
+```
+Axes first, then the line that "feels safe", then the break on the word that names it. Numbers stay 1 to 3 labels.
+
+## A. Adding an asset (animal, prop, pose, hat) from scenes.js
+The kit is read-only during a run; register what is missing at the top of scenes.js, after the cast block. It then
+shows on `gallery.py` sheets, `say()` and the lint see it, and the retro moves generic ones into docent.js.
+```js
+// animal: T(px, py) maps local units (x forward, y up negative, s = 1 ≈ 300 px long) to the screen; o = { s, dir, p,
+// a, w, color, fill }; q(k) is the staged draw-on, k = 0..4 (all 1 at p = 1). Scale radii by o.s yourself. Return the
+// anchors; add half: <half-length in local units> when the animal is longer than ±270 (a whale).
+ANIMALS.goat = (T, o, q) => {
+  inkPath([T(-90, -60), T(-60, -120), T(60, -120), T(90, -60), T(60, -40), T(-60, -40)], { ...o, closed: true, round: 2, p: q(1), fill: o.fill || mix(C.grey, 0.5) });
+  // … legs q(0), head q(2), horns and beard q(3), eye q(4)
+  return { head: T(110, -140), r: 28 * o.s, mouth: T(140, -120), top: T(110, -190) };
+};
+// prop: (x, y) = bottom centre, s = 1 ≈ 160 px tall; o = { p, a, w, color, fill, t, paperFill }.
+// Colour your own parts with `(o.paperFill ? null : o.fill) || myColour`; prop() fills with the page colour by default.
+PROPS.anvil = (x, y, s, o) => { inkPath([[x - 80 * s, y - 60 * s], [x + 80 * s, y - 60 * s], [x + 40 * s, y], [x - 40 * s, y]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.grey, 0.6) }); };
+// pose: [elbow, hand] for the left and right arm, relative to the shoulder (y down)
+POSES.pray = { la: [[-30, 46], [-6, 10]], ra: [[30, 46], [6, 10]] };
+```
+Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel'`. A new kind of look (a toga, armour) is a helper
+drawn after `person()` at its anchors, shown once on a still at Gate A.
+
+## C. A one-scene clip (a 10 to 20 s probe, a trailer, a short)
+Keep the chapter shape's first, middle and last beat and drop the rest (biography: turning point → decision → cost;
+history: scene → consequence; philosophy: question → answer). Two or three sentences, 70 to 80 characters of text;
+one mood and no `"music"` change; the scene's `title` is the book's title (it is the title card); 2 to 4 shots.
