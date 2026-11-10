@@ -27,7 +27,7 @@ import numpy as np
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TOOLS)
-from padcut import PAD_HEAD, PAD_TAIL, cut, is_filler_text, removed  # noqa: E402
+from padcut import PAD_HEAD, PAD_TAIL, cut, edge_db, edges_ok, is_filler_text, removed  # noqa: E402
 from ko_say import check_script, load_lexicon, spoken  # noqa: E402
 
 PROJ = os.getcwd()
@@ -38,7 +38,7 @@ LEAD_TITLE, LEAD, TAIL = 2.6, 0.7, 1.1
 GAP, GAP_Q = 0.50, 0.70            # silence between sentences (longer after a question)
 CACHE = os.path.join(PROJ, 'cache_voice'); os.makedirs(CACHE, exist_ok=True)
 FETCH = os.path.join(TOOLS, 'blade', 'fetchjob.sh')
-CUTTER = 'padcut-v2'
+CUTTER = 'padcut-v3'   # v3: cut where the sound settles on the gap's floor (v2 chopped soft endings)
 ARGS = sys.argv[1:]
 VOICE = ARGS[ARGS.index('--voice') + 1] if '--voice' in ARGS else 'cwon'
 PAD = '--no-pad' not in ARGS
@@ -106,6 +106,7 @@ def process(raw_path):
     if not PAD: return a, None
     clip, info = cut(a, SR)
     if clip is None: return None, info
+    if not edges_ok(clip, SR): return None, f'cut lands on sound (edges {edge_db(clip, SR)} dB vs speech)'
     if VERIFY:
         for side, piece in zip(('head', 'tail'), removed(a, SR, info)):
             heard = ear(piece)
@@ -272,7 +273,9 @@ def recut(script, seeds):
     print(f'recut: {kept} re-checked, {adopted} adopted, {dropped} dropped (re-synthesised on the next run)')
 
 
-def trim(a, thr_db=-42, pad=0.06):
+def trim(a, thr_db=-60, pad=0.06):
+    """unpadded takes only: drop leading/trailing silence. -60 dB, not -42: a soft final syllable (-다 fading at -41..-56
+    dB) is speech. Padded takes are never trimmed; padcut already cut them where the sound settles."""
     hop = int(0.01 * SR); n = len(a) // hop
     db = 20 * np.log10(np.sqrt(np.mean(a[:n * hop].reshape(n, hop) ** 2, axis=1) + 1e-12))
     on = np.where(db > thr_db)[0]
@@ -314,7 +317,7 @@ def main():
     clips = {}
     for j, sc in enumerate(script['scenes']):
         items = [(say_of(s), seeds.get(f'{sc["id"]}:{k}', 100 + 17 * j + k)) for k, s in enumerate(sc['sentences'])]
-        clips[sc['id']] = [trim(wav_read(p)) for p in synth_scene(items, sc['id'])]
+        clips[sc['id']] = [wav_read(p) if PAD else trim(wav_read(p)) for p in synth_scene(items, sc['id'])]
     target = float(np.median([level(c) for cs in clips.values() for c in cs]))
     t = 0.0; scenes = []; track = []
     for sc in script['scenes']:
@@ -340,7 +343,7 @@ def main():
     raw = os.path.join(PROJ, 'narration_raw.wav'); wav_write(raw, np.concatenate(track))
     m = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', raw, '-af', 'ebur128', '-f', 'null', '-'], capture_output=True, text=True).stderr
     lufs = float(re.findall(r'I:\s+(-?[\d.]+) LUFS', m)[-1])
-    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', raw, '-af', f'volume={-18.5 - lufs:.2f}dB,alimiter=limit=0.89:level=false',
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', raw, '-af', f'volume={-18.5 - lufs:.2f}dB,alimiter=limit=0.89:level=false:latency=1',
                     '-ar', str(SR), '-ac', '1', os.path.join(PROJ, 'narration.wav')], check=True)
     tl = {'total': round(t, 3), 'fps': 30, 'title': script['title'], 'subtitle': script.get('subtitle', ''),
           'voice': f'soma-voice:{VOICE}' + (':pad' if PAD else ''), 'scenes': scenes}
