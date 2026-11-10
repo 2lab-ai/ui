@@ -28,7 +28,7 @@ async def main(kinds):
                 if n == 0: print(f'{kind}: nothing to show'); break
                 p = os.path.join(OUT, f'gallery_{kind}_{pg + 1}.jpg'); open(p, 'wb').write(base64.b64decode(b64)); paths.append(p)
                 pg += 1
-                if pg * (12 if kind == 'props' else 8) >= n: break
+                if pg * 8 >= n: break
         miss = await page.evaluate('[...MISS]')
         await browser.close()
     srv.shutdown()

@@ -107,5 +107,20 @@ class Planner(unittest.TestCase):
         self.assertGreater(len(score.plan(script, tl, 20.0)), 120)
 
 
+class AcrossVideos(unittest.TestCase):
+    def test_history_steers_away_from_cues_other_videos_used(self):
+        tl = tl_of(1, 6, 6.0); script = {'scenes': [{'id': 's0', 'mood': 'mystery', 'sentences': []}]}
+        first = score.plan(script, tl, 35.0, 'book-a', {'videos': []})[0]['cue']
+        h = {'videos': [{'project': 'book-b', 'cues': [first]}]}
+        self.assertNotEqual(score.plan(script, tl, 35.0, 'book-a', h)[0]['cue'], first)
+        same = {'videos': [{'project': 'book-a', 'cues': [first]}]}   # its own earlier run does not count
+        self.assertEqual(score.plan(script, tl, 35.0, 'book-a', same)[0]['cue'], first)
+
+    def test_projects_render_with_their_own_seed(self):
+        tl = tl_of(1, 6, 6.0); script = {'scenes': [{'id': 's0', 'mood': 'mystery', 'sentences': []}]}
+        seeds = {score.plan(script, tl, 35.0, p, {'videos': []})[0]['seed'] for p in ['a', 'b', 'c', 'd']}
+        self.assertGreater(len(seeds), 1)
+
+
 if __name__ == '__main__':
     unittest.main()

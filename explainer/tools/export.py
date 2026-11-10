@@ -13,9 +13,15 @@ def total():
 
 def mix():
     T = total()
-    flt = (f"[1:a]aformat=channel_layouts=stereo,volume=0.42,afade=t=out:st={T-4:.2f}:d=4[m];"
+    # Docent scores from score.py (score.json beside score.wav, cues at -20 LUFS): music ~20 dB under the voice while it
+    # speaks, gentle ~4 dB swells in the gaps (research 2026-11-10: ratio 6 / release 600 ms pumped 8-15 dB between
+    # sentences; this setting measured 20.4-21.6 dB under, 3.9-4.4 dB swell on 3 probes). music.py scores keep the
+    # original balance.
+    gentle = os.path.exists(os.path.join(HERE, 'score.json'))
+    vol, duck = (0.20, 'threshold=0.05:ratio=2.5:attack=150:release=1200') if gentle else (0.42, 'threshold=0.03:ratio=6:attack=40:release=600')
+    flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol},afade=t=out:st={T-4:.2f}:d=4[m];"
            f"[0:a]aformat=channel_layouts=stereo,asplit=2[v][sc];"
-           f"[m][sc]sidechaincompress=threshold=0.03:ratio=6:attack=40:release=600[md];"
+           f"[m][sc]sidechaincompress={duck}[md];"
            f"[v][md]amix=inputs=2:normalize=0,volume=1.41,alimiter=limit=0.95[out]")
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(HERE, 'narration.wav'), '-i', os.path.join(HERE, 'score.wav'),
                     '-filter_complex', flt, '-map', '[out]', '-t', f'{T:.3f}', '-ar', '48000', os.path.join(HERE, 'mix.wav')], check=True)

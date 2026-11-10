@@ -19,9 +19,9 @@ const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 // subtitle zone or off the frame, empty bubbles, bubble tails, figure heads. engine.js calls DOCENT_FRAME(t) at the
 // start of every renderAt, so the registry always describes exactly one frame.
 const SUB_Y = 905;   // ink below this line sits under the subtitle box
-const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people'];
-const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0 };
-function DOCENT_FRAME(t) { DOCENT.t = t; DOCENT.shot = null; for (const k of DOCENT_KINDS) DOCENT[k] = [];
+const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props'];
+const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null };
+function DOCENT_FRAME(t) { DOCENT.t = t; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [] }; }   // slots: where things are or will be (placement)
 DOCENT_FRAME(0);
 function docentNote(kind, what) { if (DOCENT[kind].length < 40) DOCENT[kind].push(what); }
@@ -41,7 +41,13 @@ function docentReport() {
     for (const g of DOCENT.tags) if (bubbleCrosses(x0, y0, x1 - x0, y1 - y0, tip, g)) cover.push(`bubble or tail over a name tag @${Math.round(g[0])}`);
     DOCENT.bubbles.slice(i + 1).forEach((b) => { if (b[2] > x0 + 6 && b[0] < x1 - 6 && b[3] > y0 + 6 && b[1] < y1 - 6) cover.push(`bubble over bubble @${Math.round(b[0])}`); });
   });
-  return { t: DOCENT.t, shot: DOCENT.shot, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
+  for (const pr of DOCENT.props) for (const [hx, hy, hr, , seq] of DOCENT.heads) {
+    if (seq == null || pr.seq < seq) continue;   // only a prop drawn after (over) the face
+    const [x0, y0, x1, y1] = pr.box, ov = Math.max(0, Math.min(x1, hx + hr) - Math.max(x0, hx - hr)) * Math.max(0, Math.min(y1, hy + hr) - Math.max(y0, hy - hr));
+    if (ov > 0.4 * 4 * hr * hr) cover.push(`prop '${pr.name}' over a face @${Math.round(hx)}`);
+  }
+  DOCENT.tags.forEach((g, i) => DOCENT.tags.slice(i + 1).forEach((h) => { if (h[2] > g[0] && h[0] < g[2] && h[3] > g[1] && h[1] < g[3]) cover.push(`name tag over name tag @${Math.round(g[0])}`); }));
+  return { t: DOCENT.t, shot: DOCENT.shot, ink: DOCENT.ink, textBig: DOCENT.textBig, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far,
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals };
 }
@@ -94,6 +100,8 @@ function inkPath(pts, { color = null, w = 4, p = 1, closed = false, jit = 1.4, s
   { const m = ctx.getTransform(); let lo = -1e9, l = 1e9, r = -1e9;   // full affine: rotation and mirroring included
     for (const [px, py] of pts) { const sx = m.a * px + m.c * py + m.e, sy = m.b * px + m.d * py + m.f; if (sy > lo) lo = sy; if (sx < l) l = sx; if (sx > r) r = sx; }
     let hi = 1e9; for (const [px, py] of pts) { const sy = m.b * px + m.d * py + m.f; if (sy < hi) hi = sy; }
+    const box = (b) => b ? [Math.min(b[0], l), Math.min(b[1], hi), Math.max(b[2], r), Math.max(b[3], lo)] : [l, hi, r, lo];
+    if (!DOCENT.ghostOk) DOCENT.ink = box(DOCENT.ink); if (DOCENT.track) DOCENT.track.box = box(DOCENT.track.box);
     if (lo > SUB_Y) docentNote('zone', Math.round(lo)); if (l < -4 || r > W + 4 || hi < -4) docentNote('off', [Math.round(l), Math.round(r), Math.round(hi)]); }
   const q = wobble(pts, closed, jit, seed == null ? seedOf(pts) : seed);
   withAlpha(a, () => {
@@ -150,10 +158,11 @@ const inkDot = (x, y, r = 5, o = {}) => disc(x, y, r, o.color || INK(), (o.a ?? 
 
 // ---------- handwritten text ----------
 // Written on left to right (clip reveal) as p goes 0 -> 1. Default colour is the keyword colour.
-function hand(str, x, y, { size = 54, color = null, p = 1, a = 1, align = 'center', weight = 700, rot = 0, base = 'middle', ghostOk = false } = {}) {
+function hand(str, x, y, { size = 54, color = null, p = 1, a = 1, align = 'center', weight = 700, rot = 0, base = 'middle', ghostOk = false, halo = false } = {}) {
   if (p <= 0 || a <= 0 || !str) return;
   if (p < 0.98) docentNote('partial', 'hand:' + String(str).slice(0, 12));
   if (a * ctx.globalAlpha < 0.55 && !ghostOk && !DOCENT.ghostOk) docentNote('ghost', 'hand:' + String(str).slice(0, 12));
+  if (size >= 56 && !DOCENT.ghostOk) DOCENT.textBig = true;   // a lettering shot is not a 'small subject'
   { const m = ctx.getTransform(); ctx.font = `${weight} ${size}px ${HAND()}`; ctx.textBaseline = base;
     const tm = ctx.measureText(str), tw = tm.width, x0 = align === 'center' ? x - tw / 2 : align === 'right' ? x - tw : x;
     const asc = tm.actualBoundingBoxAscent ?? size * 0.5, desc = tm.actualBoundingBoxDescent ?? size * 0.45;
@@ -169,6 +178,7 @@ function hand(str, x, y, { size = 54, color = null, p = 1, a = 1, align = 'cente
   ctx.translate(x, y); if (rot) ctx.rotate(rot);
   if (p < 1) { ctx.beginPath(); ctx.rect(x0 - 4, -size, w * clamp01(p) + 8, size * 2); ctx.clip(); }
   ctx.globalAlpha *= clamp01(a); ctx.fillStyle = color || KEY(); ctx.textAlign = 'left'; ctx.textBaseline = base;
+  if (halo) { ctx.lineWidth = size * 0.22; ctx.lineJoin = 'round'; ctx.strokeStyle = C.paper || PAPER(); ctx.strokeText(str, x0, 0); }
   ctx.fillText(str, x0, 0);
   ctx.restore();
 }
@@ -235,18 +245,19 @@ function figure(x, y, o = {}) {
   const hip = sit ? [0, -100] : [0, -122], sh = [0, -228 + slump], neck = [0, -246 + slump];
   const head = [slump * 0.6, -292 + slump * 1.4], hr = 44;
   const hc = F(...head), R = hr * s, dir = flip ? -1 : 1;
-  const topY = hc[1] - R * (hat ? 2.2 : hair && hair !== 'bald' ? 1.25 : 1.05);
+  const hatH = { top: 2.2, true: 2.2, bowler: 1.3, cap: 1.5, beanie: 1.5, crown: 1.75, laurel: 1.2 }, hairH = { bun: 1.6, spiky: 1.45, curly: 1.32, ponytail: 1.25, long: 1.25, short: 1.25, side: 1.25 };
+  const topY = hc[1] - R * (hat ? (hatH[hat] || 2.2) : (hair && hair !== 'bald' ? (hairH[hair === true ? 'long' : hair] || 1.25) : 1.05));
   const anchors = { head: hc, r: R, mouth: [hc[0] + dir * R * 0.15, hc[1] + R * 0.4], top: [hc[0], topY], dir,
     hands: [F(sh[0] + P.la[1][0] - (outfit ? 21 : 0), sh[1] + P.la[1][1]), F(sh[0] + P.ra[1][0] + (outfit ? 21 : 0), sh[1] + P.ra[1][1])],
     box: [x - 70 * s, topY, x + 70 * s, y] };
   // the name tag sits beside the chest on the side the figure turns away from, clear of every bubble above
-  const tagS = Math.max(36, 42 * Math.min(1, s0)), tagW = tag ? handW(tag, tagS) / 2 + 6 : 0;
-  let tagX = x - dir * (100 * s + tagW); if (tagX - tagW < 40 || tagX + tagW > W - 40) tagX = x + dir * (100 * s + tagW);
-  const tagY = y - 205 * s, tagRect = [tagX - tagW, tagY - tagS * 0.6, tagX + tagW, tagY + tagS * 0.6];
+  const tagS = Math.max(42, 48 * Math.min(1, s0)), tagW = tag ? handW(tag, tagS) / 2 + 8 : 0;
+  let tagX = x - dir * (112 * s + tagW); if (tagX - tagW < 40 || tagX + tagW > W - 40) tagX = x + dir * (112 * s + tagW);
+  const tagY = y - 165 * s, tagRect = [tagX - tagW, tagY - tagS * 0.6, tagX + tagW, tagY + tagS * 0.6];
   if (s > 0) { DOCENT.slots.figs.push(anchors.box); DOCENT.slots.heads.push([hc[0], hc[1], R]); if (tag) DOCENT.slots.tags.push(tagRect); }
   if (p <= 0 || a <= 0 || s <= 0) return anchors;
   if (o.ghostOk) DOCENT.ghostOk++;
-  DOCENT.heads.push([hc[0], hc[1], R, topY]); DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
+  DOCENT.heads.push([hc[0], hc[1], R, topY, ++DOCENT.seq]); DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
   DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|') });
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
   const ph = (k, n) => clamp01((p * n - k) / 1.4);   // staged draw-on: head, body, arms, legs, face
@@ -336,13 +347,17 @@ function figure(x, y, o = {}) {
       if (hatStyle === 'top') { inkRect(hc[0] - 30 * s, hc[1] - 96 * s, 60 * s, 52 * s, { w: lw * 0.8, fill: ink, color: ink }); inkLine(hc[0] - 52 * s, hc[1] - 44 * s, hc[0] + 52 * s, hc[1] - 44 * s, { w: lw, color: ink }); }
       if (hatStyle === 'cap') { inkArc(hc[0], hc[1] - R * 0.3, R * 1.02, R * 0.85, Math.PI, Math.PI * 2, { w: lw * 0.8, fill: acc || ink, color: ink, closed: true }); inkLine(hc[0] + dir * R * 0.2, hc[1] - R * 0.3, hc[0] + dir * R * 1.7, hc[1] - R * 0.22, { w: lw * 1.6, color: ink }); }
       if (hatStyle === 'beanie') { inkArc(hc[0], hc[1] - R * 0.25, R * 1.05, R * 0.95, Math.PI, Math.PI * 2, { w: lw * 0.8, fill: acc || ink, color: ink, closed: true }); inkCircle(hc[0], hc[1] - R * 1.28, R * 0.2, { fill: acc || ink, color: ink, w: lw * 0.5 }); }
+      if (hatStyle === 'crown') { const b = hc[1] - R * 0.82, pts = [[hc[0] - R * 0.82, b]]; for (let i = 0; i <= 4; i++) { const x = hc[0] - R * 0.82 + i * R * 0.41; pts.push([x, i % 2 ? b - R * 0.42 : b - R * 0.92]); } pts.push([hc[0] + R * 0.82, b]);
+        inkPath(pts, { closed: true, w: lw * 0.7, fill: C.yellow || acc || ink, color: ink }); for (const k of [-1, 0, 1]) inkCircle(hc[0] + k * R * 0.41, b - R * 0.2, R * 0.08, { w: 1, fill: C.red || ink, color: C.red || ink }); }
+      if (hatStyle === 'laurel') for (const d of [-1, 1]) for (let i = 0; i < 5; i++) { const ang = Math.PI * (1.5 + d * (0.14 + i * 0.13)), lx = hc[0] + Math.cos(ang) * R * 1.02, ly = hc[1] + Math.sin(ang) * R * 1.02;
+        inkEllipse(lx, ly, R * 0.2, R * 0.1, { w: lw * 0.4, fill: C.green || acc || ink, color: ink, start: ang }); }
       if (hatStyle === 'bowler') { inkArc(hc[0], hc[1] - R * 0.5, R * 0.85, R * 0.75, Math.PI, Math.PI * 2, { w: lw * 0.8, fill: ink, color: ink, closed: true }); inkLine(hc[0] - R * 1.25, hc[1] - R * 0.5, hc[0] + R * 1.25, hc[1] - R * 0.5, { w: lw * 1.2, color: ink }); }
       if (helmet) {   // Greek helmet: cap over the top of the head and a red crest
         inkArc(hc[0], hc[1], (hr + 4) * s, (hr + 4) * s, Math.PI * 1.02, Math.PI * 1.98, { w: lw * 1.1, color: ink });
         inkLine(hc[0] - (hr + 4) * s, hc[1] - 2 * s, hc[0] - (hr - 10) * s, hc[1] + 26 * s, { w: lw, color: ink });
         inkCurve([hc[0] - 34 * s, hc[1] - 50 * s], [hc[0] + 6 * s, hc[1] - 112 * s], [hc[0] + 56 * s, hc[1] - 40 * s], { w: lw * 2.6, color: C.red });
       }
-      if (tag) { DOCENT.tags.push(tagRect); hand(tag, tagX, tagY, { size: tagS, color: acc || KEY() }); }
+      if (tag) { DOCENT.tags.push(tagRect); hand(tag, tagX, tagY, { size: tagS, color: acc || KEY(), halo: true }); }
     });
   });
   if (o.ghostOk) DOCENT.ghostOk--;
@@ -461,7 +476,7 @@ const ANIMALS = {
   dog: (T, o, q) => {   // standing dog, side view: muzzle with a black nose, floppy ear, raised tail, collar
     const fur = o.fill || mix(C.yellow, 0.4);
     inkCurve(T(-110, -120), T(-150, -170), T(-128, -200), { ...o, p: q(0), w: o.w * 1.8 });
-    for (const [k, lx] of [-70, 64, -100, 36].entries()) inkPath([T(lx - 13, -90), T(lx - 13, 0), T(lx + 13, 0), T(lx + 13, -90)], { ...o, closed: true, p: q(1), fill: k < 2 ? mix(C.dim, 0.35) : fur });
+    for (const [k, lx] of [-70, 64, -100, 36].entries()) inkPath([T(lx - 14, -92), T(lx - 10, -10), T(lx - 15, 0), T(lx + 16, 0), T(lx + 11, -10), T(lx + 14, -92)], { ...o, closed: true, round: 1, p: q(1), fill: k < 2 ? mix(C.dim, 0.35) : fur });   // tapered legs, small paws
     inkEllipse(...T(-5, -120), 118 * o.s, 50 * o.s, { ...o, p: q(1), fill: fur });
     inkPath([T(70, -150), T(96, -214), T(150, -216), T(200, -186), T(206, -164), T(150, -150), T(118, -132)], { ...o, closed: true, p: q(2), fill: fur, round: 2 });
     inkPath([T(112, -210), T(92, -206), T(80, -150), T(98, -146), T(112, -170)], { ...o, closed: true, p: q(3), fill: mix(C.dim, 0.7), round: 2 });
@@ -535,14 +550,14 @@ function animal(kind, x, y, o = {}) {
   const io = { p: hidden ? 0 : oo.p, a: oo.a, color: oo.color, w: oo.w, s, dir, fill: oo.fill };
   let anc = null;
   withAlpha(hidden ? 0 : 1, () => { anc = f(T, io, hidden ? () => 0 : q); });   // p = 0 draws nothing but still yields the anchors
-  const xs = [x - 270 * s, x + 270 * s].sort((u, v) => u - v);
+  const half = (anc.half || 270) * s, xs = [x - half, x + half].sort((u, v) => u - v);
   anc.box = [xs[0], anc.top[1], xs[1], y]; anc.dir = dir; anc.animal = kind;
   let tagRect = null, str = null;
   if (o.tag) { str = typeof o.tag === 'string' ? o.tag : kind; const tw = handW(str, 40) / 2 + 6;
     anc.top = [anc.top[0], anc.top[1] - 70]; anc.box[1] = anc.top[1]; tagRect = [anc.top[0] - tw, anc.top[1], anc.top[0] + tw, anc.top[1] + 48]; }
   DOCENT.slots.figs.push(anc.box); DOCENT.slots.heads.push([anc.head[0], anc.head[1], anc.r]); if (tagRect) DOCENT.slots.tags.push(tagRect);
   if (hidden) return anc;
-  DOCENT.heads.push([anc.head[0], anc.head[1], anc.r]); DOCENT.mouths.push(anc.mouth); DOCENT.figs.push(anc.box); DOCENT.animals.push(kind);
+  DOCENT.heads.push([anc.head[0], anc.head[1], anc.r, null, ++DOCENT.seq]); DOCENT.mouths.push(anc.mouth); DOCENT.figs.push(anc.box); DOCENT.animals.push(kind);
   if (tagRect) { DOCENT.tags.push(tagRect); hand(str, anc.top[0], anc.top[1] + 24, { size: 40, p: oo.p, a: oo.a }); }
   return anc;
 }
@@ -550,15 +565,15 @@ function animal(kind, x, y, o = {}) {
 // (make-docent-book §4 gate; tools/gallery.py renders it). kind: 'cast' | 'animals' | 'props' | 'figures'.
 function docentGallery(kind, page = 0) {
   const items = kind === 'cast' ? Object.keys(CAST) : kind === 'animals' ? Object.keys(ANIMALS) : kind === 'props' ? Object.keys(PROPS) : ['short', 'spiky', 'curly', 'long', 'bun', 'ponytail', 'side', 'bald'];
-  const per = kind === 'props' ? 12 : 8, cols = kind === 'props' ? 6 : 4, list = items.slice(page * per, page * per + per);
+  const per = 8, cols = 4, list = items.slice(page * per, page * per + per);   // wide props (ship, stadium) need a 473 px cell
   list.forEach((id, i) => {
     const cy = i < cols ? 460 : 880;
-    const x = cols === 6 ? 170 + (i % cols) * 316 : 250 + (i % cols) * 473;
+    const x = 250 + (i % cols) * 473;
     if (kind === 'cast') person(id, x, cy - 40, { s: 0.85, tag: true });
     else if (kind === 'animals') animal(id, x, cy - 60, { s: 0.62 });
-    else if (kind === 'props') prop(id, x, cy - 90, 1);
+    else if (kind === 'props') prop(id, x, cy - 90, 0.75);
     else figure(x, cy - 40, { s: 0.85, hair: id, accent: ['red', 'blue', 'green', 'orange', 'teal', 'magenta', 'yellow', 'grey'][i], outfit: ['suit', 'dress', 'tshirt', 'coat'][i % 4] });
-    hand(id, x, cy + (kind === 'props' ? -40 : -10), { size: 34, color: C.dim });
+    hand(id, x, cy - 10, { size: 34, color: C.dim });
   });
   return items.length;
 }
@@ -779,8 +794,9 @@ function bookCover(x, y, w, h, { title = '', author = '', note = '', p = 1, a = 
 }
 // a short quote in hand lettering with a who-line (keep quotes short: copyright)
 function quote(x, y, w, str, { who = '', p = 1, a = 1, size = 52 } = {}) {
-  hand('“', x - w / 2 - 20, y - 40, { size: size * 2.2, p, a, color: C.dim });
-  const hgt = handBlock(str, x, y, w, { size, p, a, color: INK() });
+  const lines = handLines(str, w, size), lw = Math.max(...lines.map((l) => handW(l, size)));
+  const hgt = handBlock(lines, x, y, w, { size, p, a, color: INK() });
+  hand('“', x - lw / 2 - size * 0.45, y - hgt / 2 + size * 0.1, { size: size * 2.0, p, a, color: C.dim });
   if (who) hand('— ' + who, x + w / 2, y + hgt / 2 + size * 0.9, { size: size * 0.7, p: clamp01(p * 1.5 - 0.5), a, align: 'right' });
 }
 // progress map of the chapters (dots + the current one ringed), for long videos
@@ -809,21 +825,21 @@ const PROPS = {
   mirror: (x, y, s, o) => { inkEllipse(x, y - 100 * s, 60 * s, 86 * s, { ...o, fill: mix(C.blue, 0.12) }); inkLine(x - 20 * s, y - 140 * s, x - 2 * s, y - 160 * s, { ...o, w: 2.4 }); inkLine(x, y - 14 * s, x, y, o); inkLine(x - 40 * s, y, x + 40 * s, y, o); },
   loop: (x, y, s, o) => { inkArc(x, y - 90 * s, 70 * s, 70 * s, -Math.PI * 0.35, Math.PI * 1.45, o); inkArrow(x + 40 * s, y - 147 * s, x + 64 * s, y - 128 * s, { ...o, head: 18 * s }); },
   gear: (x, y, s, o) => { const pts = []; const cy = y - 80 * s; for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2, r = (i % 5 < 2 ? 80 : 62) * s; pts.push([x + Math.cos(a) * r, cy + Math.sin(a) * r]); } inkPath(pts, { ...o, closed: true, jit: 0.4 }); inkCircle(x, cy, 22 * s, o); },
-  tree: (x, y, s, o) => { inkLine(x, y, x, y - 90 * s, { ...o, w: 6 }); inkLine(x, y - 70 * s, x - 34 * s, y - 112 * s, o); inkLine(x, y - 80 * s, x + 30 * s, y - 120 * s, o); inkEllipse(x, y - 150 * s, 80 * s, 62 * s, { ...o, fill: o.fill || mix(C.green, 0.25) }); },
+  tree: (x, y, s, o) => { inkLine(x, y, x, y - 90 * s, { ...o, w: 6 }); inkLine(x, y - 70 * s, x - 34 * s, y - 112 * s, o); inkLine(x, y - 80 * s, x + 30 * s, y - 120 * s, o); inkEllipse(x, y - 150 * s, 80 * s, 62 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.green, 0.25) }); },
   balance: (x, y, s, o) => { inkLine(x, y, x, y - 150 * s, o); inkLine(x - 40 * s, y, x + 40 * s, y, o); inkLine(x - 100 * s, y - 140 * s, x + 100 * s, y - 140 * s, o);
     for (const d of [-1, 1]) { inkLine(x + d * 100 * s, y - 140 * s, x + d * 100 * s, y - 90 * s, o); inkArc(x + d * 100 * s, y - 90 * s, 40 * s, 20 * s, 0, Math.PI, o); } },
-  bulb: (x, y, s, o) => { inkArc(x, y - 110 * s, 48 * s, 48 * s, Math.PI * 0.75, Math.PI * 2.25, { ...o, fill: o.fill || mix(C.yellow, 0.35) }); inkRect(x - 18 * s, y - 50 * s, 36 * s, 34 * s, o); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.55; inkLine(x + Math.cos(a) * 66 * s, y - 110 * s + Math.sin(a) * 66 * s, x + Math.cos(a) * 88 * s, y - 110 * s + Math.sin(a) * 88 * s, o); } },
+  bulb: (x, y, s, o) => { inkArc(x, y - 110 * s, 48 * s, 48 * s, Math.PI * 0.75, Math.PI * 2.25, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.35) }); inkRect(x - 18 * s, y - 50 * s, 36 * s, 34 * s, o); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.55; inkLine(x + Math.cos(a) * 66 * s, y - 110 * s + Math.sin(a) * 66 * s, x + Math.cos(a) * 88 * s, y - 110 * s + Math.sin(a) * 88 * s, o); } },
   clock: (x, y, s, o) => { inkCircle(x, y - 80 * s, 72 * s, { ...o, fill: o.fill }); const h = (o.t || 0) * 0.4; inkLine(x, y - 80 * s, x + Math.sin(h) * 40 * s, y - 80 * s - Math.cos(h) * 40 * s, o); inkLine(x, y - 80 * s, x + Math.sin(h * 12) * 58 * s, y - 80 * s - Math.cos(h * 12) * 58 * s, { ...o, w: 2.6 }); },
   calendar: (x, y, s, o) => { inkRect(x - 70 * s, y - 140 * s, 140 * s, 140 * s, { ...o, fill: o.fill }); for (let i = 0; i < 7; i++) inkCircle(x - 54 * s + i * 18 * s, y - 140 * s, 6 * s, { ...o, w: 2.4 }); if (o.label) hand(o.label, x, y - 66 * s, { size: 36 * s, p: o.p, a: o.a }); },
   signpost: (x, y, s, o) => { inkLine(x, y, x, y - 220 * s, { ...o, w: 6 }); inkPath([[x, y - 200 * s], [x + 120 * s, y - 200 * s], [x + 144 * s, y - 180 * s], [x + 120 * s, y - 160 * s], [x, y - 160 * s]], o); inkPath([[x, y - 150 * s], [x - 120 * s, y - 150 * s], [x - 144 * s, y - 130 * s], [x - 120 * s, y - 110 * s], [x, y - 110 * s]], o); },
   house: (x, y, s, o) => { inkRect(x - 80 * s, y - 110 * s, 160 * s, 110 * s, o); inkPoly([[x - 96 * s, y - 104 * s], [x, y - 180 * s], [x + 96 * s, y - 104 * s]], o); inkRect(x - 18 * s, y - 56 * s, 36 * s, 56 * s, o); },
   brain: (x, y, s, o) => { const cy = y - 80 * s, pts = []; for (let i = 0; i < 48; i++) { const a = (i / 48) * Math.PI * 2; const r = (68 + 10 * Math.abs(Math.sin(a * 5))) * s; pts.push([x + Math.cos(a) * r * 1.2, cy + Math.sin(a) * r * 0.9]); }
     inkPath(pts, { ...o, closed: true, color: o.color || C.magenta || C.purple, fill: o.fill }); inkCurve([x - 50 * s, cy - 20 * s], [x - 10 * s, cy + 30 * s], [x + 40 * s, cy - 10 * s], { ...o, color: o.color || C.magenta || C.purple, w: 2.6 }); inkLine(x, cy - 66 * s, x, cy + 50 * s, { ...o, color: o.color || C.magenta || C.purple, w: 2.6 }); },
-  heart: (x, y, s, o) => { const pts = []; for (let i = 0; i <= 40; i++) { const t = (i / 40) * Math.PI * 2; pts.push([x + 4 * s * 16 * Math.sin(t) ** 3, y - 70 * s - 4 * s * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))]); } inkPath(pts, { ...o, closed: true, fill: o.fill || mix(C.red, 0.4), color: o.color || C.red }); },
+  heart: (x, y, s, o) => { const pts = []; for (let i = 0; i <= 40; i++) { const t = (i / 40) * Math.PI * 2; pts.push([x + 4 * s * 16 * Math.sin(t) ** 3, y - 70 * s - 4 * s * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))]); } inkPath(pts, { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.red, 0.4), color: o.color || C.red }); },
   key: (x, y, s, o) => { inkCircle(x - 60 * s, y - 60 * s, 30 * s, o); inkLine(x - 30 * s, y - 60 * s, x + 80 * s, y - 60 * s, o); inkLine(x + 50 * s, y - 60 * s, x + 50 * s, y - 36 * s, o); inkLine(x + 74 * s, y - 60 * s, x + 74 * s, y - 40 * s, o); },
   lock: (x, y, s, o) => { inkRect(x - 56 * s, y - 100 * s, 112 * s, 100 * s, { ...o, fill: o.fill }); inkArc(x, y - 100 * s, 36 * s, 44 * s, Math.PI, Math.PI * 2, o); inkCircle(x, y - 56 * s, 10 * s, o); },
   box: (x, y, s, o) => { inkRect(x - 70 * s, y - 110 * s, 140 * s, 110 * s, { ...o, fill: o.fill }); inkPoly([[x - 70 * s, y - 110 * s], [x - 40 * s, y - 140 * s], [x + 100 * s, y - 140 * s], [x + 70 * s, y - 110 * s]], o); inkPoly([[x + 100 * s, y - 140 * s], [x + 100 * s, y - 30 * s], [x + 70 * s, y]], o); },
-  coin: (x, y, s, o) => { inkEllipse(x, y - 50 * s, 50 * s, 50 * s, { ...o, fill: o.fill || mix(C.yellow, 0.4) }); hand('₩', x, y - 48 * s, { size: 54 * s, p: o.p, a: o.a, color: INK() }); },
+  coin: (x, y, s, o) => { inkEllipse(x, y - 50 * s, 50 * s, 50 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.4) }); hand('₩', x, y - 48 * s, { size: 54 * s, p: o.p, a: o.a, color: INK() }); },
   phone: (x, y, s, o) => { inkRect(x - 40 * s, y - 150 * s, 80 * s, 150 * s, o); inkRect(x - 30 * s, y - 136 * s, 60 * s, 110 * s, { ...o, w: 2.4 }); },
   laptop: (x, y, s, o) => { inkRect(x - 90 * s, y - 130 * s, 180 * s, 110 * s, o); inkPoly([[x - 110 * s, y], [x + 110 * s, y], [x + 90 * s, y - 20 * s], [x - 90 * s, y - 20 * s]], { ...o, closed: true }); },
   monitor: (x, y, s, o) => { inkRect(x - 100 * s, y - 170 * s, 200 * s, 130 * s, { ...o, fill: o.fill }); inkLine(x, y - 40 * s, x, y - 10 * s, o); inkLine(x - 50 * s, y - 6 * s, x + 50 * s, y - 6 * s, o); },
@@ -831,66 +847,364 @@ const PROPS = {
   desk: (x, y, s, o) => { inkLine(x - 120 * s, y - 80 * s, x + 120 * s, y - 80 * s, { ...o, w: 6 }); inkLine(x - 100 * s, y - 80 * s, x - 100 * s, y, o); inkLine(x + 100 * s, y - 80 * s, x + 100 * s, y, o); },
   chair: (x, y, s, o) => { inkPoly([[x - 40 * s, y - 160 * s], [x - 40 * s, y], [x - 40 * s, y - 70 * s], [x + 40 * s, y - 70 * s], [x + 40 * s, y]], o); },
   bench: (x, y, s, o) => { for (const yy of [70, 90]) inkLine(x - 130 * s, y - yy * s, x + 130 * s, y - yy * s, o); inkLine(x - 130 * s, y - 120 * s, x + 130 * s, y - 120 * s, o); for (const d of [-1, 1]) inkLine(x + d * 110 * s, y - 120 * s, x + d * 110 * s, y, o); },
-  flag: (x, y, s, o) => { inkLine(x, y, x, y - 200 * s, o); inkPath([[x, y - 200 * s], [x + 100 * s, y - 175 * s], [x, y - 150 * s]], { ...o, closed: true, fill: o.fill || mix(C.red, 0.45) }); },
+  flag: (x, y, s, o) => { inkLine(x, y, x, y - 200 * s, o); inkPath([[x, y - 200 * s], [x + 100 * s, y - 175 * s], [x, y - 150 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.red, 0.45) }); },
   mountain: (x, y, s, o) => { inkPoly([[x - 170 * s, y], [x - 50 * s, y - 170 * s], [x + 10 * s, y - 90 * s], [x + 60 * s, y - 140 * s], [x + 170 * s, y]], o); },
-  sun: (x, y, s, o) => { inkCircle(x, y - 80 * s, 40 * s, { ...o, fill: o.fill || mix(C.yellow, 0.4) }); for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; inkLine(x + Math.cos(a) * 56 * s, y - 80 * s + Math.sin(a) * 56 * s, x + Math.cos(a) * 76 * s, y - 80 * s + Math.sin(a) * 76 * s, o); } },
-  cloud: (x, y, s, o) => { const pts = []; for (let i = 0; i <= 60; i++) { const a = (i / 60) * Math.PI * 2; const r = 1 + 0.18 * Math.abs(Math.sin(a * 3.5)); pts.push([x + Math.cos(a) * 110 * s * r, y - 60 * s + Math.sin(a) * 46 * s * r]); } inkPath(pts, { ...o, closed: true, fill: o.fill || PAPER() }); },
-  star: (x, y, s, o) => { const pts = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i / 10) * Math.PI * 2, r = (i % 2 ? 30 : 72) * s; pts.push([x + Math.cos(a) * r, y - 76 * s + Math.sin(a) * r]); } inkPath(pts, { ...o, closed: true, fill: o.fill || mix(C.yellow, 0.4) }); },
+  sun: (x, y, s, o) => { inkCircle(x, y - 80 * s, 40 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.4) }); for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; inkLine(x + Math.cos(a) * 56 * s, y - 80 * s + Math.sin(a) * 56 * s, x + Math.cos(a) * 76 * s, y - 80 * s + Math.sin(a) * 76 * s, o); } },
+  cloud: (x, y, s, o) => { const pts = []; for (let i = 0; i <= 60; i++) { const a = (i / 60) * Math.PI * 2; const r = 1 + 0.18 * Math.abs(Math.sin(a * 3.5)); pts.push([x + Math.cos(a) * 110 * s * r, y - 60 * s + Math.sin(a) * 46 * s * r]); } inkPath(pts, { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || PAPER() }); },
+  star: (x, y, s, o) => { const pts = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i / 10) * Math.PI * 2, r = (i % 2 ? 30 : 72) * s; pts.push([x + Math.cos(a) * r, y - 76 * s + Math.sin(a) * r]); } inkPath(pts, { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.4) }); },
   eye: (x, y, s, o) => { inkArc(x, y - 30 * s, 90 * s, 70 * s, Math.PI * 1.15, Math.PI * 1.85, o); inkArc(x, y - 130 * s, 90 * s, 70 * s, Math.PI * 0.15, Math.PI * 0.85, o); inkCircle(x, y - 80 * s, 28 * s, o); inkDot(x, y - 80 * s, 12 * s, o); },
   magnifier: (x, y, s, o) => { inkCircle(x - 20 * s, y - 100 * s, 50 * s, { ...o, fill: o.fill }); inkLine(x + 16 * s, y - 64 * s, x + 70 * s, y - 10 * s, { ...o, w: 8 }); },
   puzzle: (x, y, s, o) => { inkPath([[x - 60 * s, y], [x - 60 * s, y - 120 * s], [x - 14 * s, y - 120 * s], [x - 14 * s, y - 140 * s], [x + 14 * s, y - 140 * s], [x + 14 * s, y - 120 * s], [x + 60 * s, y - 120 * s], [x + 60 * s, y - 74 * s], [x + 80 * s, y - 74 * s], [x + 80 * s, y - 46 * s], [x + 60 * s, y - 46 * s], [x + 60 * s, y]], { ...o, closed: true, fill: o.fill }); },
-  trophy: (x, y, s, o) => { inkPath([[x - 50 * s, y - 160 * s], [x + 50 * s, y - 160 * s], [x + 30 * s, y - 80 * s], [x - 30 * s, y - 80 * s]], { ...o, closed: true, fill: o.fill || mix(C.yellow, 0.4) }); inkLine(x, y - 80 * s, x, y - 30 * s, o); inkRect(x - 40 * s, y - 30 * s, 80 * s, 30 * s, o); },
+  trophy: (x, y, s, o) => { inkPath([[x - 50 * s, y - 160 * s], [x + 50 * s, y - 160 * s], [x + 30 * s, y - 80 * s], [x - 30 * s, y - 80 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.4) }); inkLine(x, y - 80 * s, x, y - 30 * s, o); inkRect(x - 40 * s, y - 30 * s, 80 * s, 30 * s, o); },
   bridge: (x, y, s, o) => {   // a plank over a gap between two cliffs
     inkPoly([[x - 220 * s, y - 60 * s], [x - 90 * s, y - 60 * s], [x - 80 * s, y - 20 * s], [x - 100 * s, y + 10 * s]], o);
     inkPoly([[x + 220 * s, y - 60 * s], [x + 90 * s, y - 60 * s], [x + 84 * s, y - 24 * s], [x + 102 * s, y + 10 * s]], o);
-    inkRect(x - 120 * s, y - 76 * s, 240 * s, 16 * s, { ...o, fill: o.fill || mix(C.orange, 0.35) }); },
+    inkRect(x - 120 * s, y - 76 * s, 240 * s, 16 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.orange, 0.35) }); },
   globe: (x, y, s, o) => { inkCircle(x, y - 80 * s, 76 * s, { ...o, fill: o.fill }); inkEllipse(x, y - 80 * s, 30 * s, 76 * s, o); inkLine(x - 76 * s, y - 80 * s, x + 76 * s, y - 80 * s, o); },
   note: (x, y, s, o) => { inkEllipse(x - 20 * s, y - 24 * s, 24 * s, 18 * s, { ...o, fill: o.color || INK() }); inkLine(x + 2 * s, y - 26 * s, x + 2 * s, y - 140 * s, o); inkCurve([x + 2 * s, y - 140 * s], [x + 50 * s, y - 120 * s], [x + 40 * s, y - 80 * s], o); },
   staff: (x, y, s, o) => { for (let i = 0; i < 5; i++) inkLine(x - 200 * s, y - (40 + i * 20) * s, x + 200 * s, y - (40 + i * 20) * s, { ...o, w: 2.4 }); },
-  record: (x, y, s, o) => { inkCircle(x, y - 90 * s, 90 * s, { ...o, fill: o.fill || INK() }); inkCircle(x, y - 90 * s, 60 * s, { ...o, color: C.dim, w: 2 }); inkCircle(x, y - 90 * s, 26 * s, { ...o, fill: o.label || mix(C.red, 0.8), color: PAPER() }); },
+  record: (x, y, s, o) => { inkCircle(x, y - 90 * s, 90 * s, { ...o, fill: (o.paperFill ? null : o.fill) || INK() }); inkCircle(x, y - 90 * s, 60 * s, { ...o, color: C.dim, w: 2 }); inkCircle(x, y - 90 * s, 26 * s, { ...o, fill: o.label || mix(C.red, 0.8), color: PAPER() }); },
   phonograph: (x, y, s, o) => { inkRect(x - 110 * s, y - 70 * s, 220 * s, 70 * s, { ...o, fill: o.fill }); inkEllipse(x - 10 * s, y - 70 * s, 84 * s, 18 * s, o); inkLine(x - 10 * s, y - 90 * s, x - 10 * s, y - 70 * s, o);
     inkPath([[x + 90 * s, y - 70 * s], [x + 90 * s, y - 150 * s], [x + 140 * s, y - 230 * s], [x + 40 * s, y - 230 * s], [x + 90 * s, y - 150 * s]], o); },
-  doll: (x, y, s, o) => { inkPath([[x, y - 170 * s], [x - 34 * s, y - 150 * s], [x - 40 * s, y - 110 * s], [x - 60 * s, y - 60 * s], [x - 56 * s, y], [x + 56 * s, y], [x + 60 * s, y - 60 * s], [x + 40 * s, y - 110 * s], [x + 34 * s, y - 150 * s]], { ...o, closed: true, fill: o.fill || mix(C.red, 0.3) });
+  doll: (x, y, s, o) => { inkPath([[x, y - 170 * s], [x - 34 * s, y - 150 * s], [x - 40 * s, y - 110 * s], [x - 60 * s, y - 60 * s], [x - 56 * s, y], [x + 56 * s, y], [x + 60 * s, y - 60 * s], [x + 40 * s, y - 110 * s], [x + 34 * s, y - 150 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.red, 0.3) });
     inkCircle(x, y - 130 * s, 26 * s, { ...o, fill: PAPER() }); inkDot(x - 9 * s, y - 132 * s, 3 * s, o); inkDot(x + 9 * s, y - 132 * s, 3 * s, o); },
-  pencil: (x, y, s, o) => { inkPath([[x - 14 * s, y - 180 * s], [x + 14 * s, y - 180 * s], [x + 14 * s, y - 40 * s], [x, y], [x - 14 * s, y - 40 * s]], { ...o, closed: true, fill: o.fill || mix(C.yellow, 0.4) }); },
-  paper: (x, y, s, o) => { inkRect(x - 80 * s, y - 200 * s, 160 * s, 200 * s, { ...o, fill: o.fill || mix(C.paper || '#ffffff', 0.6) }); if (!o.blank) for (let i = 0; i < 6; i++) inkLine(x - 56 * s, y - (164 - i * 26) * s, x + 56 * s, y - (164 - i * 26) * s, { ...o, w: 2, color: C.dim }); },
-  window: (x, y, s, o) => { inkRect(x - 90 * s, y - 200 * s, 180 * s, 200 * s, { ...o, fill: o.fill || mix(C.blue, 0.1) }); inkLine(x, y - 200 * s, x, y, o); inkLine(x - 90 * s, y - 100 * s, x + 90 * s, y - 100 * s, o); },
+  pencil: (x, y, s, o) => { inkPath([[x - 14 * s, y - 180 * s], [x + 14 * s, y - 180 * s], [x + 14 * s, y - 40 * s], [x, y], [x - 14 * s, y - 40 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.4) }); },
+  paper: (x, y, s, o) => { inkRect(x - 80 * s, y - 200 * s, 160 * s, 200 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.paper || '#ffffff', 0.6) }); if (!o.blank) for (let i = 0; i < 6; i++) inkLine(x - 56 * s, y - (164 - i * 26) * s, x + 56 * s, y - (164 - i * 26) * s, { ...o, w: 2, color: C.dim }); },
+  window: (x, y, s, o) => { inkRect(x - 90 * s, y - 200 * s, 180 * s, 200 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.blue, 0.1) }); inkLine(x, y - 200 * s, x, y, o); inkLine(x - 90 * s, y - 100 * s, x + 90 * s, y - 100 * s, o); },
   fly: (x, y, s, o) => { inkDot(x, y, 9 * s, o); inkEllipse(x - 8 * s, y - 12 * s, 10 * s, 6 * s, { ...o, w: 2 }); inkEllipse(x + 8 * s, y - 12 * s, 10 * s, 6 * s, { ...o, w: 2 }); },
-  rock: (x, y, s, o) => { inkPath([[x - 80 * s, y], [x - 70 * s, y - 50 * s], [x - 20 * s, y - 80 * s], [x + 50 * s, y - 70 * s], [x + 84 * s, y - 20 * s], [x + 76 * s, y]], { ...o, closed: true, fill: o.fill || mix(C.grey, 0.4) }); },
-  puddle: (x, y, s, o) => { inkEllipse(x, y - 14 * s, 120 * s, 22 * s, { ...o, fill: o.fill || mix(C.blue, 0.3) }); },
-  pawn: (x, y, s, o) => { inkCircle(x, y - 130 * s, 22 * s, { ...o, fill: o.fill || INK() }); inkPath([[x - 18 * s, y - 108 * s], [x + 18 * s, y - 108 * s], [x + 40 * s, y - 20 * s], [x - 40 * s, y - 20 * s]], { ...o, closed: true, fill: o.fill || INK() }); inkRect(x - 50 * s, y - 20 * s, 100 * s, 20 * s, { ...o, fill: o.fill || INK() }); },
-  cap: (x, y, s, o) => { inkEllipse(x, y - 30 * s, 40 * s, 30 * s, { ...o, fill: o.fill || mix(C.yellow, 0.5) }); for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; inkLine(x + Math.cos(a) * 40 * s, y - 30 * s + Math.sin(a) * 30 * s, x + Math.cos(a) * 46 * s, y - 30 * s + Math.sin(a) * 34 * s, { ...o, w: 2 }); } },
-  map: (x, y, s, o) => { inkPoly([[x - 120 * s, y], [x - 120 * s, y - 160 * s], [x - 40 * s, y - 140 * s], [x + 40 * s, y - 160 * s], [x + 120 * s, y - 140 * s], [x + 120 * s, y], [x + 40 * s, y - 20 * s], [x - 40 * s, y], [x - 120 * s, y]], { ...o, fill: o.fill || mix(C.paper || '#ffffff', 0.5) });
+  rock: (x, y, s, o) => { inkPath([[x - 80 * s, y], [x - 70 * s, y - 50 * s], [x - 20 * s, y - 80 * s], [x + 50 * s, y - 70 * s], [x + 84 * s, y - 20 * s], [x + 76 * s, y]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.grey, 0.4) }); },
+  puddle: (x, y, s, o) => { inkEllipse(x, y - 14 * s, 120 * s, 22 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.blue, 0.3) }); },
+  pawn: (x, y, s, o) => { inkCircle(x, y - 130 * s, 22 * s, { ...o, fill: (o.paperFill ? null : o.fill) || INK() }); inkPath([[x - 18 * s, y - 108 * s], [x + 18 * s, y - 108 * s], [x + 40 * s, y - 20 * s], [x - 40 * s, y - 20 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || INK() }); inkRect(x - 50 * s, y - 20 * s, 100 * s, 20 * s, { ...o, fill: (o.paperFill ? null : o.fill) || INK() }); },
+  cap: (x, y, s, o) => { inkEllipse(x, y - 30 * s, 40 * s, 30 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.5) }); for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; inkLine(x + Math.cos(a) * 40 * s, y - 30 * s + Math.sin(a) * 30 * s, x + Math.cos(a) * 46 * s, y - 30 * s + Math.sin(a) * 34 * s, { ...o, w: 2 }); } },
+  map: (x, y, s, o) => { inkPoly([[x - 120 * s, y], [x - 120 * s, y - 160 * s], [x - 40 * s, y - 140 * s], [x + 40 * s, y - 160 * s], [x + 120 * s, y - 140 * s], [x + 120 * s, y], [x + 40 * s, y - 20 * s], [x - 40 * s, y], [x - 120 * s, y]], { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.paper || '#ffffff', 0.5) });
     inkPath([[x - 90 * s, y - 40 * s], [x - 50 * s, y - 90 * s], [x + 10 * s, y - 60 * s], [x + 80 * s, y - 120 * s]], { ...o, color: C.red, w: 3, dash: [10, 8] }); },
   stadium: (x, y, s, o) => { inkArc(x, y, 260 * s, 120 * s, Math.PI, Math.PI * 2, o); inkArc(x, y, 200 * s, 80 * s, Math.PI, Math.PI * 2, o); inkLine(x - 260 * s, y, x + 260 * s, y, o); },
 };
 function prop(name, x, y, s = 1, o = {}) {
   const f = PROPS[name]; if (!f) { MISS.add('prop:' + name); return; }
   const oo = { p: 1, a: 1, w: 4 * Math.max(0.7, Math.sqrt(s)), ...o };
+  if (oo.fill === undefined) { oo.fill = PAPER(); oo.paperFill = true; }   // opaque: a prop in front hides what is behind it
+  // (props with their own colour keep it: they test o.paperFill)
   if (oo.p <= 0 || oo.a <= 0) return;
+  const tr = DOCENT.track = { box: null };
   f(x, y, s, oo);
+  DOCENT.track = null;
+  if (tr.box && !DOCENT.ghostOk) DOCENT.props.push({ name, box: tr.box, seq: ++DOCENT.seq });
 }
+
+// ---------- library additions: research-skill make-docent-book, 2026-11-10 ----------
+// Drawn by the probe authors from scenes.js (the extension route in TEMPLATES.md "Adding an asset"), checked on
+// their gallery sheets and by the blind reviewers. Source probe in brackets.
+const DOCENT_WOOD = () => mix(C.orange, 0.45);
+const docentShade = (hex, k) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('');
+const DOCENT_LEVER_L = 120;
+const docentLeverTip = (x, y, s, pull = 0) => { const a = lerp(-0.5, 0.5, pull); return [x + Math.sin(a) * DOCENT_LEVER_L * s, y - 40 * s - Math.cos(a) * DOCENT_LEVER_L * s]; };
+// swans on water: boat body, raised wing, S-neck; the black swan has a red beak and eye [The Black Swan]
+function docentSwan(T, o, q, black) {
+  const s = o.s, body = black ? '#2a2a30' : C.paper, wing = black ? '#45454f' : mix(C.paper, 0.8);
+  inkLine(...T(-176, 0), ...T(-70, 0), { ...o, p: q(0), color: C.teal, w: o.w * 0.8 });
+  inkLine(...T(-30, 2), ...T(132, 2), { ...o, p: q(0), color: C.teal, w: o.w * 0.8 });
+  inkPath([T(-152, -76), T(-118, -44), T(-60, -18), T(30, -16), T(92, -34), T(116, -60), T(92, -84), T(24, -96), T(-50, -98), T(-112, -94)], { ...o, closed: true, round: 2, p: q(1), fill: body });
+  inkPath([T(-126, -86), T(-70, -126), T(-4, -122), T(58, -92), T(0, -72), T(-82, -68)], { ...o, closed: true, round: 2, p: q(2), fill: wing });
+  for (let k = 0; k < 2; k++) inkCurve(T(-100 + k * 56, -88), T(-70 + k * 56, -106), T(-34 + k * 56, -84), { ...o, p: q(2), w: o.w * 0.6, jit: 0.2, color: black ? C.grey : C.dim });
+  const front = [T(106, -70), T(120, -122), T(98, -172), T(94, -208), T(102, -232)];
+  const back = [T(76, -84), T(92, -126), T(70, -174), T(68, -210), T(76, -238)];
+  inkPath([...front, ...back.reverse()], { ...o, closed: true, round: 2, p: q(3), fill: body });
+  inkEllipse(...T(90, -234), 22 * s, 18 * s, { ...o, p: q(3), fill: body });
+  inkPath([T(106, -241), T(142, -224), T(106, -224)], { ...o, closed: true, p: q(4), fill: black ? C.red : C.orange, w: o.w * 0.7 });
+  if (black) inkLine(...T(128, -232), ...T(128, -224), { ...o, p: q(4), color: C.paper, w: o.w * 0.8 });
+  else { const k = T(104, -240); disc(k[0], k[1], 6 * s, INK(), o.a * clamp01(q(4) * 2)); }
+  const e = T(92, -238); disc(e[0], e[1], 4.5 * s, black ? C.red : INK(), o.a * clamp01(q(4) * 2));
+  return { head: T(90, -234), r: 22 * s, mouth: T(138, -226), top: T(90, -258) };
+}
+Object.assign(ANIMALS, {
+  whale: (T, o, q) => {
+  const skin = (o.paperFill ? null : o.fill) || C.paper || '#ffffff', R = { ...o, round: 2 };
+  // tail flukes raised behind the body
+  inkPath([T(-238, -214), T(-272, -238), T(-312, -262), T(-352, -294), T(-302, -292), T(-266, -278), T(-240, -256),
+    T(-212, -278), T(-176, -292), T(-126, -294), T(-166, -262), T(-206, -238)], { ...R, closed: true, p: q(0), fill: skin });
+  // body: block head on the right, a low hump, the tail stock curling up into the flukes
+  inkPath([T(170, -186), T(246, -182), T(272, -160), T(278, -112), T(270, -66), T(240, -52), T(150, -44), T(60, -36),
+    T(-40, -40), T(-120, -62), T(-182, -98), T(-226, -150), T(-250, -216), T(-224, -226), T(-204, -168), T(-160, -138),
+    T(-100, -152), T(-20, -176), T(80, -188)], { ...R, closed: true, p: q(1), fill: skin });
+  // where the head block meets the body, and the thin lower jaw with teeth
+  inkCurve(T(122, -186), T(98, -120), T(120, -46), { ...o, p: q(2), w: o.w * 0.6, color: C.dim });
+  inkPath([T(256, -60), T(196, -50), T(124, -44)], { ...o, p: q(2), w: o.w * 0.9 });
+  for (let i = 0; i < 5; i++) { const xx = 236 - i * 22; inkLine(...T(xx, -57 + i * 1.6), ...T(xx - 3, -68 + i * 1.6), { ...o, p: q(2), w: o.w * 0.5 }); }
+  const e = T(196, -84); disc(e[0], e[1], 6 * o.s, INK(), o.a * clamp01(q(2) * 2));
+  inkArc(e[0], e[1] - 2 * o.s, 12 * o.s, 8 * o.s, Math.PI * 1.15, Math.PI * 1.85, { ...o, p: q(2), w: o.w * 0.5 });
+  // wrinkled skin on the back half
+  [[-30, -112], [-80, -98], [20, -126], [-130, -88], [60, -140]].forEach(([wx, wy]) =>
+    inkCurve(T(wx - 18, wy), T(wx, wy - 8), T(wx + 18, wy), { ...o, p: q(3), w: o.w * 0.45, color: C.dim }));
+  // two old harpoon poles stuck in the back (Moby Dick carries the irons of earlier hunts)
+  for (const [hx, hy, dx] of [[-60, -164, -34], [10, -182, -22]]) inkLine(...T(hx, hy), ...T(hx + dx, hy - 70), { ...o, p: q(3), w: o.w * 1.1 });
+  // the spout from the blowhole at the front of the head
+  const jet = { ...o, p: q(4), color: C.teal, w: o.w * 0.9 };
+  inkCurve(T(248, -188), T(240, -252), T(204, -282), jet);
+  inkCurve(T(256, -188), T(266, -252), T(304, -280), jet);
+  inkLine(...T(252, -188), ...T(252, -298), jet);
+  for (const [dx, dy] of [[-58, -268], [58, -266], [-30, -300], [34, -302]]) { const d = T(252 + dx, dy); disc(d[0], d[1], 5 * o.s, C.teal, o.a * clamp01(q(4) * 2)); }
+  return { head: T(210, -120), r: 64 * o.s, mouth: T(262, -62), top: T(252, -304) };
+},   // [Moby-Dick]
+  turkey: (T, o, q) => {
+  const s = o.s, brown = (o.paperFill ? null : o.fill) || mix(C.orange, 0.78), skin = mix(C.paper, 0.92);
+  for (const lx of [-14, 14]) {
+    inkPoly([T(lx, -44), T(lx + 4, 0)], { ...o, p: q(0), w: o.w * 0.9, color: C.orange });
+    inkPoly([T(lx - 12, 2), T(lx + 4, 0), T(lx + 20, 2)], { ...o, p: q(0), w: o.w * 0.8, color: C.orange });
+  }
+  const cx = -40, cy = -110;
+  const feather = (a, r0, r1, wd, fill, k) => {
+    const P = (r, off) => T(cx + Math.cos(a) * r - Math.sin(a) * off, cy + Math.sin(a) * r + Math.cos(a) * off);
+    const rm = (r0 + r1) / 2;
+    inkPath([P(r0, 0), P(rm, wd), P(r1 - 8, wd * 0.7), P(r1, 0), P(r1 - 8, -wd * 0.7), P(rm, -wd)], { ...o, closed: true, round: 1, p: q(k), fill, w: o.w * 0.7 });
+  };
+  for (let i = 0; i < 9; i++) feather(Math.PI * (0.94 + i * 0.085), 40, 156, 22, i % 2 ? mix(C.yellow, 0.75) : mix(C.orange, 0.9), 1);
+  for (let i = 0; i < 9; i++) feather(Math.PI * (0.94 + i * 0.085), 34, 104, 18, mix(C.dim, 0.85), 1);
+  inkEllipse(...T(-4, -96), 70 * s, 58 * s, { ...o, p: q(2), fill: brown });
+  inkPath([T(-52, -102), T(-8, -126), T(40, -108), T(12, -78), T(-40, -76)], { ...o, closed: true, round: 2, p: q(3), fill: mix(C.dim, 0.75) });
+  inkPath([T(34, -128), T(52, -176), T(70, -196), T(88, -182), T(66, -146), T(58, -110)], { ...o, closed: true, round: 1, p: q(3), fill: skin });
+  inkCircle(...T(76, -190), 20 * s, { ...o, p: q(3), fill: skin });
+  inkPath([T(92, -196), T(116, -187), T(92, -180)], { ...o, closed: true, p: q(4), fill: C.yellow, w: o.w * 0.7 });
+  inkCurve(T(86, -206), T(102, -200), T(98, -170), { ...o, p: q(4), w: o.w * 1.7, color: C.red });
+  inkPath([T(80, -178), T(94, -174), T(94, -152), T(86, -142), T(76, -152)], { ...o, closed: true, round: 1, p: q(4), fill: C.red, w: o.w * 0.7 });
+  const e = T(78, -195); disc(e[0], e[1], 4.5 * s, INK(), o.a * clamp01(q(4) * 2));
+  return { head: T(76, -190), r: 22 * s, mouth: T(112, -187), top: T(-40, -270) };
+},   // [The Black Swan]
+  mammoth: (T, o, q) => {
+  const fur = (o.paperFill ? null : o.fill) || '#9a6a45', dark = '#6e4528', ivory = '#f3ead2';
+  // legs (far pair darker), then the body over their tops
+  for (const [lx, f] of [[-96, dark], [58, dark], [-128, fur], [92, fur]]) inkPath([T(lx - 20, -96), T(lx - 22, 0), T(lx + 20, 0), T(lx + 20, -96)], { ...o, closed: true, p: q(0), fill: f, round: 1 });
+  const body = [T(-168, -96), T(-178, -150), T(-150, -200), T(-90, -230), T(-20, -254), T(40, -270), T(90, -252),
+    T(112, -222), T(126, -150), T(110, -96), T(40, -84), T(-60, -84), T(-130, -88)];
+  inkPath(body, { ...o, closed: true, p: q(1), fill: fur, round: 2 });
+  // the hanging fringe of long hair under the belly and on the upper legs
+  for (let i = 0; i < 13; i++) { const u = i / 12, [ax, ay] = T(-160 + u * 270, -90 + Math.sin(u * 3.1) * 6);
+    inkLine(ax, ay, ax - 6 * o.dir * o.s, ay + (38 + 16 * Math.abs(Math.sin(i * 1.9))) * o.s, { ...o, p: q(2), w: o.w * 0.9, color: dark, jit: 0.4 }); }
+  for (let i = 0; i < 5; i++) { const [ax, ay] = T(112 + i * 14, -170 + i * 4); inkLine(ax, ay, ax - 4 * o.dir * o.s, ay + 44 * o.s, { ...o, p: q(2), w: o.w * 0.9, color: dark, jit: 0.4 }); }   // throat fringe
+  for (const [hx, hy] of [[-110, -200], [-50, -224], [20, -236], [-130, -150], [-60, -170]]) inkCurve(T(hx, hy), T(hx + 14, hy + 16), T(hx + 6, hy + 34), { ...o, p: q(2), w: o.w * 0.6, color: dark });
+  // high domed head and the trunk
+  inkPath([T(92, -236), T(104, -298), T(140, -322), T(182, -302), T(200, -240), T(196, -176), T(150, -152), T(108, -176)], { ...o, closed: true, p: q(2), fill: fur, round: 2 });
+  inkPath([T(176, -180), T(206, -120), T(208, -46), T(226, -30), T(232, -48), T(222, -122), T(198, -186)], { ...o, closed: true, p: q(3), fill: fur, round: 1 });
+  // small ear, eye
+  inkEllipse(...T(118, -228), 11 * o.s, 18 * o.s, { ...o, p: q(3), fill: dark });
+  const e = T(170, -256); disc(e[0], e[1], 5 * o.s, INK(), o.a * clamp01(q(3) * 2));
+  // the long tusk: out of the mouth, forward, curling up and back (ink outline, ivory inside)
+  const tusk = [T(184, -158), T(250, -108), T(312, -150), T(300, -222)];
+  inkPath(tusk, { ...o, p: q(4), w: o.w * 3.4, round: 2 });
+  inkPath(tusk, { ...o, p: q(4), w: o.w * 2.0, color: ivory, round: 2 });
+  return { head: T(150, -240), r: 64 * o.s, mouth: T(190, -164), top: T(140, -322) };
+},   // [Sapiens]
+  pig: (T, o, q) => {
+  const skin = (o.paperFill ? null : o.fill) || '#f0b2bf', R = { ...o, round: 1 };
+  for (const lx of [-62, 58]) inkPath([T(lx - 13, -66), T(lx - 13, -2), T(lx + 13, -2), T(lx + 13, -66)], { ...R, closed: true, p: q(0), fill: docentShade(skin, 0.78) });
+  const curl = [T(-132, -116)];
+  for (let i = 0; i <= 22; i++) { const u = i / 22, a = Math.PI * (0.9 - 2.4 * u), r = 20 - 9 * u; curl.push(T(-156 + Math.cos(a) * r, -130 - Math.sin(a) * r)); }
+  inkPath(curl, { ...o, p: q(0), w: o.w * 1.1, jit: 0.3 });
+  for (const lx of [-92, 30]) inkPath([T(lx - 14, -66), T(lx - 14, 0), T(lx + 14, 0), T(lx + 14, -66)], { ...R, closed: true, p: q(1), fill: skin });
+  for (const lx of [-92, 30]) inkPath([T(lx - 14, -12), T(lx + 14, -12), T(lx + 14, 0), T(lx - 14, 0)], { ...o, closed: true, p: q(1), fill: INK(), w: o.w * 0.5 });
+  inkEllipse(...T(-8, -106), 138 * o.s, 72 * o.s, { ...o, p: q(1), fill: skin });
+  inkCircle(...T(118, -122), 58 * o.s, { ...o, p: q(2), fill: skin });
+  inkPath([T(90, -166), T(108, -208), T(146, -172)], { ...R, closed: true, p: q(3), fill: docentShade(skin, 0.85) });
+  inkEllipse(...T(176, -112), 20 * o.s, 27 * o.s, { ...o, p: q(3), fill: docentShade(skin, 0.9) });
+  for (const ny of [-121, -103]) { const n = T(180, ny); disc(n[0], n[1], 4.5 * o.s, INK(), o.a * clamp01(q(4) * 2)); }
+  const e = T(136, -140); disc(e[0], e[1], 6 * o.s, INK(), o.a * clamp01(q(4) * 2));
+  inkCurve(T(138, -84), T(150, -76), T(164, -86), { ...o, p: q(4), w: o.w * 0.7 });
+  return { head: T(118, -122), r: 58 * o.s, mouth: T(164, -86), top: T(110, -210) };
+},   // [Animal Farm]
+  horse: (T, o, q) => {
+  const coat = (o.paperFill ? null : o.fill) || '#b98258', dark = docentShade(coat, 0.42), far = docentShade(coat, 0.78), R = { ...o, round: 1 };
+  for (const lx of [-92, 72]) inkPath([T(lx - 11, -178), T(lx - 11, -2), T(lx + 11, -2), T(lx + 11, -178)], { ...R, closed: true, p: q(0), fill: far });
+  inkPath([T(-150, -236), T(-188, -216), T(-206, -150), T(-198, -80), T(-178, -74), T(-176, -146), T(-152, -200)], { ...o, closed: true, p: q(0), fill: dark, round: 2, jit: 1.6 });
+  for (const lx of [-118, 44]) inkPath([T(lx - 13, -180), T(lx - 13, 0), T(lx + 13, 0), T(lx + 13, -180)], { ...R, closed: true, p: q(1), fill: coat });
+  for (const lx of [-118, 44, -92, 72]) inkPath([T(lx - 13, -18), T(lx + 13, -18), T(lx + 13, 0), T(lx - 13, 0)], { ...o, closed: true, p: q(1), fill: INK(), w: o.w * 0.5 });
+  inkEllipse(...T(-22, -214), 146 * o.s, 60 * o.s, { ...o, p: q(1), fill: coat });
+  inkPath([T(70, -250), T(150, -350), T(196, -326), T(128, -196)], { ...o, closed: true, p: q(2), fill: coat, round: 2 });
+  inkPath([T(146, -348), T(176, -366), T(258, -302), T(264, -276), T(244, -262), T(206, -270), T(166, -310)], { ...o, closed: true, p: q(2), fill: coat, round: 2 });
+  inkPath([T(66, -244), T(96, -292), T(130, -336), T(152, -362), T(166, -350), T(142, -318), T(112, -276), T(92, -236)], { ...o, closed: true, p: q(3), fill: dark, round: 1 });
+  inkPath([T(160, -358), T(166, -398), T(186, -362)], { ...o, closed: true, p: q(3), fill: coat });
+  inkLine(...T(194, -340), ...T(248, -290), { ...o, p: q(4), color: C.paper, w: o.w * 2.4, jit: 0.3 });
+  const e = T(186, -330); disc(e[0], e[1], 6 * o.s, INK(), o.a * clamp01(q(4) * 2));
+  const n = T(250, -278); disc(n[0], n[1], 4.5 * o.s, INK(), o.a * clamp01(q(4) * 2));
+  return { head: T(205, -314), r: 52 * o.s, mouth: T(248, -266), top: T(166, -400) };
+},   // [Animal Farm]
+  hen: (T, o, q) => {
+  const f = (o.paperFill ? null : o.fill) || '#f7f4ec';
+  for (const d of [-14, 14]) inkPoly([T(d, -46), T(d, 0), T(d + 16, 0)], { ...o, p: q(0), color: C.yellow, w: o.w * 0.9 });
+  inkPath([T(-56, -96), T(-104, -160), T(-90, -110), T(-118, -128), T(-84, -76)], { ...o, closed: true, p: q(1), fill: f, round: 1 });
+  inkEllipse(...T(-4, -84), 74 * o.s, 48 * o.s, { ...o, p: q(1), fill: f });
+  inkCircle(...T(52, -138), 30 * o.s, { ...o, p: q(2), fill: f });
+  inkPath([T(32, -164), T(38, -186), T(48, -172), T(56, -192), T(64, -172), T(74, -184), T(76, -160)], { ...o, closed: true, p: q(3), fill: C.red, round: 1 });
+  inkPath([T(80, -142), T(104, -134), T(80, -126)], { ...o, closed: true, p: q(3), fill: C.yellow });
+  inkEllipse(...T(76, -112), 8 * o.s, 12 * o.s, { ...o, p: q(3), fill: C.red });
+  inkCurve(T(-40, -96), T(-6, -70), T(30, -90), { ...o, p: q(4), w: o.w * 0.7 });
+  const e = T(60, -146); disc(e[0], e[1], 5 * o.s, INK(), o.a * clamp01(q(4) * 2));
+  return { head: T(52, -138), r: 30 * o.s, mouth: T(98, -134), top: T(54, -192) };
+},   // [Animal Farm]
+  swan: (T, o, q) => docentSwan(T, o, q, false),   // [The Black Swan]
+  blackswan: (T, o, q) => docentSwan(T, o, q, true),
+});
+Object.assign(PROPS, {
+  ship: (x, y, s, o) => {
+  const P = (px, py) => [x + px * s, y + py * s], w = o.w || 4;
+  const masts = [[-150, -400], [10, -452], [170, -382]];
+  masts.forEach(([mx, top]) => inkLine(...P(mx, -96), ...P(mx, top), { ...o, w: w * 1.3 }));
+  inkLine(...P(10, -452), ...P(340, -160), { ...o, w: 1.8, color: C.dim });     // stays
+  inkLine(...P(10, -452), ...P(-262, -112), { ...o, w: 1.8, color: C.dim });
+  inkLine(...P(170, -382), ...P(340, -160), { ...o, w: 1.8, color: C.dim });
+  const sail = (mx, ty, hw, h) => {   // a square sail on its yard, bellied by the wind
+    inkLine(...P(mx - hw - 12, ty), ...P(mx + hw + 12, ty), { ...o, w: w * 1.1 });
+    const pts = [P(mx - hw, ty), P(mx + hw, ty), P(mx + hw * 1.1, ty + h)];
+    for (let i = 1; i < 8; i++) { const u = i / 8; pts.push(P(mx + hw * 1.1 * (1 - 2 * u), ty + h + 16 * Math.sin(Math.PI * u))); }
+    pts.push(P(mx - hw * 1.1, ty + h));
+    inkPath(pts, { ...o, closed: true, fill: C.paper, w: w * 0.8 });
+  };
+  masts.forEach(([mx, top]) => { sail(mx, top + 22, 48, 92); sail(mx, top + 132, 62, 112); });
+  inkPath([P(10, -452), P(64, -440), P(10, -428)], { ...o, closed: true, fill: mix(C.red, 0.7), w: w * 0.6 });   // pennant
+  inkLine(...P(250, -112), ...P(340, -160), { ...o, w: w * 1.1 });     // bowsprit
+  inkPath([P(-272, -116), P(-232, -98), P(196, -98), P(262, -122), P(242, -62), P(202, -14), P(-182, -8), P(-252, -50)],
+    { ...o, closed: true, round: 1, fill: (o.paperFill ? null : o.fill) || mix(C.dim, 0.85) });   // dark weathered hull
+  inkLine(...P(-244, -78), ...P(236, -82), { ...o, w: w * 0.6, color: C.paper });   // painted stripe
+},   // [Moby-Dick]
+  whaleboat: (x, y, s, o) => {
+  const P = (px, py) => [x + px * s, y + py * s], w = o.w || 4;
+  const hull = [P(-186, -70), P(-120, -44), P(120, -44), P(186, -70), P(150, -22), P(100, 0), P(-100, 0), P(-150, -22)];
+  inkPath(hull, { ...o, closed: true, round: 1, fill: C.bg, color: 'rgba(0,0,0,0)' });     // opaque under the wood tint
+  inkPath(hull, { ...o, closed: true, round: 1, fill: (o.paperFill ? null : o.fill) || DOCENT_WOOD() });
+  inkLine(...P(-150, -38), ...P(150, -38), { ...o, w: w * 0.5, color: C.paper });
+  for (const d of [-1, 1]) inkLine(...P(d * 70, -50), ...P(d * 160, 26), { ...o, w: w * 0.9 });   // oars, near side
+},   // [Moby-Dick]
+  harpoon: (x, y, s, o) => {
+  const P = (px, py) => [x + px * s, y + py * s], w = o.w || 4;
+  inkLine(...P(0, 0), ...P(0, -282), { ...o, w: w * 1.3, color: o.color || INK() });   // wooden pole
+  inkLine(...P(0, -282), ...P(0, -312), { ...o, w: w * 0.9 });                            // iron shank
+  inkPath([P(0, -342), P(-16, -300), P(-3, -308), P(0, -304), P(3, -308), P(16, -300)], { ...o, closed: true, fill: INK(), w: w * 0.6 });
+},   // [Moby-Dick]
+  flask: (x, y, s, o) => {
+  const P = (px, py) => [x + px * s, y + py * s];
+  inkPath([P(-44, -10), P(44, -10), P(28, -58), P(-28, -58)], { ...o, closed: true, fill: mix(C.green, 0.5), color: 'rgba(0,0,0,0)' });
+  inkPath([P(-18, -170), P(-18, -112), P(-62, 0), P(62, 0), P(18, -112), P(18, -170)], o);
+  inkLine(...P(-26, -170), ...P(26, -170), o);
+},   // [Madame Curie]
+  testtubes: (x, y, s, o) => {
+  const P = (px, py) => [x + px * s, y + py * s];
+  [[-70, C.red], [0, C.yellow], [70, C.blue]].forEach(([dx, c]) => {
+    inkPath([P(dx - 14, -62), P(dx + 14, -62), P(dx + 14, -14), P(dx - 14, -14)], { ...o, closed: true, fill: mix(c, 0.55), color: 'rgba(0,0,0,0)' });
+    inkPath([P(dx - 16, -150), P(dx - 16, -14), P(dx, -2), P(dx + 16, -14), P(dx + 16, -150)], { ...o, round: 1 });
+  });
+  inkRect(...P(-110, -100), 220 * s, 22 * s, { ...o, fill: DOCENT_WOOD() });
+  inkLine(...P(-100, -78), ...P(-100, 0), o); inkLine(...P(100, -78), ...P(100, 0), o);
+},   // [Madame Curie]
+  medal: (x, y, s, o) => {
+  const P = (px, py) => [x + px * s, y + py * s];
+  inkPath([P(-70, -270), P(-26, -270), P(14, -150), P(-20, -140)], { ...o, closed: true, fill: mix(C.blue, 0.55) });
+  inkPath([P(70, -270), P(26, -270), P(-14, -150), P(20, -140)], { ...o, closed: true, fill: mix(C.red, 0.55) });
+  inkCircle(...P(0, -76), 76 * s, { ...o, fill: mix(C.yellow, 0.7) });
+  inkCircle(...P(0, -76), 56 * s, { ...o, w: (o.w || 4) * 0.6 });
+  for (const d of [-1, 1]) {
+    inkArc(...P(0, -76), 40 * s, 40 * s, d < 0 ? Math.PI * 0.55 : Math.PI * 0.05, d < 0 ? Math.PI * 0.95 : Math.PI * 0.45, { ...o, w: (o.w || 4) * 0.6 });
+    for (let i = 0; i < 3; i++) { const a = (d < 0 ? Math.PI * 0.62 : Math.PI * 0.12) + i * 0.13 * Math.PI; const [lx, ly] = P(Math.cos(a) * 40, -76 + Math.sin(a) * 40);
+      inkEllipse(lx, ly, 9 * s, 4.5 * s, { ...o, w: 1.6, fill: C.green }); }
+  }
+},   // [Madame Curie]
+  moon: (x, y, s, o) => {
+  const cx = x, cy = y - 80 * s, R = 70 * s, pts = [];
+  for (let i = 0; i <= 24; i++) { const a = -Math.PI * 0.5 + (i / 24) * Math.PI; pts.push([cx + Math.cos(a) * R, cy + Math.sin(a) * R]); }      // outer edge (right half)
+  for (let i = 24; i >= 0; i--) { const a = -Math.PI * 0.5 + (i / 24) * Math.PI; pts.push([cx + Math.cos(a) * R * 0.45, cy + Math.sin(a) * R]); } // inner edge
+  inkPath(pts, { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || mix(C.yellow, 0.45) });
+},   // [윤동주]
+  wind: (x, y, s, o) => {
+  [[-30, 0, 220], [20, 55, 260], [-10, 110, 180]].forEach(([dx, dy, L], i) => {
+    const y0 = y - 140 * s + dy * s, x0 = x - 130 * s + dx * s, x1 = x0 + L * s;
+    inkPath([[x0, y0], [x0 + L * 0.5 * s, y0 - 10 * s], [x1, y0], [x1 + 24 * s, y0 - 22 * s], [x1 + 6 * s, y0 - 44 * s], [x1 - 14 * s, y0 - 26 * s]],
+      { ...o, round: 2, p: clamp01((o.p ?? 1) * 3 - i) });
+  });
+},   // [윤동주]
+  frame: (x, y, s, o) => {
+  const w = 220 * s, h = 150 * s, x0 = x - w / 2, y0 = y - h;
+  inkLine(x, y0 - 50 * s, x0 + w * 0.2, y0, { ...o, w: 2.5 }); inkLine(x, y0 - 50 * s, x0 + w * 0.8, y0, { ...o, w: 2.5 });
+  inkDot(x, y0 - 50 * s, 6 * Math.sqrt(s), o);
+  inkRect(x0, y0, w, h, { ...o, w: 9 * Math.sqrt(s), fill: mix(C.paper, 0.9) });
+  inkRect(x0 + 14 * s, y0 + 14 * s, w - 28 * s, h - 28 * s, { ...o, w: 3, fill: o.sky || mix(C.ink, 0.85) });
+  if (o.inside) o.inside(x0 + 14 * s, y0 + 14 * s, w - 28 * s, h - 28 * s, clamp01(((o.p ?? 1) - 0.4) / 0.6));
+},   // [윤동주]
+  trolley: (x, y, s, o) => {
+  inkPath([[x - 20 * s, y - 168 * s], [x - 70 * s, y - 214 * s], [x - 92 * s, y - 214 * s]], { ...o, w: 3 });   // trolley pole
+  inkPath([[x - 140 * s, y - 150 * s], [x + 140 * s, y - 150 * s], [x + 118 * s, y - 172 * s], [x - 118 * s, y - 172 * s]], { ...o, closed: true, fill: mix(C.ink, 0.85) });   // roof
+  inkRect(x - 132 * s, y - 150 * s, 264 * s, 118 * s, { ...o, fill: (o.paperFill ? null : o.fill) || mix(C.orange, 0.6) });   // body
+  for (const dx of [-100, -36, 28]) inkRect(x + dx * s, y - 138 * s, 50 * s, 44 * s, { ...o, w: 3, fill: C.paper });   // windows
+  inkRect(x + 92 * s, y - 138 * s, 30 * s, 92 * s, { ...o, w: 3 });   // door
+  inkCircle(x + 126 * s, y - 62 * s, 9 * s, { ...o, w: 3, fill: mix(C.yellow, 0.9) });   // headlight
+  for (const dx of [-82, 82]) inkCircle(x + dx * s, y - 20 * s, 20 * s, { ...o, fill: C.paper });   // wheels
+},   // [Justice]
+  lever: (x, y, s, o) => {
+  const [tx, ty] = docentLeverTip(x, y, s, o.pull || 0);
+  inkLine(x, y - 40 * s, tx, ty, { ...o, w: 7 * Math.sqrt(s) });
+  inkCircle(tx, ty, 15 * s, { ...o, fill: C.red });
+  inkRect(x - 48 * s, y - 40 * s, 96 * s, 40 * s, { ...o, fill: mix(C.grey, 0.7) });
+},   // [Justice]
+  bowl: (x, y, s, o) => {
+  inkPath([[x - 86 * s, y - 50 * s], [x + 86 * s, y - 50 * s], [x + 60 * s, y], [x - 60 * s, y]], { ...o, closed: true, round: 1, fill: (o.paperFill ? null : o.fill) || mix(C.red, 0.45) });
+  inkArc(x, y - 50 * s, 74 * s, 26 * s, Math.PI, Math.PI * 2, { ...o, fill: mix(C.yellow, 0.7) });
+},   // [The Black Swan]
+  garage: (x, y, s, o) => {
+  const w = 300 * s, hw = 120 * s, rf = 40 * s, L = x - w / 2, R = x + w / 2, top = y - hw;
+  const dw = w * 0.8, dh = hw * 0.82, dl = x - dw / 2;
+  inkPoly([[L - 16 * s, top + 2 * s], [x, top - rf], [R + 16 * s, top + 2 * s]], { ...o, closed: true, fill: mix(C.red, 0.35) });   // roof (first: walls overdraw its eave)
+  inkRect(L, top, w, hw, { ...o, fill: (o.paperFill ? null : o.fill) || '#dfe4ea' });                                   // walls (opaque)
+  inkRect(dl, y - dh, dw, dh, { ...o, fill: mix(C.dim, 0.22) });                                // the open door: shaded interior, light enough for name tags
+  for (let i = 0; i < 3; i++) inkLine(dl, y - dh + (8 + i * 8) * s, dl + dw, y - dh + (8 + i * 8) * s, { ...o, w: (o.w || 4) * 0.6 });   // rolled-up door slats
+  inkLine(L - 40 * s, y, R + 40 * s, y, { ...o, w: (o.w || 4) * 1.1 });                           // driveway line
+},   // [Steve Jobs]
+  pcb: (x, y, s, o) => {
+  const w = 200 * s, h = 120 * s, L = x - w / 2, T = y - h;
+  inkRect(L, T, w, h, { ...o, fill: mix(C.green, 0.75) });
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) inkRect(L + 22 * s + c * 44 * s, T + 20 * s + r * 44 * s, 30 * s, 26 * s, { ...o, w: (o.w || 4) * 0.5, fill: INK() });
+  for (let i = 0; i < 9; i++) inkLine(L + 24 * s + i * 19 * s, y, L + 24 * s + i * 19 * s, y - 10 * s, { ...o, w: (o.w || 4) * 0.8, color: C.yellow });
+},   // [Steve Jobs]
+  fire: (x, y, s, o) => {
+  const t = o.t || 0, fl = Math.sin(t * 9) * 6 * s, wood = '#6e4528';
+  inkLine(x - 80 * s, y - 6 * s, x + 80 * s, y - 34 * s, { ...o, w: 14 * Math.sqrt(s), color: wood });
+  inkLine(x - 80 * s, y - 34 * s, x + 80 * s, y - 6 * s, { ...o, w: 14 * Math.sqrt(s), color: wood });
+  inkPath([[x - 52 * s, y - 30 * s], [x - 62 * s, y - 84 * s], [x - 30 * s, y - 120 * s], [x - 18 * s, y - 96 * s], [x + fl, y - 166 * s],
+    [x + 24 * s, y - 104 * s], [x + 40 * s, y - 128 * s], [x + 62 * s, y - 78 * s], [x + 52 * s, y - 30 * s]], { ...o, closed: true, fill: C.orange, color: C.red, round: 1 });
+  inkPath([[x - 26 * s, y - 32 * s], [x - 30 * s, y - 70 * s], [x - fl * 0.5, y - 116 * s], [x + 30 * s, y - 70 * s], [x + 26 * s, y - 32 * s]], { ...o, closed: true, fill: C.yellow, color: C.yellow, w: 2, round: 1 });
+},   // [Sapiens]
+  barn: (x, y, s, o) => {
+  inkPath([[x - 130 * s, y], [x - 130 * s, y - 150 * s], [x - 152 * s, y - 150 * s], [x - 118 * s, y - 232 * s], [x, y - 282 * s],
+    [x + 118 * s, y - 232 * s], [x + 152 * s, y - 150 * s], [x + 130 * s, y - 150 * s], [x + 130 * s, y]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || '#c4574a' });
+  inkLine(x - 152 * s, y - 150 * s, x + 152 * s, y - 150 * s, o);
+  inkRect(x - 54 * s, y - 118 * s, 108 * s, 118 * s, { ...o, fill: '#efe6d2' });
+  inkLine(x - 54 * s, y - 118 * s, x + 54 * s, y, { ...o, w: o.w * 0.7 }); inkLine(x + 54 * s, y - 118 * s, x - 54 * s, y, { ...o, w: o.w * 0.7 });
+},   // [Animal Farm]
+  crate: (x, y, s, o) => {
+  inkRect(x - 150 * s, y - 100 * s, 300 * s, 100 * s, { ...o, fill: (o.paperFill ? null : o.fill) || '#c99a62' });
+  for (const k of [1, 2]) inkLine(x - 150 * s, y - k * 33 * s, x + 150 * s, y - k * 33 * s, { ...o, w: 2.4 });
+},   // [Animal Farm]
+});
+POSES.pray = { la: [[-30, 52], [17, 22]], ra: [[30, 52], [-17, 22]] };   // [윤동주]
 
 // ---------- cuts ----------
 // Peter-style picture changes: list = [[t0, draw], ...] sorted by time; the last shot whose t0 <= t is drawn.
-// draw(t, lt) gets the local time since its start. Each shot fades and settles in (0.22 s) and the previous shot
-// fades out under it. Use 2.5 to 5 s per shot, keyed to cue times (q.s(k), q.w('단어', k)).
-function shots(t, list, { fade = 0.22, settle = 0.035 } = {}) {
+// draw(t, lt) gets the local time since its start. Cuts are hard by default: the old picture is gone the moment the
+// new one starts drawing (research 2026-11-10: a 0.22 s cross-fade read as a double exposure in every probe), and the
+// new shot settles in with a 3.5 % zoom over `settleT`. Pass fade > 0 for a cross-fade (the old shot fades out first,
+// then the new one draws). Use 2.5 to 5 s per shot, keyed to cue times (q.s(k), q.w('단어', k)).
+function shots(t, list, { fade = 0, settle = 0.035, settleT = 0.22 } = {}) {
   let i = -1; for (let k = 0; k < list.length; k++) if (t >= list[k][0]) i = k;
   if (i < 0) return -1;
-  const [t0, draw] = list[i], f = clamp01((t - t0) / fade);
+  const [t0, draw] = list[i];
   DOCENT.shot = { i, t0, t1: i + 1 < list.length ? list[i + 1][0] : null, n: list.length };
   const fresh = () => ({ figs: [], heads: [], tags: [], bubbles: [] });
-  if (f < 1 && i > 0) { DOCENT.slots = fresh(); DOCENT.ghostOk++; withAlpha(1 - f, () => list[i - 1][1](t, t - list[i - 1][0])); DOCENT.ghostOk--; }
+  if (fade > 0 && i > 0 && t - t0 < fade) {   // optional cross-fade: only the old picture, fading out
+    DOCENT.slots = fresh(); DOCENT.ghostOk++; withAlpha(1 - (t - t0) / fade, () => list[i - 1][1](t, t - list[i - 1][0])); DOCENT.ghostOk--;
+    return i;
+  }
   DOCENT.slots = fresh();
-  const fading = i > 0 && f < 1; if (fading) DOCENT.ghostOk++;
-  withAlpha(i === 0 ? 1 : f, () => {
-    const sc = 1 - settle * (1 - smooth(f));
-    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(sc, sc); ctx.translate(-W / 2, -H / 2);
-    draw(t, t - t0);
-    ctx.restore();
-  });
-  if (fading) DOCENT.ghostOk--;
+  const lt = t - t0 - (fade > 0 && i > 0 ? fade : 0), f = clamp01(lt / settleT);
+  ctx.save();
+  if (i > 0 && f < 1) { const sc = 1 - settle * (1 - smooth(f)); ctx.translate(W / 2, H / 2); ctx.scale(sc, sc); ctx.translate(-W / 2, -H / 2); }
+  draw(t, lt);
+  ctx.restore();
   return i;
 }
 // draw-on progress helper: 0 before t0, 1 after t0 + d
