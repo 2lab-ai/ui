@@ -66,6 +66,9 @@ const en = {
       `${name}: ${v} of ${total} accounts usable now (${pct})`,
     saidNext: (gain: string, when: string, clock: string) => `next +${gain} accounts ${when} (${clock})`,
     saidBack: (when: string, clock: string) => `usable again ${when} (${clock})`,
+    /** The tooltip says clock times only: an attribute does not tick. */
+    titleNext: (gain: string, clock: string) => `next +${gain} accounts at ${clock}`,
+    titleBack: (clock: string) => `usable again at ${clock}`,
     state: { low: 'Low', empty: 'Used up', allLimited: 'All limited', unknown: 'Can’t compute' } as Record<
       string,
       string
@@ -293,6 +296,8 @@ const ko: Strings = {
     saidNow: (name, v, total, pct) => `${name}: 지금 ${v} / ${total} 계정 사용 가능 (${pct})`,
     saidNext: (gain, when, clock) => `다음 +${gain}계정 ${when} (${clock})`,
     saidBack: (when, clock) => `${when} 다시 사용 가능 (${clock})`,
+    titleNext: (gain, clock) => `다음 +${gain}계정 ${clock}`,
+    titleBack: (clock) => `${clock} 다시 사용 가능`,
     state: { low: '부족', empty: '소진', allLimited: '모두 제한', unknown: '계산 불가' },
     stale: (age) => `측정 ${age} 전`,
     partial: (c, n) => `${n}개 중 ${c}개 반영`,
