@@ -67,7 +67,11 @@ export interface AqRefill {
   fiveHour?: number;
   /** Gain to the weekly measure. */
   weekly?: number;
-  /** Account name (titles only). */
+  /**
+   * The account's name — titles, and the empty pool's return rule: a refill of an account (matched by `name`) that is
+   * still limited at `at` is not a return. Masked duplicate names (`a***`) match each other; the return then reads
+   * later, never earlier.
+   */
   account?: string;
 }
 
