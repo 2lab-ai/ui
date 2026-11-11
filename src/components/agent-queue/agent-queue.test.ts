@@ -12,6 +12,8 @@ import {
   dayRuns,
   fmtCount,
   fmtPct,
+  forecastMarks,
+  forecastSteps,
   nextRefill,
   niceMax,
   normalize,
@@ -22,7 +24,6 @@ import {
   runKind,
   scheduleLabel,
   stripFolds,
-  timelineMarks,
   toMs,
   upNext,
 } from './logic';
@@ -207,9 +208,10 @@ describe('units and time text', () => {
         },
       ],
     });
-    expect(text(ms, '.aq-pill')).toBe('⏸ Limited 1 · back in 7h 22m');
-    expect(text(s, '.aq-pill')).toBe(text(ms, '.aq-pill'));
+    expect(text(ms, '.cap-l-next')).toBe('+0.4 in 22m');
+    expect(text(s, '.cap-l-next')).toBe(text(ms, '.cap-l-next'));
     expect(text(s, '.cap-disc')).toBe(text(ms, '.cap-disc'));
+    expect(qa(s, '.cap-bar-next').map((b) => b.textContent)).toEqual(qa(ms, '.cap-bar-next').map((b) => b.textContent));
   });
 
   it('floors time left and never says “in soon”', () => {
@@ -275,18 +277,42 @@ describe('capacity math', () => {
     expect(fmtPct(1, 0)).toBe('—');
   });
 
-  it('merges close timeline marks of one kind', () => {
+  it('steps the forecast by each refill that raises the measure; one step per instant, 7 days only', () => {
     const p = claude({
       refills: [
-        { at: NOW + 20 * M, cause: '5h', fiveHour: 0.4, account: 'a' },
-        { at: NOW + 25 * M, cause: '5h', fiveHour: 0.2, account: 'b' },
         { at: NOW + 3 * D, cause: '7d', weekly: 1, account: 'c' },
+        { at: NOW + 20 * M, cause: '5h', fiveHour: 0.4, account: 'a' },
+        { at: NOW + 20 * M, cause: 'release', fiveHour: 0.1, account: 'b' },
+        { at: NOW + 8 * D, cause: '7d', weekly: 1, account: 'd' },
+        { at: NOW - M, cause: '7d', weekly: 1, account: 'past' },
       ],
     });
-    const marks = timelineMarks(p, 900, NOW);
-    expect(marks.map((m) => [m.c, Number(m.gain.toFixed(1)), m.names.join(',')])).toEqual([
-      ['h5', 0.6, 'a,b'],
-      ['wk', 1, 'c'],
+    const at = (k: 'fiveHour' | 'weekly') =>
+      forecastSteps(p, k, NOW).map((s) => [s.at - NOW, Number(s.gain.toFixed(1)), s.names.join(',')]);
+    expect(at('fiveHour')).toEqual([[20 * M, 0.5, 'a,b']]);
+    expect(at('weekly')).toEqual([[3 * D, 1, 'c']]);
+  });
+
+  it('keeps axisPos / timelineMarks as deprecated exports for consumers', async () => {
+    const mod = await import('./index');
+    expect(typeof mod.axisPos).toBe('function');
+    expect(mod.axisPos(0)).toBe(0);
+    expect(mod.axisPos(7 * D)).toBe(1);
+    expect(typeof mod.timelineMarks).toBe('function');
+    expect(typeof mod.forecastSteps).toBe('function');
+  });
+
+  it('merges forecast labels that start within a label of each other, at the run’s first step', () => {
+    const x = (at: number) => (at - NOW) / H; // 1px an hour
+    const steps = [
+      { at: NOW + H, gain: 1, names: ['a'] },
+      { at: NOW + 20 * H, gain: 0.5, names: ['b'] },
+      { at: NOW + 40 * H, gain: 2, names: ['c'] },
+      { at: NOW + 75 * H, gain: 0.3, names: [] },
+    ];
+    expect(forecastMarks(steps, x, 36).map((m) => [m.x, m.gain, m.n, (m.end - NOW) / H, m.names.join(',')])).toEqual([
+      [1, 1.5, 2, 20, 'a,b'],
+      [40, 2.3, 2, 75, 'c'],
     ]);
   });
 });
@@ -344,21 +370,48 @@ describe('<ui-agent-queue> capacity', () => {
     expect(q(lane, '.aq-lane')).not.toBeNull();
   });
 
-  it('draws the provider card: head, disclosure, two bars, marks, timeline', () => {
+  it('draws one line per provider: name, meter, left / total, %, next and notes — in words, no glyphs', () => {
     const el = mount({ now: NOW, providers: [claude()], fetchedAt: NOW - 12 * S });
     expect(text(el, '.cap-sub')).toBe('updated 12s ago');
-    expect(text(el, '.cap-pname')).toBe('Claude');
-    expect(text(el, '.aq-name')).toBe('llmux · 4 accounts');
-    expect(text(el, '.cap-disc')).toBe('3/4 reflected (1 limited incl.) · excluded 1 (held) · measured 4h ago');
+    const line = q(el, '.cap-line')!;
+    expect(text(el, '.cap-l-name')).toBe('Claude');
+    // A provider with a 5-hour window reads its 5-hour measure on the line.
+    expect(text(el, '.cap-l-val')).toBe('1.5/ 4.0');
+    expect(q(el, '.cap-l-val b')?.textContent).toBe('1.5');
+    expect(text(el, '.cap-l-pct')).toBe('38%');
+    expect(q(el, '.cap-l-meter i')?.getAttribute('style')).toBe('width:37.5%');
+    expect(text(el, '.cap-l-next')).toBe('+0.4 in 22m');
+    expect(qa(el, '.cap-n').map((n) => n.textContent)).toEqual(['3 of 4 counted', '1 limited']);
+    // Glyph-free: the line says it in words.
+    expect(line.textContent).not.toMatch(/[⏸⚠◌✗▲●]/);
+    const said = q(el, '.cap-line > .sr-only')!.textContent!;
+    expect(said).toMatch(
+      /^Claude: 1\.5 of 4\.0 accounts usable now \(38%\) · next \+0\.4 accounts in 22m \(\d\d:\d\d\) · 3 of 4 counted · 1 limited$/,
+    );
+    // The tooltip does not tick: clock times only.
+    expect(line.getAttribute('title')).toMatch(
+      /^Claude: 1\.5 of 4\.0 accounts usable now \(38%\) · next \+0\.4 accounts at \d\d:\d\d · 3 of 4 counted · 1 limited$/,
+    );
+    for (const c of ['.cap-l-name', '.cap-l-meter', '.cap-l-val', '.cap-l-pct', '.cap-l-next', '.cap-l-note'])
+      expect(q(el, c)?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('opens the detail under its line: plain-words disclosure, both measures, accounts, forecast', () => {
+    const el = mount({ now: NOW, providers: [claude()], fetchedAt: NOW - 12 * S });
+    const prov = q(el, '.cap-prov')!;
+    expect(prov.firstElementChild?.className).toBe('cap-line');
+    expect(prov.lastElementChild?.classList.contains('cap-detail')).toBe(true);
+    expect(text(el, '.cap-disc')).toBe(
+      'llmux · 3 of 4 counted · 1 limited — first back in 7h · 1 left out (held) · measured 4h ago',
+    );
     const rows = qa(el, '.cap-bar-row');
     expect(rows).toHaveLength(2);
     expect(rows[0].querySelector('.cap-bar-val')?.textContent).toBe('1.5 / 4.0 accounts 38%');
     expect(rows[0].querySelector('.cap-bar-next')?.textContent).toBe('next +0.4 · in 22m');
     expect(rows[1].querySelector('.cap-bar-next')?.textContent).toBe('next +1.0 · in 7h 22m');
-    expect(qa(el, '.cap-low')).toHaveLength(2);
     expect(q(el, '.cap-bar')?.getAttribute('aria-label')).toBe('5-hour 1.5 of 4.0 accounts, 38%');
     expect(text(el, '.aq-workers .aq-col-head')).toBe('Accounts 2/4');
-    // The head sits on the badges' own row.
+    // The head sits on the names' own row.
     expect(q(el, '.aq-marks')?.firstElementChild?.className).toBe('aq-col-head');
     const marks = qa(el, '.aq-mark');
     expect(marks.map((m) => m.className)).toEqual([
@@ -367,30 +420,48 @@ describe('<ui-agent-queue> capacity', () => {
       'aq-mark is-limited',
       'aq-mark is-paused',
     ]);
-    // A badge is its name: the reason and the return live in the label, the title and the card.
+    // A mark is its name: the reason and the return live in the label, the title and the card. No window dot.
+    expect(marks[0].textContent).toBe('ai7');
+    expect(q(el, '.aq-wdot')).toBeNull();
     expect(marks[2].textContent).toBe('ai43');
     expect(marks[2].getAttribute('aria-label')).toBe('ai43, weekly limit, back in 7h 22m');
     expect(marks[2].getAttribute('title')).toBe('ai43 · weekly limit · back in 7h 22m');
-    expect(marks[3].textContent).toBe('icedac');
     expect(marks[3].getAttribute('title')).toBe('icedac · paused');
     expect(qa(el, '.aq-stack').map((s) => s.className)).toEqual(['aq-stack is-warn', 'aq-stack is-mute']);
-    expect(q(el, '.aq-wdot.is-h5')).not.toBeNull();
-    expect(qa(el, '.cap-tl circle')).toHaveLength(1);
-    expect(qa(el, '.cap-tl-mk rect')).toHaveLength(1);
-    expect(qa(el, '.cap-tl-ax').map((t) => t.textContent)).toEqual(['now', '1h', '6h', '24h', '3d', '5d', '7d']);
+    // The forecast: +0.4 in 22m and +1.0 in 7h 22m sit closer than a label at 840px — one label, the run's sum.
+    expect(text(el, '.cap-fc-t')).toBe('Next 7 days');
+    expect(text(el, '.cap-fc-s')).toBe('+1.4 back · 2.9 by day 7');
+    expect(qa(el, '.cap-fc-gain').map((g) => g.textContent)).toEqual(['+1.4']);
+    // A merged run says its span and how many returns, not the first one's time alone.
+    expect(q(el, '.cap-fc-mk title')?.textContent).toMatch(
+      /^\+1\.4 accounts over 2 returns · \d\d:\d\d – \d\d:\d\d · ai7, ai43$/,
+    );
+    expect(q(el, '.cap-fc-svg')?.getAttribute('aria-label')).toBe('Next 7 days: 1.5 now, +1.4 back, 2.9 by day 7');
+    const days = qa(el, '.cap-fc-ax').map((d) => d.textContent);
+    expect(days[0]).toBe('Today');
+    expect(days.length).toBeGreaterThanOrEqual(7);
+    expect(q(el, '.cap-fc-max title')?.textContent).toBe('max 4.0');
+    // The log axis and its diamonds are gone.
+    expect(q(el, '.cap-tl')).toBeNull();
   });
 
-  it('shows one bar for a weekly-only provider and flags a reading over a day old', () => {
+  it('weekly only: no bar rows in the detail; an old reading is a warning word on the line and in the detail', () => {
     const el = mount({
       now: NOW,
       providers: [{ id: 'codex', name: 'Codex', total: 3.2, weekly: 2.4, measuredAt: NOW - 6 * D }],
     });
-    expect(qa(el, '.cap-bar-row')).toHaveLength(1);
-    expect(text(el, '.cap-stale')).toBe('⚠ measured 6d ago');
-    expect(text(el, '.aq-pill')).toBe('● Available');
+    expect(qa(el, '.cap-bar-row')).toHaveLength(0);
+    expect(text(el, '.cap-l-val')).toBe('2.4/ 3.2');
+    expect(text(el, '.cap-l-pct')).toBe('75%');
+    expect(text(el, '.cap-l-next')).toBe('nothing back in 7 days');
+    expect(qa(el, '.cap-n.is-warn').map((n) => n.textContent)).toEqual(['measured 6d ago']);
+    expect(text(el, '.cap-stale')).toBe('measured 6d ago');
+    // Nothing comes back and nothing is held back: the forecast is its sentence, no flat chart.
+    expect(text(el, '.cap-fc-s')).toBe('Nothing comes back in 7 days');
+    expect(q(el, '.cap-fc-svg')).toBeNull();
   });
 
-  it('says all limited, counts down to the first return and shades the timeline', () => {
+  it('says all limited, counts down to the first return and shades the forecast', () => {
     const el = mount({
       now: NOW,
       providers: [
@@ -408,9 +479,10 @@ describe('<ui-agent-queue> capacity', () => {
         },
       ],
     });
-    expect(text(el, '.aq-pill')).toBe('✗ All limited · back in 22m');
     expect(q(el, '.cap-prov')?.classList.contains('is-empty')).toBe(true);
-    expect(q(el, '.cap-tl-lim title')?.textContent).toMatch(/^All limited — until /);
+    expect(text(el, '.cap-l-next')).toBe('back in 22m');
+    expect(qa(el, '.cap-n').map((n) => [n.className, n.textContent])).toEqual([['cap-n is-fail', 'All limited']]);
+    expect(q(el, '.cap-fc-lim title')?.textContent).toMatch(/^All limited — until /);
   });
 
   it("says it can't compute a pool with no countable account", () => {
@@ -418,9 +490,110 @@ describe('<ui-agent-queue> capacity', () => {
       now: NOW,
       providers: [{ id: 'g', name: 'Gemini', total: 0, accounts: [{ id: 'g1', name: 'g1', state: 'excluded' }] }],
     });
-    expect(text(el, '.aq-pill')).toBe('◌ Can’t compute');
-    expect(text(el, '.cap-bar-next')).toBe('Can’t compute — no countable accounts');
+    expect(q(el, '.cap-prov')?.classList.contains('is-unknown')).toBe(true);
+    expect(text(el, '.cap-l-val')).toBe('—');
+    expect(text(el, '.cap-l-pct')).toBe('');
+    expect(qa(el, '.cap-n').map((n) => n.textContent)).toEqual(['Can’t compute', '0 of 1 counted']);
+    expect(text(el, '.cap-detail .cap-off')).toBe('Can’t compute — no countable accounts');
     expect(qa(el, '.cap-bar')).toHaveLength(0);
+    expect(q(el, '.cap-fc')).toBeNull();
+  });
+
+  it('the screen-reader sentence carries a live countdown the tick rewrites', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const el = mount({ providers: [claude()] });
+    const live = q(el, '.cap-line > .sr-only time')!;
+    expect(live.textContent).toBe('in 22m');
+    vi.advanceTimersByTime(2 * M);
+    expect(q(el, '.cap-line > .sr-only time')).toBe(live);
+    expect(live.textContent).toBe('in 20m');
+  });
+
+  it('a gain under +0.05 is “< +0.1”, never “+0.0”, and draws no chart', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'x',
+          name: 'X',
+          total: 2,
+          weekly: 0.3,
+          refills: [{ at: NOW + D, cause: '7d', weekly: 0.01, account: 'a' }],
+        },
+      ],
+    });
+    expect(text(el, '.cap-l-next')).toBe('< +0.1 back within 7 days');
+    expect(text(el, '.cap-fc-s')).toBe('< +0.1 back within 7 days');
+    expect(q(el, '.cap-fc-svg')).toBeNull();
+    expect(el.shadowRoot!.textContent).not.toContain('+0.0');
+  });
+
+  it('an empty pool is shaded until the earliest of a return and the first refill that raises the measure', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'c',
+          name: 'C',
+          total: 2,
+          fiveHour: 0,
+          accounts: [{ id: 'a', name: 'a', state: 'limited', reason: 'weekly', returnAt: NOW + 72 * H }],
+          refills: [
+            { at: NOW + H, cause: '5h', fiveHour: 0.5, account: 'b' },
+            { at: NOW + 72 * H, cause: '7d', fiveHour: 1, account: 'a' },
+          ],
+        },
+      ],
+    });
+    // 840px wide (900 − paddings): 1h of 168h is 5.0px.
+    expect(q(el, '.cap-fc-lim')?.getAttribute('width')).toBe('5.0');
+  });
+
+  it('the forecast says the capped rise: a reset of an account already full adds nothing', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'x',
+          name: 'X',
+          total: 4,
+          weekly: 3.5,
+          refills: [
+            { at: NOW + D, cause: '7d', weekly: 1, account: 'a' },
+            { at: NOW + 3 * D, cause: '7d', weekly: 1, account: 'b' },
+          ],
+        },
+      ],
+    });
+    expect(text(el, '.cap-fc-s')).toBe('+0.5 back · 4.0 by day 7');
+    expect(qa(el, '.cap-fc-gain').map((g) => g.textContent)).toEqual(['+0.5']);
+  });
+
+  it('the line and the shading agree on when an empty pool is usable again', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'c',
+          name: 'C',
+          total: 2,
+          fiveHour: 0,
+          accounts: [{ id: 'a', name: 'a', state: 'limited', reason: 'weekly', returnAt: NOW + 72 * H }],
+          refills: [{ at: NOW + H, cause: '5h', fiveHour: 0.01, account: 'b' }],
+        },
+      ],
+    });
+    // A refill that raises the measure at all (even under 0.05) is the earlier return.
+    expect(text(el, '.cap-l-next')).toBe('back in 1h');
+    expect(q(el, '.cap-fc-lim')?.getAttribute('width')).toBe('5.0');
+    // Its tiny gain is not “+0.0” in the chart's accessible name either.
+    expect(q(el, '.cap-fc-svg')?.getAttribute('aria-label')).toBe('Next 7 days: < +0.1 back within 7 days');
+  });
+
+  it('an unknown pool’s state word is a state note (kept on a phone line)', () => {
+    const el = mount({ now: NOW, providers: [{ id: 'g', name: 'G', total: 0 }] });
+    expect(qa(el, '.cap-n').map((n) => n.className)).toEqual(['cap-n is-state']);
   });
 
   it('shows the capacity error instead of the cards', () => {
@@ -560,7 +733,8 @@ describe('escaping', () => {
     expect(q(el, 'img')).toBeNull();
     expect(q(el, '[onerror]')).toBeNull();
     expect(qa(el, '*').every((n) => ['img', 'script'].indexOf(n.localName) < 0)).toBe(true);
-    expect(text(el, '.cap-pname')).toBe(XSS);
+    expect(text(el, '.cap-l-name')).toBe(XSS);
+    expect(q(el, '.cap-line > .sr-only')?.textContent).toContain(XSS);
     expect(text(el, '.cap-sub')).toBe(XSS);
     expect(text(el, '.aq-lane-title')).toBe(XSS);
     expect(text(el, '.aq-pop-name')).toBe(XSS);
@@ -581,7 +755,8 @@ describe('escaping', () => {
     vi.advanceTimersByTime(80);
     const live = el.shadowRoot!.querySelector('[aria-live="polite"]')!;
     expect(live.children).toHaveLength(0);
-    expect(live.textContent).toContain('<b><img src=x onerror=alert(1)></b>: all accounts limited — back in 7h 22m');
+    // The 5-hour refill of ai7 in 22m raises the empty pool before ai43 returns (7h 22m): the earlier one is said.
+    expect(live.textContent).toContain('<b><img src=x onerror=alert(1)></b>: all accounts limited — back in 22m');
   });
 });
 
@@ -783,17 +958,21 @@ describe('keyboard', () => {
       'ai6',
       'ai4',
       'ai2',
-      'limited|weekly',
+      'ai43',
+      'ai17',
       'limited|cooldown',
       'ai8',
-      'paused|paused',
+      'icedac',
+      'z',
     ]);
     marks[0].focus();
     marks[0].dispatchEvent(key('End'));
-    expect(el.shadowRoot!.activeElement?.getAttribute('data-grp')).toBe('paused|paused');
-    qa(el, '.aq-mark')[7].dispatchEvent(key('ArrowLeft'));
-    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai8');
-    qa(el, '.aq-mark')[6].dispatchEvent(key('Home'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('z');
+    qa(el, '.aq-mark')[9].dispatchEvent(key('ArrowLeft'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('icedac');
+    qa(el, '.aq-mark')[6].dispatchEvent(key('ArrowLeft'));
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai17');
+    qa(el, '.aq-mark')[5].dispatchEvent(key('Home'));
     expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai5');
   });
 });
@@ -814,7 +993,8 @@ describe('workers strip (stacks, one icon, two lines)', () => {
   it('folds nothing when the strip fits; the widest blocked stack first; the usable run last', () => {
     const stacks = accountStacks(twenty());
     expect([...stripFolds(stacks, '계정 4/20', 1336)]).toEqual([]);
-    expect([...stripFolds(stacks, '계정 4/20', 326)]).toEqual(['limited|cooldown', 'limited|weekly']);
+    expect([...stripFolds(stacks, '계정 4/20', 326)]).toEqual(['limited|cooldown']);
+    expect([...stripFolds(stacks, '계정 4/20', 300)]).toEqual(['limited|cooldown', 'limited|weekly']);
     // Too narrow for anything: every run that a fold makes smaller folds, the usable run last.
     expect([...stripFolds(stacks, '계정 4/20', 120)].at(-1)).toBe('available');
     // A run of one is never folded: its badge is no wider than the fold.
@@ -899,23 +1079,22 @@ describe('workers strip (stacks, one icon, two lines)', () => {
   it("folds the wide stacks to icon + count on a phone; the fold's card lists who and when", () => {
     const el = mountAt(390, { now: NOW, providers: [claude({ accounts: twenty() })] }, { lang: 'ko' });
     const folds = qa(el, '.aq-mark.is-fold');
-    expect(folds.map((f) => [f.dataset.grp, f.textContent])).toEqual([
-      ['limited|weekly', '2'],
-      ['limited|cooldown', '11'],
-    ]);
-    expect(folds[1].querySelector('.aq-si')).not.toBeNull();
-    expect(folds[1].getAttribute('aria-label')).toBe('쿨다운 계정 11개 — 목록 보기');
-    // The usable accounts, the failed login and the paused pair keep their names.
+    expect(folds.map((f) => [f.dataset.grp, f.textContent])).toEqual([['limited|cooldown', '11']]);
+    expect(folds[0].querySelector('.aq-si')).not.toBeNull();
+    expect(folds[0].getAttribute('aria-label')).toBe('쿨다운 계정 11개 — 목록 보기');
+    // The usable accounts, the weekly pair, the failed login and the paused pair keep their names.
     expect(names(q(el, '.aq-marks')!).filter((x) => /^[a-z]/.test(x ?? ''))).toEqual([
       'ai5',
       'ai6',
       'ai4',
       'ai2',
+      'ai43',
+      'ai17',
       'ai8',
       'icedac',
       'z',
     ]);
-    folds[1].click();
+    folds[0].click();
     expect(q(el, '.aq-pop')?.getAttribute('aria-label')).toBe('쿨다운 계정 세부');
     expect(text(el, '.aq-pop-name')).toBe('쿨다운');
     expect(text(el, '.aq-pop-kind')).toBe('Claude · 계정 11');
@@ -925,7 +1104,7 @@ describe('workers strip (stacks, one icon, two lines)', () => {
     ]);
     expect(rows.find((r) => r[0] === 'ai40')?.[1]).toBe('13시간 38분');
     expect(rows.find((r) => r[0] === 'ai3')?.[1]).toBe('—');
-    expect(qa(el, '.aq-mark.is-fold')[1].getAttribute('aria-expanded')).toBe('true');
+    expect(qa(el, '.aq-mark.is-fold')[0].getAttribute('aria-expanded')).toBe('true');
     // Esc closes it and puts focus back on the fold.
     q(el, '.aq-pop-close')!.focus();
     q(el, '.aq-pop-close')!.dispatchEvent(key('Escape'));
@@ -979,13 +1158,13 @@ describe('live time and announcements', () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const el = mount({ providers: [claude()], lane: { jobs: jobs() } });
-    const pill = q(el, '.aq-pill time')!;
+    const pill = qa(el, '.cap-bar-next time')[1];
     const chip = q(el, '.aq-q time')!;
-    expect(pill.textContent).toBe('back in 7h 22m');
+    expect(pill.textContent).toBe('in 7h 22m');
     expect(chip.textContent).toBe('18m');
     vi.advanceTimersByTime(2 * M);
-    expect(q(el, '.aq-pill time')).toBe(pill);
-    expect(pill.textContent).toBe('back in 7h 20m');
+    expect(qa(el, '.cap-bar-next time')[1]).toBe(pill);
+    expect(pill.textContent).toBe('in 7h 20m');
     expect(chip.textContent).toBe('16m');
   });
 
@@ -1020,19 +1199,19 @@ describe('live time and announcements', () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const el = mount({ providers: [claude()] });
-    const pill = q(el, '.aq-pill time')!;
+    const pill = qa(el, '.cap-bar-next time')[1];
     el.remove();
     vi.advanceTimersByTime(5 * M);
-    expect(pill.textContent).toBe('back in 7h 22m');
+    expect(pill.textContent).toBe('in 7h 22m');
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it('builds announcement sentences from data changes', () => {
     const empty = claude({ fiveHour: 0, state: 'empty' });
-    expect(capacityNews([claude()], [empty], NOW)).toBe('Claude: all accounts limited — back in 7h 22m');
+    expect(capacityNews([claude()], [empty], NOW)).toBe('Claude: all accounts limited — back in 22m');
     expect(capacityNews([empty], [claude()], NOW)).toBe('Claude available again — 2/4 accounts');
     expect(capacityNews(undefined, [empty], NOW)).toBe('');
-    expect(capacityNews([claude()], [empty], NOW, STRINGS.ko)).toBe('Claude 계정이 모두 막힘 — 7시간 22분 후 복귀');
+    expect(capacityNews([claude()], [empty], NOW, STRINGS.ko)).toBe('Claude 계정이 모두 막힘 — 22분 후 복귀');
     const a = jobs();
     const b = jobs();
     b[1].state = 'idle';
@@ -1089,7 +1268,7 @@ describe('host gaps for the dashboard swap', () => {
     expect(notes[0].closest('.cron-group')?.getAttribute('aria-label')).toBe('old-job');
   });
 
-  it('collapsed capacity: the head and one chip per provider — measures, ⏸ limited · first return, ⚠ flags', () => {
+  it('collapsed capacity: the head and the same lines — no detail, no glyphs; notes are words', () => {
     const codex: AqProvider = {
       id: 'codex',
       name: 'Codex',
@@ -1103,37 +1282,59 @@ describe('host gaps for the dashboard swap', () => {
     };
     const el = mount({ now: NOW, providers: [claude(), codex], collapsed: { capacity: true } });
     expect(q(el, '.capacity')!.classList.contains('is-collapsed')).toBe(true);
-    expect(q(el, '.cap-prov')).toBeNull();
+    expect(q(el, '.capacity')!.classList.contains('is-foldable')).toBe(false);
+    expect(q(el, '.cap-detail')).toBeNull();
     expect(q(el, '.cap-sub')).toBeNull();
     expect(q(el, '.aq-fold')).toBeNull(); // not collapsible: folded by the host, no toggle
-    const chips = qa(el, '.cap-chip');
-    expect(chips).toHaveLength(2);
-    const vis = (c: HTMLElement) => c.querySelector('.cap-chip-v')!.textContent!.replace(/\s+/g, ' ').trim();
-    expect(vis(chips[0])).toBe('Claude now 1.5/4.0 38% · week 2.0/4.0 50% ⏸ 1 · 7h 22m ⚠ 3/4 reflected');
-    expect(chips[0].querySelector('.cap-chip-v')!.innerHTML).toMatch(
-      /<em>50%<\/em><\/span> <i class="cap-chip-lim">⏸ 1 · <time class="aq-left" role="timer"[^>]*>7h 22m<\/time><\/i> <i class="cap-chip-flag">⚠ 3\/4 reflected<\/i>$/,
+    const lines = qa(el, '.cap-line');
+    expect(lines).toHaveLength(2);
+    const vis = (l: HTMLElement) =>
+      Array.from(l.querySelectorAll('[aria-hidden="true"]'))
+        .map((c) => c.textContent!.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join(' | ');
+    expect(vis(lines[0])).toBe('Claude | 1.5/ 4.0 | 38% | +0.4 in 22m | 3 of 4 counted1 limited');
+    // Weekly only, low, a reading two days old, an assumed tier: two notes at most, the state word first.
+    expect(q(el, '.cap-prov:nth-child(2)')!.classList.contains('is-low')).toBe(true);
+    expect(vis(lines[1])).toBe('Codex | 0.4/ 3.2 | 13% | nothing back in 7 days | Lowmeasured 2d ago');
+    expect(qa(el, '.cap-prov:nth-child(2) .cap-n').map((n) => n.className)).toEqual(['cap-n is-warn', 'cap-n is-warn']);
+    expect(lines[1].querySelector('.sr-only')!.textContent).toBe(
+      'Codex: 0.4 of 3.2 accounts left this week (13%) · nothing back in 7 days · Low · measured 2d ago',
     );
-    expect(chips[0].querySelector('.cap-chip-v')!.getAttribute('aria-hidden')).toBe('true');
-    const said = chips[0].querySelector('.sr-only')!.textContent!;
-    expect(said).toMatch(
-      /^Claude 5-hour \(now\) 1\.5\/4\.0 accounts \(38%\), weekly 2\.0\/4\.0 accounts \(50%\) · 3\/4 reflected · limited 1 — first back in 7h 22m — next \+0\.4 · in 22m \(\d\d:\d\d\) · 5-hour reset · ai7$/,
-    );
-    expect(chips[0].getAttribute('title')).toBe(said.slice('Claude '.length));
-    // Weekly only, low, a reading two days old, an assumed tier.
-    expect(chips[1].classList.contains('is-low')).toBe(true);
-    expect(vis(chips[1])).toBe('▲ Codex week 0.4/3.2 13% ⚠ 2d ago · x20 assumed 1');
-    expect(chips[1].querySelector('.sr-only')!.textContent).toContain(
-      'weekly 0.4/3.2 accounts (13%) · measured 2d ago · no tier 1 (x20 assumed) · low — nothing returns within 7 days',
-    );
+    for (const l of lines) expect(l.textContent).not.toMatch(/[⏸⚠◌✗▲●]/);
   });
 
-  it('collapsed capacity: an error or an empty pool is one chip', () => {
+  it('collapsed capacity: an error or an empty pool is one plain line', () => {
     const err = mount({ now: NOW, capacityError: XSS, collapsed: { capacity: true } });
-    expect(text(err, '.cap-chip.is-error')).toBe(`Capacity unknown · ${XSS}`);
-    expect(q(err, '.cap-chip img')).toBeNull();
-    expect(q(err, '.cap-off')).toBeNull();
+    expect(text(err, '.cap-off.is-error')).toBe(`Couldn’t load capacity — ${XSS}`);
+    expect(q(err, '.cap-off img')).toBeNull();
     const none = mount({ now: NOW, providers: [], collapsed: { capacity: true } });
-    expect(text(none, '.cap-chip.is-unknown')).toBe('No accounts');
+    expect(text(none, '.cap-off')).toBe('No accounts in the pool');
+  });
+
+  it('collapsible capacity: a press on a folded line or the head row asks to unfold; the detail enters once', () => {
+    const el = mount({ now: NOW, providers: [claude()], collapsible: true, collapsed: { capacity: true } });
+    const seen: unknown[] = [];
+    el.addEventListener('ui-collapse', (e) => seen.push((e as CustomEvent).detail));
+    expect(q(el, '.capacity')!.classList.contains('is-foldable')).toBe(true);
+    (q(el, '.cap-l-name') as HTMLElement).click();
+    expect(seen).toEqual([{ section: 'capacity', collapsed: false }]);
+    expect(q(el, '.cap-detail.is-entering')).not.toBeNull();
+    // A later data set (the host repaints every 30s) does not replay the entrance.
+    el.data = { now: NOW, providers: [claude()], collapsible: true };
+    el.renderNow();
+    expect(q(el, '.cap-detail')).not.toBeNull();
+    expect(q(el, '.cap-detail.is-entering')).toBeNull();
+    // Unfolded, a press inside the detail does nothing to the fold; the head row folds.
+    (q(el, '.cap-disc') as HTMLElement).click();
+    expect(seen).toHaveLength(1);
+    (q(el, '.cap-title') as HTMLElement).click();
+    expect(seen[1]).toEqual({ section: 'capacity', collapsed: true });
+    expect(q(el, '.cap-detail')).toBeNull();
+    // The host unfolding it again (its own toggle state) enters once more.
+    el.data = { now: NOW, providers: [claude()], collapsible: true, collapsed: { capacity: false } };
+    el.renderNow();
+    expect(q(el, '.cap-detail.is-entering')).not.toBeNull();
   });
 
   it('collapsed lane: the head and only the jobs waiting for a reply — no stats, queue or chart', () => {
@@ -1173,7 +1374,6 @@ describe('host gaps for the dashboard swap', () => {
     cap.click();
     expect(seen).toEqual([{ section: 'capacity', collapsed: false }]);
     expect(q(el, '.cap-prov')).not.toBeNull();
-    expect(q(el, '.cap-summary')).toBeNull();
     expect(el.shadowRoot!.activeElement?.getAttribute('data-key')).toBe('fold-capacity');
     expect(q(el, '.cap-head .aq-fold')!.getAttribute('aria-expanded')).toBe('true');
     // A prevented press keeps the state.
@@ -1258,7 +1458,7 @@ describe('host gaps for the dashboard swap', () => {
     expect(q(el, 'slot img')).toBeNull();
   });
 
-  it('speaks Korean when folded: 펼치기 / 접기 and the dashboard’s chip words', () => {
+  it('speaks Korean when folded: 펼치기 / 접기 and the dashboard’s words', () => {
     const el = mount(
       { now: NOW, providers: [claude()], lane: { jobs: jobs() }, collapsible: true, collapsed: { capacity: true } },
       { lang: 'ko' },
@@ -1266,11 +1466,10 @@ describe('host gaps for the dashboard swap', () => {
     expect(q(el, '.cap-head .aq-fold')!.textContent).toBe('펼치기');
     expect(q(el, '.cap-head .aq-fold')!.getAttribute('aria-label')).toBe('LLM 가용량 펼치기');
     expect(q(el, '.aq-lane-head .aq-fold')!.textContent).toBe('접기');
-    expect(q(el, '.cap-chip-v')!.textContent!.replace(/\s+/g, ' ').trim()).toBe(
-      'Claude 지금 1.5/4.0 38% · 주 2.0/4.0 50% ⏸ 1 · 7시간 22분 ⚠ 3/4 반영',
-    );
-    expect(q(el, '.cap-chip .sr-only')!.textContent).toContain(
-      'Claude 5시간(지금) 1.5/4.0 계정 (38%), 일주일 2.0/4.0 계정 (50%) · 3/4 반영 · 제한 1 — 7시간 22분 후 첫 복귀 — 다음 +0.4계정 · 22분 후',
+    expect(text(el, '.cap-l-next')).toBe('+0.4 22분 후');
+    expect(qa(el, '.cap-n').map((n) => n.textContent)).toEqual(['4개 중 3개 반영', '제한 1']);
+    expect(q(el, '.cap-line > .sr-only')!.textContent).toMatch(
+      /^Claude: 지금 1\.5 \/ 4\.0 계정 사용 가능 \(38%\) · 다음 \+0\.4계정 22분 후 \(\d\d:\d\d\) · 4개 중 3개 반영 · 제한 1$/,
     );
   });
 });
@@ -1279,9 +1478,12 @@ describe('lang="ko"', () => {
   it('speaks Korean the way the dashboard does', () => {
     const el = mount({ now: NOW, providers: [claude()], lane: { jobs: jobs() } }, { lang: 'ko' });
     expect(text(el, '.cap-title')).toBe('LLM 가용량');
-    expect(text(el, '.aq-name')).toBe('llmux · 계정 4');
-    expect(text(el, '.aq-pill')).toBe('⏸ 제한 1 · 7시간 22분 후 복귀');
-    expect(text(el, '.cap-disc')).toBe('3/4 반영(차단 1 포함) · 제외 1(보류) · 측정 4시간 전');
+    expect(text(el, '.cap-disc')).toBe(
+      'llmux · 4개 중 3개 반영 · 제한 1 — 첫 복귀 7시간 후 · 보류 1 제외 · 측정 4시간 전',
+    );
+    expect(text(el, '.cap-fc-t')).toBe('앞으로 7일');
+    expect(text(el, '.cap-fc-s')).toBe('+1.4 돌아옴 · 7일 뒤 2.9');
+    expect(qa(el, '.cap-fc-ax')[0].textContent).toBe('오늘');
     expect(qa(el, '.cap-bar-next')[0].textContent).toBe('다음 +0.4계정 · 22분 후');
     expect(qa(el, '.cap-bar-val')[0].textContent).toBe('1.5 / 4.0 계정 38%');
     expect(text(el, '.aq-workers .aq-col-head')).toBe('계정 2/4');
