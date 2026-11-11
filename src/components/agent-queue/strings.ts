@@ -1,7 +1,10 @@
 import { spanShort } from './logic';
 
-/** Live time phrases. `at` is the epoch the phrase counts to (or from, for `since` / `fetched`). */
-export type TimeKind = 'left' | 'in' | 'back' | 'runs' | 'since' | 'fetched';
+/**
+ * Live time phrases. `at` is the epoch the phrase counts to (or from, for `since` / `fetched`). `about` / `aboutBack`
+ * are the glance form of `in` / `back` — the first unit only (`in 8h`, `back in 5d`) — for the capacity lines.
+ */
+export type TimeKind = 'left' | 'in' | 'back' | 'runs' | 'since' | 'fetched' | 'about' | 'aboutBack';
 
 const en = {
   /** Time left, floored: 1d 5h · 1h 20m · 24m · 42s. */
@@ -36,25 +39,41 @@ const en = {
   capNone: 'No accounts in the pool',
   capAria: (n: string) => `${n} capacity`,
   source: (src: string, n: number) => `${src ? `${src} · ` : ''}${n} ${n === 1 ? 'account' : 'accounts'}`,
-  pill: {
-    unknown: '◌ Can’t compute',
-    allLimited: '✗ All limited',
-    empty: '✗ Used up',
-    limited: (n: number) => `⏸ Limited ${n}`,
-    low: '▲ Low',
-    ok: '● Available',
-  },
   disc: {
-    reflected: (c: number, n: number) => `${c}/${n} reflected`,
-    blocked: (b: number) => ` (${b} limited incl.)`,
-    excluded: (n: number, why: string) => `excluded ${n} (${why})`,
+    accounts: (n: number) => `${n} ${n === 1 ? 'account' : 'accounts'}`,
+    reflected: (c: number, n: number) => `${c} of ${n} counted`,
+    limited: (n: number) => `${n} limited`,
+    firstBack: 'first back',
+    excluded: (n: number, why: string) => `${n} left out (${why})`,
     held: 'held',
     unknownTier: 'no tier',
-    noMeasure: 'no measure',
-    assumed: (n: number, tier: string) => `no tier ${n} (${tier} assumed)`,
-    estimated: (n: number) => `estimated ${n}`,
-    unmeasured: (n: number) => `5h unmeasured ${n}`,
+    noMeasure: 'no reading',
+    assumed: (n: number, tier: string) => `${n} without a tier counted as ${tier}`,
+    estimated: (n: number) => `${n} estimated`,
+    unmeasured: (n: number) => `${n} without a 5-hour reading`,
     measured: (a: string) => `measured ${a} ago`,
+  },
+  /** One line per provider — folded and unfolded alike: name, meter, left / total, %, what comes back next, a note. */
+  line: {
+    aria: 'Capacity by provider',
+    of: (total: string) => `/ ${total}`,
+    gain: (g: string) => `+${g}`,
+    none: 'nothing back in 7 days',
+    noBack: 'no return in 7 days',
+    said: (name: string, v: string, total: string, pct: string) =>
+      `${name}: ${v} of ${total} accounts left this week (${pct})`,
+    saidNow: (name: string, v: string, total: string, pct: string) =>
+      `${name}: ${v} of ${total} accounts usable now (${pct})`,
+    saidNext: (gain: string, when: string, clock: string) => `next +${gain} accounts ${when} (${clock})`,
+    saidBack: (when: string, clock: string) => `usable again ${when} (${clock})`,
+    state: { low: 'Low', empty: 'Used up', allLimited: 'All limited', unknown: 'Can’t compute' } as Record<
+      string,
+      string
+    >,
+    stale: (age: string) => `measured ${age} ago`,
+    partial: (c: number, n: number) => `${c} of ${n} counted`,
+    limited: (n: number) => `${n} limited`,
+    assumed: (tier: string) => `${tier} assumed`,
   },
   bar: {
     fiveHour: '5-hour',
@@ -116,16 +135,16 @@ const en = {
     okKind: (p: string, n: number) => `${p} · ${n} ${n === 1 ? 'account' : 'accounts'}`,
     okRow: (now: string, wk: string) => `now ${now} · week ${wk}`,
   },
-  tl: {
-    h5: '5-hour reset',
-    wk: 'Weekly reset',
-    note: 'Returning over the next 7 days (accounts)',
-    none5: ' — nothing within 7 days',
-    small5: (g: string) => ` — ${g} within 7 days`,
-    aria: 'Accounts returning over the next 7 days',
-    axis: ['now', '1h', '6h', '24h', '3d', '5d', '7d'],
-    mark: (w: string, gain: string, when: string, names: string) =>
-      `${w} +${gain} accounts · ${when}${names ? ` · ${names}` : ''}`,
+  /** The 7-day forecast: the measure as a step line on a linear week, one step per refill. */
+  fc: {
+    title: 'Next 7 days',
+    sum: (gain: string, end: string) => `+${gain} back · ${end} by day 7`,
+    none: 'Nothing comes back in 7 days',
+    today: 'Today',
+    max: (total: string) => `max ${total}`,
+    aria: (v: string, gain: string, end: string) => `Next 7 days: ${v} now, +${gain} back, ${end} by day 7`,
+    mark: (gain: string, when: string, clock: string, names: string) =>
+      `+${gain} accounts · ${when} (${clock})${names ? ` · ${names}` : ''}`,
     lim: (until: string) => `All limited — until ${until}`,
     limNone: 'All limited — no return within 7 days',
   },
@@ -133,21 +152,6 @@ const en = {
     expand: 'Expand',
     collapse: 'Collapse',
     aria: (word: string, section: string) => `${word} ${section}`,
-  },
-  /** Collapsed capacity: one chip per provider. */
-  chip: {
-    now: 'now',
-    week: 'week',
-    error: (r: string) => `Capacity unknown · ${r}`,
-    none: 'No accounts',
-    aria: 'Capacity by provider',
-    said5: (v: string, total: string, pct: string) => `5-hour (now) ${v}/${total} accounts (${pct})`,
-    saidWk: (v: string, total: string, pct: string) => `weekly ${v}/${total} accounts (${pct})`,
-    word: { low: ' · low', empty: ' · used up', unknown: ' · can’t compute' } as Record<string, string>,
-    limSaid: (n: number, back: string) => ` · limited ${n}${back ? ` — ${back}` : ''}`,
-    firstBack: (d: string) => `first back in ${d}`,
-    stale: (age: string) => `${age} ago`,
-    assumed: (tier: string, n: number) => `${tier} assumed ${n}`,
   },
   news: {
     allLimited: (n: string, back: string) => `${n}: all accounts limited${back ? ` — ${back}` : ''}`,
@@ -263,25 +267,35 @@ const ko: Strings = {
   capNone: '풀에 계정이 없습니다',
   capAria: (n) => `${n} 가용량`,
   source: (src, n) => `${src ? `${src} · ` : ''}계정 ${n}`,
-  pill: {
-    unknown: '◌ 계산 불가',
-    allLimited: '✗ 모두 막힘',
-    empty: '✗ 소진',
-    limited: (n) => `⏸ 제한 ${n}`,
-    low: '▲ 부족',
-    ok: '● 사용 가능',
-  },
   disc: {
-    reflected: (c, n) => `${c}/${n} 반영`,
-    blocked: (b) => `(차단 ${b} 포함)`,
-    excluded: (n, why) => `제외 ${n}(${why})`,
+    accounts: (n) => `계정 ${n}`,
+    reflected: (c, n) => `${n}개 중 ${c}개 반영`,
+    limited: (n) => `제한 ${n}`,
+    firstBack: '첫 복귀',
+    excluded: (n, why) => `${why} ${n} 제외`,
     held: '보류',
     unknownTier: '티어 미지정',
     noMeasure: '측정 없음',
-    assumed: (n, tier) => `티어 미지정 ${n}(${tier} 가정)`,
+    assumed: (n, tier) => `티어 미지정 ${n}개는 ${tier}로 계산`,
     estimated: (n) => `추정 ${n}`,
     unmeasured: (n) => `5시간 측정 없음 ${n}`,
     measured: (a) => `측정 ${a} 전`,
+  },
+  line: {
+    aria: '공급자별 가용량',
+    of: (total) => `/ ${total}`,
+    gain: (g) => `+${g}`,
+    none: '7일 안 회복 없음',
+    noBack: '7일 안 복귀 없음',
+    said: (name, v, total, pct) => `${name}: 이번 주 ${v} / ${total} 계정 남음 (${pct})`,
+    saidNow: (name, v, total, pct) => `${name}: 지금 ${v} / ${total} 계정 사용 가능 (${pct})`,
+    saidNext: (gain, when, clock) => `다음 +${gain}계정 ${when} (${clock})`,
+    saidBack: (when, clock) => `${when} 다시 사용 가능 (${clock})`,
+    state: { low: '부족', empty: '소진', allLimited: '모두 제한', unknown: '계산 불가' },
+    stale: (age) => `측정 ${age} 전`,
+    partial: (c, n) => `${n}개 중 ${c}개 반영`,
+    limited: (n) => `제한 ${n}`,
+    assumed: (tier) => `${tier} 가정`,
   },
   bar: {
     fiveHour: '5시간',
@@ -343,36 +357,21 @@ const ko: Strings = {
     okKind: (p, n) => `${p} · 계정 ${n}`,
     okRow: (now, wk) => `지금 ${now} · 이번 주 ${wk}`,
   },
-  tl: {
-    h5: '5시간 리셋',
-    wk: '일주일 리셋',
-    note: '앞으로 7일 동안 돌아오는 양(계정)',
-    none5: ' — 7일 안에 늘어날 양 없음',
-    small5: (g) => ` — 7일 안 ${g}`,
-    aria: '앞으로 7일 동안 돌아오는 계정',
-    axis: ['지금', '1h', '6h', '24h', '3d', '5d', '7d'],
-    mark: (w, gain, when, names) => `${w} +${gain}계정 · ${when}부터${names ? ` · ${names}` : ''}`,
-    lim: (until) => `모두 막힘 — ${until}까지`,
-    limNone: '모두 막힘 — 7일 안에 복귀 없음',
+  fc: {
+    title: '앞으로 7일',
+    sum: (gain, end) => `+${gain} 돌아옴 · 7일 뒤 ${end}`,
+    none: '7일 안에 돌아오는 양 없음',
+    today: '오늘',
+    max: (total) => `최대 ${total}`,
+    aria: (v, gain, end) => `앞으로 7일: 지금 ${v}, +${gain} 돌아옴, 7일 뒤 ${end}`,
+    mark: (gain, when, clock, names) => `+${gain}계정 · ${when} (${clock})${names ? ` · ${names}` : ''}`,
+    lim: (until) => `모두 제한 — ${until}까지`,
+    limNone: '모두 제한 — 7일 안에 복귀 없음',
   },
   fold: {
     expand: '펼치기',
     collapse: '접기',
     aria: (word, section) => `${section} ${word}`,
-  },
-  chip: {
-    now: '지금',
-    week: '주',
-    error: (r) => `가용량 미확인 · ${r}`,
-    none: '계정 없음',
-    aria: '공급자별 가용량',
-    said5: (v, total, pct) => `5시간(지금) ${v}/${total} 계정 (${pct})`,
-    saidWk: (v, total, pct) => `일주일 ${v}/${total} 계정 (${pct})`,
-    word: { low: ' · 부족', empty: ' · 소진', unknown: ' · 계산 불가' },
-    limSaid: (n, back) => ` · 제한 ${n}${back ? ` — ${back}` : ''}`,
-    firstBack: (d) => `${d} 후 첫 복귀`,
-    stale: (age) => `${age} 전`,
-    assumed: (tier, n) => `${tier} 가정 ${n}`,
   },
   news: {
     allLimited: (n, back) => `${n} 계정이 모두 막힘${back ? ` — ${back}` : ''}`,
@@ -449,7 +448,9 @@ export function timeText(kind: TimeKind, atMs: number, nowMs: number, t: Strings
   if (kind === 'since') return t.since(t.span((nowMs - atMs) / 1000));
   if (kind === 'fetched') return t.fetched(Math.max(0, Math.round((nowMs - atMs) / 1000)));
   const s = Math.floor((atMs - nowMs) / 1000);
-  if (!(s > 0)) return kind === 'back' ? t.backSoon : kind === 'runs' ? t.runsSoon : t.soon;
+  if (!(s > 0)) return kind === 'back' || kind === 'aboutBack' ? t.backSoon : kind === 'runs' ? t.runsSoon : t.soon;
+  if (kind === 'about') return t.in(t.age(s));
+  if (kind === 'aboutBack') return t.back(t.age(s));
   const d = t.dur(s);
   return kind === 'in' ? t.in(d) : kind === 'back' ? t.back(d) : kind === 'runs' ? t.runs(d) : d;
 }
