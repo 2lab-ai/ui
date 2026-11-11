@@ -145,6 +145,8 @@ const en = {
     aria: (v: string, gain: string, end: string) => `Next 7 days: ${v} now, +${gain} back, ${end} by day 7`,
     mark: (gain: string, when: string, clock: string, names: string) =>
       `+${gain} accounts · ${when} (${clock})${names ? ` · ${names}` : ''}`,
+    run: (gain: string, from: string, to: string, n: number, names: string) =>
+      `+${gain} accounts over ${n} returns · ${from} – ${to}${names ? ` · ${names}` : ''}`,
     lim: (until: string) => `All limited — until ${until}`,
     limNone: 'All limited — no return within 7 days',
   },
@@ -365,6 +367,7 @@ const ko: Strings = {
     max: (total) => `최대 ${total}`,
     aria: (v, gain, end) => `앞으로 7일: 지금 ${v}, +${gain} 돌아옴, 7일 뒤 ${end}`,
     mark: (gain, when, clock, names) => `+${gain}계정 · ${when} (${clock})${names ? ` · ${names}` : ''}`,
+    run: (gain, from, to, n, names) => `+${gain}계정 · ${n}번에 걸쳐 ${from} – ${to}${names ? ` · ${names}` : ''}`,
     lim: (until) => `모두 제한 — ${until}까지`,
     limNone: '모두 제한 — 7일 안에 복귀 없음',
   },

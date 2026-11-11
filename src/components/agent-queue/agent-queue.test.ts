@@ -293,6 +293,15 @@ describe('capacity math', () => {
     expect(at('weekly')).toEqual([[3 * D, 1, 'c']]);
   });
 
+  it('keeps axisPos / timelineMarks as deprecated exports for consumers', async () => {
+    const mod = await import('./index');
+    expect(typeof mod.axisPos).toBe('function');
+    expect(mod.axisPos(0)).toBe(0);
+    expect(mod.axisPos(7 * D)).toBe(1);
+    expect(typeof mod.timelineMarks).toBe('function');
+    expect(typeof mod.forecastSteps).toBe('function');
+  });
+
   it('merges forecast labels that start within a label of each other, at the run’s first step', () => {
     const x = (at: number) => (at - NOW) / H; // 1px an hour
     const steps = [
@@ -420,7 +429,10 @@ describe('<ui-agent-queue> capacity', () => {
     expect(text(el, '.cap-fc-t')).toBe('Next 7 days');
     expect(text(el, '.cap-fc-s')).toBe('+1.4 back · 2.9 by day 7');
     expect(qa(el, '.cap-fc-gain').map((g) => g.textContent)).toEqual(['+1.4']);
-    expect(q(el, '.cap-fc-mk title')?.textContent).toMatch(/^\+1\.4 accounts · in 22m \(\d\d:\d\d\) · ai7, ai43$/);
+    // A merged run says its span and how many returns, not the first one's time alone.
+    expect(q(el, '.cap-fc-mk title')?.textContent).toMatch(
+      /^\+1\.4 accounts over 2 returns · \d\d:\d\d – \d\d:\d\d · ai7, ai43$/,
+    );
     expect(q(el, '.cap-fc-svg')?.getAttribute('aria-label')).toBe('Next 7 days: 1.5 now, +1.4 back, 2.9 by day 7');
     const days = qa(el, '.cap-fc-ax').map((d) => d.textContent);
     expect(days[0]).toBe('Today');
@@ -482,6 +494,82 @@ describe('<ui-agent-queue> capacity', () => {
     expect(text(el, '.cap-detail .cap-off')).toBe('Can’t compute — no countable accounts');
     expect(qa(el, '.cap-bar')).toHaveLength(0);
     expect(q(el, '.cap-fc')).toBeNull();
+  });
+
+  it('the screen-reader sentence carries a live countdown the tick rewrites', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const el = mount({ providers: [claude()] });
+    const live = q(el, '.cap-line > .sr-only time')!;
+    expect(live.textContent).toBe('in 22m');
+    vi.advanceTimersByTime(2 * M);
+    expect(q(el, '.cap-line > .sr-only time')).toBe(live);
+    expect(live.textContent).toBe('in 20m');
+  });
+
+  it('a gain under +0.05 is “< +0.1”, never “+0.0”, and draws no chart', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'x',
+          name: 'X',
+          total: 2,
+          weekly: 0.3,
+          refills: [{ at: NOW + D, cause: '7d', weekly: 0.01, account: 'a' }],
+        },
+      ],
+    });
+    expect(text(el, '.cap-l-next')).toBe('< +0.1 back within 7 days');
+    expect(text(el, '.cap-fc-s')).toBe('< +0.1 back within 7 days');
+    expect(q(el, '.cap-fc-svg')).toBeNull();
+    expect(el.shadowRoot!.textContent).not.toContain('+0.0');
+  });
+
+  it('an empty pool is shaded until the earliest of a return and the first refill that raises the measure', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'c',
+          name: 'C',
+          total: 2,
+          fiveHour: 0,
+          accounts: [{ id: 'a', name: 'a', state: 'limited', reason: 'weekly', returnAt: NOW + 72 * H }],
+          refills: [
+            { at: NOW + H, cause: '5h', fiveHour: 0.5, account: 'b' },
+            { at: NOW + 72 * H, cause: '7d', fiveHour: 1, account: 'a' },
+          ],
+        },
+      ],
+    });
+    // 840px wide (900 − paddings): 1h of 168h is 5.0px.
+    expect(q(el, '.cap-fc-lim')?.getAttribute('width')).toBe('5.0');
+  });
+
+  it('the forecast says the capped rise: a reset of an account already full adds nothing', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'x',
+          name: 'X',
+          total: 4,
+          weekly: 3.5,
+          refills: [
+            { at: NOW + D, cause: '7d', weekly: 1, account: 'a' },
+            { at: NOW + 3 * D, cause: '7d', weekly: 1, account: 'b' },
+          ],
+        },
+      ],
+    });
+    expect(text(el, '.cap-fc-s')).toBe('+0.5 back · 4.0 by day 7');
+    expect(qa(el, '.cap-fc-gain').map((g) => g.textContent)).toEqual(['+0.5']);
+  });
+
+  it('an unknown pool’s state word is a state note (kept on a phone line)', () => {
+    const el = mount({ now: NOW, providers: [{ id: 'g', name: 'G', total: 0 }] });
+    expect(qa(el, '.cap-n').map((n) => n.className)).toEqual(['cap-n is-state']);
   });
 
   it('shows the capacity error instead of the cards', () => {
