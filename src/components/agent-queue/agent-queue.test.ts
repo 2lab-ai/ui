@@ -591,6 +591,24 @@ describe('<ui-agent-queue> capacity', () => {
     expect(q(el, '.cap-fc-svg')?.getAttribute('aria-label')).toBe('Next 7 days: < +0.1 back within 7 days');
   });
 
+  it('a reset inside a longer cooldown is not a return: the pool is back when the cooldown ends', () => {
+    const empty = (refillAccount: string): AqProvider => ({
+      id: 'c',
+      name: 'C',
+      total: 2,
+      weekly: 0,
+      state: 'empty',
+      accounts: [{ id: 'a', name: 'a', state: 'limited', reason: 'cooldown', returnAt: NOW + 2 * H }],
+      refills: [{ at: NOW + H, cause: '7d', weekly: 1, account: refillAccount }],
+    });
+    // ai a's weekly reset lands at 1h but its cooldown holds it to 2h (the server's dNow is 0 at the reset).
+    expect(text(mount({ now: NOW, providers: [empty('a')] }), '.cap-l-next')).toBe('back in 2h');
+    // Another account's reset at 1h is a real return.
+    expect(text(mount({ now: NOW, providers: [empty('b')] }), '.cap-l-next')).toBe('back in 1h');
+    const before: AqProvider = { ...empty('a'), weekly: 1, state: 'ok', accounts: [] };
+    expect(capacityNews([before], [empty('a')], NOW)).toBe('C: all accounts limited — back in 2h 0m');
+  });
+
   it('an unknown pool’s state word is a state note (kept on a phone line)', () => {
     const el = mount({ now: NOW, providers: [{ id: 'g', name: 'G', total: 0 }] });
     expect(qa(el, '.cap-n').map((n) => n.className)).toEqual(['cap-n is-state']);
