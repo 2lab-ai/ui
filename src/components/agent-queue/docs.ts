@@ -271,7 +271,7 @@ export const doc: ComponentDoc = {
   group: 'Components',
   summary: 'Which LLM accounts can work right now, which are limited and when they return — and what runs next.',
   description:
-    'Two sections in one grammar, each optional. Provider capacity treats every account as a worker: per provider a card with a state pill (available / limited n · back in 7h 22m, ticking in place), the 5-hour and weekly measures as bars with a dashed 20% line and what comes back next, an account strip on one row (the count, then usable accounts one badge each, every other state one overlapped stack per reason: one icon, one colour, names only — the reason, return and tier are in the title, the label and the card; runs that would push the row past two lines fold to icon + count), and a 7-day reset timeline. The job lane treats scheduled jobs as a queue: four numbers (next run · running · runs in 24 h · failures), the up-next list, job cards with their last runs, and 24 hours of run records. Data honesty: runs with an unknown result are counted apart and never drawn as success, truncated histories turn counts into lower bounds, and epoch seconds are converted once at the boundary.',
+    'Two sections in one grammar, each optional. Provider capacity is one calm table on the section’s plane: a line per provider — name, a thin ink meter, left / total, %, what comes back next (“+1.0 in 8h”, ticking) and up to two notes in words (Low, All limited, measured 4d ago, 3 of 5 counted, 6 limited) — the same lines folded and unfolded, their columns aligned across providers. Colour is a state only (low amber, empty red), never a window. Unfolding opens a detail card under each line: a plain-words disclosure, both measures as thin rows for a provider with a 5-hour window, the accounts as quiet text buttons on one row (usable names first, every other state one run behind one icon; runs that would push the row past two lines fold to icon + count), and a 7-day forecast — the measure as a step line on a linear week, one step per refill, the weekdays under it. The job lane treats scheduled jobs as a queue: four numbers (next run · running · runs in 24 h · failures), the up-next list, job cards with their last runs, and 24 hours of run records. Data honesty: runs with an unknown result are counted apart and never drawn as success, truncated histories turn counts into lower bounds, and epoch seconds are converted once at the boundary.',
   usedIn: 'soma-work dashboard › LLM 가용량 (capacity cards) and the CRON lane above the inbox',
   reference: { name: 'affectUI Agent Queue', url: 'https://www.affectui.com/components/agent-queue' },
   props: [
@@ -291,7 +291,7 @@ export const doc: ComponentDoc = {
       name: 'data.providers[].refills',
       type: "Array<{ at, cause: '5h' | '7d' | 'release', fiveHour?, weekly?, account? }>",
       description:
-        'Replayed resets in time order. Drive the “next +0.4 · in 22m” lines and the 7-day timeline; a refill whose time has come is folded into the measures.',
+        'Replayed resets in time order. Drive the “+0.4 in 22m” next column and the 7-day forecast (an empty pool counts down to the earliest of a limited account’s return and the first refill that raises its measure); a refill whose time has come is folded into the measures.',
     },
     {
       name: 'data.providers[].excluded / estimated / unmeasured5h / countedAccounts / accountCount',
@@ -358,7 +358,7 @@ export const doc: ComponentDoc = {
       name: 'data.collapsed',
       type: '{ capacity?: boolean; lane?: boolean }',
       description:
-        'Fold state per section. A given value wins on every data set (keep the reader’s choice per device, open a folded lane for a deep link); a missing one keeps the element’s own. Collapsed capacity = its title and one chip per provider (state glyph, both measures as count/total %, ⏸ limited · first return ticking, ⚠ stale / partial / assumed tier; the tooltip and accessible name add the state and the next line). Collapsed lane = its head (count, running, needs reply) and only the jobs waiting for a reply — stats, queue and chart are not drawn.',
+        'Fold state per section. A given value wins on every data set (keep the reader’s choice per device, open a folded lane for a deep link); a missing one keeps the element’s own. Collapsed capacity = its title and the same provider lines without the detail cards (with `collapsible`, a press anywhere on the folded section or on its head row asks to unfold — the toggle stays the keyboard’s way in). Collapsed lane = its head (count, running, needs reply) and only the jobs waiting for a reply — stats, queue and chart are not drawn.',
     },
     { name: 'data.lane.title', type: 'string', default: "'CRON'", description: 'Lane title and the job badge.' },
     {
@@ -408,19 +408,21 @@ export const doc: ComponentDoc = {
     ['Esc', 'Close the account card and return focus to its mark'],
   ],
   a11y: [
-    'Every state leads with a glyph, an icon or a word (● ⏸ ✗ ▲ ◌; one icon per account stack) — colour is never the only signal. Each account badge names its reason and return in its accessible name and title.',
+    'Every state is a word on its line (Low, Used up, All limited, Can’t compute, measured 4d ago) or one icon per account run — colour is never the only signal, and no state is a bare glyph. Each account mark names its reason and return in its accessible name and title.',
     'One polite live region outside the re-rendered markup: a pool turning all-limited, available again or under 20%; a newer failed run; a job starting to wait. The first data is the baseline; countdown ticks are never announced.',
     'Countdowns are <time role="timer"> elements whose text is rewritten in place once a second (no re-render, no announcement).',
     'Account marks and up-next chips are real buttons with roving tabindex; the account card is role="dialog" with a close button, Esc and outside click.',
-    'Bars, the timeline and the 24-hour chart are role="img" with a sentence (value / total / %, run totals, busiest hour, truncation, unknown runs not counted).',
+    'Measure rows, the 7-day forecast and the 24-hour chart are role="img" with a sentence (value / total / %, what comes back by day 7, run totals, busiest hour, truncation, unknown runs not counted).',
     'Touch targets grow to 44 px on coarse pointers; the run pulse stops under reduced motion.',
     'Fold toggles are buttons with aria-expanded; the visible word says what a press does and the accessible name adds the section (“Expand LLM capacity”). On a narrow section the word is visually hidden, never removed.',
-    'A collapsed capacity chip draws its numbers aria-hidden and carries one sentence for screen readers: provider, both measures with totals and %, flags, state, limited count with the first return, and the next line.',
+    'A capacity line draws its columns aria-hidden and carries one sentence for screen readers (also its tooltip): provider, the measure with total and %, the next gain with its clock time, and its notes.',
     'Sound (opt-in, @2lab.ai/ui/sound): a fold toggle plays a subtle open or close once ui-collapse goes through; an account mark plays open for its card and close when the mark, the close button or Esc shuts it (a press elsewhere closes it quietly); a job plays navigate once ui-job-open goes through. Live figures and countdowns never sound. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-queue lang="en"></ui-agent-queue>
 <script type="module">
+
   import '@2lab.ai/ui/agent-queue';
+
   const el = document.querySelector('ui-agent-queue');
   el.data = {
     timeUnit: 's',                       // llmux speaks epoch seconds — converted once here
@@ -450,7 +452,7 @@ export const doc: ComponentDoc = {
       id: 'stacks',
       title: '20 accounts, mostly cooling down',
       description:
-        'The dashboard on 30 October 2026: 4 usable, 11 in cooldown, 2 at their weekly limit, a failed login and 2 paused. The strip is one row — usable badges, then one overlapped stack per reason (snowflake amber, calendar amber, lock red, pause grey). Narrow the frame: the widest stacks fold to icon + count first, the usable accounts last.',
+        'The dashboard on 30 October 2026: 4 usable, 11 in cooldown, 2 at their weekly limit, a failed login and 2 paused. The strip is one row — usable names, then one run per reason behind its icon (snowflake amber, calendar amber, lock red, pause grey). Narrow the frame: the widest stacks fold to icon + count first, the usable accounts last.',
       height: 560,
       frame: false,
       create: () => make({ providers: [twenty(Date.now())] }),
@@ -468,7 +470,7 @@ export const doc: ComponentDoc = {
       id: 'collapsed',
       title: 'Collapsed (the dashboard’s default)',
       description:
-        'collapsible + collapsed: capacity keeps its title and one chip per provider (Claude: ⏸ 5 limited, the first return ticking, ⚠ 16/17 reflected; Codex: ⚠ a six-day-old reading); the lane keeps its head and only the job waiting for a reply, with the host’s live card in slot="job:morning-digest". Press “Expand” — the toggle sends ui-collapse and, not prevented, unfolds in place; the card stays where it is.',
+        'collapsible + collapsed: capacity keeps its title and one line per provider (Claude: the next gain ticking, “5 limited”; Codex: “measured 6d ago” in the warning ink); the lane keeps its head and only the job waiting for a reply, with the host’s live card in slot="job:morning-digest". Press a capacity line or “Expand” — ui-collapse goes out and, not prevented, the detail cards open under their lines; the lines stay where they are.',
       height: 520,
       frame: false,
       create: () => {
@@ -489,7 +491,7 @@ export const doc: ComponentDoc = {
       id: 'limited',
       title: 'All limited',
       description:
-        'Every Claude account is limited: the pill counts down to the first return and the timeline shades now → that return. Codex is under 20% (low); Gemini has no countable account.',
+        'Every Claude account is limited: its line says “All limited” and counts down to the first return, and the forecast shades now → that return. Codex is under 20% (low); Gemini has no countable account.',
       height: 900,
       frame: false,
       create: () => {

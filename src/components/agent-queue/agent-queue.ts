@@ -14,7 +14,6 @@ import {
   type AqStack,
   accountStacks,
   advanceProvider,
-  axisPos,
   clockLabel,
   countedAccounts,
   D7,
@@ -23,12 +22,14 @@ import {
   dayRuns,
   emptyReturnAt,
   exclusions,
+  type ForecastStep,
   firstReturn,
   fmt1,
   fmtCount,
   fmtPct,
+  forecastMarks,
+  forecastSteps,
   gainWithin,
-  HOUR,
   has5h,
   hm,
   jobRuns,
@@ -47,7 +48,6 @@ import {
   runKind,
   scheduleLabel,
   stripFolds,
-  timelineMarks,
   upNext,
 } from './logic';
 import { STRINGS, type Strings, type TimeKind, timeText } from './strings';
@@ -74,7 +74,6 @@ export interface AqCollapseDetail {
 const CHEVRON_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
 const SECTIONS: readonly AqSection[] = ['capacity', 'lane'];
-const CHIP_GLYPH: Record<string, string> = { low: '▲ ', empty: '✗ ', unknown: '◌ ' };
 
 const CLOCK_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8V8l2.2 1.4"/></svg>';
@@ -88,7 +87,7 @@ const TICK: Record<AqRunStatus, string> = {
   failed: 'fail',
   unknown: 'none',
 };
-const COUNTDOWN = new Set<TimeKind>(['left', 'in', 'back', 'runs']);
+const COUNTDOWN = new Set<TimeKind>(['left', 'in', 'back', 'runs', 'about', 'aboutBack']);
 
 const statusOf = (r: AqRun): AqRunStatus => (RUN_STATUSES.includes(r.status) ? r.status : 'unknown');
 const pill = (tone: string, html: string) => `<span class="aq-pill is-${tone}">${html}</span>`;
@@ -215,6 +214,8 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   #rz = 0;
   #seenQ = new Set<string>();
   #fold: Record<AqSection, boolean> = { capacity: false, lane: false };
+  /** Capacity just unfolded: the next render's details enter once (a later data render does not replay it). */
+  #capEnter = false;
   #tick = 0;
   #say = 0;
   readonly #live: HTMLElement;
@@ -292,7 +293,9 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
 
   #ingest(d: AgentQueueData): void {
     // The host's fold state wins on every data set; a section it leaves out keeps the element's own.
+    const wasFolded = this.#fold.capacity;
     for (const s of SECTIONS) if (typeof d.collapsed?.[s] === 'boolean') this.#fold[s] = d.collapsed[s] as boolean;
+    if (this.#m && wasFolded && !this.#fold.capacity) this.#capEnter = true;
     const next = normalize(d);
     this.#skew = next.now !== undefined ? next.now - Date.now() : 0;
     const prev = this.#m;
@@ -351,7 +354,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
 
   // ── Capacity ──────────────────────────────────────────────────────────────────────────────
 
-  /** The section's fold toggle (with `collapsible`): its word says what a press does; aria-expanded the state. */
+  /** The section's fold toggle (with `collapsible`): a quiet chevron; its word (hidden on a phone) says what a press does. */
   #foldBtn(section: AqSection, name: string, t: Strings): string {
     if (!this.data?.collapsible) return '';
     const folded = this.#fold[section];
@@ -361,184 +364,198 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     }" aria-label="${escAttr(t.fold.aria(word, name))}"><span class="aq-fold-text">${esc(word)}</span>${CHEVRON_SVG}</button>`;
   }
 
+  /**
+   * Capacity is one calm table: a line per provider — name, meter, left / total, %, what comes back next, a note —
+   * the same lines folded and unfolded. Unfolding opens each provider's detail under its own line (the line never
+   * moves), so the folded view is the unfolded view's first read.
+   */
   #capacity(m: AgentQueueData, now: number, t: Strings): string {
-    const fold = this.#foldBtn('capacity', t.capTitle, t);
-    if (this.#fold.capacity)
-      return `<section class="capacity is-collapsed" aria-label="${escAttr(t.capTitle)}"><div class="cap-head"><h2 class="cap-title">${esc(
-        t.capTitle,
-      )}</h2>${this.#summary(m, now, t)}${fold}</div></section>`;
-    const sub = [m.capacityNote ? esc(m.capacityNote) : '', this.#time('fetched', m.fetchedAt, now, t, 'aq-ago')]
-      .filter(Boolean)
-      .join(' · ');
-    const head = `<div class="cap-head"><h2 class="cap-title">${esc(t.capTitle)}</h2>${sub ? `<span class="cap-sub">${sub}</span>` : ''}${fold}</div>`;
-    const open = `<section class="capacity" aria-label="${escAttr(t.capTitle)}">${head}`;
+    const folded = this.#fold.capacity;
+    const foldable = !!this.data?.collapsible;
+    const sub = folded
+      ? ''
+      : [m.capacityNote ? esc(m.capacityNote) : '', this.#time('fetched', m.fetchedAt, now, t, 'aq-ago')]
+          .filter(Boolean)
+          .join(' · ');
+    const head = `<div class="cap-head"><h2 class="cap-title">${esc(t.capTitle)}</h2>${
+      sub ? `<span class="cap-sub">${sub}</span>` : ''
+    }${this.#foldBtn('capacity', t.capTitle, t)}</div>`;
+    const open = `<section class="capacity${folded ? ' is-collapsed' : ''}${foldable ? ' is-foldable' : ''}" aria-label="${escAttr(
+      t.capTitle,
+    )}">${head}`;
     if (m.capacityError !== undefined)
-      return `${open}<div class="cap-off">${esc(t.capError(m.capacityError || '—'))}</div></section>`;
+      return `${open}<p class="cap-off is-error" title="${escAttr(m.capacityError)}">${esc(
+        t.capError(m.capacityError || '—'),
+      )}</p></section>`;
     const ps = m.providers ?? [];
-    if (!ps.length) return `${open}<div class="cap-off">${esc(t.capNone)}</div></section>`;
-    // The section's inner width sizes the timeline (SVG in px, labels unscaled) and fits the workers strip.
+    if (!ps.length) return `${open}<p class="cap-off">${esc(t.capNone)}</p></section>`;
+    // The section's inner width sizes the forecast (SVG in px, labels unscaled) and fits the workers strip.
     const width = this.#width > 0 ? this.#width : this.clientWidth > 0 ? this.clientWidth : 900;
-    const W = Math.max(260, Math.round(width) - 28 - 36);
-    const narrow = W < 600;
-    return `${open}<div class="cap-rows">${ps
-      .map((p, i) => this.#provider(advanceProvider(p, now), i, now, t, W, narrow))
+    const W = Math.max(220, Math.round(width) - 32 - 28);
+    return `${open}<div class="cap-table" role="group" aria-label="${escAttr(t.line.aria)}">${ps
+      .map((p, i) => this.#provider(advanceProvider(p, now), i, now, t, W, folded))
       .join('')}</div></section>`;
   }
 
-  /** Collapsed capacity: one chip per provider — state glyph, both measures, ⏸ limited · first return, ⚠ flags. */
-  #summary(m: AgentQueueData, now: number, t: Strings): string {
-    if (m.capacityError !== undefined)
-      return `<div class="cap-summary"><span class="cap-chip is-error" title="${escAttr(m.capacityError)}">${esc(
-        t.chip.error(m.capacityError || '—'),
-      )}</span></div>`;
-    const ps = m.providers ?? [];
-    if (!ps.length)
-      return `<div class="cap-summary"><span class="cap-chip is-unknown">${esc(t.chip.none)}</span></div>`;
-    return `<ul class="cap-summary" aria-label="${escAttr(t.chip.aria)}">${ps
-      .map((p) => this.#chip(advanceProvider(p, now), now, t))
-      .join('')}</ul>`;
-  }
-
-  #chip(p: AqProvider, now: number, t: Strings): string {
+  #provider(p: AqProvider, idx: number, now: number, t: Strings, W: number, folded: boolean): string {
     const state = poolState(p);
-    const total = Number(p.total) || 0;
-    const known = total > 0;
-    const ts = fmt1(total);
-    const five = has5h(p);
-    const wk = p.weekly !== undefined && p.weekly !== null;
-    const v5 = Number(p.fiveHour) || 0;
-    const vw = Number(p.weekly) || 0;
-    // Both measures as count / total and %, labelled — also folded, also on phones.
-    const meas = (cls: string, word: string, v: number) =>
-      `<span class="cap-m is-${cls}"><i class="cap-chip-k">${esc(word)} </i><b>${fmtCount(v, total)}</b><i class="cap-chip-of">/${ts}</i> <em>${fmtPct(
-        v,
-        total,
-      )}</em></span>`;
-    const nums = [five ? meas('now', t.chip.now, v5) : '', wk ? meas('wk', t.chip.week, vw) : ''].filter(Boolean);
-    const said = known
-      ? [
-          five ? t.chip.said5(fmtCount(v5, total), ts, fmtPct(v5, total)) : '',
-          wk ? t.chip.saidWk(fmtCount(vw, total), ts, fmtPct(vw, total)) : '',
-        ]
-          .filter(Boolean)
-          .join(', ')
-      : t.bar.unknown;
-    // What the card's disclosure line flags: a reading over a day old, a fifth or more left out, assumed tiers.
-    const acc = p.accounts ?? [];
-    const age = p.measuredAt !== undefined ? (now - p.measuredAt) / 1000 : 0;
-    const stale = age > 86400 ? t.age(age) : '';
-    const all = p.accountCount ?? acc.length;
-    const counted = countedAccounts(p);
-    const part = all > 0 && counted < all * 0.8 ? t.disc.reflected(counted, all) : '';
-    const assumed = acc.filter((a) => a.tierAssumed && a.tier && a.state !== 'paused' && a.state !== 'excluded');
-    const tier = assumed.length ? String(assumed[0].tier) : '';
-    const flags = [stale ? t.chip.stale(stale) : '', part, tier ? t.chip.assumed(tier, assumed.length) : ''].filter(
-      Boolean,
-    );
-    const flagSaid = [stale ? t.disc.measured(stale) : '', part, tier ? t.disc.assumed(assumed.length, tier) : '']
-      .filter(Boolean)
-      .map((x) => ` · ${x}`)
-      .join('');
-    // Limited workers and the first return, between the measures and the ⚠ flag (ticking in place).
-    const lim = limitedAccounts(p).length;
-    const back = lim ? firstReturn(p) : null;
-    const left = back === null ? 0 : Math.floor((back - now) / 1000);
-    const limHtml = lim
-      ? ` <i class="cap-chip-lim">⏸ ${lim}${back !== null ? ` · ${this.#time('left', back, now, t)}` : ''}</i>`
-      : '';
-    const limSaid = lim
-      ? t.chip.limSaid(lim, back === null ? '' : left > 0 ? t.chip.firstBack(t.dur(left)) : t.backSoon)
-      : '';
-    const next = known ? this.#nextText(p, primaryKey(p), now, t) : '';
-    const lead = `${said}${flagSaid}${t.chip.word[state] ?? ''}${limSaid}${next ? ` — ${next}` : ''}`;
-    const flag = flags.length ? ` <i class="cap-chip-flag">${esc(`⚠ ${flags.join(' · ')}`)}</i>` : '';
-    return `<li class="cap-chip is-${state}" title="${escAttr(lead)}"><span class="cap-chip-v" aria-hidden="true">${esc(
-      (CHIP_GLYPH[state] ?? '') + p.name,
-    )} ${nums.length && known ? nums.join(' · ') : '<b>—</b>'}${limHtml}${flag}</span><span class="sr-only">${esc(
-      `${p.name} ${lead}`,
-    )}</span></li>`;
+    const line = this.#line(p, state, now, t);
+    const detail = folded ? '' : this.#detail(p, idx, state, now, t, W);
+    return `<section class="cap-prov is-${state}" aria-label="${escAttr(t.capAria(p.name))}">${line}${detail}</section>`;
   }
 
-  /** The next line as plain words (chip tooltip): what comes back next, when, and why. */
-  #nextText(p: AqProvider, key: MeasureKey, now: number, t: Strings): string {
+  /**
+   * One provider on one line: name · meter · left / total · % · next gain and when · up to two notes. The columns are
+   * aria-hidden; one sentence says the line to a screen reader, its countdown a live <time> the 1 Hz tick rewrites.
+   */
+  #line(p: AqProvider, state: AqPoolState, now: number, t: Strings): string {
+    const key = primaryKey(p);
+    const total = Number(p.total) || 0;
+    const known = total > 0 && state !== 'unknown';
+    const v = Number(p[key]) || 0;
+    const frac = known ? Math.max(0, Math.min(1, v / total)) : 0;
+    const vs = known ? fmtCount(v, total) : '—';
+    const ts = fmt1(total);
+    const pct = known ? fmtPct(v, total) : '';
+    const next = known ? this.#lineNext(p, key, state, now, t) : { html: '', said: '', saidHtml: '' };
+    const notes = this.#notes(p, state, now, t);
+    const head = known ? (key === 'fiveHour' ? t.line.saidNow : t.line.said)(p.name, vs, ts, pct) : p.name;
+    const said = [head, next.said, ...notes.map((n) => n.text)].filter(Boolean).join(' · ');
+    const saidHtml = [esc(head), next.saidHtml, ...notes.map((n) => esc(n.text))].filter(Boolean).join(' · ');
+    const note = notes.map((n) => `<span class="cap-n${n.tone ? ` is-${n.tone}` : ''}">${esc(n.text)}</span>`).join('');
+    return `<div class="cap-line" title="${escAttr(said)}"><span class="cap-l-name" aria-hidden="true">${esc(
+      p.name,
+    )}</span><span class="cap-l-meter" aria-hidden="true"><i style="width:${(frac * 100).toFixed(
+      1,
+    )}%"></i></span><span class="cap-l-val" aria-hidden="true"><b>${vs}</b>${
+      known ? `<i>${esc(t.line.of(ts))}</i>` : ''
+    }</span><span class="cap-l-pct" aria-hidden="true">${pct}</span><span class="cap-l-next" aria-hidden="true">${
+      next.html
+    }</span><span class="cap-l-note" aria-hidden="true">${note}</span><span class="sr-only">${saidHtml}</span></div>`;
+  }
+
+  /**
+   * What comes back next, at a glance: “+1.0 in 8h”; an empty pool says when it is usable again. `said` is the
+   * tooltip's part (clock times only — an attribute does not tick), `saidHtml` the screen-reader sentence's (a live
+   * countdown and the clock time).
+   */
+  #lineNext(
+    p: AqProvider,
+    key: MeasureKey,
+    state: AqPoolState,
+    now: number,
+    t: Strings,
+  ): { html: string; said: string; saidHtml: string } {
+    // The clock time and the gain are formatted numbers; the countdown takes the placeholder's place.
+    const live = (sentence: string, at: number) => esc(sentence).replace('\u0000', this.#time('in', at, now, t));
+    if (state === 'empty') {
+      const at = emptyReturnAt(p, now);
+      if (at === null) {
+        const txt = esc(t.line.noBack);
+        return { html: `<span class="cap-dim">${txt}</span>`, said: t.line.noBack, saidHtml: txt };
+      }
+      return {
+        html: this.#time('aboutBack', at, now, t),
+        said: t.line.titleBack(clockLabel(at, now)),
+        saidHtml: live(t.line.saidBack('\u0000', clockLabel(at, now)), at),
+      };
+    }
     const e = nextRefill(p, key, now);
     if (!e) {
       const small = gainWithin(p, key, now);
-      return small > 0.0005 ? t.bar.backWithin(t.gain(small, fmt1)) : t.bar.nothing;
+      const txt = small > 0.0005 ? t.bar.backWithin(t.gain(small, fmt1)) : t.line.none;
+      return { html: `<span class="cap-dim">${esc(txt)}</span>`, said: txt, saidHtml: esc(txt) };
     }
-    const why = [t.cause[e.cause] ?? '', e.account ?? ''].filter(Boolean).join(' · ');
-    return `${t.bar.next(fmt1(Number(e[key]) || 0))}${timeText('in', e.at, now, t)} (${clockLabel(e.at, now)})${
-      why ? ` · ${why}` : ''
-    }`;
+    const g = fmt1(Number(e[key]) || 0);
+    return {
+      html: `<b>${esc(t.line.gain(g))}</b> ${this.#time('about', e.at, now, t)}`,
+      said: t.line.titleNext(g, clockLabel(e.at, now)),
+      saidHtml: live(t.line.saidNext(g, '\u0000', clockLabel(e.at, now)), e.at),
+    };
   }
 
-  #provider(p: AqProvider, idx: number, now: number, t: Strings, W: number, narrow: boolean): string {
-    const state = poolState(p);
-    const n = p.accountCount ?? p.accounts?.length ?? 0;
-    const who = p.source || n ? `<span class="aq-name">${esc(t.source(p.source ?? '', n))}</span>` : '';
-    let h = `<section class="cap-prov is-${state}${narrow ? ' is-narrow' : ''}" aria-label="${escAttr(t.capAria(p.name))}">`;
-    h += `<div class="aq-head"><h3 class="cap-pname">${esc(p.name)}</h3>${who}${this.#provPill(p, state, now, t)}</div>`;
-    const disc = this.#disclosure(p, now, t);
-    if (disc) h += `<div class="cap-disc">${disc}</div>`;
-    const workers = this.#workers(p, now, t, W);
-    if (!(Number(p.total) > 0)) return `${h}<div class="cap-bar-next">${esc(t.bar.unknown)}</div>${workers}</section>`;
-    if (has5h(p)) h += this.#bar(p, 'fiveHour', now, t);
-    if (p.weekly !== undefined && p.weekly !== null) h += this.#bar(p, 'weekly', now, t);
-    h += workers;
-    h += this.#timeline(p, idx, state, W, now, t);
-    return `${h}</section>`;
-  }
-
-  /** The provider pill (D8): can't compute > all limited / used up > limited n > low > available. */
-  #provPill(p: AqProvider, state: AqPoolState, now: number, t: Strings): string {
+  /**
+   * What the line must also say, most important first, two at most (the detail has the rest): the pool's state word,
+   * a reading over a day old, a fifth or more left out, limited accounts, an assumed tier. Words, not glyphs.
+   */
+  #notes(
+    p: AqProvider,
+    state: AqPoolState,
+    now: number,
+    t: Strings,
+  ): Array<{ text: string; tone?: 'warn' | 'fail' | 'state' }> {
+    const out: Array<{ text: string; tone?: 'warn' | 'fail' | 'state' }> = [];
     const lim = limitedAccounts(p).length;
-    if (state === 'unknown' || !(Number(p.total) > 0)) return pill('unknown', esc(t.pill.unknown));
-    if (state === 'empty') {
-      const at = emptyReturnAt(p, now);
-      return pill(
-        'empty',
-        esc(lim ? t.pill.allLimited : t.pill.empty) + (at ? ` · ${this.#time('back', at, now, t)}` : ''),
-      );
-    }
-    if (lim) {
-      const back = firstReturn(p);
-      return pill('paused', esc(t.pill.limited(lim)) + (back ? ` · ${this.#time('back', back, now, t)}` : ''));
-    }
-    if (state === 'low') return pill('low', esc(t.pill.low));
-    return pill('ok', esc(t.pill.ok));
+    if (state === 'empty') out.push({ text: lim ? t.line.state.allLimited : t.line.state.empty, tone: 'fail' });
+    else if (state === 'low') out.push({ text: t.line.state.low, tone: 'warn' });
+    else if (state === 'unknown') out.push({ text: t.line.state.unknown, tone: 'state' });
+    const age = p.measuredAt !== undefined ? (now - p.measuredAt) / 1000 : 0;
+    if (age > 86400) out.push({ text: t.line.stale(t.age(age)), tone: 'warn' });
+    const acc = p.accounts ?? [];
+    const all = p.accountCount ?? acc.length;
+    const counted = countedAccounts(p);
+    if (all > 0 && counted < all * 0.8) out.push({ text: t.line.partial(counted, all) });
+    if (lim && state !== 'empty') out.push({ text: t.line.limited(lim) });
+    const assumed = acc.find((a) => a.tierAssumed && a.tier && a.state !== 'paused' && a.state !== 'excluded');
+    if (assumed) out.push({ text: t.line.assumed(String(assumed.tier)) });
+    return out.slice(0, 2);
   }
 
-  /** One muted line, only what is non-zero: reflected / limited, exclusions, estimates, the measurement's age. */
+  /** The unfolded detail under a provider's line: the plain-words disclosure, accounts, the 7-day forecast. */
+  #detail(p: AqProvider, idx: number, state: AqPoolState, now: number, t: Strings, W: number): string {
+    const disc = this.#disclosure(p, now, t);
+    let h = `<div class="cap-detail${this.#capEnter ? ' is-entering' : ''}${W < 600 ? ' is-narrow' : ''}">`;
+    if (disc) h += `<p class="cap-disc">${disc}</p>`;
+    const known = Number(p.total) > 0 && state !== 'unknown';
+    // A provider with a 5-hour window keeps both measures here; its line shows the 5-hour one.
+    if (known && has5h(p)) {
+      h += this.#bar(p, 'fiveHour', now, t);
+      if (p.weekly !== undefined && p.weekly !== null) h += this.#bar(p, 'weekly', now, t);
+    }
+    h += this.#workers(p, now, t, W);
+    if (known) h += this.#forecast(p, idx, state, W, now, t);
+    else h += `<p class="cap-off">${esc(t.bar.unknown)}</p>`;
+    return `${h}</div>`;
+  }
+
+  /** One muted line in plain words, only what is non-zero: source, counted, limited and the first return, left out, estimates, the reading's age. */
   #disclosure(p: AqProvider, now: number, t: Strings): string {
     const acc = p.accounts ?? [];
     const all = p.accountCount ?? acc.length;
-    const lim = limitedAccounts(p).length;
     const parts: string[] = [];
-    if (all > 0) parts.push(t.disc.reflected(countedAccounts(p), all) + (lim ? t.disc.blocked(lim) : ''));
+    if (p.source) parts.push(esc(p.source));
+    if (all > 0) {
+      const c = countedAccounts(p);
+      parts.push(esc(c < all ? t.disc.reflected(c, all) : t.disc.accounts(all)));
+    }
+    const lim = limitedAccounts(p).length;
+    if (lim) {
+      const back = firstReturn(p);
+      parts.push(
+        esc(t.disc.limited(lim)) +
+          (back !== null ? ` — ${esc(t.disc.firstBack)} ${this.#time('about', back, now, t, 'aq-left')}` : ''),
+      );
+    }
     const ex = exclusions(p);
-    const why: string[] = [];
-    if (ex.held) why.push(t.disc.held);
-    if (ex.unknownTier) why.push(t.disc.unknownTier);
-    if (ex.noMeasure) why.push(t.disc.noMeasure);
-    const exN = ex.held + ex.unknownTier + ex.noMeasure;
-    if (exN) parts.push(t.disc.excluded(exN, why.join('·')));
+    if (ex.held) parts.push(esc(t.disc.excluded(ex.held, t.disc.held)));
+    if (ex.unknownTier) parts.push(esc(t.disc.excluded(ex.unknownTier, t.disc.unknownTier)));
+    if (ex.noMeasure) parts.push(esc(t.disc.excluded(ex.noMeasure, t.disc.noMeasure)));
     const assumed = acc.filter((a) => a.tierAssumed && a.tier && a.state !== 'paused' && a.state !== 'excluded');
-    if (assumed.length) parts.push(t.disc.assumed(assumed.length, String(assumed[0].tier)));
+    if (assumed.length) parts.push(esc(t.disc.assumed(assumed.length, String(assumed[0].tier))));
     const est = p.estimated ?? acc.filter((a) => a.estimated).length;
-    if (est) parts.push(t.disc.estimated(est));
+    if (est) parts.push(esc(t.disc.estimated(est)));
     const un = p.unmeasured5h ?? acc.filter((a) => a.state === 'unmeasured').length;
-    if (un) parts.push(t.disc.unmeasured(un));
-    let html = esc(parts.join(' · '));
+    if (un) parts.push(esc(t.disc.unmeasured(un)));
     if (p.measuredAt !== undefined) {
       const age = (now - p.measuredAt) / 1000;
-      const sep = html ? ' · ' : '';
-      // Over a day old, the reading the bars rest on is flagged.
-      if (age > 86400) html += `${sep}<b class="cap-stale">${esc(`⚠ ${t.disc.measured(t.age(age))}`)}</b>`;
-      else if (age > 3600) html += sep + esc(t.disc.measured(t.age(age)));
+      // Over a day old, the reading the numbers rest on is flagged (a word in the warning ink, no glyph).
+      if (age > 86400) parts.push(`<b class="cap-stale">${esc(t.disc.measured(t.age(age)))}</b>`);
+      else if (age > 3600) parts.push(esc(t.disc.measured(t.age(age))));
     }
-    return html;
+    return parts.join('<i class="cap-sep" aria-hidden="true"> · </i>');
   }
 
+  /** A provider with a 5-hour window: one thin row per measure — label | meter | “x / total %” — and its next line. */
   #bar(p: AqProvider, key: MeasureKey, now: number, t: Strings): string {
     const v = Number(p[key]) || 0;
     const total = Number(p.total) || 0;
@@ -549,14 +566,13 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const vs = fmtCount(v, total);
     const ts = fmt1(total);
     const pct = fmtPct(v, total);
-    const e = nextRefill(p, key, now);
-    const who = e ? ` title="${escAttr([t.cause[e.cause] ?? '', e.account ?? ''].filter(Boolean).join(' · '))}"` : '';
-    // The dashed line is where the pool turns low (the reference's backpressure line).
-    return `<div class="cap-bar-row is-${five ? 'h5' : 'wk'}"><div class="cap-bar-lbl">${esc(label)}<i>${esc(sub)}</i></div><div class="cap-bar" role="img" aria-label="${escAttr(
-      t.bar.said(label, vs, ts, pct),
-    )}"><span style="width:${(frac * 100).toFixed(1)}%"></span><i class="cap-low" style="left:${LOW_PCT}%" title="${escAttr(
-      t.bar.low(LOW_PCT),
-    )}"></i></div><div class="cap-bar-val"><b>${vs}</b> ${esc(t.bar.of(ts))} <em>${pct}</em></div><div class="cap-bar-next"${who}>${this.#nextLine(
+    return `<div class="cap-bar-row is-${five ? 'h5' : 'wk'}"><div class="cap-bar-lbl">${esc(label)}<i>${esc(
+      sub,
+    )}</i></div><div class="cap-bar" role="img" aria-label="${escAttr(t.bar.said(label, vs, ts, pct))}"><span style="width:${(
+      frac * 100
+    ).toFixed(
+      1,
+    )}%"></span></div><div class="cap-bar-val"><b>${vs}</b> ${esc(t.bar.of(ts))} <em>${pct}</em></div><div class="cap-bar-next">${this.#nextLine(
       p,
       key,
       now,
@@ -572,7 +588,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       return esc(small > 0.0005 ? t.bar.backWithin(t.gain(small, fmt1)) : t.bar.nothing);
     }
     const gain = esc(t.bar.next(fmt1(Number(e[key]) || 0))) + this.#time('in', e.at, now, t);
-    // The 5-hour bar rising at a weekly reset is held down by the weekly limit: say so.
+    // The 5-hour measure rising at a weekly reset is held down by the weekly limit: say so.
     if (key === 'fiveHour' && e.cause === '7d') return esc(t.bar.heldByWeekly) + gain;
     const own = key === 'fiveHour' ? e.cause === '5h' : e.cause === '7d';
     return own ? gain : `${gain} · ${esc(t.cause[e.cause] ?? '')}`;
@@ -632,7 +648,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     )}"><div class="aq-marks"><span class="aq-col-head"><span>${esc(t.workers)}</span> <b>${okN}/${acc.length}</b></span>${marks}</div>${card}</div>`;
   }
 
-  /** One account: a usable one is its binding dot and name; the first of a stack carries the stack's icon. */
+  /** One account: a usable one is its name; the first of a stack carries the stack's icon. */
   #mark(
     p: AqProvider,
     a: AqAccount,
@@ -646,16 +662,12 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const why = this.#reason(a, t);
     const said = [a.name, a.tier ? this.#tierLabel(a, t) : '', why];
     if (a.state === 'limited') said.push(a.returnAt ? timeText('back', a.returnAt, now, t) : t.noReturn);
-    const dot =
-      a.state === 'available'
-        ? `<i class="aq-wdot is-${a.binding === '5h' ? 'h5' : 'wk'}" aria-hidden="true"></i>`
-        : '';
     const label = said.filter(Boolean);
     return `<button type="button" class="aq-mark is-${a.state}" data-key="${escAttr(key)}" data-pid="${escAttr(
       p.id,
     )}" data-aid="${escAttr(a.id)}" data-rove-item tabindex="${stop ? 0 : -1}" aria-haspopup="dialog" aria-expanded="${open}" aria-label="${escAttr(
       label.join(', '),
-    )}" title="${escAttr(label.join(' · '))}">${dot}${icon}<b>${esc(a.name)}</b></button>`;
+    )}" title="${escAttr(label.join(' · '))}">${icon}<b>${esc(a.name)}</b></button>`;
   }
 
   /** A folded run: its icon (the usable run: a dot) and how many; the card lists who. */
@@ -724,63 +736,116 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     )}</dl></div>`;
   }
 
-  /** The 7-day timeline: ● 5-hour reset (label above), ◆ weekly reset (label below); all limited shades now → lift. */
-  #timeline(p: AqProvider, idx: number, state: AqPoolState, W: number, now: number, t: Strings): string {
-    const marks = timelineMarks(p, W, now);
-    // An all-limited pool with nothing coming back still gets its axis and its shaded stretch — the blank is the point.
-    if (!marks.length && state !== 'empty') return '';
-    const pad = 16;
-    const y0 = marks.some((b) => b.c === 'h5') ? 46 : 20;
-    const h = y0 + 54;
-    const X = (at: number) => pad + axisPos(at - now) * (W - 2 * pad);
-    let s = `<svg class="cap-tl" width="${W}" height="${h}" viewBox="0 0 ${W} ${h}" role="img" aria-label="${escAttr(t.tl.aria)}">`;
-    if (state === 'empty') {
-      const k = primaryKey(p);
-      const lift = (p.refills ?? []).find((e) => e.at > now && (Number(e[k]) || 0) > 0)?.at ?? null;
-      const x1 = lift === null ? W - pad : X(lift);
-      const hid = `aqh-${idx}`;
-      const span = Math.max(0, x1 - pad).toFixed(1);
-      const title = lift === null ? t.tl.limNone : t.tl.lim(clockLabel(lift, now));
-      s += `<defs><pattern id="${hid}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="cap-tl-hatch" x1="0" y1="0" x2="0" y2="6"/></pattern></defs>`;
-      s += `<rect class="cap-tl-lim" x="${pad}" y="0" width="${span}" height="${y0 + 14}"><title>${esc(title)}</title></rect>`;
-      s += `<rect x="${pad}" y="0" width="${span}" height="${y0 + 14}" fill="url(#${hid})" aria-hidden="true"/>`;
+  /**
+   * The 7-day forecast on a linear week: the measure now, one step up per refill (labels merge when they would touch),
+   * the days of the week under it and a dashed line at the pool's size (its title says it). An empty pool shades now →
+   * its first return.
+   */
+  #forecast(p: AqProvider, idx: number, state: AqPoolState, W: number, now: number, t: Strings): string {
+    const key = primaryKey(p);
+    const total = Number(p.total) || 0;
+    const v0 = Math.max(0, Math.min(total, Number(p[key]) || 0));
+    // Each step rises by what the pool still has room for (a reset of an account that is already full shows nothing),
+    // so the labels, the sentence and the line all say the same capped amounts.
+    const steps: ForecastStep[] = [];
+    let room = v0;
+    for (const st of forecastSteps(p, key, now)) {
+      const next = Math.min(total, room + st.gain);
+      if (next - room > 1e-9) steps.push({ ...st, gain: next - room });
+      room = next;
     }
-    [0, HOUR, 6 * HOUR, DAY, 3 * DAY, 5 * DAY, D7].forEach((off, i) => {
-      const x = (pad + axisPos(off) * (W - 2 * pad)).toFixed(1);
-      s += `<line class="cap-tl-tick" x1="${x}" x2="${x}" y1="${y0 - 6}" y2="${y0 + 6}"/>`;
-      s += `<text class="cap-tl-ax" x="${x}" y="${h - 4}" text-anchor="middle">${esc(t.tl.axis[i])}</text>`;
-    });
-    s += `<line class="cap-tl-axis" x1="${pad}" x2="${W - pad}" y1="${y0}" y2="${y0}"/>`;
-    for (const b of marks) {
-      const x = (b.x0 + b.x1) / 2;
-      const xs = x.toFixed(1);
-      s += `<g class="cap-tl-mk is-${b.c}">`;
-      if (b.x1 - b.x0 > 2)
-        s += `<line class="cap-tl-span" x1="${b.x0.toFixed(1)}" x2="${b.x1.toFixed(1)}" y1="${y0}" y2="${y0}"/>`;
-      if (b.c === 'h5') s += `<circle cx="${xs}" cy="${y0}" r="6.5"/>`;
-      else
-        s += `<rect x="${(x - 6).toFixed(1)}" y="${y0 - 6}" width="12" height="12" transform="rotate(45 ${xs} ${y0})"/>`;
-      const tx = Math.max(pad + 14, Math.min(W - pad - 14, x)).toFixed(1);
-      s += `<text x="${tx}" y="${b.c === 'h5' ? y0 - 14 : y0 + 24}" text-anchor="middle">+${fmt1(b.gain)}</text>`;
-      s += `<title>${esc(
-        t.tl.mark(
-          b.c === 'h5' ? t.bar.fiveHour : t.bar.weekly,
-          fmt1(b.gain),
-          timeText('in', b.at, now, t),
-          b.names.join(', '),
-        ),
+    const gain = room - v0;
+    const end = room;
+    const empty = state === 'empty';
+    // Under +0.05 the steps would read “+0.0”: the sentence says “< +0.1” as the line does, and no chart is drawn.
+    const visible = gain >= 0.05;
+    const sum = visible
+      ? t.fc.sum(fmt1(gain), fmt1(end))
+      : gain > 0.0005
+        ? t.bar.backWithin(t.gain(gain, fmt1))
+        : t.fc.none;
+    const head = `<div class="cap-fc-h"><span class="cap-fc-t">${esc(t.fc.title)}</span><span class="cap-fc-s">${esc(
+      sum,
+    )}</span></div>`;
+    // Nothing (visible) comes back and nothing is held back: the line would be flat — the sentence says it.
+    if (!visible && !empty) return `<div class="cap-fc">${head}</div>`;
+    const H = W < 420 ? 84 : 100;
+    const top = 20;
+    const base = H - 20;
+    const x = (at: number) => Math.max(0, Math.min(W, ((at - now) / D7) * W));
+    const y = (v: number) => top + (1 - Math.max(0, Math.min(1, v / total))) * (base - top);
+    const n = (v: number) => v.toFixed(1);
+    const aria = visible ? t.fc.aria(fmt1(v0), fmt1(gain), fmt1(end)) : `${t.fc.title}: ${sum}`;
+    let s = `<svg class="cap-fc-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escAttr(
+      aria,
+    )}">`;
+    // The days: a faint rule at each local midnight, the weekday centred in its span (today's reads “today”).
+    const days: number[] = [now];
+    const mid = new Date(now);
+    mid.setHours(24, 0, 0, 0);
+    for (let at = mid.getTime(); at < now + D7; ) {
+      days.push(at);
+      const d = new Date(at);
+      d.setDate(d.getDate() + 1);
+      at = d.getTime();
+    }
+    days.push(now + D7);
+    const wd = new Intl.DateTimeFormat(this.#lang === 'ko' ? 'ko-KR' : 'en-US', { weekday: 'short' });
+    for (let i = 0; i < days.length - 1; i++) {
+      const x0 = x(days[i]);
+      const x1 = x(days[i + 1]);
+      if (i > 0) s += `<line class="cap-fc-grid" x1="${n(x0)}" x2="${n(x0)}" y1="${top}" y2="${base}"/>`;
+      if (x1 - x0 >= 18)
+        s += `<text class="cap-fc-ax" x="${n((x0 + x1) / 2)}" y="${H - 4}" text-anchor="middle">${esc(
+          i === 0 ? t.fc.today : wd.format(new Date(days[i])),
+        )}</text>`;
+    }
+    if (empty) {
+      // Usable again when the line says so (emptyReturnAt): one rule for both.
+      const lift = emptyReturnAt(p, now);
+      const x1 = lift === null ? W : x(lift);
+      const hid = `aqh-${idx}`;
+      const title = lift === null ? t.fc.limNone : t.fc.lim(clockLabel(lift, now));
+      s += `<defs><pattern id="${hid}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="cap-fc-hatch" x1="0" y1="0" x2="0" y2="6"/></pattern></defs>`;
+      s += `<rect class="cap-fc-lim" x="0" y="${top}" width="${n(x1)}" height="${base - top}"><title>${esc(title)}</title></rect>`;
+      s += `<rect x="0" y="${top}" width="${n(x1)}" height="${base - top}" fill="url(#${hid})" aria-hidden="true"/>`;
+    }
+    s += `<line class="cap-fc-max" x1="0" x2="${W}" y1="${top}" y2="${top}"><title>${esc(t.fc.max(fmt1(total)))}</title></line>`;
+    s += `<line class="cap-fc-base" x1="0" x2="${W}" y1="${base}" y2="${base}"/>`;
+    // The step line and the area under it.
+    let d = `M0 ${n(y(v0))}`;
+    let v = v0;
+    const after = new Map<number, number>();
+    for (const st of steps) {
+      v = Math.min(total, v + st.gain);
+      d += ` H${n(x(st.at))} V${n(y(v))}`;
+      after.set(st.at, v);
+    }
+    d += ` H${W}`;
+    s += `<path class="cap-fc-area" d="${d} V${base} H0 Z"/>`;
+    s += `<path class="cap-fc-line" d="${d}"/>`;
+    s += `<circle class="cap-fc-dot" cx="0" cy="${n(y(v0))}" r="3"/>`;
+    // One label per run of close steps (measured where the labels sit, clamped inside the chart), at the run's first
+    // step, lifted above the run's highest point; a run says its span and how many returns in its tooltip.
+    const lx = (at: number) => Math.max(14, Math.min(W - 14, x(at)));
+    for (const mk of forecastMarks(steps, lx, 36)) {
+      const y0 = y(after.get(mk.at) ?? v);
+      const y1 = y(after.get(mk.end) ?? v);
+      const gs = fmt1(mk.gain);
+      const tip =
+        mk.n > 1
+          ? t.fc.run(gs, clockLabel(mk.at, now), clockLabel(mk.end, now), mk.n, mk.names.join(', '))
+          : t.fc.mark(gs, timeText('in', mk.at, now, t), clockLabel(mk.at, now), mk.names.join(', '));
+      const label =
+        mk.gain >= 0.05
+          ? `<text class="cap-fc-gain" x="${n(mk.x)}" y="${n(Math.max(11, Math.min(y0, y1) - 8))}" text-anchor="middle">+${gs}</text>`
+          : '';
+      s += `<g class="cap-fc-mk"><circle class="cap-fc-dot" cx="${n(x(mk.at))}" cy="${n(y0)}" r="3"/>${label}<title>${esc(
+        tip,
       )}</title></g>`;
     }
     s += '</svg>';
-    // With no 5-hour gain in 7 days the ● would never appear — say so instead of a dead key.
-    const soon5 = (p.refills ?? []).filter((e) => e.cause !== '7d' && e.at > now && e.at <= now + D7);
-    const any5 = soon5.some((e) => (Number(e.fiveHour) || 0) >= 0.05);
-    const sum5 = soon5.reduce((a, e) => a + (Number(e.fiveHour) || 0), 0);
-    const note5 = any5 ? '' : sum5 > 0.0005 ? t.tl.small5(t.gain(sum5, fmt1)) : t.tl.none5;
-    const key5 = has5h(p) ? `<span><i class="is-h5" aria-hidden="true">●</i> ${esc(t.tl.h5 + note5)}</span>` : '';
-    return `<div class="cap-tl-wrap"><div class="cap-tl-h">${key5}<span><i class="is-wk" aria-hidden="true">◆</i> ${esc(
-      t.tl.wk,
-    )}</span><span class="cap-tl-h-note">${esc(t.tl.note)}</span></div>${s}</div>`;
+    return `<div class="cap-fc">${head}${s}</div>`;
   }
 
   // ── Lane ──────────────────────────────────────────────────────────────────────────────────
@@ -1003,6 +1068,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   }
 
   protected override updated(): void {
+    this.#capEnter = false;
     // An open key with no card any more is forgotten, so it never reopens on its own.
     if (this.#open && !this.$('.aq-pop')) this.#open = null;
     // The card sits under its mark, its left edge clamped into the strip. offsetLeft/Top resolve against
@@ -1088,6 +1154,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const collapsed = !this.#fold[section];
     if (!this.emit<AqCollapseDetail>('ui-collapse', { section, collapsed })) return;
     this.#fold[section] = collapsed;
+    if (section === 'capacity' && !collapsed) this.#capEnter = true;
     this.renderNow();
     this.sound(collapsed ? 'close' : 'open', { emphasis: 'subtle' }, e);
   }
@@ -1099,6 +1166,24 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const fold = el.closest<HTMLElement>('.aq-fold[data-fold]');
     if (fold) {
       if (fold.dataset.fold === 'capacity' || fold.dataset.fold === 'lane') this.#toggleFold(fold.dataset.fold, e);
+      return;
+    }
+    // Capacity folds from its whole head row, and a folded section opens from anywhere on it (the button is the
+    // keyboard's way in; these are the pointer's bigger targets).
+    const cap = el.closest<HTMLElement>('.capacity.is-foldable');
+    // A drag that selected text is a selection, not a press.
+    // ShadowRoot.getSelection is Chromium's; elsewhere the document's selection stands in for it.
+    const sel =
+      (this.root as ShadowRoot & { getSelection?: () => Selection | null }).getSelection?.() ??
+      (typeof document.getSelection === 'function' ? document.getSelection() : null);
+    const selecting = !!sel && !sel.isCollapsed && sel.toString().trim() !== '';
+    if (
+      cap &&
+      !selecting &&
+      !el.closest('button, a, .aq-pop') &&
+      (cap.classList.contains('is-collapsed') || el.closest('.cap-head'))
+    ) {
+      this.#toggleFold('capacity', e);
       return;
     }
     if (el.closest('.aq-pop-close')) {
