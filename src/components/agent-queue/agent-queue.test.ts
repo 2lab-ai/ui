@@ -567,6 +567,27 @@ describe('<ui-agent-queue> capacity', () => {
     expect(qa(el, '.cap-fc-gain').map((g) => g.textContent)).toEqual(['+0.5']);
   });
 
+  it('the line and the shading agree on when an empty pool is usable again', () => {
+    const el = mount({
+      now: NOW,
+      providers: [
+        {
+          id: 'c',
+          name: 'C',
+          total: 2,
+          fiveHour: 0,
+          accounts: [{ id: 'a', name: 'a', state: 'limited', reason: 'weekly', returnAt: NOW + 72 * H }],
+          refills: [{ at: NOW + H, cause: '5h', fiveHour: 0.01, account: 'b' }],
+        },
+      ],
+    });
+    // A refill that raises the measure at all (even under 0.05) is the earlier return.
+    expect(text(el, '.cap-l-next')).toBe('back in 1h');
+    expect(q(el, '.cap-fc-lim')?.getAttribute('width')).toBe('5.0');
+    // Its tiny gain is not “+0.0” in the chart's accessible name either.
+    expect(q(el, '.cap-fc-svg')?.getAttribute('aria-label')).toBe('Next 7 days: < +0.1 back within 7 days');
+  });
+
   it('an unknown pool’s state word is a state note (kept on a phone line)', () => {
     const el = mount({ now: NOW, providers: [{ id: 'g', name: 'G', total: 0 }] });
     expect(qa(el, '.cap-n').map((n) => n.className)).toEqual(['cap-n is-state']);
@@ -731,7 +752,8 @@ describe('escaping', () => {
     vi.advanceTimersByTime(80);
     const live = el.shadowRoot!.querySelector('[aria-live="polite"]')!;
     expect(live.children).toHaveLength(0);
-    expect(live.textContent).toContain('<b><img src=x onerror=alert(1)></b>: all accounts limited — back in 7h 22m');
+    // The 5-hour refill of ai7 in 22m raises the empty pool before ai43 returns (7h 22m): the earlier one is said.
+    expect(live.textContent).toContain('<b><img src=x onerror=alert(1)></b>: all accounts limited — back in 22m');
   });
 });
 
@@ -1183,10 +1205,10 @@ describe('live time and announcements', () => {
 
   it('builds announcement sentences from data changes', () => {
     const empty = claude({ fiveHour: 0, state: 'empty' });
-    expect(capacityNews([claude()], [empty], NOW)).toBe('Claude: all accounts limited — back in 7h 22m');
+    expect(capacityNews([claude()], [empty], NOW)).toBe('Claude: all accounts limited — back in 22m');
     expect(capacityNews([empty], [claude()], NOW)).toBe('Claude available again — 2/4 accounts');
     expect(capacityNews(undefined, [empty], NOW)).toBe('');
-    expect(capacityNews([claude()], [empty], NOW, STRINGS.ko)).toBe('Claude 계정이 모두 막힘 — 7시간 22분 후 복귀');
+    expect(capacityNews([claude()], [empty], NOW, STRINGS.ko)).toBe('Claude 계정이 모두 막힘 — 22분 후 복귀');
     const a = jobs();
     const b = jobs();
     b[1].state = 'idle';
