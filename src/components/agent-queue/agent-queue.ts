@@ -774,8 +774,9 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const x = (at: number) => Math.max(0, Math.min(W, ((at - now) / D7) * W));
     const y = (v: number) => top + (1 - Math.max(0, Math.min(1, v / total))) * (base - top);
     const n = (v: number) => v.toFixed(1);
+    const aria = visible ? t.fc.aria(fmt1(v0), fmt1(gain), fmt1(end)) : `${t.fc.title}: ${sum}`;
     let s = `<svg class="cap-fc-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escAttr(
-      t.fc.aria(fmt1(v0), fmt1(gain), fmt1(end)),
+      aria,
     )}">`;
     // The days: a faint rule at each local midnight, the weekday centred in its span (today's reads “today”).
     const days: number[] = [now];
@@ -799,9 +800,8 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
         )}</text>`;
     }
     if (empty) {
-      // Usable again at the earliest of a limited account's return and the first refill that raises the measure.
-      const back = [firstReturn(p), steps[0]?.at ?? null].filter((a): a is number => a !== null && a > now);
-      const lift = back.length ? Math.min(...back) : null;
+      // Usable again when the line says so (emptyReturnAt): one rule for both.
+      const lift = emptyReturnAt(p, now);
       const x1 = lift === null ? W : x(lift);
       const hid = `aqh-${idx}`;
       const title = lift === null ? t.fc.limNone : t.fc.lim(clockLabel(lift, now));
@@ -1171,7 +1171,10 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     // keyboard's way in; these are the pointer's bigger targets).
     const cap = el.closest<HTMLElement>('.capacity.is-foldable');
     // A drag that selected text is a selection, not a press.
-    const sel = (this.root as ShadowRoot & { getSelection?: () => Selection | null }).getSelection?.() ?? null;
+    // ShadowRoot.getSelection is Chromium's; elsewhere the document's selection stands in for it.
+    const sel =
+      (this.root as ShadowRoot & { getSelection?: () => Selection | null }).getSelection?.() ??
+      (typeof document.getSelection === 'function' ? document.getSelection() : null);
     const selecting = !!sel && !sel.isCollapsed && sel.toString().trim() !== '';
     if (
       cap &&

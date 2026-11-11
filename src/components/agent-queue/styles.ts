@@ -92,7 +92,9 @@ export const styles = `
 }
 
 /* Unfolded: each provider's detail is a card under its own line. */
-.cap-detail { grid-column: 1 / -1; min-width: 0; margin: 2px 0 10px; padding: 12px 14px; border-radius: 12px; background: var(--ib-card); box-shadow: inset 0 0 0 1px var(--ib-card-border); }
+/* contain: inline-size — the card spans every column, so its content (a long accounts row) must not size the
+   table's intrinsic columns and push the page sideways. */
+.cap-detail { grid-column: 1 / -1; min-width: 0; contain: inline-size; margin: 2px 0 10px; padding: 12px 14px; border-radius: 12px; background: var(--ib-card); box-shadow: inset 0 0 0 1px var(--ib-card-border); }
 .cap-detail.is-entering { animation: cap-in var(--dur-expand) var(--ease-out); }
 @keyframes cap-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .cap-disc { margin: 0 0 10px; font-size: 12px; line-height: 1.6; color: var(--ib-muted); }

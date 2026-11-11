@@ -364,9 +364,19 @@ export function firstReturn(p: AqProvider): number | null {
   return at;
 }
 
-/** When an empty pool gets something back: the first return, else the first refill of the primary measure. */
+/**
+ * When an empty pool gets something back: the earliest of a limited account's return (one already due reads “back
+ * soon”) and the first refill within 7 days that raises the primary measure at all. The line and the forecast's
+ * shading both read it, so they never disagree.
+ */
 export function emptyReturnAt(p: AqProvider, nowMs: number): number | null {
-  return firstReturn(p) ?? nextRefill(p, primaryKey(p), nowMs)?.at ?? null;
+  const key = primaryKey(p);
+  const back = firstReturn(p);
+  let refill: number | null = null;
+  for (const e of p.refills ?? []) {
+    if (e.at > nowMs && e.at <= nowMs + D7 && gainOf(e, key) > 0 && (refill === null || e.at < refill)) refill = e.at;
+  }
+  return back === null ? refill : refill === null ? back : Math.min(back, refill);
 }
 
 /** Accounts counted in the totals (not paused, not excluded). */
