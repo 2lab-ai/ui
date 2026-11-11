@@ -388,7 +388,10 @@ describe('<ui-agent-queue> capacity', () => {
     expect(said).toMatch(
       /^Claude: 1\.5 of 4\.0 accounts usable now \(38%\) · next \+0\.4 accounts in 22m \(\d\d:\d\d\) · 3 of 4 counted · 1 limited$/,
     );
-    expect(line.getAttribute('title')).toBe(said);
+    // The tooltip does not tick: clock times only.
+    expect(line.getAttribute('title')).toMatch(
+      /^Claude: 1\.5 of 4\.0 accounts usable now \(38%\) · next \+0\.4 accounts at \d\d:\d\d · 3 of 4 counted · 1 limited$/,
+    );
     for (const c of ['.cap-l-name', '.cap-l-meter', '.cap-l-val', '.cap-l-pct', '.cap-l-next', '.cap-l-note'])
       expect(q(el, c)?.getAttribute('aria-hidden')).toBe('true');
   });

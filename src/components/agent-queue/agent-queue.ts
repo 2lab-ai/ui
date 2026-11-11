@@ -435,8 +435,9 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
   }
 
   /**
-   * What comes back next, at a glance: “+1.0 in 8h”; an empty pool says when it is usable again. `said` is the plain
-   * sentence part (the tooltip), `saidHtml` the same with a live countdown (the screen-reader sentence).
+   * What comes back next, at a glance: “+1.0 in 8h”; an empty pool says when it is usable again. `said` is the
+   * tooltip's part (clock times only — an attribute does not tick), `saidHtml` the screen-reader sentence's (a live
+   * countdown and the clock time).
    */
   #lineNext(
     p: AqProvider,
@@ -455,7 +456,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       }
       return {
         html: this.#time('aboutBack', at, now, t),
-        said: t.line.saidBack(timeText('in', at, now, t), clockLabel(at, now)),
+        said: t.line.titleBack(clockLabel(at, now)),
         saidHtml: live(t.line.saidBack('\u0000', clockLabel(at, now)), at),
       };
     }
@@ -468,7 +469,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const g = fmt1(Number(e[key]) || 0);
     return {
       html: `<b>${esc(t.line.gain(g))}</b> ${this.#time('about', e.at, now, t)}`,
-      said: t.line.saidNext(g, timeText('in', e.at, now, t), clockLabel(e.at, now)),
+      said: t.line.titleNext(g, clockLabel(e.at, now)),
       saidHtml: live(t.line.saidNext(g, '\u0000', clockLabel(e.at, now)), e.at),
     };
   }

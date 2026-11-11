@@ -291,7 +291,7 @@ export const doc: ComponentDoc = {
       name: 'data.providers[].refills',
       type: "Array<{ at, cause: '5h' | '7d' | 'release', fiveHour?, weekly?, account? }>",
       description:
-        'Replayed resets in time order. Drive the “+0.4 in 22m” next column and the 7-day forecast; a refill whose time has come is folded into the measures.',
+        'Replayed resets in time order. Drive the “+0.4 in 22m” next column and the 7-day forecast (an empty pool counts down to the earliest of a limited account’s return and the first refill that raises its measure); a refill whose time has come is folded into the measures.',
     },
     {
       name: 'data.providers[].excluded / estimated / unmeasured5h / countedAccounts / accountCount',
