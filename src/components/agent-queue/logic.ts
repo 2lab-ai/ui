@@ -366,15 +366,24 @@ export function firstReturn(p: AqProvider): number | null {
 
 /**
  * When an empty pool gets something back: the earliest of a limited account's return (one already due reads “back
- * soon”) and the first refill within 7 days that raises the primary measure at all. The line and the forecast's
- * shading both read it, so they never disagree.
+ * soon”) and the first refill within 7 days that raises the primary measure of an account free to use it. The line,
+ * the announcement and the forecast's shading all read it, so they never disagree.
  */
 export function emptyReturnAt(p: AqProvider, nowMs: number): number | null {
   const key = primaryKey(p);
   const back = firstReturn(p);
+  // A refill of an account that is still limited at that moment (a weekly reset inside a longer cooldown) adds quota
+  // it cannot use yet: it is not a return. A limited account with no return time holds its refills for good.
+  const heldTill = new Map<string, number>();
+  for (const a of limitedAccounts(p)) {
+    const till = a.returnAt ?? Number.POSITIVE_INFINITY;
+    heldTill.set(a.name, Math.max(heldTill.get(a.name) ?? Number.NEGATIVE_INFINITY, till));
+  }
   let refill: number | null = null;
   for (const e of p.refills ?? []) {
-    if (e.at > nowMs && e.at <= nowMs + D7 && gainOf(e, key) > 0 && (refill === null || e.at < refill)) refill = e.at;
+    if (!(e.at > nowMs && e.at <= nowMs + D7 && gainOf(e, key) > 0)) continue;
+    if (e.account !== undefined && (heldTill.get(e.account) ?? Number.NEGATIVE_INFINITY) > e.at) continue;
+    if (refill === null || e.at < refill) refill = e.at;
   }
   return back === null ? refill : refill === null ? back : Math.min(back, refill);
 }
