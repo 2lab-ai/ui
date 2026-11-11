@@ -44,7 +44,7 @@ export interface AqAccount {
   reason?: AqReason | (string & {});
   /** When every block has lifted (epoch, see `timeUnit`). Limited accounts count down to it. */
   returnAt?: number;
-  /** Which window binds a usable account first — colours its dot (5h teal, 7d violet). */
+  /** Which window binds a usable account first — said in the account card (“binds first”). */
   binding?: '5h' | '7d';
   /** Plan label, e.g. `Max x5`. */
   tier?: string;
@@ -61,7 +61,7 @@ export interface AqAccount {
 /** A replayed reset: what comes back, and when. Gains are in accounts' worth. */
 export interface AqRefill {
   at: number;
-  /** `5h` reset (dot), `7d` weekly reset (diamond), or a block lifting. */
+  /** `5h` reset, `7d` weekly reset, or a block lifting (it adds no quota, it ends a hold). */
   cause: '5h' | '7d' | 'release';
   /** Gain to the 5-hour measure. */
   fiveHour?: number;
@@ -181,7 +181,7 @@ export interface AgentQueueData {
   collapsible?: boolean;
   /**
    * Fold state per section; a given value wins on every data set (the host keeps the reader's choice), a missing
-   * one keeps the element's own. Collapsed capacity = its head plus one summary chip per provider; collapsed lane =
+   * one keeps the element's own. Collapsed capacity = its head plus the same provider lines, without the detail cards; collapsed lane =
    * its head plus only the jobs waiting for a reply (no stats, queue or chart).
    */
   collapsed?: Partial<Record<AqSection, boolean>>;
@@ -578,6 +578,61 @@ export function forecastMarks(steps: ForecastStep[], x: (at: number) => number, 
       last.end = s.at;
       last.names.push(...s.names);
     } else out.push({ x: sx, at: s.at, end: s.at, gain: s.gain, names: [...s.names], n: 1 });
+  }
+  return out;
+}
+
+/**
+ * @deprecated since 0.42.0 — the element draws a linear 7-day forecast ({@link forecastSteps}). Kept for consumers.
+ * now → 24h takes 55% of the axis (0·1·3·6·12·24h), then days to 7d. Offset in ms → 0..1. */
+export function axisPos(offsetMs: number): number {
+  const s = (Number(offsetMs) || 0) / 1000;
+  if (s <= 0) return 0;
+  if (s >= D7 / 1000) return 1;
+  if (s <= 86400) {
+    const st = [0, 3600, 10800, 21600, 43200, 86400];
+    for (let i = 1; i < st.length; i++) {
+      if (s <= st[i]) return (i - 1 + (s - st[i - 1]) / (st[i] - st[i - 1])) * 0.11;
+    }
+  }
+  return 0.55 + ((s - 86400) / (6 * 86400)) * 0.45;
+}
+
+/** @deprecated since 0.42.0 — see {@link ForecastMark}. */
+export interface TimelineMark {
+  /** `h5` = 5-hour reset (dot, label above), `wk` = weekly reset (diamond, label below). */
+  c: 'h5' | 'wk';
+  x0: number;
+  x1: number;
+  gain: number;
+  n: number;
+  names: string[];
+  at: number;
+}
+
+/**
+ * @deprecated since 0.42.0 — see {@link forecastMarks}. Kept for consumers.
+ * The 7-day timeline's marks at width W (px): refills that raise a measure (5h by the 5-hour gain, weekly by the
+ * weekly gain); same-type marks closer than a label merge into one with a short span.
+ */
+export function timelineMarks(p: AqProvider, W: number, nowMs: number, pad = 16): TimelineMark[] {
+  const X = (at: number) => pad + axisPos(at - nowMs) * (W - 2 * pad);
+  const LW = W < 420 ? 46 : 64;
+  const out: TimelineMark[] = [];
+  for (const e of p.refills ?? []) {
+    if (e.at <= nowMs || e.at > nowMs + D7) continue;
+    const c = e.cause === '7d' ? 'wk' : 'h5';
+    const d = c === 'wk' ? gainOf(e, 'weekly') : gainOf(e, 'fiveHour');
+    if (d < 0.05) continue;
+    const x = X(e.at);
+    let last: TimelineMark | undefined;
+    for (const q of out) if (q.c === c) last = q;
+    if (last && x - (last.x0 + last.x1) / 2 < LW) {
+      last.gain += d;
+      last.n++;
+      last.x1 = x;
+      if (e.account) last.names.push(e.account);
+    } else out.push({ c, x0: x, x1: x, gain: d, n: 1, names: e.account ? [e.account] : [], at: e.at });
   }
   return out;
 }

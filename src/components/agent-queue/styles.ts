@@ -50,7 +50,9 @@ export const styles = `
 .cap-dim { color: var(--ib-muted); }
 
 /* The table: the columns line up across providers (subgrid), figures on tabular numerals. */
-.cap-table { display: grid; grid-template-columns: [name] minmax(52px, max-content) [meter] minmax(64px, 320px) [val] max-content [pct] minmax(3.2em, max-content) [next] max-content [note] minmax(0, 1fr); column-gap: 20px; min-width: 0; }
+/* Wide: the note column is auto, so free space is shared with the meter (≤ 320px) rather than left to it — a
+   state word never collapses to 0px. Below 760px the narrow layout takes over. */
+.cap-table { display: grid; grid-template-columns: [name] minmax(52px, max-content) [meter] minmax(64px, 320px) [val] max-content [pct] minmax(3.2em, max-content) [next] max-content [note] auto; column-gap: 20px; min-width: 0; }
 .cap-prov { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; min-width: 0; }
 .cap-line { position: relative; display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; min-height: 30px; font-variant-numeric: tabular-nums; }
 .cap-l-name { min-width: 0; font-size: 13px; font-weight: 600; color: var(--ib-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -61,12 +63,13 @@ export const styles = `
 .cap-l-val b { display: inline-block; min-width: 4ch; margin-right: 4px; font-size: 14px; font-weight: 600; text-align: right; color: var(--ib-text); }
 .cap-l-val i { font-style: normal; }
 .cap-l-pct { justify-self: end; font-size: 12px; color: var(--ib-text-2); }
-.cap-l-next { display: inline-flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--ib-text-2); white-space: nowrap; }
-.cap-l-next b { font-weight: 600; color: var(--ib-text); }
+.cap-l-next { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--ib-text-2); white-space: nowrap; }
+.cap-l-next b { margin-right: 2px; font-weight: 600; color: var(--ib-text); }
 .cap-l-note { display: flex; gap: 12px; min-width: 0; overflow: hidden; font-size: 12px; color: var(--ib-muted); white-space: nowrap; }
-.cap-n { overflow: hidden; text-overflow: ellipsis; }
+.cap-n { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cap-n.is-warn { color: var(--aq-warn-text); font-weight: 500; }
 .cap-n.is-fail { color: var(--st-fail-text); font-weight: 600; }
+.cap-n.is-state { color: var(--ib-text-2); font-weight: 500; }
 .cap-prov.is-low .cap-l-meter > i { background: var(--st-wait); }
 .cap-prov.is-low .cap-l-pct { color: var(--aq-warn-text); }
 .cap-prov.is-empty :is(.cap-l-val b, .cap-l-pct, .cap-l-next) { color: var(--st-fail-text); }
@@ -75,13 +78,17 @@ export const styles = `
   .capacity .aq-fold { min-width: 44px; justify-content: center; padding: 0 8px; }
   .capacity .aq-fold-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
-/* A phone: name · meter · left / total · next on one line; % goes, and a coloured note (state, an old reading)
-   takes a second line under the meter — a plain note waits in the detail. */
-@container aqcap (max-width: 559.98px) {
-  .cap-table { grid-template-columns: [name] max-content [meter] minmax(32px, 1fr) [val] max-content [next] max-content; column-gap: 12px; }
-  .cap-l-pct, .cap-sub { display: none; }
+/* Narrow (a phone, a tablet, a docked panel): name · meter · left / total · next on one line — the name and the
+   next text give way (ellipsis) before the row can overflow; % goes, and a state or warning note takes a second line
+   under the meter — a plain note waits in the detail. */
+@container aqcap (max-width: 759.98px) {
+  .cap-table { grid-template-columns: [name] minmax(0, max-content) [meter] minmax(24px, 1fr) [val] max-content [next] minmax(0, max-content); column-gap: 12px; }
+  .cap-l-pct { display: none; }
   .cap-l-note { grid-column: 2 / -1; margin: -6px 0 6px; }
-  .cap-l-note:not(:has(.is-warn, .is-fail)), .cap-n:not(.is-warn):not(.is-fail) { display: none; }
+  .cap-l-note:not(:has(.is-warn, .is-fail, .is-state)), .cap-n:not(.is-warn):not(.is-fail):not(.is-state) { display: none; }
+}
+@container aqcap (max-width: 559.98px) {
+  .cap-sub { display: none; }
 }
 
 /* Unfolded: each provider's detail is a card under its own line. */

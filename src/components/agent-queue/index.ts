@@ -17,12 +17,14 @@ export type {
   ForecastMark,
   ForecastStep,
   RunBin,
+  TimelineMark,
   TimeUnit,
 } from './logic';
 export {
   accountStacks,
   accountState,
   advanceProvider,
+  axisPos,
   dayRuns,
   emptyReturnAt,
   firstReturn,
@@ -43,6 +45,7 @@ export {
   STRIP,
   scheduleLabel,
   stripFolds,
+  timelineMarks,
   toMs,
   upNext,
 } from './logic';

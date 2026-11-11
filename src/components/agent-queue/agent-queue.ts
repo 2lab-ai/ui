@@ -22,6 +22,7 @@ import {
   dayRuns,
   emptyReturnAt,
   exclusions,
+  type ForecastStep,
   firstReturn,
   fmt1,
   fmtCount,
@@ -391,7 +392,7 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     // The section's inner width sizes the forecast (SVG in px, labels unscaled) and fits the workers strip.
     const width = this.#width > 0 ? this.#width : this.clientWidth > 0 ? this.clientWidth : 900;
     const W = Math.max(220, Math.round(width) - 32 - 28);
-    return `${open}<div class="cap-table" aria-label="${escAttr(t.line.aria)}">${ps
+    return `${open}<div class="cap-table" role="group" aria-label="${escAttr(t.line.aria)}">${ps
       .map((p, i) => this.#provider(advanceProvider(p, now), i, now, t, W, folded))
       .join('')}</div></section>`;
   }
@@ -403,7 +404,10 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     return `<section class="cap-prov is-${state}" aria-label="${escAttr(t.capAria(p.name))}">${line}${detail}</section>`;
   }
 
-  /** One provider on one line: name · meter · left / total · % · next gain and when · up to two notes. */
+  /**
+   * One provider on one line: name · meter · left / total · % · next gain and when · up to two notes. The columns are
+   * aria-hidden; one sentence says the line to a screen reader, its countdown a live <time> the 1 Hz tick rewrites.
+   */
   #line(p: AqProvider, state: AqPoolState, now: number, t: Strings): string {
     const key = primaryKey(p);
     const total = Number(p.total) || 0;
@@ -413,15 +417,11 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const vs = known ? fmtCount(v, total) : '—';
     const ts = fmt1(total);
     const pct = known ? fmtPct(v, total) : '';
-    const next = known ? this.#lineNext(p, key, state, now, t) : { html: '', said: '' };
+    const next = known ? this.#lineNext(p, key, state, now, t) : { html: '', said: '', saidHtml: '' };
     const notes = this.#notes(p, state, now, t);
-    const said = [
-      known ? (key === 'fiveHour' ? t.line.saidNow : t.line.said)(p.name, vs, ts, pct) : p.name,
-      next.said,
-      ...notes.map((n) => n.text),
-    ]
-      .filter(Boolean)
-      .join(' · ');
+    const head = known ? (key === 'fiveHour' ? t.line.saidNow : t.line.said)(p.name, vs, ts, pct) : p.name;
+    const said = [head, next.said, ...notes.map((n) => n.text)].filter(Boolean).join(' · ');
+    const saidHtml = [esc(head), next.saidHtml, ...notes.map((n) => esc(n.text))].filter(Boolean).join(' · ');
     const note = notes.map((n) => `<span class="cap-n${n.tone ? ` is-${n.tone}` : ''}">${esc(n.text)}</span>`).join('');
     return `<div class="cap-line" title="${escAttr(said)}"><span class="cap-l-name" aria-hidden="true">${esc(
       p.name,
@@ -431,35 +431,45 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
       known ? `<i>${esc(t.line.of(ts))}</i>` : ''
     }</span><span class="cap-l-pct" aria-hidden="true">${pct}</span><span class="cap-l-next" aria-hidden="true">${
       next.html
-    }</span><span class="cap-l-note" aria-hidden="true">${note}</span><span class="sr-only">${esc(said)}</span></div>`;
+    }</span><span class="cap-l-note" aria-hidden="true">${note}</span><span class="sr-only">${saidHtml}</span></div>`;
   }
 
-  /** What comes back next, at a glance: “+1.0 in 8h”; an empty pool says when it is usable again. */
+  /**
+   * What comes back next, at a glance: “+1.0 in 8h”; an empty pool says when it is usable again. `said` is the plain
+   * sentence part (the tooltip), `saidHtml` the same with a live countdown (the screen-reader sentence).
+   */
   #lineNext(
     p: AqProvider,
     key: MeasureKey,
     state: AqPoolState,
     now: number,
     t: Strings,
-  ): { html: string; said: string } {
+  ): { html: string; said: string; saidHtml: string } {
+    // The clock time and the gain are formatted numbers; the countdown takes the placeholder's place.
+    const live = (sentence: string, at: number) => esc(sentence).replace('\u0000', this.#time('in', at, now, t));
     if (state === 'empty') {
       const at = emptyReturnAt(p, now);
-      if (at === null) return { html: `<span class="cap-dim">${esc(t.line.noBack)}</span>`, said: t.line.noBack };
+      if (at === null) {
+        const txt = esc(t.line.noBack);
+        return { html: `<span class="cap-dim">${txt}</span>`, said: t.line.noBack, saidHtml: txt };
+      }
       return {
         html: this.#time('aboutBack', at, now, t),
         said: t.line.saidBack(timeText('in', at, now, t), clockLabel(at, now)),
+        saidHtml: live(t.line.saidBack('\u0000', clockLabel(at, now)), at),
       };
     }
     const e = nextRefill(p, key, now);
     if (!e) {
       const small = gainWithin(p, key, now);
       const txt = small > 0.0005 ? t.bar.backWithin(t.gain(small, fmt1)) : t.line.none;
-      return { html: `<span class="cap-dim">${esc(txt)}</span>`, said: txt };
+      return { html: `<span class="cap-dim">${esc(txt)}</span>`, said: txt, saidHtml: esc(txt) };
     }
     const g = fmt1(Number(e[key]) || 0);
     return {
       html: `<b>${esc(t.line.gain(g))}</b> ${this.#time('about', e.at, now, t)}`,
       said: t.line.saidNext(g, timeText('in', e.at, now, t), clockLabel(e.at, now)),
+      saidHtml: live(t.line.saidNext(g, '\u0000', clockLabel(e.at, now)), e.at),
     };
   }
 
@@ -467,12 +477,17 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
    * What the line must also say, most important first, two at most (the detail has the rest): the pool's state word,
    * a reading over a day old, a fifth or more left out, limited accounts, an assumed tier. Words, not glyphs.
    */
-  #notes(p: AqProvider, state: AqPoolState, now: number, t: Strings): Array<{ text: string; tone?: 'warn' | 'fail' }> {
-    const out: Array<{ text: string; tone?: 'warn' | 'fail' }> = [];
+  #notes(
+    p: AqProvider,
+    state: AqPoolState,
+    now: number,
+    t: Strings,
+  ): Array<{ text: string; tone?: 'warn' | 'fail' | 'state' }> {
+    const out: Array<{ text: string; tone?: 'warn' | 'fail' | 'state' }> = [];
     const lim = limitedAccounts(p).length;
     if (state === 'empty') out.push({ text: lim ? t.line.state.allLimited : t.line.state.empty, tone: 'fail' });
     else if (state === 'low') out.push({ text: t.line.state.low, tone: 'warn' });
-    else if (state === 'unknown') out.push({ text: t.line.state.unknown });
+    else if (state === 'unknown') out.push({ text: t.line.state.unknown, tone: 'state' });
     const age = p.measuredAt !== undefined ? (now - p.measuredAt) / 1000 : 0;
     if (age > 86400) out.push({ text: t.line.stale(t.age(age)), tone: 'warn' });
     const acc = p.accounts ?? [];
@@ -729,15 +744,30 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     const key = primaryKey(p);
     const total = Number(p.total) || 0;
     const v0 = Math.max(0, Math.min(total, Number(p[key]) || 0));
-    const steps = forecastSteps(p, key, now);
-    const gain = steps.reduce((a, s) => a + s.gain, 0);
-    const end = Math.min(total, v0 + gain);
+    // Each step rises by what the pool still has room for (a reset of an account that is already full shows nothing),
+    // so the labels, the sentence and the line all say the same capped amounts.
+    const steps: ForecastStep[] = [];
+    let room = v0;
+    for (const st of forecastSteps(p, key, now)) {
+      const next = Math.min(total, room + st.gain);
+      if (next - room > 1e-9) steps.push({ ...st, gain: next - room });
+      room = next;
+    }
+    const gain = room - v0;
+    const end = room;
     const empty = state === 'empty';
+    // Under +0.05 the steps would read “+0.0”: the sentence says “< +0.1” as the line does, and no chart is drawn.
+    const visible = gain >= 0.05;
+    const sum = visible
+      ? t.fc.sum(fmt1(gain), fmt1(end))
+      : gain > 0.0005
+        ? t.bar.backWithin(t.gain(gain, fmt1))
+        : t.fc.none;
     const head = `<div class="cap-fc-h"><span class="cap-fc-t">${esc(t.fc.title)}</span><span class="cap-fc-s">${esc(
-      steps.length ? t.fc.sum(fmt1(gain), fmt1(end)) : t.fc.none,
+      sum,
     )}</span></div>`;
-    // Nothing comes back and nothing is held back: the line would be flat — the sentence says it.
-    if (!steps.length && !empty) return `<div class="cap-fc">${head}</div>`;
+    // Nothing (visible) comes back and nothing is held back: the line would be flat — the sentence says it.
+    if (!visible && !empty) return `<div class="cap-fc">${head}</div>`;
     const H = W < 420 ? 84 : 100;
     const top = 20;
     const base = H - 20;
@@ -769,7 +799,9 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
         )}</text>`;
     }
     if (empty) {
-      const lift = emptyReturnAt(p, now);
+      // Usable again at the earliest of a limited account's return and the first refill that raises the measure.
+      const back = [firstReturn(p), steps[0]?.at ?? null].filter((a): a is number => a !== null && a > now);
+      const lift = back.length ? Math.min(...back) : null;
       const x1 = lift === null ? W : x(lift);
       const hid = `aqh-${idx}`;
       const title = lift === null ? t.fc.limNone : t.fc.lim(clockLabel(lift, now));
@@ -792,15 +824,23 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     s += `<path class="cap-fc-area" d="${d} V${base} H0 Z"/>`;
     s += `<path class="cap-fc-line" d="${d}"/>`;
     s += `<circle class="cap-fc-dot" cx="0" cy="${n(y(v0))}" r="3"/>`;
-    // One label per run of close steps, at the run's first step, lifted above the run's highest point.
-    for (const mk of forecastMarks(steps, x, 36)) {
+    // One label per run of close steps (measured where the labels sit, clamped inside the chart), at the run's first
+    // step, lifted above the run's highest point; a run says its span and how many returns in its tooltip.
+    const lx = (at: number) => Math.max(14, Math.min(W - 14, x(at)));
+    for (const mk of forecastMarks(steps, lx, 36)) {
       const y0 = y(after.get(mk.at) ?? v);
       const y1 = y(after.get(mk.end) ?? v);
-      const tx = Math.max(14, Math.min(W - 14, mk.x));
-      s += `<g class="cap-fc-mk"><circle class="cap-fc-dot" cx="${n(mk.x)}" cy="${n(y0)}" r="3"/><text class="cap-fc-gain" x="${n(
-        tx,
-      )}" y="${n(Math.max(11, Math.min(y0, y1) - 8))}" text-anchor="middle">+${fmt1(mk.gain)}</text><title>${esc(
-        t.fc.mark(fmt1(mk.gain), timeText('in', mk.at, now, t), clockLabel(mk.at, now), mk.names.join(', ')),
+      const gs = fmt1(mk.gain);
+      const tip =
+        mk.n > 1
+          ? t.fc.run(gs, clockLabel(mk.at, now), clockLabel(mk.end, now), mk.n, mk.names.join(', '))
+          : t.fc.mark(gs, timeText('in', mk.at, now, t), clockLabel(mk.at, now), mk.names.join(', '));
+      const label =
+        mk.gain >= 0.05
+          ? `<text class="cap-fc-gain" x="${n(mk.x)}" y="${n(Math.max(11, Math.min(y0, y1) - 8))}" text-anchor="middle">+${gs}</text>`
+          : '';
+      s += `<g class="cap-fc-mk"><circle class="cap-fc-dot" cx="${n(x(mk.at))}" cy="${n(y0)}" r="3"/>${label}<title>${esc(
+        tip,
       )}</title></g>`;
     }
     s += '</svg>';
@@ -1130,8 +1170,12 @@ export class UiAgentQueue extends UiElement<AgentQueueData> {
     // Capacity folds from its whole head row, and a folded section opens from anywhere on it (the button is the
     // keyboard's way in; these are the pointer's bigger targets).
     const cap = el.closest<HTMLElement>('.capacity.is-foldable');
+    // A drag that selected text is a selection, not a press.
+    const sel = (this.root as ShadowRoot & { getSelection?: () => Selection | null }).getSelection?.() ?? null;
+    const selecting = !!sel && !sel.isCollapsed && sel.toString().trim() !== '';
     if (
       cap &&
+      !selecting &&
       !el.closest('button, a, .aq-pop') &&
       (cap.classList.contains('is-collapsed') || el.closest('.cap-head'))
     ) {
