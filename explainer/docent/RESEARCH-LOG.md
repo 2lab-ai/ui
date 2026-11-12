@@ -1,8 +1,8 @@
 # Research log — make-docent-book
 
-`research-skill make-docent-book` appends one entry per run: seed, the 10 probes, scorecard before → after, the
-changes (skill / reference / templates / code) and what is still weak. Run folders live in
-`~/2lab.ai/ARTIFACTS/research/make-docent-book/<date>/`.
+`zworkflow:research-skill make-docent-book` appends one entry per run: seed, the 10 probes, scorecard before → after,
+the changes (skill / reference / templates / code) and what is still weak. Run folders live in
+`~/2lab.ai/ARTIFACTS/research/make-docent-book/<date>/`. What a run probes and checks: `RESEARCH-RECIPE.md`.
 
 ## 2026-11-10 · baseline research (before the first probe run)
 - Visual: comics balloon rules (tail aims at the mouth, ends short of it; reading order; never cover a face), the
