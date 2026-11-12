@@ -6,8 +6,10 @@ here from their `## Research recipe` line.
 
 ## Run folder and freeze
 - `run=~/2lab.ai/ARTIFACTS/research/<skill>/<YYYY-MM-DD-HHMM>/` (never /tmp: session folders are wiped).
-- Freeze the kit for the whole run: `git -C ~/2lab.ai/ui archive <commit> explainer | tar -x -C RUN/kit`, and note the
-  commit. In run 1 the kit changed three times under running probes and the authors had to re-lint and re-render.
+- Freeze the whole kit repository for the run: `git -C ~/2lab.ai/ui archive <commit> | tar -x -C RUN/kit`, and note the
+  commit (the whole repository: `new_video.py` reads `src/core/tokens.json` for the themes). In run 1 the kit changed
+  three times under running probes and the authors had to re-lint and re-render.
+- The host-kept skill is updated only after this repository's PR with the kit changes it relies on has merged.
 
 ## Probes
 - **make-docent-book**: 10 random books from a written pool (≥ 30), at least 7 of the 8 types in the skill's format
