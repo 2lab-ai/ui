@@ -64,6 +64,21 @@ class Strict(unittest.TestCase):
         finally:
             title_check.CACHE, title_check.ytdlp = old_cache, old_ytdlp
 
+    def test_an_old_cached_failure_is_asked_again(self):   # trinity round 2: a null left by an older version
+        import tempfile, json
+        old_cache, old_ytdlp = title_check.CACHE, title_check.ytdlp
+        title_check.CACHE = tempfile.mkdtemp()
+        json.dump({'old': None, 'kept': 7}, open(os.path.join(title_check.CACHE, 'subs.json'), 'w'))
+        calls = []
+        def ok(*a): calls.append(a[-1]); return {'channel_follower_count': 42}
+        title_check.ytdlp = ok
+        try:
+            self.assertEqual(title_check.subs_of(['old', 'kept']), {'old': 42, 'kept': 7})
+            self.assertEqual(calls, ['https://www.youtube.com/channel/old'])
+            self.assertEqual(json.load(open(os.path.join(title_check.CACHE, 'subs.json'))), {'old': 42, 'kept': 7})
+        finally:
+            title_check.CACHE, title_check.ytdlp = old_cache, old_ytdlp
+
 
 class Demand(unittest.TestCase):
     def test_small_hit(self):

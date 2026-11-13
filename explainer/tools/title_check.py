@@ -78,6 +78,7 @@ def subs_of(cids):
     os.makedirs(CACHE, exist_ok=True)
     path = os.path.join(CACHE, 'subs.json')
     cache = json.load(open(path)) if os.path.exists(path) else {}
+    cache = {c: n for c, n in cache.items() if n is not None}   # a failure an older version cached is asked again
     need = [c for c in cids if c not in cache]
     def one(cid):
         try: return cid, ytdlp('--flat-playlist', '-J', '--playlist-items', '0', f'https://www.youtube.com/channel/{cid}').get('channel_follower_count')

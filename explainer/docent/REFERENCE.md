@@ -232,8 +232,8 @@ spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면
   claim ("의지 탓이 아니에요", "~이 없다면") reads like every competitor: in the 2026-11-14 verification such hooks
   scored 4 and click appeal 3. Read the keyword's top 5 and add what they lack: one concrete specific (a number, a
   scene, a named result) or the "why" the video answers ("~인 이유", "시간이 안 보여서").
-- When people search the book's own name (안네의 일기), they want the book: promise its story or its answer, not only
-  its theme.
+- When people search the book's own name (안네의 일기), they want the book: the hook promises its story or its answer,
+  not only its theme, and the name still comes after the separator ("2년을 숨어 산 방에서 쓴 편지 — 안네의 일기").
 - Honest: the video delivers exactly what the title promises. No medical, legal or money promises.
 
 **Cover (the YouTube thumbnail)** — drawn in `scenes.js` `COVER`, rendered by `export.py cover` (TEMPLATES "Cover").
