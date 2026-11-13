@@ -27,7 +27,7 @@ The takes are copied from blade-4090 by tools/blade/fetchjob.sh; with SOMA_VOICE
 result URL instead (one job per scene cut at the merge's digital silence, no access to blade-4090 needed beyond the
 tunnel). Jobs run one at a time on one worker thread; the next scene synthesises while this one is cut and checked.
 """
-import concurrent.futures, hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.request, wave
+import concurrent.futures, hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.error, urllib.request, wave
 import numpy as np
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
@@ -240,16 +240,22 @@ def run_jobs_http(texts, seed, tag):
         pass
     if len(texts) > 1:
         turns = [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t} for t in texts]
-        job = live_job(tmp)   # a run cut off while its job was still running picks the same job up again
-        if not job:
-            job = http('POST', '/api/tts', {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
-                                            'merge_policy': {'silence_min_ms': SPLIT_MS, 'silence_max_ms': SPLIT_MS}})['job_id']
-            if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
-            json.dump({'job': job}, open(os.path.join(tmp, 'job.json'), 'w'))
-        else:
-            print(f'  {tag}: resuming job {job[:8]}', flush=True)
-        wait_job(job, tag, 180 + TURN_S * len(texts))
-        src = fetch_result(job, os.path.join(tmp, 'merged'))
+        for attempt in (0, 1):
+            job = live_job(tmp) if attempt == 0 else None   # a run cut off while its job still ran picks it up again
+            if not job:
+                job = http('POST', '/api/tts', {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
+                                                'merge_policy': {'silence_min_ms': SPLIT_MS, 'silence_max_ms': SPLIT_MS}})['job_id']
+                if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
+                json.dump({'job': job}, open(os.path.join(tmp, 'job.json'), 'w'))
+            else:
+                print(f'  {tag}: resuming job {job[:8]}', flush=True)
+            try:
+                wait_job(job, tag, 180 + TURN_S * len(texts))
+                src = fetch_result(job, os.path.join(tmp, 'merged'))
+                break
+            except urllib.error.HTTPError as e:   # 404: the service restarted and forgot its jobs (2026-11-14)
+                if e.code != 404 or attempt: raise
+                print(f'  {tag}: the server forgot job {job[:8]} (restarted?); submitting it again', flush=True)
         sr = int(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=sample_rate',
                                  '-of', 'csv=p=0', src], capture_output=True, text=True, check=True).stdout.strip())
         pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', src, '-f', 's16le', '-ac', '1', '-'], capture_output=True, check=True).stdout

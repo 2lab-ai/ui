@@ -19,6 +19,9 @@ that comes back means the fix was not structural: replace it with a check.
 - A stubborn sentence (number:2 failed the pad cut 3 times) stopped the whole narration on a shared GPU · the run now
   finishes every other scene, then stops before the timeline and prints the `--redo` to run. A run that timed out while
   its job still ran now picks the same job up again (`job.json`); `SOMA_VOICE_TURN_S` (default 40) for a shared GPU.
+- The voice service restarted mid-run and forgot its jobs: the wait got a 404 and the whole narration stopped (`myopia r0:
+  HTTP Error 404`) · the job lived only in the server's memory · a 404 while waiting submits the job once more
+  (`narrate_soma.py`, `test_narrate_queue.ForgottenJob`).
 
 ## 2026-11-13 · 'Stoics on time' (Seneca, Marcus, Epictetus; 20:40, five authors, first book on the ink-mode kit)
 Gate C (a fresh reviewer on every sentence's stills) found what the lint passed:
