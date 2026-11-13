@@ -20,7 +20,7 @@ const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 // start of every renderAt, so the registry always describes exactly one frame.
 const SUB_Y = 905;   // ink below this line sits under the subtitle box
 const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props', 'faces',
-  'things', 'words', 'marks', 'colours'];   // emphasis budget (2026-11-13): what competes for the eye in this frame
+  'things', 'words', 'marks', 'colours', 'torsos'];   // emphasis budget (2026-11-13): what competes for the eye in this frame
 const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null, depth: 0 };
 function DOCENT_FRAME(t) { if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [], things: [] }; }   // slots: where things are or will be (placement)
@@ -164,6 +164,16 @@ function docentReport() {
     const [x0, y0, x1, y1] = pr.box, ov = Math.max(0, Math.min(x1, hx + hr) - Math.max(x0, hx - hr)) * Math.max(0, Math.min(y1, hy + hr) - Math.max(y0, hy - hr));
     if (ov > 0.4 * 4 * hr * hr) propFace.push(`prop '${pr.name}' may cover a face @${Math.round(hx)}`);   // box test: look at the frame
   }
+  // a prop drawn over most of a torso becomes the body (an hourglass or a clock for a chest, a pouch for a belly: three
+  // P1s in the Stoic run's Gate C); hold it at the hand, beside the body. bodyOk: true when hugging it is the point.
+  // A flat sheet held to the chest reads as reading or showing (books, letters: fine); scenery far bigger than the torso
+  // stands behind the body (stairs). What merges is a round or bulging thing of about the torso's size.
+  const propBody = [];
+  for (const pr of DOCENT.props) for (const [x0, y0, x1, y1, seq] of DOCENT.torsos) {
+    if (pr.bodyOk || seq == null || pr.seq < seq || DOCENT_FLAT.test(pr.name)) continue;
+    const b = pr.box, ta = (x1 - x0) * (y1 - y0), ov = Math.max(0, Math.min(b[2], x1) - Math.max(b[0], x0)) * Math.max(0, Math.min(b[3], y1) - Math.max(b[1], y0));
+    if (ov > 0.5 * ta && (b[2] - b[0]) * (b[3] - b[1]) < 4 * ta) propBody.push(`prop '${pr.name}' over a body @${Math.round((x0 + x1) / 2)}`);
+  }
   for (const g0 of DOCENT.tags) for (const b0 of DOCENT.figs) {   // g0[4] = the box of the one it names; compared on screen
     if (b0 === g0[4]) continue;
     const g = scr(g0), b = scr(b0);
@@ -172,7 +182,7 @@ function docentReport() {
   }
   const tagsS = DOCENT.tags.map((g) => scr(g));   // on screen, like the figure check above
   tagsS.forEach((g, i) => tagsS.slice(i + 1).forEach((h) => { if (h[2] > g[0] && h[0] < g[2] && h[3] > g[1] && h[1] < g[3]) cover.push(`name tag over name tag @${Math.round(g[0])}`); }));
-  return { t: DOCENT.t, shot: DOCENT.shot, ink: DOCENT.ink, textBig: DOCENT.textBig, propFace, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
+  return { t: DOCENT.t, shot: DOCENT.shot, ink: DOCENT.ink, textBig: DOCENT.textBig, propFace, propBody, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far, tailHigh: high.map(([x, y]) => [Math.round(x), Math.round(y)]),
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals,
     things: DOCENT.things, words: DOCENT.words, marks: DOCENT.redInk ? DOCENT.marks.concat('red line') : DOCENT.marks, colours: DOCENT.colours,
@@ -401,7 +411,9 @@ function figure(x, y, o = {}) {
   if (p <= 0 || a <= 0 || s <= 0) return anchors;
   if (o.ghostOk) DOCENT.ghostOk++;
   DOCENT.heads.push([hc[0], hc[1], R, topY, ++DOCENT.seq]);
-  { const m = ctx.getTransform(); DOCENT.faces.push([m.a * hc[0] + m.c * hc[1] + m.e, m.b * hc[0] + m.d * hc[1] + m.f, R * Math.hypot(m.a, m.b), DOCENT.seq]); } DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
+  { const m = ctx.getTransform(); DOCENT.faces.push([m.a * hc[0] + m.c * hc[1] + m.e, m.b * hc[0] + m.d * hc[1] + m.f, R * Math.hypot(m.a, m.b), DOCENT.seq]);
+    const n = F(...neck), hp = F(...hip), tb = withM([Math.min(n[0], hp[0]) - 26 * s, n[1], Math.max(n[0], hp[0]) + 26 * s, hp[1]]);
+    DOCENT.torsos.push([...scr(tb), DOCENT.seq]); }   // the torso, on screen: a prop drawn over it reads as the body (lint prop-over-body) DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
   DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|') });
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
   const ph = (k, n) => clamp01((p * n - k) / 1.4);   // staged draw-on: head, body, arms, legs, face
@@ -1057,6 +1069,7 @@ const PROPS = {
     inkPath([[x - 90 * s, y - 40 * s], [x - 50 * s, y - 90 * s], [x + 10 * s, y - 60 * s], [x + 80 * s, y - 120 * s]], { ...o, color: C.red, w: 3, dash: [10, 8] }); },
   stadium: (x, y, s, o) => { inkArc(x, y, 260 * s, 120 * s, Math.PI, Math.PI * 2, o); inkArc(x, y, 200 * s, 80 * s, Math.PI, Math.PI * 2, o); inkLine(x - 260 * s, y, x + 260 * s, y, o); },
 };
+const DOCENT_FLAT = /book|paper|note|letter|scroll|map|calendar|sign|card|board|tablet|laptop|phone/i;   // held flat: never a body (lint prop-over-body)
 function prop(name, x, y, s = 1, o = {}) {
   const f = PROPS[name]; if (!f) { MISS.add('prop:' + name); return; }
   const oo = { p: 1, a: 1, w: 4 * Math.max(0.7, Math.sqrt(s)), ...o };
@@ -1074,7 +1087,7 @@ function prop(name, x, y, s = 1, o = {}) {
   f(x, y, s, oo);
   DOCENT.track = null;
   if (tr.local) DOCENT.slots.things.push(withM(tr.local));   // say()/think() keep clear of props too
-  if (tr.box && !DOCENT.ghostOk && !oo.faceOk) DOCENT.props.push({ name, box: tr.box, seq: ++DOCENT.seq });   // faceOk: covering a face is the joke
+  if (tr.box && !DOCENT.ghostOk && !oo.faceOk) DOCENT.props.push({ name, box: tr.box, seq: ++DOCENT.seq, bodyOk: !!oo.bodyOk });   // faceOk: covering a face is the joke
 }
 
 // ---------- library additions: research-skill make-docent-book, 2026-11-10 ----------

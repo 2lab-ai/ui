@@ -3,6 +3,19 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-13 · 'Stoics on time' (Seneca, Marcus, Epictetus; 20:40, five authors, first book on the ink-mode kit)
+Gate C (a fresh reviewer on every sentence's stills) found what the lint passed:
+- Three seated figures with no legs · the chair seat ran as deep as the thighs, so the thighs lay on its top edge and
+  the shins hung right beside its front leg (a third chair leg) · TEMPLATES T15 "Seated figure": the seat stops at
+  x + 34 s, the knees bend at x + 64 s.
+- A vase for a body, a clock for a belly, a purse for a paunch, a pouch that read as a cat · a round prop the size of
+  the torso drawn over it becomes the body · lint `prop-over-body` (P2: a round or bulging prop over more than half
+  of a torso drawn before it; flat sheets and scenery skip it; `bodyOk: true` when hugging is the point); REFERENCE §4.
+  Run after the Gate C fixes, it still found 9 frames (one a Gate C frame whose fix had not gone far enough), all
+  fixed: held at the hand, beside the body, or small at the chest.
+- The lived weeks shaded grey vanished · ink mode paints a light fill as the page, so a grey that carries meaning
+  disappears · draw meaning with ink (hatching, a line), or `colour: true` on that one call.
+
 ## 2026-11-13 · owner: "the reference is minimal; you show too much, like AI slop — you emphasise everything"
 Compared side by side: Productive Peter frames hold 1 to 3 things, 0 or 1 written word, black ink with purple on the
 word and one red mark; Elon Musk v2 and ten-books v2 frames held 5 to 12 things, 3 to 4 labels, coloured clothes and
