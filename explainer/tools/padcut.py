@@ -123,3 +123,17 @@ def edges_ok(clip, sr, limit_db=-30):
 def is_filler_text(text):
     """True only when the piece was positively heard as filler; empty or unsure output is a rejection."""
     return bool(FILLER_TEXT.match(text or ''))
+
+
+# a merged multi-turn result (narrate_soma http mode): turns joined by a fixed run of digital silence
+def split_at_silence(a, sr, n, min_s, max_s=None):
+    """a: int16 samples of a merged result; the n - 1 all-zero runs of min_s..max_s are the turn boundaries (a longer
+    run is two gaps around an empty turn: no cut, so the count fails). Returns n pieces, or None when the count of such
+    runs is not n - 1."""
+    z = np.concatenate([[0], (a == 0).astype(np.int8), [0]])
+    d = np.diff(z); st, en = np.where(d == 1)[0], np.where(d == -1)[0]
+    runs = [(b, e) for b, e in zip(st, en)
+            if e - b >= min_s * sr and (max_s is None or e - b <= max_s * sr) and b > 0 and e < len(a)]
+    if len(runs) != n - 1: return None
+    cuts = [0] + [x for b, e in runs for x in (b, e)] + [len(a)]
+    return [a[cuts[2 * i]:cuts[2 * i + 1]] for i in range(n)]

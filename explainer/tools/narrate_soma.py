@@ -22,14 +22,15 @@ usage: python narrate_soma.py [--voice cwon] [--no-pad] [--no-verify] [--redo sc
 The API is reached through an SSH tunnel to the Windows host (WSL uses mirrored networking):
     ssh -f -N -L 19999:127.0.0.1:9999 blade-4090-ps        (override the URL with SOMA_VOICE_URL)
 The takes are copied from blade-4090 by tools/blade/fetchjob.sh; with SOMA_VOICE_FETCH=http they come from the job's
-result URL instead (one job per sentence, no access to blade-4090 needed beyond the tunnel).
+result URL instead (one job per scene cut at the merge's digital silence, no access to blade-4090 needed beyond the
+tunnel). Jobs run one at a time on one worker thread; the next scene synthesises while this one is cut and checked.
 """
-import hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.request, wave
+import concurrent.futures, hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.request, wave
 import numpy as np
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TOOLS)
-from padcut import PAD_HEAD, PAD_TAIL, cut, edge_db, edges_ok, is_filler_text, removed  # noqa: E402
+from padcut import PAD_HEAD, PAD_TAIL, cut, edge_db, edges_ok, is_filler_text, removed, split_at_silence  # noqa: E402
 from ko_say import check_script, load_lexicon, spoken  # noqa: E402
 
 PROJ = os.getcwd()
@@ -40,14 +41,18 @@ LEAD_TITLE, LEAD, TAIL = 2.6, 0.7, 1.1
 GAP, GAP_Q = 0.50, 0.70            # silence between sentences (longer after a question)
 CACHE = os.path.join(PROJ, 'cache_voice'); os.makedirs(CACHE, exist_ok=True)
 FETCH = os.path.join(TOOLS, 'blade', 'fetchjob.sh')
-# SOMA_VOICE_FETCH=http: no ssh to blade-4090 (a sandboxed session cannot read ~/.ssh): one job per sentence, its audio
-# from GET /api/jobs/{id}/result over the same tunnel. Job seed s + i keeps the server seed of turn i (see run_job).
+# SOMA_VOICE_FETCH=http: no ssh to blade-4090 (a sandboxed session cannot read ~/.ssh). The API serves only a job's
+# merged result, so the scene goes as one multi-turn job (the model loads once: ~6-20 s a sentence instead of ~55 s)
+# merged with SPLIT_MS of digital silence between turns, and the result is cut at those all-zero runs. If the cut does
+# not give one piece per sentence (a turn with its own long all-zero run), the scene falls back to one job per
+# sentence. Job seed s + i keeps the server seed of turn i either way (see run_job).
 FETCH_MODE = os.environ.get('SOMA_VOICE_FETCH', 'ssh')
 CUTTER = 'padcut-v3'   # v3: cut where the sound settles on the gap's floor (v2 chopped soft endings)
 ARGS = sys.argv[1:]
 VOICE = ARGS[ARGS.index('--voice') + 1] if '--voice' in ARGS else 'cwon'
 PAD = '--no-pad' not in ARGS
 VERIFY = PAD and '--no-verify' not in ARGS
+SPLIT_MS = 1000   # digital silence the server puts between turns of a merged http-mode result
 JOB_ID = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 _whisper = None
 
@@ -112,7 +117,7 @@ def process(raw_path):
     clip, info = cut(a, SR)
     if clip is None: return None, info
     if not edges_ok(clip, SR): return None, f'cut lands on sound (edges {edge_db(clip, SR)} dB vs speech)'
-    if VERIFY:
+    if VERIFY:   # each side on its own: one pass over both can hear a single filler and miss the other side
         for side, piece in zip(('head', 'tail'), removed(a, SR, info)):
             heard = ear(piece)
             if not is_filler_text(heard): return None, f'{side} cut-off heard as {heard!r}'
@@ -187,12 +192,59 @@ def fetch_result(job, dst, timeout=900):
         time.sleep(3)
 
 
+def wait_job(job, tag, limit):
+    t0 = time.time()
+    while True:
+        st = http('GET', f'/api/jobs/{job}')
+        if st['status'] in ('succeeded', 'completed'): return st
+        if st['status'] == 'failed': sys.exit(f'{tag}: job {job} failed: {st.get("error")}')
+        if time.time() - t0 > limit: sys.exit(f'{tag}: job {job} still {st["status"]} after {limit:.0f} s')
+        time.sleep(3)
+
+
 def run_jobs_http(texts, seed, tag):
-    """SOMA_VOICE_FETCH=http: one async job per text (seed + i, the server seed turn i gets in a shared job), audio from
-    the job's result URL; returns local raw wav paths in order (48 kHz mono)."""
+    """SOMA_VOICE_FETCH=http: one multi-turn job, split at the merge's silences (see SPLIT_MS); one job per text when
+    that fails. Returns local raw wav paths in order (48 kHz mono)."""
     t0 = time.time(); out = []
-    tmp = os.path.join(CACHE, f'http_{seed}_{hashlib.sha1(json.dumps(texts, ensure_ascii=False).encode()).hexdigest()[:8]}')
+    req = json.dumps([VOICE, PAD, list(texts)], ensure_ascii=False).encode()   # everything that shapes the takes
+    tmp = os.path.join(CACHE, f'http_{seed}_{hashlib.sha1(req).hexdigest()[:8]}')
     os.makedirs(tmp, exist_ok=True)
+    try:   # a run cut off after the job finished: its pieces are already here (same texts, seed, voice, padding)
+        m = json.load(open(os.path.join(tmp, 'manifest.json')))
+        done = [os.path.join(tmp, f'r{i:03d}.wav') for i in range(len(texts))]
+        if (m.get('texts'), m.get('seed'), m.get('voice'), m.get('pad')) == (list(texts), seed, VOICE, PAD) \
+                and all(os.path.isfile(p) for p in done):
+            print(f'  {tag}: {len(texts)} sentences from the finished job in {os.path.basename(tmp)}', flush=True)
+            return done
+    except (OSError, ValueError):
+        pass
+    try:   # this folder is rewritten now: until the new manifest lands it must not read as finished
+        os.remove(os.path.join(tmp, 'manifest.json'))
+    except FileNotFoundError:
+        pass
+    if len(texts) > 1:
+        turns = [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t} for t in texts]
+        job = http('POST', '/api/tts', {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
+                                        'merge_policy': {'silence_min_ms': SPLIT_MS, 'silence_max_ms': SPLIT_MS}})['job_id']
+        if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
+        wait_job(job, tag, 180 + 40 * len(texts))
+        src = fetch_result(job, os.path.join(tmp, 'merged'))
+        sr = int(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=sample_rate',
+                                 '-of', 'csv=p=0', src], capture_output=True, text=True, check=True).stdout.strip())
+        pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', src, '-f', 's16le', '-ac', '1', '-'], capture_output=True, check=True).stdout
+        pieces = split_at_silence(np.frombuffer(pcm, np.int16), sr, len(texts), 0.9 * SPLIT_MS / 1000, 1.5 * SPLIT_MS / 1000)
+        if pieces is not None:
+            for i, pc in enumerate(pieces):
+                p0, p = os.path.join(tmp, f's{i:03d}.raw'), os.path.join(tmp, f'r{i:03d}.wav')
+                pc.tofile(p0)
+                subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 's16le', '-ar', str(sr), '-ac', '1', '-i', p0,
+                                '-ar', str(SR), '-ac', '1', p], check=True)
+                os.remove(p0); out.append(p)
+            json.dump({'jobs': 'http-split', 'job': job, 'seed': seed, 'texts': texts, 'voice': VOICE, 'pad': PAD},
+                      open(os.path.join(tmp, 'manifest.json'), 'w'), ensure_ascii=False)
+            print(f'  {tag}: {len(texts)} sentences in {time.time() - t0:.0f}s (http, one job {job[:8]}, split)', flush=True)
+            return out
+        print(f'  {tag}: merged result did not split into {len(texts)} turns; one job per sentence', flush=True)
     for i, t in enumerate(texts):
         body = {'mode': 'async', 'format': 'wav', 'seed': seed + i, 'turns': [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t}]}
         job = http('POST', '/api/tts', body)['job_id']
@@ -245,6 +297,43 @@ def run_job(texts, seed, tag):
     return out
 
 
+GPU = concurrent.futures.ThreadPoolExecutor(max_workers=1)   # one job at a time, in submission order
+AHEAD = {}   # scene -> ((texts, seed), future): its first job, synthesising while the scene before is cut and checked
+FATAL = []   # set by the first failed job: nothing queued after it reaches the server (its job may still be running)
+
+
+def gpu_job(texts, seed, tag):
+    if FATAL: raise SystemExit(f'{tag}: not started, an earlier job failed ({FATAL[0]})')
+    try:
+        return run_job(texts, seed, tag)
+    except BaseException as e:
+        FATAL.append(f'{tag}: {e}'); raise
+
+
+def job(texts, seed, tag, scene):
+    """the future of run_job(texts, seed): the scene's job queued ahead when it is for exactly these texts and seed
+    (otherwise that one is cancelled, or left to finish if it already runs), else a new one."""
+    k, fut = AHEAD.pop(scene, (None, None))
+    if fut is not None and k == (tuple(texts), seed): return fut
+    if fut is not None: fut.cancel()
+    return GPU.submit(gpu_job, list(texts), seed, tag)
+
+
+def rescuable(rec, text):
+    """usable() would re-cut this take from its recorded raw take (no GPU)."""
+    return bool(rec and rec.get('text') == text and rec.get('voice') == VOICE and os.path.isfile(os.path.join(PROJ, rec.get('raw') or '')))
+
+
+def ahead(items, tag):
+    """queue a scene's first job now, for the takes neither recorded nor rescuable from a raw take."""
+    paths = [os.path.join(CACHE, f'{key_of(t, k)}.wav') for t, k in items]
+    recs = [read_record(p) for p in paths]
+    todo = [i for i, p in enumerate(paths) if not record_ok(recs[i], items[i][0], p) and not rescuable(recs[i], items[i][0])]
+    if todo and tag not in AHEAD:
+        texts, seed = tuple(items[i][0] for i in todo), items[todo[0]][1]
+        AHEAD[tag] = ((texts, seed), GPU.submit(gpu_job, list(texts), seed, f'{tag} r0'))
+
+
 def synth_scene(items, tag):
     """items: [(text, take)]. Failed cuts / ear checks retry with a new job seed (3 rounds)."""
     paths = [os.path.join(CACHE, f'{key_of(t, k)}.wav') for t, k in items]
@@ -252,7 +341,7 @@ def synth_scene(items, tag):
         todo = [i for i, p in enumerate(paths) if not usable(p, items[i][0])]
         if not todo: return paths
         job_seed = items[todo[0]][1] + 1000 * rnd
-        raws = run_job([items[i][0] for i in todo], job_seed, f'{tag} r{rnd}')
+        raws = job([items[i][0] for i in todo], job_seed, f'{tag} r{rnd}', tag).result()
         for pos, (i, raw) in enumerate(zip(todo, raws)):
             clip, why = process(raw)
             if clip is None:
@@ -364,9 +453,13 @@ def main():
     if '--recut' in ARGS:
         recut(script, seeds); return
     clips = {}
+    items = [[(say_of(s), seeds.get(f'{sc["id"]}:{k}', 100 + 17 * j + k)) for k, s in enumerate(sc['sentences'])]
+             for j, sc in enumerate(script['scenes'])]
+    ids = [sc['id'] for sc in script['scenes']]
+    if ids: ahead(items[0], ids[0])
     for j, sc in enumerate(script['scenes']):
-        items = [(say_of(s), seeds.get(f'{sc["id"]}:{k}', 100 + 17 * j + k)) for k, s in enumerate(sc['sentences'])]
-        clips[sc['id']] = [wav_read(p) if PAD else trim(wav_read(p)) for p in synth_scene(items, sc['id'])]
+        if j + 1 < len(ids): ahead(items[j + 1], ids[j + 1])   # the GPU works on the next scene meanwhile
+        clips[sc['id']] = [wav_read(p) if PAD else trim(wav_read(p)) for p in synth_scene(items[j], sc['id'])]
     target = float(np.median([level(c) for cs in clips.values() for c in cs]))
     t = 0.0; scenes = []; track = []
     for sc in script['scenes']:
@@ -401,4 +494,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:   # an exit (a failed job, ^C) drops whatever is still queued instead of running it
+        GPU.shutdown(wait=False, cancel_futures=True)

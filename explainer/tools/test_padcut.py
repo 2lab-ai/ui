@@ -4,7 +4,7 @@ import os, sys, unittest
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from padcut import cut, edge_db, edges_ok, is_filler_text, removed  # noqa: E402
+from padcut import cut, edge_db, edges_ok, is_filler_text, removed, split_at_silence  # noqa: E402
 
 SR = 16000
 
@@ -112,6 +112,32 @@ class SoftEdges(unittest.TestCase):
         self.assertTrue(edges_ok(clean, SR), edge_db(clean, SR))
         self.assertFalse(edges_ok(chopped, SR), edge_db(chopped, SR))
 
+
+class SplitAtSilence(unittest.TestCase):
+    """narrate_soma http mode: the server joins turns with a fixed run of exact zeros; that run is the only cut."""
+    sr = 1000
+    def turn(self, n, seed):
+        return np.random.default_rng(seed).integers(1, 3000, size=n).astype(np.int16)
+
+    def test_one_piece_per_turn(self):
+        gap = np.zeros(1000, np.int16)
+        a = np.concatenate([self.turn(300, 1), gap, self.turn(500, 2), gap, self.turn(200, 3)])
+        self.assertEqual([len(x) for x in split_at_silence(a, self.sr, 3, 0.9)], [300, 500, 200])
+
+    def test_a_short_zero_run_inside_a_turn_is_not_a_cut(self):
+        a = np.concatenate([self.turn(300, 1), np.zeros(200, np.int16), self.turn(400, 2), np.zeros(1000, np.int16), self.turn(200, 3)])
+        self.assertEqual([len(x) for x in split_at_silence(a, self.sr, 2, 0.9)], [900, 200])
+
+    def test_an_empty_turn_is_not_hidden(self):   # its two gaps merge into one long run: no cut, count fails
+        a = np.concatenate([self.turn(300, 1), np.zeros(2000, np.int16), self.turn(500, 2), np.zeros(1000, np.int16),
+                            np.zeros(0, np.int16), self.turn(200, 3), np.zeros(1100, np.int16), self.turn(100, 4)])
+        self.assertIsNone(split_at_silence(a, self.sr, 4, 0.9, 1.5))
+        self.assertEqual(len(split_at_silence(a, self.sr, 4, 0.9)), 4)   # without the cap the long run would pass
+
+    def test_wrong_count_gives_none(self):   # the caller falls back to one job per sentence
+        a = np.concatenate([self.turn(300, 1), np.zeros(1000, np.int16), self.turn(500, 2)])
+        self.assertIsNone(split_at_silence(a, self.sr, 3, 0.9))
+        self.assertIsNone(split_at_silence(np.concatenate([np.zeros(1000, np.int16), a]), self.sr, 3, 0.9))   # leading zeros are no cut
 
 if __name__ == '__main__':
     unittest.main()
