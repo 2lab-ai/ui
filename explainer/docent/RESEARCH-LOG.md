@@ -59,3 +59,38 @@ the changes (skill / reference / templates / code) and what is still weak. Run f
 - Still weak: lone figures drawn small (33 % of the height vs the reference's 40–70 %) — guidance only; one shot packing
   a whole sentence (cause, link, effect); reviewers still cannot hear the voice or music. Scorecard and reviews:
   the run folder `scorecard.md`, `review-*.md`.
+
+## 2026-11-14 · run 3 — packaging: title and cover (owner: "제목이랑 커버 이미지 … 클릭을 잘 할 수 있는 제목 리서치해서 개선")
+- Domain research first (same session): 126 YouTube search keywords × top 30 results (3,780 videos) with the
+  subscriber counts of 691 channels; market notes on YouTube's recommender, the 2025-07 "inauthentic content" rule and
+  Korean knowledge channels. The same genre differed 100x by keyword; small channels broke through where the title
+  spoke to a present problem. Sources: the run folder `sources-market.md`, `sources-demand.csv`.
+- Seed 20261114, 10 books from the 34-book pool (p01 그릿 … p10 라이트 형제), frozen skill + kit 6b801a5. Probe shape:
+  the packaging stage only (title, the description's first lines, the YouTube cover) on a minimal project, by fresh
+  authors. Blind review on a 10-criterion click rubric (hook ×2, keyword demand, honest promise, title form, cover
+  focal point ×2, cover text, legibility at 168 px, contrast/identity, curiosity gap, overall ×2) with the cover at
+  1280 / 320 / 168 px and measured keyword demand as evidence.
+- Baseline: weighted mean 2.33, 0/10 pass. Weakest: cover text 1.25, cover focal point 1.75, overall 1.88, title form
+  2.00. Root causes (`diagnosis.md`): no thumbnail step; the kit's only title example was "책 — 부제 (N분 도슨트북)";
+  keywords taken from the book's name and never measured; cover text copied from the title or caption-sized; thin
+  lines on a pale page; covers that show the answer.
+- Changes: REFERENCE §10 (title, cover, description), TEMPLATES "Cover", `title_check.py` (form + keyword demand,
+  `--strict`), `export.py cover` (COVER / COVER_B / COVER_C, 168 px check, warnings), `coverText()` `coverPage()`, ink
+  2.4x thick on covers, the GEB example rewritten hook-first, CONCEPTS.md (concept 2 letter as the default, concept 1
+  lecture), the skill's new §6. Narration: resume a job after a client timeout, `SOMA_VOICE_TURN_S`, a stubborn
+  sentence no longer stops the other scenes.
+- Verification: v08 아주 작은 습관의 힘, v03 하늘과 바람과 별과 시, v06 생명이란 무엇인가 (the 3 worst) and n1 안네의
+  일기, n2 원씽 (seed 20261115) on the staged skill + kit f5b2786. All five titles passed the form check with a measured
+  keyword (습관 만들기 133k, 위로가 되는 시 344k, 양자역학 179k, 외로움 249k, 시간관리 128k vs their book names 2k–24k);
+  all covers rendered from COVER with no warnings. Blind scores: 2.33 → 3.95 (v08 1.77 → 3.69, v03 2.08 → 3.85,
+  v06 2.15 → 4.15; n1 4.00, n2 4.08), passes 0/10 → 3/5. Biggest gains: cover text +3.15, title form +3.00, small-size
+  +2.28, focal point +2.05. Still weakest: overall click appeal 3.20, curiosity gap 3.60.
+- Scorecard and reviews: the run folder `scorecard.md`, `verify/review/review-*.md`.
+- Round 2 from the verification authors' friction: the keyword must be in the title and on topic (music/ASMR top
+  results), situation hooks ("~할 때") count, top-edge and time-stamp-corner warnings, cover variants, the description's
+  third line, the listener on the cover in the letter concept.
+- Round 3 (from the verification reviews, not re-measured): four of five covers were 77–84 % bare page with pale fills
+  (focal 3–4; the one at 65 % scored 5) → `export.py cover` warns above 75 % (`page_share`, `test_cover.py`), the one
+  MARK accent on the tension, cream fills; hooks add what the keyword's top 5 lack. The docent-lab COVER was 90 %.
+- Still weak: the kit cannot draw some cover emotions (shame: hands over the face end at the cheeks), whether the cover
+  subject reads as a specific person, and the lint does not run on the cover (a held letter over a face passed).

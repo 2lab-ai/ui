@@ -9,6 +9,10 @@ that comes back means the fix was not structural: replace it with a check.
 - No thumbnail: YouTube would pick a frame, the audiobook cover was the 1.5 s title card (text only, and only because the
   first scene has a subtitle) · `export.py cover` from scenes.js `COVER`, `coverText()`, `coverPage()`, ink 2.4x thick,
   168 px check image and warnings (text size and length, small subject, edge cut, time-stamp corner).
+- Covers that passed every warning still read as a pale block at 168 px: 77–84 % bare page, fills 1.45:1 against the
+  page, one template for every book (4 of 5 verification covers; ADHD's first draft 83 %, docent-lab 90 %) · a size
+  check cannot see emptiness · `export.py cover` warns above 75 % bare page (`page_share`, `test_cover.py`), REFERENCE
+  §10 one MARK accent on the tension and cream fills, TEMPLATES "Cover" redrawn.
 - Keywords taken from the book's name: 2,838 views (하늘과 바람과 별과 시), songs of the same name (블랙 스완 → BTS) ·
   `title_check.py --keyword` measures median and small-channel hits; `--strict` wants one measured keyword in the title,
   on topic, over the bar.

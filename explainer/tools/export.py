@@ -188,6 +188,9 @@ def save_cover(name, rep, b64):
                     '[0]scale=168:94:flags=lanczos,pad=168:720:0:0:white[c];[a][b][c]hstack=inputs=3', '-q:v', '3', check], check=True)
     warns = cover_warnings(rep)
     if corner_ink(big) > 0.004: warns.append('ink in the bottom-right corner: YouTube draws the running time there')
+    bare = page_share(big)
+    if bare > PAGE_MAX: warns.append(f'{100 * bare:.0f} % of the cover is bare page (keep ≤ {100 * PAGE_MAX:.0f} %): make the subject '
+                                      'bigger, or give the thing that carries the tension a solid fill (ink, or the one MARK accent)')
     os.remove(big)
     size = os.path.getsize(path)
     if size >= 2 * 1024 * 1024: sys.exit(f'cover: {path} is {size} bytes; YouTube takes under 2 MB')
@@ -202,7 +205,7 @@ def cover_warnings(rep):
     if not texts: out.append('no coverText(): a cover without words gave reviewers nothing to read at 168 px (research 2026-11-14)')
     for t in texts:
         if t['chars'] > 8: out.append(f"\"{t['str']}\" is {t['chars']} characters (keep ≤ 8: it must read at 168 px)")
-        if t['size'] < 160: out.append(f"\"{t['str']}\" is {t['size']} px (use 200-280 at 1080p; under 160 it blurs at 168 px)")
+        if t['size'] < 160: out.append(f"\"{t['str']}\" is {t['size']} px (use 200-320 at 1080p; under 160 it blurs at 168 px)")
     ink = rep.get('ink')
     if ink and (ink[3] - ink[1]) < 0.5 * rep['H']: out.append(f"ink spans {100 * (ink[3] - ink[1]) / rep['H']:.0f} % of the height (make the subject bigger: ≥ 50 %)")
     if ink and (ink[1] < 12 or ink[0] < 12 or ink[2] > rep['W'] - 12):
@@ -216,6 +219,18 @@ def corner_ink(png):
     box = im.crop((w - int(330 * w / 1920), h - int(140 * h / 1080), w, h))
     hist = box.histogram()
     return sum(hist[:90]) / max(1, sum(hist))
+
+PAGE_MAX = 0.75   # verification 2026-11-14: covers with 77-84 % bare page scored focal 3-4 of 5; the one at 65 % scored 5
+
+def page_share(png):
+    """Share of a cover that is bare page: pixels within a small distance of its most common colour, on a 320 × 180 copy.
+    Pale fills count as page: at 168 px wide they vanish into it (fills measured 1.45:1 against the page)."""
+    from PIL import Image
+    from collections import Counter
+    b = Image.open(png).convert('RGB').resize((320, 180)).tobytes()
+    px = [(b[i], b[i + 1], b[i + 2]) for i in range(0, len(b), 3)]
+    pr, pg, pb = (c * 8 + 4 for c in Counter((r >> 3, g >> 3, bl >> 3) for r, g, bl in px).most_common(1)[0][0])
+    return sum(abs(r - pr) + abs(g - pg) + abs(bl - pb) < 40 for r, g, bl in px) / len(px)
 
 async def render_slice(port, f0, f1, path):
     from playwright.async_api import async_playwright

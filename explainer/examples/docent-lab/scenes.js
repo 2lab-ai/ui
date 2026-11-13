@@ -114,10 +114,12 @@ SCENES.idea = (t, q) => shots(t, [
 ]);
 
 // YouTube cover (TEMPLATES "Cover"): one big subject doing the hook's verb, at most 8 big characters that add to the
-// title, a deeper page than the video's, the bottom-right corner kept clear for YouTube's running time.
+// title, a deeper page than the video's, the one accent on the tension, ≤ 75 % bare page, the bottom-right corner clear.
 COVER = () => {
   coverPage();
-  person('musk', 560, 1040, { s: 2.5, pose: 'facepalm', face: 'worried' });
-  prop('clock', 1000, 300, 1.4, { solid: true });
-  coverText('세 번 터졌다', 1340, 560, { size: 170, rot: -0.04 });
+  person('musk', 380, 1560, { s: 4.0, pose: 'facepalm', face: 'worried' });
+  prop('rocket', 1000, 1020, 4.8, { fill: C.paper, colour: true });
+  crossAt(1000, 560, 480, 700, { color: MARK(), w: 18 });
+  coverText('세 번', 1530, 300, { size: 250, rot: -0.04 });
+  coverText('터졌다', 1530, 600, { size: 260, rot: -0.04 });
 };

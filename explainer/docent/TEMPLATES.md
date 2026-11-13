@@ -246,13 +246,20 @@ it to `out/cover.jpg` (1280×720) and `out/cover_check.jpg`, and prints a `WARNI
 ```js
 COVER = () => {
   coverPage();                                                              // deeper page: stands out from YouTube's white
-  person('oppa', 470, 1070, { s: 2.9, pose: 'facepalm', face: 'worried' });       // one subject, ≥ 60 % of the height, cut by the bottom edge; head ≥ 30 px below the top
-  prop('clock', 980, 330, 1.6, { solid: true });                            // at most one object: the tension, not the answer
-  coverText('시간이 샌다', 1400, 520, { size: 250, rot: -0.04 });           // ≤ 8 characters that add to the title
+  person('oppa', 370, 1560, { s: 4.0, pose: 'facepalm', face: 'worried' });       // one subject, cut by the bottom edge only; head ≥ 30 px below the top
+  const x = 1000, y = 960, s = 3.8;
+  prop('hourglass', x, y, s, { fill: C.paper, colour: true });              // at most one object: the tension, not the answer; a cream fill, not a pale one
+  inkPath([[x - 30 * s, y - 160 * s], [x + 30 * s, y - 160 * s], [x + 6 * s, y - 108 * s], [x - 6 * s, y - 108 * s]],
+          { closed: true, fill: MARK(), color: INK(), w: 4 });               // the one accent on what carries the tension: the sand that is left
+  [[x + 62 * s, y - 14 * s, 16], [x + 74 * s, y + 18 * s, 14]].forEach(([a, b, r]) => inkDot(a, b, r, { color: MARK() }));   // leaking
+  coverText('시간이', 1570, 300, { size: 260, rot: -0.03 });               // ≤ 8 characters that add to the title
+  coverText('샌다', 1570, 610, { size: 320, rot: -0.03 });
 };
 // keep x > 1600, y > 950 empty: YouTube draws the running time there
 ```
-Two lines of text are fine (`coverText` twice, 200–260 px each) when the words are short. A second and third cover for
+Two lines of text are fine (`coverText` twice, 200–320 px each) when the words are short. A second and third cover for
 Test & Compare: `COVER_B = () => { … }`, `COVER_C`. Then `python $K/tools/export.py cover` → open every
 `out/cover*_check.jpg`; fix each `WARNING` line. At s ≥ 2.5 a pose reads differently (facepalm reads as a hand on the
-chin): judge it on the check image. Used for '시간이 자꾸 새어 나간다면' (2026-11-14): 오빠 + a leaking hourglass + "시간이 / 샌다".
+chin): judge it on the check image. Stick figures are mostly page: the first draft of this cover was 83 % bare page and
+its pale-blue hourglass vanished at 168 px; the cream fill, the red sand and s 4.0 brought it to ≤ 75 %. Used for
+'게을러서가 아니라 시간이 안 보여서예요' (2026-11-14): 오빠 + a leaking hourglass + "시간이 / 샌다".

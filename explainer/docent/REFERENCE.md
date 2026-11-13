@@ -228,8 +228,12 @@ spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면
   --keyword <kw> --strict` passes on the one you upload: its form, and one measured keyword that is in the title, on
   topic (fewer than 3 of its top 5 are music, ASMR or sleep sound — 집중력 is study music, 서시 is songs) and over the
   bar. Keep the other two for Test & Compare.
-- The hook may be the viewer's situation ("~할 때", "~한 밤", "~했다면"): the strongest hooks in the 2026-11-14
-  verification were situations (습관 만들기, 매번 실패했다면 …; 내가 미워지는 밤이라면 …).
+- The hook may be the viewer's situation ("~할 때", "~한 밤", "~했다면"), but a situation plus the genre's stock
+  claim ("의지 탓이 아니에요", "~이 없다면") reads like every competitor: in the 2026-11-14 verification such hooks
+  scored 4 and click appeal 3. Read the keyword's top 5 and add what they lack: one concrete specific (a number, a
+  scene, a named result) or the "why" the video answers ("~인 이유", "시간이 안 보여서").
+- When people search the book's own name (안네의 일기), they want the book: promise its story or its answer, not only
+  its theme.
 - Honest: the video delivers exactly what the title promises. No medical, legal or money promises.
 
 **Cover (the YouTube thumbnail)** — drawn in `scenes.js` `COVER`, rendered by `export.py cover` (TEMPLATES "Cover").
@@ -238,10 +242,16 @@ spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면
   concept the subject is whoever has the hook's problem — usually the listener, not the narrator.
 - Only the bottom edge may cut the subject: a head or a stem cut by the top edge reads as something else (a cut apple
   read as a moon). `export.py cover` warns.
-- Cover text: ≤ 8 characters (3–6 is best), 200–280 px at 1080p, ink with the paper halo. It adds to the title — the
+- Cover text: ≤ 8 characters (3–6 is best), 200–320 px at 1080p, ink with the paper halo. It adds to the title — the
   feeling or the stake ("시간이 샌다", "왜 나만?") — and never repeats the title or gives away the answer.
 - Show the tension, not the payoff: the empty clock, the stuck figure, the tilted ladder. The answer is the video.
 - `coverPage()` paints a deeper page than the video's: the video's pale blue is 1.6:1 against YouTube's white.
+- At most 75 % of the frame is bare page (`export.py cover` warns). Pale fills count as page: they were 1.45:1 against
+  it and vanished at 168 px. The thing that carries the tension is solid ink or the one MARK accent, and one big
+  shape: flies, dots and a thin finger disappear at 168 px.
+- Fit the mood and vary the picture: the pose and the page tint (`coverPage(colour)`) follow the title (a night title
+  is not a daytime study page), and the layout differs from the channel's last cover. Four of five verification covers
+  shared one template (figure left, text right, same tint) and read as the same video.
 - Leave the bottom-right corner (about 300 × 130 px at 1080p) empty: YouTube draws the running time there.
 - Lines: `renderCover()` draws every ink line 2.4x as thick; still, prefer big simple shapes.
 - Check `out/cover_check.jpg` (1280 / 320 / 168 px): at 168 px you must read the text and name the subject. Fix every
