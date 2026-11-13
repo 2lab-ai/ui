@@ -2,5 +2,8 @@
  "slug": "docent-lab",
  "title": "docent lab — the TEMPLATES.md recipes",
  "theme": "sketch",
- "lang": "ko"
+ "lang": "ko",
+ "colour": false,
+ "subtitles": "off",
+ "chip": false
 }

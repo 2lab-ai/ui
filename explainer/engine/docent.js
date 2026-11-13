@@ -22,19 +22,21 @@ const SUB_Y = 905;   // ink below this line sits under the subtitle box
 const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props', 'faces',
   'things', 'words', 'marks', 'colours'];   // emphasis budget (2026-11-13): what competes for the eye in this frame
 const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null, depth: 0 };
-function DOCENT_FRAME(t) { if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
+function DOCENT_FRAME(t) { if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [], things: [] }; }   // slots: where things are or will be (placement)
 DOCENT_FRAME(0);
 
 // ---------- emphasis budget: ink mode and the colour count (2026-11-13) ----------
 // The reference (Productive Peter) is plain black ink on the page: one thing per shot, at most one written word (the
 // named idea, purple), at most one red verdict. The owner: "you emphasise everything, so nothing stands out". So the
-// default is ink: inside figure / person / animal / prop every colour paints as ink (lines, text) or as the page
-// (fills) — clothes, hats, animal coats and prop fills included. Keep a colour only when the colour IS the meaning (a
-// red heart, a magenta brain): `colour: true` on that call, or project.json "colour": true for a whole old project.
-// Outside those primitives nothing is recoloured; the lint counts every colour other than ink, purple and red.
+// docent projects draw in ink: project.json "colour": false (new_video.py writes it for every new docent project)
+// turns on ink mode — inside figure / person / animal / prop every colour paints as ink (lines, text) and every fill
+// that is not ink-dark paints as the page (clothes, hats, animal coats, prop fills, cream and grey included), as the
+// reference draws. Keep a colour only when the colour IS the meaning (a red heart, a magenta brain): `colour: true` on
+// that call. Projects without the key (older videos, make-3b1b) keep their colours: refreshing an engine never strips
+// them. In ink mode the lint counts every colour other than ink, purple and red painted outside those primitives.
 let DOCENT_INK = 0;
-const docentColourful = () => !!(typeof PROJECT === 'object' && PROJECT && PROJECT.colour);
+const docentColourful = () => !(typeof PROJECT === 'object' && PROJECT && PROJECT.colour === false);
 function inkMode(o, f) {
   if ((o && o.colour) || docentColourful()) return f();
   DOCENT_INK++; try { return f(); } finally { DOCENT_INK--; }
@@ -62,14 +64,19 @@ function docentIsColour(c) {
   if (bgSpread < 18) return true;
   const dh = Math.abs(docentHue(v) - docentHue(bg)); return Math.min(dh, 360 - dh) > 25;
 }
+function docentDark(c) { const v = docentRGBA(c); return !!v && Math.max(v[0], v[1], v[2]) < 96 && v[3] > 0.5; }   // hair, a black ball, ink
 function docentSame(c, role) { const a = docentRGBA(c), b = docentRGBA(role); return !!(a && b) && Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 24; }
 function docentPatchCtx() {
   ctx.__docentInk = true;
   const wrap = (fn, prop, asInk) => function (...args) {
     const keep = this[prop]; let swapped = false;
-    if (DOCENT_INK > 0) { if (docentIsColour(keep)) { this[prop] = asInk ? INK() : PAPER(); swapped = true; } }
-    else if (!DOCENT.ghostOk && !DOCENT.measure && this.globalAlpha > 0.05 && docentIsColour(keep) && !docentSame(keep, KEY()) && !docentSame(keep, MARK())) {
-      const k = typeof keep === 'string' ? keep : 'gradient'; if (!DOCENT.colours.includes(k) && DOCENT.colours.length < 12) DOCENT.colours.push(k);
+    if (DOCENT_INK > 0) {
+      if (asInk ? docentIsColour(keep) : !docentDark(keep) && !docentSame(keep, PAPER())) { this[prop] = asInk ? INK() : PAPER(); swapped = true; }
+    } else if (!DOCENT.ghostOk && !DOCENT.measure && this.globalAlpha > 0.05 && !docentColourful()) {
+      if (docentSame(keep, MARK()) && !DOCENT.inMark) DOCENT.redInk = true;   // a red line drawn by hand is a mark too
+      else if (docentIsColour(keep) && !docentSame(keep, KEY()) && !docentSame(keep, MARK())) {
+        const k = typeof keep === 'string' ? keep : 'gradient'; if (!DOCENT.colours.includes(k) && DOCENT.colours.length < 12) DOCENT.colours.push(k);
+      }
     }
     try { return fn.apply(this, args); } finally { if (swapped) this[prop] = keep; }
   };
@@ -121,7 +128,7 @@ function docentTags() {
     });
     placed.push(bs); const rec = [...best, g.own]; rec.m = g.m; DOCENT.tags.push(rec);
     ctx.save(); ctx.setTransform(g.m); ctx.globalAlpha = g.a; if (g.ghostOk) DOCENT.ghostOk++;
-    DOCENT.depth++; hand(g.str, (best[0] + best[2]) / 2, (best[1] + best[3]) / 2, { size: g.size, color: g.color, halo: !g.plain }); DOCENT.depth--;   // ink mode: no paper halo
+    DOCENT.depth++; DOCENT.noWord++; hand(g.str, (best[0] + best[2]) / 2, (best[1] + best[3]) / 2, { size: g.size, color: g.color, halo: !g.plain }); DOCENT.noWord--; DOCENT.depth--;   // ink mode: no paper halo
     if (!g.ghostOk && !DOCENT.ghostOk && g.a > 0.05) DOCENT.words.push('tag:' + g.str);
     if (g.ghostOk) DOCENT.ghostOk--; ctx.restore();
   }
@@ -167,7 +174,8 @@ function docentReport() {
   return { t: DOCENT.t, shot: DOCENT.shot, ink: DOCENT.ink, textBig: DOCENT.textBig, propFace, partial: DOCENT.partial, ghost: DOCENT.ghost, zone: DOCENT.zone, off: DOCENT.off,
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far, tailHigh: high.map(([x, y]) => [Math.round(x), Math.round(y)]),
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals,
-    things: DOCENT.things, words: DOCENT.words, marks: DOCENT.marks, colours: DOCENT.colours };
+    things: DOCENT.things, words: DOCENT.words, marks: DOCENT.redInk ? DOCENT.marks.concat('red line') : DOCENT.marks, colours: DOCENT.colours,
+    listItems: DOCENT.listItems || 0 };
 }
 
 // ---------- small maths ----------
@@ -783,7 +791,7 @@ function bubble(x, y, w, h, { tail = null, kind = 'speech', text: str = null, si
     } else {
       inkPath(bubblePath(x, y, w, h, Math.min(40, h / 2.2), tail), { closed: true, fill: PAPER(), w: 3.6, jit: 0.8, color });
     }
-    if (str) handBlock(str, cx, cy, w - 50, { size, color: color || INK() });
+    if (str) { DOCENT.noWord++; try { handBlock(str, cx, cy, w - 50, { size, color: color || INK() }); } finally { DOCENT.noWord--; } }
     if (body) { const k0 = DOCENT.heads.length; body(x, y, w, h); entry[5] = [k0, DOCENT.heads.length]; }
     ctx.restore();
   });
@@ -1589,43 +1597,50 @@ PROPS.notebook = (x, y, s, o) => {
 function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w, h, o); }   // a function: a project may redefine it
 
 // ---------- emphasis budget: what competes for the eye (2026-11-13) ----------
-// Every top-level primitive call (not one drawn inside another) is one thing on screen; written words (hand, tags, the
-// term on a board) and red marks are counted apart, as REFERENCE §0 budgets them: one subject + two around it + one word. tools/lint_scenes.py turns the counts into checks: `busy` (things), `words`, `marks`, `colour`.
-// A crowd, a row of the same prop or animal, and a line of ants count once; a name tag is a word, not a thing.
-// figure / person / seated / animal / prop / crab / ant also draw in ink mode (see inkMode near the top).
+// Things: every top-level primitive call (not one drawn inside another) is one thing on screen; a crowd, a row of the
+// same prop or animal and a line of ants count once. Words and red marks count wherever they are drawn (inside a
+// thought bubble's picture too), except text that belongs to a drawing (a prop's own lettering, a bubble's speech) and
+// composites that count their own (a board's term, a list, a quote, a sign, a name tag). REFERENCE §0 budgets them:
+// one subject + two around it, one written word, one red mark. tools/lint_scenes.py turns the counts into `busy`,
+// `words`, `list`, `marks`, `colour`. figure / person / seated / animal / prop / crab / ant also draw in ink mode.
 (function docentBudget() {
   const G = globalThis;
   const optsOf = (args) => { for (let i = args.length - 1; i >= 0; i--) { const v = args[i]; if (v && typeof v === 'object' && !Array.isArray(v)) return v; } return null; };
-  const shown = (o) => !(o && ((o.p ?? 1) <= 0 || (o.a ?? 1) <= 0)) && ctx.globalAlpha > 0.05;
+  const live = (o) => !DOCENT.ghostOk && !DOCENT.measure && !(o && ((o.p ?? 1) <= 0 || (o.a ?? 1) <= 0)) && ctx.globalAlpha > 0.05;
   const thing = (k) => { if (!DOCENT.things.includes(k)) DOCENT.things.push(k); };
   const one = (kind) => thing(kind + '#' + DOCENT.things.length);
-  const word = (w) => DOCENT.words.push(String(w == null ? '' : w).slice(0, 24));
+  const word = (w) => { if (!DOCENT.noWord) DOCENT.words.push(String(w == null ? '' : w).slice(0, 24)); };
   const who = (a, o) => thing(o && o.crowd ? 'crowd' : 'person#' + DOCENT.things.length);
-  const COUNT = {
-    figure: who, person: who, seated: who, crab: who,
-    animal: (a, o) => { thing('animal:' + a[0]); if (o && o.tag) word('tag:' + (typeof o.tag === 'string' ? o.tag : a[0])); },
-    ant: () => thing('ant'), students: () => thing('crowd'),
-    prop: (a) => thing('prop:' + a[0]),
-    bubble: () => one('bubble'), say: () => one('bubble'), think: () => one('bubble'),
-    board: (a, o) => { one('board'); if (o && o.term) word(o.term); },
-    teach: (a) => { one('board'); one('person'); word(a[0]); },
-    sign: (a) => { one('sign'); word([].concat(a[4]).join(' ')); },
-    scrollList: (a) => { one('list'); word(a[3] || 'list'); },
-    quote: (a) => { one('quote'); word(a[3]); },
-    bookCover: (a, o) => { one('book'); word((o && o.title) || 'book'); },
-    chapterMap: () => { one('map'); word('map'); },
-    hand: (a) => word(a[0]), handBlock: (a) => word([].concat(a[0]).join(' ')),   // a written word counts against `words`, not `busy`
-    cross: () => DOCENT.marks.push('cross'), crossAt: () => DOCENT.marks.push('cross'),
-    ring: () => DOCENT.marks.push('ring'), underline: () => DOCENT.marks.push('underline'),
+  // [counts as things (top level only), counts words/marks (any depth), its own text is not counted again]
+  const SPEC = {
+    figure: [who], person: [who], seated: [who], crab: [who],
+    animal: [(a) => thing('animal:' + a[0]), (a, o) => { if (o && o.tag) word('tag:' + (typeof o.tag === 'string' ? o.tag : a[0])); }, true],
+    ant: [() => thing('ant')], students: [() => thing('crowd')],
+    prop: [(a) => thing('prop:' + a[0]), null, true],
+    bubble: [() => one('bubble')], say: [() => one('bubble')], think: [() => one('bubble')],
+    board: [() => one('board'), (a, o) => { if (o && o.term) word(o.term); }, true],
+    teach: [() => { one('board'); one('person'); }, (a) => word(a[0]), true],
+    sign: [() => one('sign'), (a) => word([].concat(a[4]).join(' ')), true],
+    scrollList: [() => one('list'), (a) => { word(a[3] || 'list'); DOCENT.listItems = (DOCENT.listItems || 0) + (a[4] || []).length; }, true],
+    quote: [() => one('quote'), (a) => word(a[3]), true],
+    bookCover: [() => one('book'), (a, o) => word((o && o.title) || 'book'), true],
+    chapterMap: [() => one('map'), () => word('map'), true],
+    hand: [null, (a) => word(a[0])], handBlock: [null, (a) => word([].concat(a[0]).join(' ')), true],
+    cross: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true], crossAt: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true],
+    ring: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('ring'); }, false, true], underline: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('underline'); }, false, true],
   };
   const INKED = new Set(['figure', 'person', 'seated', 'animal', 'prop', 'crab', 'ant']);
-  for (const [name, count] of Object.entries(COUNT)) {
+  for (const [name, [asThing, asWord, ownText, isMark]] of Object.entries(SPEC)) {
     const f = G[name]; if (typeof f !== 'function') continue;
     G[name] = function (...args) {
-      const o = optsOf(args), top = DOCENT.depth === 0 && !DOCENT.ghostOk && !DOCENT.measure;
-      if (top && shown(o)) count(args, o);
+      const o = optsOf(args), ok = live(o);
+      if (ok && asThing && DOCENT.depth === 0) asThing(args, o);
+      if (ok && asWord) asWord(args, o);
       DOCENT.depth++;
-      try { return INKED.has(name) ? inkMode(o, () => f.apply(this, args)) : f.apply(this, args); } finally { DOCENT.depth--; }
+      if (ownText || INKED.has(name)) DOCENT.noWord++;   // a drawing's own lettering is part of the drawing
+      if (isMark) DOCENT.inMark++;
+      try { return INKED.has(name) ? inkMode(o, () => f.apply(this, args)) : f.apply(this, args); }
+      finally { DOCENT.depth--; if (ownText || INKED.has(name)) DOCENT.noWord--; if (isMark) DOCENT.inMark--; }
     };
   }
 })();

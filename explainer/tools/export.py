@@ -110,7 +110,8 @@ def srt(name=None):
     """out/<slug>.srt: one cue per sentence (the subtitle `text`), timed from timeline.json."""
     tl = json.load(open(os.path.join(HERE, 'timeline.json')))
     name = name or json.load(open(os.path.join(HERE, 'project.json'))).get('slug', 'explainer')
-    ts = lambda x: f"{int(x // 3600):02d}:{int(x % 3600 // 60):02d}:{int(x % 60):02d},{int(round((x % 1) * 1000)) % 1000:03d}"
+    def ts(x):   # whole milliseconds first, then split: 1.9996 s is 00:00:02,000, not 00:00:01,000 (trinity review)
+        ms = int(round(x * 1000)); return f"{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d},{ms % 1000:03d}"
     cues = [(s['start'], s.get('end', s['start'] + s['dur']), s['text']) for sc in tl['scenes'] for s in sc['sentences']]
     path = os.path.join(OUT, f'{name}.srt')
     with open(path, 'w', encoding='utf-8') as f:

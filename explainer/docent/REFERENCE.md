@@ -40,7 +40,8 @@ object or metaphor alone · a word alone on the page · a figure with one object
 with a thought bubble holding one tiny drawing or word. A classroom board or a chapter sign appears once per chapter.
 
 **Defaults that enforce it** (docent.js): figures, cast looks, animals and props draw in ink — every colour inside them
-paints as ink or page (`colour: true` on the call keeps it). New sketch projects get `"subtitles": "off"` and
+paints as ink or page (`colour: true` on the call keeps it), in every project whose project.json has `"colour": false`
+— new docent projects get it, with `"subtitles": "off"` and
 `"chip": false`. Name tags are ink.
 
 ## 1. Picture rhythm

@@ -17,8 +17,10 @@ P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at
     (hair and hat), so they differ only by colour
 Emphasis budget (docent.js counts what each top-level call drew; REFERENCE.md §0):
 P1  busy: 5+ things in one frame · words: 3+ written words or labels · marks: 2+ red marks
-P2  busy: 4 things · words: 2 · colour: any colour besides ink, purple and red · mark-budget: red in more shots than
-    about one per 45 s of a scene
+P2  busy: 4 things · words: 2 · list: a written list of 3+ lines · colour: any colour besides ink, purple and red
+    (ink-mode projects) · mark-budget: red in more shots than about one per 45 s of a scene
+Words and marks count wherever they are drawn (a word inside a thought bubble's picture too; a hand-drawn red line is a
+mark); a bubble's speech, a prop's own lettering and a list's items do not count as words.
 """
 import asyncio, base64, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -59,6 +61,7 @@ def judge(r):
     things, words, marks, colours = r.get('things') or [], r.get('words') or [], r.get('marks') or [], r.get('colours') or []
     if len(things) >= 5: out.append(('P1', 'busy', f"{len(things)} things compete for the eye ({', '.join(things[:7])}): one subject, at most two around it — cut what the sentence can do without"))
     elif len(things) == 4: out.append(('P2', 'busy', f"4 things on screen ({', '.join(things)}): can one go?"))
+    if r.get('listItems', 0) >= 3: out.append(('P2', 'list', f"a written list of {r['listItems']} lines: the reference shows a list twice in 17 minutes — keep it only if the list itself is the point, else one item per shot"))
     if len(words) >= 3: out.append(('P1', 'words', f"{len(words)} written words or labels ({' / '.join(words[:5])}): write only the named idea or the one number to remember"))
     elif len(words) == 2: out.append(('P2', 'words', f"2 written words ({' / '.join(words)}): fine for a deliberate pair or equation, otherwise keep one"))
     if len(marks) >= 2: out.append(('P1', 'marks', f"{len(marks)} red marks ({', '.join(marks)}): one verdict per shot — the red means 'this one'"))

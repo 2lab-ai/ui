@@ -13,7 +13,8 @@ props, up to 9 red X's, a subtitle sentence and a chapter chip in every frame. T
   only the named idea, the one number, the one verdict, a colour that is the meaning; lint `busy` (5+ things P1, 4 P2),
   `words` (3+ P1, 2 P2), `marks` (2+ P1), `colour` (P2), `mark-budget` (red in more than ~1 shot per 45 s).
 - Coloured shirts, stalls, cakes, charts · cast looks carried an accent colour and outfit fills, props had built-in
-  fills · ink mode: figure / person / animal / prop paint every colour as ink or page; `colour: true` keeps one on purpose.
+  fills · ink mode (project.json `"colour": false`, set for new docent projects; older projects keep their colours):
+  figure / person / animal / prop paint every colour as ink and every light fill as page; `colour: true` keeps one.
 - A full sentence under every drawing · subtitles burned in by default · new sketch projects get `"subtitles": "off"`
   and `"chip": false`; `export.py srt` writes the caption track for YouTube.
 - Every device in every chapter (sign, situation, bubble, board, equation, X and ring) · the skill listed them as a

@@ -197,10 +197,12 @@ def run_jobs_http(texts, seed, tag):
         body = {'mode': 'async', 'format': 'wav', 'seed': seed + i, 'turns': [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t}]}
         job = http('POST', '/api/tts', body)['job_id']
         if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
+        tj = time.time()
         while True:
             st = http('GET', f'/api/jobs/{job}')
             if st['status'] in ('succeeded', 'completed'): break
             if st['status'] == 'failed': sys.exit(f'{tag}: job {job} failed: {st.get("error")}')
+            if time.time() - tj > 900: sys.exit(f'{tag}: job {job} still {st["status"]} after 900 s')
             time.sleep(2)
         src = fetch_result(job, os.path.join(tmp, f'src{i:03d}'))
         p = os.path.join(tmp, f'r{i:03d}.wav')
