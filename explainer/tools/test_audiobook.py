@@ -28,6 +28,10 @@ class Audiobook(unittest.TestCase):
         self.assertEqual(export.chapter_title(TL['scenes'][1]), '1 · 이상한 고리')
         self.assertEqual(export.chapter_title(TL['scenes'][0]), '프롤로그 — 책 한 권')
 
+    def test_no_chip_is_the_title_alone(self):   # chip: false projects printed "0:00  — 오빠, 안녕" (ADHD video, 2026-11-14)
+        self.assertEqual(export.chapter_title({'chip': '', 'title': '오빠, 안녕'}), '오빠, 안녕')
+        self.assertEqual(export.youtube_chapters({'scenes': [{'title': '오빠, 안녕', 'start': 0.0}]}), '0:00 오빠, 안녕\n')
+
     def test_metadata_special_characters_are_escaped(self):
         m = export.chapters_meta(TL, {})
         self.assertIn(r'title=2 · 게임 — MU \= 퍼즐\; \#1', m)

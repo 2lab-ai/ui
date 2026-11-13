@@ -3,6 +3,22 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-14 · '게을러서가 아니라 시간이 안 보여서예요' (ADHD and time, three books, letter concept, 27:19, five authors)
+- The listener was drawn as the person with ADHD (오빠 grinning at the small coin, walking both "ADHD로 가는 길"
+  paths, labelled "시간 근시", seated as the patient at the doctor's desk) while the narrator says "오빠가 ADHD라는
+  얘기는 아니에요" · the letter concept's listener was the only stand-in the cast offered · CONCEPTS.md "How it maps to
+  the kit": a plain crowd figure for the person with the condition (Gate C P0, four scenes, fixed).
+- The kit clock read as a circle with one stroke on a phone (both hands at 12, no ticks; ~12 shots) · the prop had
+  no ticks and its hands started overlapped · `PROPS.clock`: 12 ticks, hands at 10:10, `o.time = [h, m]`.
+- Chapter lines read "0:00  — 오빠, 안녕" in a project with `chip: false` · `chapter_title` joined an empty chip ·
+  the title alone (`test_audiobook.test_no_chip_is_the_title_alone`).
+- Gate C after a clean lint (0 issues on 21 scenes): 3 P0, 31 P1, ~150 P2 across four fresh reviewers — figures
+  pointing at props instead of the verb, floating papers, a red X over a whole to-do list one chapter after "write it
+  all down", a level scale for "a real difference". Four fixers (one per reviewer group, one owner for common.js)
+  closed them in ~30 min; the shared doctor and clock went through that one owner.
+- Narration on a GPU shared with another model: 280 sentences in ~2 h over four runs (a service restart at 02:15 →
+  404 → now resubmitted once; one sentence failed 3 rounds → `--redo rules:0`).
+
 ## 2026-11-14 · packaging — owner: "제목이랑 커버 … 클릭을 잘 할 수 있는 제목 리서치해서 개선" (research-skill run)
 - Every title read "책 이름 — 부제 (20분 도슨트북)" · the only example in the kit (GEB project.json) had that shape and
   the skill said only "title" · REFERENCE §10, GEB example rewritten hook-first, `title_check.py --strict`.

@@ -67,7 +67,7 @@ def _meta_escape(v):
 def chapter_title(sc):
     """'2 · 의미 없는 게임' chips already carry the number; a scene title is added when it says more."""
     chip, title = sc.get('chip') or '', sc.get('title') or ''
-    return f'{chip} — {title}' if title and title not in chip else (chip or title)
+    return f'{chip} — {title}' if chip and title and title not in chip else (chip or title)   # no chip: the title alone
 
 def chapters_meta(tl, pj):
     """timeline.json + project.json -> ffmetadata text with one [CHAPTER] per scene (milliseconds)."""

@@ -1033,7 +1033,21 @@ const PROPS = {
   bulb: (x, y, s, o) => {   // glass and neck are one closed shape that sits on the screw base (2026-11-10: the base floated 26 px under an open glass)
     const g = []; for (let k = 0; k <= 24; k++) { const a = Math.PI * (0.75 + 1.5 * k / 24); g.push([x + Math.cos(a) * 48 * s, y - 110 * s + Math.sin(a) * 48 * s]); }
     inkPath([...g, [x + 18 * s, y - 50 * s], [x - 18 * s, y - 50 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || opaqueMix(C.yellow, 0.35) }); inkRect(x - 18 * s, y - 50 * s, 36 * s, 34 * s, { ...o, fill: (o.paperFill ? null : o.fill) || opaqueMix(C.grey, 0.5) }); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.55; inkLine(x + Math.cos(a) * 66 * s, y - 110 * s + Math.sin(a) * 66 * s, x + Math.cos(a) * 88 * s, y - 110 * s + Math.sin(a) * 88 * s, o); } },
-  clock: (x, y, s, o) => { inkCircle(x, y - 80 * s, 72 * s, { ...o, fill: o.fill }); const h = (o.t || 0) * 0.4; inkLine(x, y - 80 * s, x + Math.sin(h) * 40 * s, y - 80 * s - Math.cos(h) * 40 * s, o); inkLine(x, y - 80 * s, x + Math.sin(h * 12) * 58 * s, y - 80 * s - Math.cos(h * 12) * 58 * s, { ...o, w: 2.6 }); },
+  // 12 ticks and two hands at 10:10 (o.time = [h, m] to set them; o.t turns them): both hands at 12 read as a circle
+  // with one stroke on a phone (Gate C, ADHD video 2026-11-14)
+  clock: (x, y, s, o) => {
+    const cy = y - 80 * s, r = 72 * s, w = o.w || 4;
+    inkCircle(x, cy, r, { ...o, fill: o.fill });
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2, r0 = i % 3 ? 0.8 : 0.68;
+      inkLine(x + Math.sin(a) * r * r0, cy - Math.cos(a) * r * r0, x + Math.sin(a) * r * 0.93, cy - Math.cos(a) * r * 0.93, { ...o, w: w * (i % 3 ? 0.55 : 0.85) });
+    }
+    const [hh, mm] = o.time || [10, 10], spin = o.time ? 0 : (o.t || 0);
+    const ha = ((hh % 12) + mm / 60) / 12 * Math.PI * 2 + spin * 0.4, ma = mm / 60 * Math.PI * 2 + spin * 4.8;
+    inkLine(x, cy, x + Math.sin(ha) * r * 0.48, cy - Math.cos(ha) * r * 0.48, { ...o, w: w * 1.3 });
+    inkLine(x, cy, x + Math.sin(ma) * r * 0.76, cy - Math.cos(ma) * r * 0.76, { ...o, w: w * 0.9 });
+    inkDot(x, cy, 5 * Math.max(0.8, s), o);
+  },
   calendar: (x, y, s, o) => { inkRect(x - 70 * s, y - 140 * s, 140 * s, 140 * s, { ...o, fill: o.fill }); for (let i = 0; i < 7; i++) inkCircle(x - 54 * s + i * 18 * s, y - 140 * s, 6 * s, { ...o, w: 2.4 }); if (o.label) hand(o.label, x, y - 66 * s, { size: 36 * s, p: o.p, a: o.a }); },
   signpost: (x, y, s, o) => { inkLine(x, y, x, y - 220 * s, { ...o, w: 6 }); inkPath([[x, y - 200 * s], [x + 120 * s, y - 200 * s], [x + 144 * s, y - 180 * s], [x + 120 * s, y - 160 * s], [x, y - 160 * s]], o); inkPath([[x, y - 150 * s], [x - 120 * s, y - 150 * s], [x - 144 * s, y - 130 * s], [x - 120 * s, y - 110 * s], [x, y - 110 * s]], o); },
   house: (x, y, s, o) => { inkRect(x - 80 * s, y - 110 * s, 160 * s, 110 * s, o); inkPoly([[x - 96 * s, y - 104 * s], [x, y - 180 * s], [x + 96 * s, y - 104 * s]], o); inkRect(x - 18 * s, y - 56 * s, 36 * s, 56 * s, o); },
