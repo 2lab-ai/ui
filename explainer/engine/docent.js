@@ -901,7 +901,7 @@ function signCard(sc, a, isFirst, lt = 9) {
   const p = clamp01(lt / 1.1);   // the card draws on over the first second of the lead
   if (isFirst) {
     hand(sc.title, W / 2, H / 2 - 40, { size: 112, a, p, color: INK() });
-    if (sc.subtitle) hand(sc.subtitle, W / 2, H / 2 + 70, { size: 52, a, p: clamp01(p * 1.5 - 0.5) });
+    if (sc.subtitle) hand(sc.subtitle, W / 2, H / 2 + 70, { size: 52, a, p: clamp01(p * 1.5 - 0.5), color: INK() });   // ink: purple is the named idea's (two 2026-11-13 probes)
     return;
   }
   const lines = [sc.subtitle || '', `"${sc.title}"`].filter(Boolean);
