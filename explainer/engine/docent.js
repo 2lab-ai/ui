@@ -1033,8 +1033,8 @@ const PROPS = {
   bulb: (x, y, s, o) => {   // glass and neck are one closed shape that sits on the screw base (2026-11-10: the base floated 26 px under an open glass)
     const g = []; for (let k = 0; k <= 24; k++) { const a = Math.PI * (0.75 + 1.5 * k / 24); g.push([x + Math.cos(a) * 48 * s, y - 110 * s + Math.sin(a) * 48 * s]); }
     inkPath([...g, [x + 18 * s, y - 50 * s], [x - 18 * s, y - 50 * s]], { ...o, closed: true, fill: (o.paperFill ? null : o.fill) || opaqueMix(C.yellow, 0.35) }); inkRect(x - 18 * s, y - 50 * s, 36 * s, 34 * s, { ...o, fill: (o.paperFill ? null : o.fill) || opaqueMix(C.grey, 0.5) }); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.55; inkLine(x + Math.cos(a) * 66 * s, y - 110 * s + Math.sin(a) * 66 * s, x + Math.cos(a) * 88 * s, y - 110 * s + Math.sin(a) * 88 * s, o); } },
-  // 12 ticks and two hands at 10:10 (o.time = [h, m] to set them; o.t turns them): both hands at 12 read as a circle
-  // with one stroke on a phone (Gate C, ADHD video 2026-11-14)
+  // 12 ticks and two hands at 10:10: both hands at 12 read as a circle with one stroke on a phone (Gate C, ADHD video
+  // 2026-11-14). o.time = [h, m] fixes the hands; o.t turns them from 10:10 only when o.time is not given.
   clock: (x, y, s, o) => {
     const cy = y - 80 * s, r = 72 * s, w = o.w || 4;
     inkCircle(x, cy, r, { ...o, fill: o.fill });
