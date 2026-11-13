@@ -112,8 +112,9 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   flags a prop whose box covers a face drawn before it: open the frame; `faceOk: true` when hiding a face is the joke.
 - A held prop sits at the hand, beside the body. A round or bulging one (vase, clock, purse, heart) drawn over the
   torso becomes the body: a vase-man, a clock-belly. Lint `prop-over-body` (P2) flags one covering more than half of
-  a torso; flat sheets (book, letter, paper) and scenery skip it. Hugging it is the point? Keep it small at the chest
-  and pass `bodyOk: true`.
+  a torso; it skips names ending in a flat sheet (book, letter, paper …) and any box over 4× the torso (scenery — so a
+  giant round prop over a body is yours to catch). Hugging it is the point? Keep it small at the chest and pass
+  `bodyOk: true`.
 - In ink mode a light fill paints as the page: a grey that carries meaning (weeks already lived) disappears. Draw
   that meaning in ink (hatching, a line) or give that one call `colour: true`. A missing animal, prop or pose is registered from scenes.js
   (`ANIMALS.x = …`, `PROPS.x = …`, `POSES.x = …`, contract in TEMPLATES "Adding an asset") so it shows on the gallery
