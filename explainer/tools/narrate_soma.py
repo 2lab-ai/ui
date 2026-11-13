@@ -22,7 +22,8 @@ usage: python narrate_soma.py [--voice cwon] [--no-pad] [--no-verify] [--redo sc
 The API is reached through an SSH tunnel to the Windows host (WSL uses mirrored networking):
     ssh -f -N -L 19999:127.0.0.1:9999 blade-4090-ps        (override the URL with SOMA_VOICE_URL)
 The takes are copied from blade-4090 by tools/blade/fetchjob.sh; with SOMA_VOICE_FETCH=http they come from the job's
-result URL instead (one job per sentence, no access to blade-4090 needed beyond the tunnel).
+result URL instead (one job per scene cut at the merge's digital silence, no access to blade-4090 needed beyond the
+tunnel). Jobs run one at a time on one worker thread; the next scene synthesises while this one is cut and checked.
 """
 import concurrent.futures, hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.request, wave
 import numpy as np

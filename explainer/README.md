@@ -89,7 +89,8 @@ with `noderender/`: `npm install` there once, then run every tool with `PYTHONPA
 `NODE_PATH=$K/noderender/node_modules`). The stand-in gives the tools a page that runs the project's engine.js,
 docent.js and scenes.js on Node + Skia (`@napi-rs/canvas`), fonts from video.html's `@font-face`. Lint, gallery, stills
 and the MP4 work unchanged; text antialiasing differs slightly from Chromium, so render a whole video with one of the two.
-Without ssh to blade-4090, narrate with `SOMA_VOICE_FETCH=http` (the takes come from the job's result URL).
+Without ssh to blade-4090, narrate with `SOMA_VOICE_FETCH=http` (one job per scene, its result URL cut at the digital
+silence between turns).
 
 ## Themes
 
