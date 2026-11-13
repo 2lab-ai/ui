@@ -1,6 +1,6 @@
 // docent lab: every TEMPLATES.md recipe, drawn within the emphasis budget (REFERENCE.md §0): one subject per shot and
 // at most two things around it, at most one written word, at most one red mark, ink only (cast looks are silhouettes).
-TITLE_CARD = signCard;
+TITLE_CARD = (sc, ...a) => (sc.id === 'letter' ? letterCard : signCard)(sc, ...a);   // the letter scene: the letter's chapter card
 cast('musk',   { name: '머스크', hair: 'short', tie: true, h: 1.08 });
 cast('eng',    { name: '엔지니어', hair: 'curly', glasses: 'round' });
 cast('cfo',    { name: '재무 담당', hair: 'ponytail', h: 0.95 });
@@ -115,17 +115,22 @@ SCENES.idea = (t, q) => shots(t, [
   }],
 ]);
 
-// Letter places (TEMPLATES "Letter places", CONCEPTS letter): her night desk, his room, the letter page
+// Letter places (TEMPLATES "Letter places", CONCEPTS letter): her night desk, his room, the letter page, the real covers.
+// A place is there at once on a cut; the camera alternates wide (even shots) and medium (odd) and looks closer at pages.
 SCENES.letter = (t, q) => shots(t, [
-  [q.s(0), (t, lt) => letterNight({ p: dp(lt, 0, 1.2), t, pen: 1, write: lt })],
+  [q.s(0), (t, lt) => letterNight({ t, pen: 1, write: lt })],
   [q.s(1), (t, lt) => {   // his day turns into evening: the sky darkens, the sun sinks, the clock runs on
     const e = dp(t, q.w('정신을', 1), 1.4), late = e > 0.6;
-    letterRoom({ p: dp(lt, 0, 1.0), t, night: e, sunY: e * 1.3, time: [9 + Math.round(10 * e), 0], pose: late ? 'facepalm' : 'deskType', face: late ? 'surprised' : 'smile' });
+    letterRoom({ t, night: e, sunY: e * 1.3, time: [9 + Math.round(10 * e), 0], pose: late ? 'facepalm' : 'deskType', face: late ? 'surprised' : 'smile' });
   }],
   [q.s(2), (t, lt) => {   // the idea is sketched on the letter, inside the box the sheet returns
-    const b = letterSheet({ p: dp(lt, 0, 0.6), lines: 1, seed: 2 });
-    onSheet(() => prop('clock', b.x + 300, b.y + b.h - 10, 2.2, { p: dp(lt, 0.4, 0.6), fill: PAPER() }));   // PAPER() is the letter's cream here
+    const b = letterSheet({ lines: 1, seed: 2 });
+    onSheet(() => prop('clock', b.x + 300, b.y + b.h - 10, 2.2, { p: dp(lt, 0.2, 0.6), fill: PAPER() }));   // PAPER() is the letter's cream here
     hand('새는 시간', b.x + b.w - 260, b.y + 170, { size: 104, p: dp(t, q.w('새어', 2), 0.8) });
+  }],
+  [q.s(3), (t, lt) => {   // the book: the real covers, the original and the Korean edition
+    const b = letterSheet({ lines: 2, seed: 5 });
+    realCoverPair('cover_lab_en', 'cover_lab_ko', b.x + b.w / 2, b.y + b.h - 16, 460, { p: dp(lt, 0.2, 0.8) });
   }],
 ]);
 

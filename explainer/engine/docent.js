@@ -135,7 +135,8 @@ function docentTags() {
     if (g.ghostOk) DOCENT.ghostOk--; ctx.restore();
   }
 }
-function docentNote(kind, what) { if (DOCENT[kind].length < 40) DOCENT[kind].push(what); }
+// a letter place's own ink (LETTER_CAM.setting > 0) may be cut by a closer camera framing: not a subtitle or frame defect
+function docentNote(kind, what) { if ((kind === 'zone' || kind === 'off') && LETTER_CAM.setting > 0) return; if (DOCENT[kind].length < 40) DOCENT[kind].push(what); }
 function docentReport() {
   const far = DOCENT.tails.filter(([tx, ty]) => !DOCENT.heads.some(([hx, hy, r, top]) => Math.hypot(tx - hx, ty - hy) < r + 70
       || (top != null && tx > hx - r * 1.4 && tx < hx + r * 1.4 && ty > top - 40 && ty < hy))
@@ -1657,16 +1658,19 @@ function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w,
 // (parts/common.js, "the video's places"; TEMPLATES "Letter places"): same geometry and colours, renamed. A room is
 // the setting: for the budget (REFERENCE §0, lint 'busy') letterNight and letterRoom count as one thing plus their
 // person, however many pieces they draw (window, lamp, mug, shelf, his wall clock). What the scene adds counts as usual.
+// A place is there at once on a cut (its p is ignored; only what the scene adds draws on), framed by the letter camera
+// (letterCam). letterCard is the chapter card; realCover / realCoverPair show a book's real covers.
 // DOCENT_LETTER: ground = the feet line of the places (default 870, REFERENCE §6: feet on y 860-880; opts.ground
 // moves it); x, s = the narrator's seat and body scale in every desk shot; cream = the letter paper, the moon, the
 // lamp light; night = the night sky (deep blue-grey, the page's own hue: the budget does not count it as a colour).
 const DOCENT_LETTER = { ground: 870, x: 470, s: 2.15, cream: '#f6f3ea', night: [44, 58, 86] };
-// A room counts as 'setting#<who>' and 'person#<who>' (once each per frame); the pieces drawn inside, the person
-// included, do not count again (they run one level down, like the parts of any composite).
-function docentLetterSet(who, p, draw) {
-  if (DOCENT.depth === 0 && p > 0 && !DOCENT.ghostOk && !DOCENT.measure) for (const k of ['setting#' + who, 'person#' + who]) if (!DOCENT.things.includes(k)) DOCENT.things.push(k);
-  DOCENT.depth++;
-  try { return draw(); } finally { DOCENT.depth--; }
+// A place draws inside docentLetterSet. A room counts as 'setting#<who>' and 'person#<who>' (once each per frame), and
+// what it draws, the person included, does not count again (one level down, like the parts of any composite). While
+// it draws, LETTER_CAM.setting is up: a closer framing may cut the place's own ink. who = null: the letter page.
+function docentLetterSet(who, draw) {
+  if (who && DOCENT.depth === 0 && !DOCENT.ghostOk && !DOCENT.measure) for (const k of ['setting#' + who, 'person#' + who]) if (!DOCENT.things.includes(k)) DOCENT.things.push(k);
+  DOCENT.depth++; LETTER_CAM.setting++;
+  try { return draw(); } finally { DOCENT.depth--; LETTER_CAM.setting--; }
 }
 // Draw what is sketched on the letter page: inside draw() the page colour (C.bg, what PAPER(), figures and props fill
 // with) is the letter's cream, so heads, boxes and clock faces on the sheet are paper, not the blue desk. Returns what
@@ -1674,6 +1678,36 @@ function docentLetterSet(who, p, draw) {
 function onSheet(draw) {
   const bg = C.bg, page = DOCENT.page; DOCENT.page = page || bg; C.bg = DOCENT_LETTER.cream;
   try { return draw(); } finally { C.bg = bg; DOCENT.page = page; }
+}
+// The camera (the first letter video's whole-watch review): one locked wide desk shot all film long read as slides,
+// her face 1/6 of the frame, and the page was a small card on blue. So room shots alternate a wide and a medium framing
+// inside a scene (odd shots are medium, LETTER_CAM.room = 1.4x, so the same wide shot never follows itself) with a slow
+// push-in (LETTER_CAM.push = 3 % over the shot), and letter-page shots look closer at the paper (LETTER_CAM.page =
+// 1.4x) while the sketches' lowest line stays above the subtitle line. The place and its person may be cut by the
+// frame; what the scene draws after the place (bubbles, props, sketches) is still checked by the lint. Per-shot
+// overrides, keyed 'scene:shot index': LETTER_CAM.wide['open:3'] = true (a bubble that would leave the medium frame),
+// LETTER_CAM.medium[…] (a face that matters), LETTER_CAM.flat[…] (no camera). LETTER_CAM is a property of globalThis,
+// not a const, so a project that still declares its own LETTER_CAM keeps loading after an engine refresh (its const
+// then stands in for this one).
+globalThis.LETTER_CAM = { room: 1.4, page: 1.4, push: 0.03, setting: 0, wide: {}, medium: {}, flat: {} };
+// the current shot's key for the overrides: 'scene:shot index'
+function letterShotKey() { const sh = DOCENT.shot; return sh ? `${sceneAt(DOCENT.t).id}:${sh.i}` : ''; }
+// Frame the current shot, once: the first place drawn in it decides. kind 'desk' | 'room' | 'page'; for a page, cx =
+// its centre and by = the lowest y its sketches use (kept above the subtitle line). Outside shots() (a title card) or
+// inside another drawing (a bubble's picture) it does nothing.
+function letterCam(kind, { cx = 960, by = 850 } = {}) {
+  const sh = DOCENT.shot; if (!sh || sh.cam || DOCENT.depth > 0) return; sh.cam = true;
+  const key = letterShotKey(); if (LETTER_CAM.flat[key]) return;
+  const u = sh.t1 ? clamp01((DOCENT.t - sh.t0) / Math.max(1, sh.t1 - sh.t0)) : 0;
+  let z = 1, ox = 760, oy = 450;
+  if (kind === 'page') { z = LETTER_CAM.page; ox = cx; if (z > 1) oy = Math.max(500, (z * by - 895) / (z - 1)); }
+  else {
+    const medium = (sh.i % 2 === 1 || LETTER_CAM.medium[key]) && !LETTER_CAM.wide[key];
+    if (medium) { z = LETTER_CAM.room; [ox, oy] = kind === 'room' ? [1300, 330] : [560, 400]; }
+    z *= 1 + LETTER_CAM.push * smooth(u);
+  }
+  if (z === 1) return;
+  ctx.translate(ox, oy); ctx.scale(z, z); ctx.translate(-ox, -oy);
 }
 // the sky in a window: 0 = day (the page), 1 = night
 const docentLetterSky = (night) => `rgb(${[188, 208, 232].map((v, i) => Math.round(v + (DOCENT_LETTER.night[i] - v) * clamp01(night))).join(',')})`;
@@ -1798,13 +1832,14 @@ Object.assign(POSES, {
 // The narrator's night desk. She sits big at the left (x 470, s 2.15), facing right; the desk across the frame; a lamp
 // throws warm light on the letter; the moon in the window at the top right; tea steaming; a bookcase in dim ink behind
 // her. Returns { me, top, hand }: her figure, the desk top's y, her right hand (the pencil hand). Budget: the setting
-// and her (docentLetterSet).
-// opts: who (cast key, 'me'), p (draw-on of the place; the figure draws with it), t, pose ('deskWrite'), face, look
+// and her (docentLetterSet). Camera: 'desk' (letterCam), the medium framing on her at the left.
+// opts: who (cast key, 'me'), p (ignored: the desk and she are there at once on a cut), t, pose ('deskWrite'), face, look
 // (eyes: 1 = toward the window), night (1; 0 = daytime sky), sunY, mug, pile (n flat books on the desk), pileP,
 // pen (a pencil in the writing hand: 1 jiggles while she writes, 0 holds still), write (seconds since she started
 // writing: the line on the paper grows over 8 s), meP (the figure's own draw-on), ground (DOCENT_LETTER.ground).
 function letterNight({ who = 'me', p = 1, t = 0, pose = 'deskWrite', face = 'smile', look = 0, night = 1, sunY = 1, mug = true, pile = 0, pileP = 1, pen = null, write = 9, meP = null, ground = DOCENT_LETTER.ground } = {}) {
-  return docentLetterSet(who, Math.max(p, meP ?? 0), () => {
+  letterCam('desk'); p = 1;
+  return docentLetterSet(who, () => {
     const L = DOCENT_LETTER, k = L.s * ((CAST[who] && CAST[who].h) || 1), x = L.x, y = ground, T = ground - 155 * k;
     // the floor, the bookcase, the window
     inkLine(40, y, 1880, y, { p: dp(p, 0, 0.4), w: 3, color: C.dim });
@@ -1847,12 +1882,14 @@ function letterNight({ who = 'me', p = 1, t = 0, pose = 'deskWrite', face = 'smi
 }
 // The listener's room: his desk, his laptop, a window and a wall clock, a door in dim ink behind him. He sits big at
 // the right (x 1440, s 2.05) facing left, toward her letter; the desk across the frame to the left. Returns the figure.
-// Budget: the setting and him (docentLetterSet); the wall clock is part of the room.
-// opts: who (cast key, 'oppa'), p, t, pose ('deskType'), face ('smile'), night (sky 0..1, 0 = day), sunY (0 = the sun
+// Budget: the setting and him (docentLetterSet); the wall clock is part of the room. Camera: 'room' (letterCam), the
+// medium framing on him at the right.
+// opts: who (cast key, 'oppa'), p (ignored: the room and he are there at once on a cut), t, pose ('deskType'), face ('smile'), night (sky 0..1, 0 = day), sunY (0 = the sun
 // high), time ([h, m] on the wall clock: a prop('clock'), the project's own clock if it registers one; null = no
 // clock), clockP, moon, ground (DOCENT_LETTER.ground).
 function letterRoom({ who = 'oppa', p = 1, t = 0, pose = 'deskType', face = 'smile', night = 0, sunY = 0, time = null, clockP = 1, moon = true, ground = DOCENT_LETTER.ground } = {}) {
-  return docentLetterSet(who, p, () => {
+  letterCam('room'); p = 1;
+  return docentLetterSet(who, () => {
     const s = 2.05, k = s * ((CAST[who] && CAST[who].h) || 1), x = 1440, y = ground, T = ground - 155 * k;
     inkLine(40, y, 1880, y, { p: dp(p, 0, 0.4), w: 3, color: C.dim });
     nightWindow(190, 92, 360, 300, { p: dp(p, 0.05, 0.8), night, sunY, moon });
@@ -1874,30 +1911,110 @@ function letterRoom({ who = 'oppa', p = 1, t = 0, pose = 'deskType', face = 'smi
 // The letter page: a cream sheet of letter paper filling the frame (her letter, seen from above), ruled, a folded
 // corner, a few lines of her handwriting at the top (scribbles: no readable words), its shadow on the desk. The shot's
 // idea is sketched inside the returned box { x, y, w, h, rh, top, bottom } (rh = the ruled line height).
-// opts: p, lines (handwritten lines before the box, 0..3; 2), seed (which bit of the letter: the scribbles change),
-// tilt (radians, -0.012), cx, cy, w, h (the sheet: centre 960, 486, size 1280 x 770). Its lowest corner sits near
-// cy + h / 2 + |tilt| * w / 2 (879 at the defaults): keep it above the subtitle line (y 905) when you move or tilt it.
+// Camera: 'page' (letterCam), 1.4x closer with the box's bottom kept above the subtitle line, so the sketches are big.
+// opts: p (ignored: the sheet is there at once on a cut), lines (handwritten lines before the box, 0..3; 2), seed (which bit of the letter: the scribbles change),
+// tilt (radians, -0.012), cx, cy, w, h (the sheet: centre 960, 486, size 1280 x 770). Without the camera
+// (LETTER_CAM.flat) its lowest corner sits near cy + h / 2 + |tilt| * w / 2 (879 at the defaults): keep it above the
+// subtitle line (y 905) when you move or tilt it.
 function letterSheet({ p = 1, lines = 2, seed = 1, tilt = -0.012, cx = 960, cy = 486, w = 1280, h = 770 } = {}) {
-  const x0 = cx - w / 2, y0 = cy - h / 2, rows = 10, rh = h / (rows + 1);
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(tilt); ctx.translate(-cx, -cy);
-  // its shadow on the desk
-  if (p > 0.05) { ctx.save(); ctx.globalAlpha = clamp01(p * 3); ctx.fillStyle = C.grid; ctx.fillRect(x0 + 14, y0 + 16, w, h); ctx.restore(); }
-  inkPath([[x0, y0], [x0 + w - 74, y0], [x0 + w, y0 + 74], [x0 + w, y0 + h], [x0, y0 + h]], { closed: true, p: dp(p, 0, 0.4), w: 4.6, fill: DOCENT_LETTER.cream });
-  inkPath([[x0 + w - 74, y0], [x0 + w - 74, y0 + 74], [x0 + w, y0 + 74]], { closed: true, p: dp(p, 0.15, 0.3), w: 3.6, fill: '#e6e2d8' });
-  for (let i = 1; i <= rows; i++) inkLine(x0 + 56, y0 + i * rh, x0 + w - (i === 1 ? 90 : 56), y0 + i * rh, { p: dp(p, 0.2, 0.4), w: 1.5, color: C.paperLine || C.grey });
-  // her handwriting: wavy word-lengths along the ruled line
-  for (let l = 0; l < lines; l++) {
-    let xx = x0 + 70; const yy = y0 + (l + 1) * rh - 12, end = x0 + w - (l === lines - 1 ? 420 + 120 * ((seed + l) % 3) : 110);
-    for (let i = 0; xx < end; i++) {
-      const L = 46 + 40 * Math.abs(Math.sin(seed * 3.1 + l * 7.7 + i * 1.9)), pts = [];
-      for (let k = 0; k <= L / 9; k++) pts.push([xx + k * 9, yy + (k % 2 ? -7 : 2) + Math.sin(k * 1.3 + i) * 2]);
-      inkPath(pts, { p: dp(p, 0.3 + l * 0.12 + i * 0.015, 0.2), w: 2.6, jit: 0.4, color: C.dim });
-      xx += L + 22;
+  letterCam('page', { cx, by: cy + h / 2 - 30 }); p = 1;
+  return docentLetterSet(null, () => {
+    const x0 = cx - w / 2, y0 = cy - h / 2, rows = 10, rh = h / (rows + 1);
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(tilt); ctx.translate(-cx, -cy);
+    // its shadow on the desk
+    if (p > 0.05) { ctx.save(); ctx.globalAlpha = clamp01(p * 3); ctx.fillStyle = C.grid; ctx.fillRect(x0 + 14, y0 + 16, w, h); ctx.restore(); }
+    inkPath([[x0, y0], [x0 + w - 74, y0], [x0 + w, y0 + 74], [x0 + w, y0 + h], [x0, y0 + h]], { closed: true, p: dp(p, 0, 0.4), w: 4.6, fill: DOCENT_LETTER.cream });
+    inkPath([[x0 + w - 74, y0], [x0 + w - 74, y0 + 74], [x0 + w, y0 + 74]], { closed: true, p: dp(p, 0.15, 0.3), w: 3.6, fill: '#e6e2d8' });
+    for (let i = 1; i <= rows; i++) inkLine(x0 + 56, y0 + i * rh, x0 + w - (i === 1 ? 90 : 56), y0 + i * rh, { p: dp(p, 0.2, 0.4), w: 1.5, color: C.paperLine || C.grey });
+    // her handwriting: wavy word-lengths along the ruled line
+    for (let l = 0; l < lines; l++) {
+      let xx = x0 + 70; const yy = y0 + (l + 1) * rh - 12, end = x0 + w - (l === lines - 1 ? 420 + 120 * ((seed + l) % 3) : 110);
+      for (let i = 0; xx < end; i++) {
+        const L = 46 + 40 * Math.abs(Math.sin(seed * 3.1 + l * 7.7 + i * 1.9)), pts = [];
+        for (let k = 0; k <= L / 9; k++) pts.push([xx + k * 9, yy + (k % 2 ? -7 : 2) + Math.sin(k * 1.3 + i) * 2]);
+        inkPath(pts, { p: dp(p, 0.3 + l * 0.12 + i * 0.015, 0.2), w: 2.6, jit: 0.4, color: C.dim });
+        xx += L + 22;
+      }
     }
+    ctx.restore();
+    const by = y0 + (lines + 1) * rh + 10;
+    return { x: x0 + 90, y: by, w: w - 180, h: y0 + h - 30 - by, rh, top: y0, bottom: y0 + h };
+  });
+}
+// her pencil lying on the letter page, its point toward (x, y); ang = the direction from its end to its point
+function docentLetterPencil(x, y, { p = 1, ang = 2.5, L = 230 } = {}) {
+  const ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy * 11, ny = ux * 11, bx = x - ux * L, by = y - uy * L, sx = x - ux * 40, sy = y - uy * 40;
+  inkPath([[x, y], [sx + nx, sy + ny], [bx + nx, by + ny], [bx - nx, by - ny], [sx - nx, sy - ny]], { closed: true, p, w: 3.4, fill: PAPER() });
+  inkLine(sx + nx, sy + ny, sx - nx, sy - ny, { p, w: 3 }); inkLine(bx + ux * 30 + nx, by + uy * 30 + ny, bx + ux * 30 - nx, by + uy * 30 - ny, { p, w: 3 });
+}
+// The chapter card of a letter video (TITLE_CARD = letterCard; the sign card spent its 2.6 s drawing itself and was not
+// a letter): a fresh sheet of her letter paper, already there, the chapter's title written on it in her hand in 0.6 s,
+// the subtitle (the chapter number) above it in dim ink, her pencil lying on the sheet. The first chapter writes the
+// title first and the subtitle under it. Same arguments as signCard: (scene, alpha, isFirst, seconds since start).
+function letterCard(sc, a, isFirst, lt = 9) {
+  if (a <= 0) return;
+  DOCENT.ghostOk++;
+  try {
+    withAlpha(a, () => {
+      letterSheet({ lines: 0, seed: (sc.start | 0) % 7, tilt: -0.01, cx: 960, cy: 470, w: 1500, h: 820 });
+      const p = clamp01(lt / 0.6), q = clamp01((lt - 0.3) / 0.6);
+      if (isFirst) {
+        hand(sc.title, W / 2, 420, { size: 140, p, color: INK() });
+        if (sc.subtitle) hand(sc.subtitle, W / 2, 570, { size: 66, p: q, color: INK() });
+      } else {
+        if (sc.subtitle) hand(sc.subtitle, W / 2, 330, { size: 64, p, color: C.dim });
+        hand(sc.title, W / 2, 490, { size: 140, p: q, color: INK() });
+      }
+      docentLetterPencil(1390, 700, { ang: 2.6 });
+    });
+  } finally { DOCENT.ghostOk--; }
+}
+// ---------- real book covers (owner 2026-11-14: a docent book always shows the real covers, the original and the
+// Korean edition) ----------
+// A cover is an image, img/<name>.jpg, listed in project.json "images" (a publisher's or a library's cover image). It is
+// shown, not drawn: it slides up 30 px and fades in as p goes 0 -> 1, with a soft shadow, like a real book. The kit's
+// bookCover() (a cover drawn in ink, with a title) stays for books without an image. For the budget a cover, or a pair,
+// is one thing ('book') and writes no word; the lint sees its box (subtitle line, frame edges) and a missing image
+// ('img:<name>', P0); bubbles keep clear of it.
+// width / height of a cover: the image's own (0.68, a common book, until it loads)
+function docentCoverRatio(name) { const im = typeof IMG === 'object' ? IMG[name] : null; return im && im.width && im.height ? im.width / im.height : 0.68; }
+// one cover: (x, y) = bottom centre, h = height in px. opts: p, rot (radians), ratio (width / height; default the
+// image's). Returns its box { x, y, w, h }.
+function realCover(name, x, y, h, { p = 1, rot = 0, ratio = null } = {}) {
+  if (!(typeof IMG === 'object' && IMG[name])) MISS.add('img:' + name);
+  const w = h * (ratio || docentCoverRatio(name)), k = smooth(clamp01(p)), dy = (1 - k) * 30, box = { x: x - w / 2, y: y - h, w, h };
+  if (k <= 0) return box;
+  if (k < 0.98) docentNote('partial', 'cover:' + name);
+  // its box on screen, rotation and camera included: the lint's subtitle-line, frame-edge and extent checks
+  const m = ctx.getTransform(), cs = Math.cos(rot), sn = Math.sin(rot), xs = [], ys = [];
+  for (const [u, v] of [[-w / 2, -h], [w / 2, -h], [w / 2, 0], [-w / 2, 0]]) {
+    const px = x + u * cs - v * sn, py = y + dy + u * sn + v * cs; xs.push(m.a * px + m.c * py + m.e); ys.push(m.b * px + m.d * py + m.f);
   }
-  ctx.restore();
-  const by = y0 + (lines + 1) * rh + 10;
-  return { x: x0 + 90, y: by, w: w - 180, h: y0 + h - 30 - by, rh, top: y0, bottom: y0 + h };
+  const b = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  if (b[3] > SUB_Y) docentNote('zone', 'cover:' + name);
+  if (b[0] < -4 || b[2] > W + 4 || b[1] < -4) docentNote('off', 'cover:' + name);
+  if (!DOCENT.ghostOk) { const i0 = DOCENT.ink; DOCENT.ink = i0 ? [Math.min(i0[0], b[0]), Math.min(i0[1], b[1]), Math.max(i0[2], b[2]), Math.max(i0[3], b[3])] : b; }
+  if (DOCENT.slots) DOCENT.slots.things.push(withM([x - w / 2, y - h, x + w / 2, y]));
+  DOCENT.ghostOk++;
+  try {
+    withAlpha(k, () => {
+      ctx.save(); ctx.translate(x, y + dy); ctx.rotate(rot); ctx.translate(-x, -(y + dy));
+      // its shadow on the desk or the page
+      ctx.fillStyle = 'rgba(40,52,80,0.18)'; ctx.fillRect(x - w / 2 + 10, y + dy - h + 12, w, h);
+      image(name, x - w / 2, y + dy - h, w, h, { r: 3 });
+      ctx.restore();
+    });
+  } finally { DOCENT.ghostOk--; }
+  return box;
+}
+// The original and its Korean edition side by side, the Korean one in front and slightly overlapping, drawn on one
+// after the other as p goes 0 -> 1; (x, y) = bottom centre, h = height. opts: p, gap (the overlap, a share of h).
+// Returns the pair's box.
+function realCoverPair(nameEn, nameKo, x, y, h, { p = 1, gap = 0.04 } = {}) {
+  const re = docentCoverRatio(nameEn), rk = docentCoverRatio(nameKo), we = h * re, wk = h * rk, span = we + wk - gap * h;
+  realCover(nameEn, x - span / 2 + we / 2, y, h, { p: clamp01(p * 1.6), rot: -0.04, ratio: re });
+  realCover(nameKo, x + span / 2 - wk / 2, y, h, { p: clamp01(p * 1.6 - 0.6), rot: 0.03, ratio: rk });
+  return { x: x - span / 2, y: y - h, w: span, h };
 }
 
 // ---------- emphasis budget: what competes for the eye (2026-11-13) ----------
@@ -1928,6 +2045,7 @@ function letterSheet({ p = 1, lines = 2, seed = 1, tilt = -0.012, cx = 960, cy =
     scrollList: [() => one('list'), (a) => { word(a[3] || 'list'); DOCENT.listItems = (DOCENT.listItems || 0) + (a[4] || []).length; }, true],
     quote: [() => one('quote'), (a) => word(a[3]), true],
     bookCover: [() => one('book'), (a, o) => word((o && o.title) || 'book'), true],
+    realCover: [() => one('book')], realCoverPair: [() => one('book')],
     chapterMap: [() => one('map'), () => word('map'), true],
     hand: [null, (a) => word(a[0])], handBlock: [null, (a) => word([].concat(a[0]).join(' ')), true],
     cross: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true], crossAt: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true],

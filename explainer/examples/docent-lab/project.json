@@ -5,5 +5,9 @@
  "lang": "ko",
  "colour": false,
  "subtitles": "off",
- "chip": false
+ "chip": false,
+ "images": [
+  "cover_lab_en",
+  "cover_lab_ko"
+ ]
 }

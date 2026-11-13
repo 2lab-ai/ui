@@ -240,7 +240,7 @@ Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118
   (`p: dp(lt, 0, 0.5)`), labels and details after. Word-timed parts (`o('word', k, q.s(k))`) move with it.
 - Bubbles keep clear of props and boards (they reserve their box), so draw the props of a shot before its bubbles.
 
-## P. Letter places (concept letter: her night desk, his room, the letter page)
+## P. Letter places (concept letter: her night desk, his room, the letter page, the real covers)
 A letter video has two kinds of shots (CONCEPTS letter, "Pictures"): room shots, with the narrator or the listener big
 in one place that stays for the chapter, and letter-page shots, with the idea sketched on a sheet of letter paper. The
 kit draws the places, so every chapter starts in the same rich room instead of a bare desk:
@@ -249,35 +249,53 @@ kit draws the places, so every chapter starts in the same rich room instead of a
 - `letterRoom(o)`: his room. A window, a desk with his laptop, a wall clock (`time: [h, m]`) and a door, with him at
   s 2.05 facing left. Returns him.
 - `letterSheet(o)`: a cream letter page filling the frame. Returns the box `{ x, y, w, h }` for the idea.
+- `letterCard`: the chapter card, a fresh letter sheet with the chapter's title written on it in 0.6 s.
+- `realCoverPair(en, ko, x, y, h, o)` and `realCover(name, x, y, h, o)`: the book's real covers, from images.
 
 The cast keys default to `'me'` and `'oppa'`; pass `who:` for others. The pieces are kit functions too: `nightWindow`,
 `deskLamp` with `lampGlow`, and `bookcase`. The seated poses are `deskWrite`, `deskChin`, `deskRead`, `deskShow`,
 `deskPalms`, `deskFinger` and `deskType`.
 ```js
+TITLE_CARD = letterCard;                                                   // chapter cards are letter sheets
 cast('me',   { name: '나', hair: 'long', h: 0.94 });                       // the narrator: never tagged
 cast('oppa', { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the listener
 SCENES.letter = (t, q) => shots(t, [
-  [q.s(0), (t, lt) => letterNight({ p: dp(lt, 0, 1.2), t, pen: 1, write: lt })],   // she writes: the line on the letter grows
-  [q.s(1), (t, lt) => {   // a room shot: his day turns into evening in the window, the clock runs on, he notices late
+  [q.s(0), (t, lt) => letterNight({ t, pen: 1, write: lt })],              // shot 0, wide: she writes, the line on the letter grows
+  [q.s(1), (t, lt) => {   // shot 1, medium on him: his day turns into evening in the window, the clock runs on, he notices late
     const e = dp(t, q.w('정신을', 1), 1.4), late = e > 0.6;
-    letterRoom({ p: dp(lt, 0, 1.0), t, night: e, sunY: e * 1.3, time: [9 + Math.round(10 * e), 0], pose: late ? 'facepalm' : 'deskType', face: late ? 'surprised' : 'smile' });
+    letterRoom({ t, night: e, sunY: e * 1.3, time: [9 + Math.round(10 * e), 0], pose: late ? 'facepalm' : 'deskType', face: late ? 'surprised' : 'smile' });
   }],
   [q.s(2), (t, lt) => {   // a letter-page shot: the idea sketched inside the box, then its name
-    const b = letterSheet({ p: dp(lt, 0, 0.6), lines: 1, seed: 2 });
-    onSheet(() => prop('clock', b.x + 300, b.y + b.h - 10, 2.2, { p: dp(lt, 0.4, 0.6), fill: PAPER() }));   // PAPER() is the letter's cream here
+    const b = letterSheet({ lines: 1, seed: 2 });
+    onSheet(() => prop('clock', b.x + 300, b.y + b.h - 10, 2.2, { p: dp(lt, 0.2, 0.6), fill: PAPER() }));   // PAPER() is the letter's cream here
     hand('새는 시간', b.x + b.w - 260, b.y + 170, { size: 104, p: dp(t, q.w('새어', 2), 0.8) });
+  }],
+  [q.s(3), (t, lt) => {   // the book: the real covers, the original and the Korean edition
+    const b = letterSheet({ lines: 2, seed: 5 });
+    realCoverPair('cover_lab_en', 'cover_lab_ko', b.x + b.w / 2, b.y + b.h - 16, 460, { p: dp(lt, 0.2, 0.8) });
   }],
 ]);
 ```
+- A place is there at once on a cut: the room, its person and the sheet ignore `p`. Only what the scene adds draws on.
+- The camera frames each shot from the first place drawn in it. Room shots alternate wide (even shot index) and medium
+  (odd: 1.4x on the person, the place cut by the frame) with a 3 % push-in. Page shots look 1.4x closer and keep the
+  box's bottom above the subtitle line, so sketches stay big and inside. Override one shot by its `'scene:index'` key
+  at the top of the scene: `LETTER_CAM.wide['letter:1'] = true` (a bubble would leave the medium frame),
+  `LETTER_CAM.medium[…]` (a face that matters), `LETTER_CAM.flat[…]` (no camera). The lint still checks what the scene
+  draws after the place, framed as it is shown.
 - Hold a shot for 6 to 15 s and change one thing per sentence inside it: the pose (`deskWrite` → `deskChin`), the face,
   `look: 1` (her eyes go to the window), `night` and `sunY` (the day passing), `pile` (books on her desk), or `write`.
 - `letterNight`'s `me` takes a bubble (`think(me, null, { side: 'right', body })`) or a prop at `me.hands`. `hand` is
   her pencil hand.
 - On the sheet, stand things on `b.y + b.h`, and draw them inside `onSheet(() => …)`. Without it, figures and props
   fill with the blue page, so heads and clock faces on the cream letter come out blue.
+- A docent book always shows its real covers, the original and the Korean edition (owner, 2026-11-14). Put the cover
+  images in `img/<name>.jpg`, list the names in project.json `"images"`, and show the pair on the letter or one cover
+  in a hand (`realCover(name, hx, hy + 40, 300, { rot: 0.05 })`). A missing image is a lint P0. The drawn `bookCover()`
+  is for a book without a cover image.
 - For the budget, a room counts as two things, the setting and its person, however many pieces it draws. Add one
   more at most (a prop in a hand or a bubble): a fourth thing is lint `busy`. The letter page counts nothing; what is
-  sketched on it counts as usual.
+  sketched on it counts as usual. A cover or a cover pair is one thing and no word.
 - A place the chapter needs that the kit lacks (a clinic, a subway car): build it from the same pieces, on the same
   ground line (`DOCENT_LETTER.ground`, 870) and with a `nightWindow`, so it looks like the rest of the video.
 
