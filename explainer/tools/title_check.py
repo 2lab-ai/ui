@@ -16,7 +16,9 @@ channels behind results with 30,000+ views. Printed per keyword:
 Research 2026-11-14 (research-skill make-docent-book, packaging run): the same genre differed 100x by keyword
 (세네카 median 1,682 vs 쇼펜하우어 198,213; 칸토어 24,702 vs 수학 역설 262,821).
 Subscriber counts are cached in ~/.cache/2lab-explainer-titles/subs.json. Needs yt-dlp in the venv.
-Exit 0 unless --strict and the form check fails (exit 1), or the search fails (exit 2)."""
+With --strict and --keyword, one measured keyword must also be in the title, pass the bar (median ≥ 100,000 or ≥ 8/30
+small-channel hits) and be on topic (fewer than 3 of its top 5 look like music, ASMR or sleep sound).
+Exit 0 unless --strict and a check fails (exit 1), or the search fails (exit 2)."""
 import json, os, re, statistics, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 
@@ -43,9 +45,18 @@ def lint(title, book=None, author=None):
     for name, what in ((book, 'book title'), (author, 'author')):
         if name and hook.replace(' ', '').startswith(name.replace(' ', '')):
             out.append(('name-first', f'the {what} opens the title: put the viewer\'s question or problem first'))
-    if not re.search(r'[?？]|왜|어떻게|무엇|라면|면\b|다\b|요\b|까\b|!|이유|법|\d', hook):
+    if not re.search(r'[?？]|왜|어떻게|무엇|라면|면\b|다\b|요\b|까\b|!|이유|법|때\b|때면|밤\b|날\b|순간|\d', hook):
         out.append(('no-hook', f'hook "{hook}" reads as a label: no question, claim, number or viewer situation'))
     return out
+
+MUSIC = re.compile(r'노래|가사|뮤직|음악|플레이리스트|playlist|\bMV\b|M/V|ASMR|커버|cover|라이브|\blive\b|피아노|OST|노래방|백색소음|수면\s*음악', re.I)
+
+def off_topic(d):
+    """How many of the top 5 look like music, ASMR or sleep sound: the keyword's audience is not looking for a talk."""
+    return sum(bool(MUSIC.search(t['title'] or '')) for t in d['top'])
+
+def passes_bar(d):
+    return d['median'] >= 100_000 or d['small'] >= 8
 
 def ytdlp(*args):
     r = subprocess.run([sys.executable, '-m', 'yt_dlp', *args], capture_output=True, text=True, timeout=120)
@@ -104,10 +115,18 @@ def main(argv):
         try:
             for kw in kws:
                 d = demand(kw); report['demand'].append(d)
-                print(f"\n「{kw}」 median {d['median']:,} · 100k+ {d['n100k']}/{d['n']} · small-channel hits {d['small']}/{d['n']}")
+                d['in_title'] = kw.replace(' ', '') in title.replace(' ', ''); d['off_topic'] = off_topic(d); d['bar'] = passes_bar(d)
+                print(f"\n「{kw}」 median {d['median']:,} · 100k+ {d['n100k']}/{d['n']} · small-channel hits {d['small']}/{d['n']}"
+                      f" · {'in the title' if d['in_title'] else 'NOT in the title'}" + (' · passes the bar' if d['bar'] else ''))
                 for t in d['top']: print(f"   {t['views']:>11,}  {t['title']}  ({t['channel']})")
+                if d['off_topic'] >= 3: print(f"   WARNING: {d['off_topic']} of the top 5 look like music / ASMR / sleep sound — the people searching this want something else")
         except Exception as e:
             print(f'search failed: {e}'); sys.exit(2)
+    if net and kws:   # --strict with keywords: one keyword that passes the bar, is on topic, and is in the title
+        ok = [d for d in report['demand'] if d.get('in_title') and d.get('bar') and d.get('off_topic', 0) < 3]
+        if not ok:
+            problems.append(('keyword', 'no measured keyword is in the title, on topic and over the bar (median ≥ 100k or ≥ 8/30 small-channel hits)'))
+            print('\nform   keyword: no measured keyword is in the title, on topic and over the bar')
     if out: json.dump(report, open(out, 'w'), ensure_ascii=False, indent=1)
     sys.exit(1 if strict and problems else 0)
 

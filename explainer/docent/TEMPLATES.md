@@ -246,12 +246,13 @@ it to `out/cover.jpg` (1280×720) and `out/cover_check.jpg`, and prints a `WARNI
 ```js
 COVER = () => {
   coverPage();                                                              // deeper page: stands out from YouTube's white
-  person('narrator', 520, 1060, { s: 3.0, pose: 'facepalm', face: 'worried' });   // one subject, ≥ 60 % of the height, cut by the bottom edge
+  person('oppa', 470, 1070, { s: 2.9, pose: 'facepalm', face: 'worried' });       // one subject, ≥ 60 % of the height, cut by the bottom edge; head ≥ 30 px below the top
   prop('clock', 980, 330, 1.6, { solid: true });                            // at most one object: the tension, not the answer
   coverText('시간이 샌다', 1400, 520, { size: 250, rot: -0.04 });           // ≤ 8 characters that add to the title
 };
 // keep x > 1600, y > 950 empty: YouTube draws the running time there
 ```
-Two lines of text are fine (`coverText` twice, 200–240 px each) when the words are short. Then:
-`python $K/tools/export.py cover` → open `out/cover_check.jpg`; a second cover for Test & Compare: change COVER,
-`export.py cover --out cover_b`.
+Two lines of text are fine (`coverText` twice, 200–260 px each) when the words are short. A second and third cover for
+Test & Compare: `COVER_B = () => { … }`, `COVER_C`. Then `python $K/tools/export.py cover` → open every
+`out/cover*_check.jpg`; fix each `WARNING` line. At s ≥ 2.5 a pose reads differently (facepalm reads as a hand on the
+chin): judge it on the check image. Used for '시간이 자꾸 새어 나간다면' (2026-11-14): 오빠 + a leaking hourglass + "시간이 / 샌다".

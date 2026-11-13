@@ -2,7 +2,8 @@
 audiobook (the mix as an M4A with one chapter marker per scene, plus out/chapters.txt for the YouTube description).
 usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]
                         | audiobook [--cover still.jpg] [--out name] | srt [--out name] | cover [--at T] [--out name]
-cover: the YouTube thumbnail as out/cover.jpg (1280x720, under 2 MB) from scenes.js COVER (REFERENCE §10); without COVER,
+cover: the YouTube thumbnail as out/cover.jpg (1280x720, under 2 MB) from scenes.js COVER (REFERENCE §10), plus
+out/cover_b.jpg / cover_c.jpg from COVER_B / COVER_C for Test & Compare; without COVER,
 the still at --at T. out/cover_check.jpg shows it at 1280, 320 and 168 px wide: the cover must read at 168 px (the size
 of a search result on a phone).
 srt: the subtitles as out/<slug>.srt (one cue per sentence, its `text`) for the YouTube caption track — docent videos
@@ -163,15 +164,21 @@ async def cover(at=None, name='cover'):
     srv, port = serve()
     async with async_playwright() as pw:
         browser, page, errs = await open_page(pw, port)
-        drew = await page.evaluate("() => typeof renderCover === 'function' && renderCover()")
-        if not drew:
-            if at is None: sys.exit('cover: scenes.js has no COVER and no --at T was given (REFERENCE §10)')
-            await page.evaluate("(t) => renderAt(t)", at)
-        rep = await page.evaluate("() => typeof coverReport === 'function' ? coverReport() : null") if drew else None
-        b64 = await page.evaluate("() => document.getElementById('c').toDataURL('image/png').slice(22)")
+        jobs = []
+        for fn, nm in (('COVER', name), ('COVER_B', name + '_b'), ('COVER_C', name + '_c')):
+            drew = await page.evaluate("(fn) => typeof renderCover === 'function' && renderCover(fn)", fn)
+            if not drew:
+                if fn != 'COVER': continue
+                if at is None: sys.exit('cover: scenes.js has no COVER and no --at T was given (REFERENCE §10)')
+                await page.evaluate("(t) => renderAt(t)", at)
+            rep = await page.evaluate("() => typeof coverReport === 'function' ? coverReport() : null") if drew else None
+            jobs.append((nm, rep, await page.evaluate("() => document.getElementById('c').toDataURL('image/png').slice(22)")))
         await browser.close()
     srv.shutdown()
     if errs: print('PAGE ERRORS:', errs)
+    for nm, rep, b64 in jobs: save_cover(nm, rep, b64)
+
+def save_cover(name, rep, b64):
     big = os.path.join(OUT, f'{name}_1920.png'); open(big, 'wb').write(base64.b64decode(b64))
     path = os.path.join(OUT, f'{name}.jpg')
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', big, '-vf', 'scale=1280:720:flags=lanczos', '-q:v', '2', path], check=True)
@@ -179,10 +186,12 @@ async def cover(at=None, name='cover'):
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', big, '-filter_complex',
                     '[0]scale=1280:720:flags=lanczos[a];[0]scale=320:180:flags=lanczos,pad=320:720:0:0:white[b];'
                     '[0]scale=168:94:flags=lanczos,pad=168:720:0:0:white[c];[a][b][c]hstack=inputs=3', '-q:v', '3', check], check=True)
+    warns = cover_warnings(rep)
+    if corner_ink(big) > 0.004: warns.append('ink in the bottom-right corner: YouTube draws the running time there')
     os.remove(big)
     size = os.path.getsize(path)
     if size >= 2 * 1024 * 1024: sys.exit(f'cover: {path} is {size} bytes; YouTube takes under 2 MB')
-    for w in cover_warnings(rep): print('WARNING cover:', w)
+    for w in warns: print(f'WARNING {name}:', w)
     print(path); print(check)
 
 def cover_warnings(rep):
@@ -196,7 +205,17 @@ def cover_warnings(rep):
         if t['size'] < 160: out.append(f"\"{t['str']}\" is {t['size']} px (use 200-280 at 1080p; under 160 it blurs at 168 px)")
     ink = rep.get('ink')
     if ink and (ink[3] - ink[1]) < 0.5 * rep['H']: out.append(f"ink spans {100 * (ink[3] - ink[1]) / rep['H']:.0f} % of the height (make the subject bigger: ≥ 50 %)")
+    if ink and (ink[1] < 12 or ink[0] < 12 or ink[2] > rep['W'] - 12):
+        out.append('something touches the top or a side edge: a head or a stem cut by the frame reads as something else (only the bottom edge may cut the subject)')
     return out
+
+def corner_ink(png):
+    """Share of dark pixels in the bottom-right 330 × 140 px of a 1920 × 1080 cover, where YouTube draws the running time."""
+    from PIL import Image
+    im = Image.open(png).convert('L'); w, h = im.size
+    box = im.crop((w - int(330 * w / 1920), h - int(140 * h / 1080), w, h))
+    hist = box.histogram()
+    return sum(hist[:90]) / max(1, sum(hist))
 
 async def render_slice(port, f0, f1, path):
     from playwright.async_api import async_playwright

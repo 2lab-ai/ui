@@ -224,12 +224,20 @@ spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면
   small-channel hits. Read its top-5 titles: if they are songs or another thing of the same name (블랙 스완 → BTS,
   노인과 바다 → songs), add the author or the topic word, or lead with the problem keyword instead.
 - A person's name only when people search for that person (쇼펜하우어 yes; 칸토어 no — say the question instead).
-- Write 3 titles; `title_check.py --strict` passes on the one you upload. Keep the other two for Test & Compare.
+- Measure first, then write the hooks around a keyword that passes. Write 3 titles; `title_check.py "<title>"
+  --keyword <kw> --strict` passes on the one you upload: its form, and one measured keyword that is in the title, on
+  topic (fewer than 3 of its top 5 are music, ASMR or sleep sound — 집중력 is study music, 서시 is songs) and over the
+  bar. Keep the other two for Test & Compare.
+- The hook may be the viewer's situation ("~할 때", "~한 밤", "~했다면"): the strongest hooks in the 2026-11-14
+  verification were situations (습관 만들기, 매번 실패했다면 …; 내가 미워지는 밤이라면 …).
 - Honest: the video delivers exactly what the title promises. No medical, legal or money promises.
 
 **Cover (the YouTube thumbnail)** — drawn in `scenes.js` `COVER`, rendered by `export.py cover` (TEMPLATES "Cover").
 - Not a still of the video and not the title card. One subject filling ≥ 50 % of the height (a figure doing the
-  hook's verb, or one object that carries the tension), on one side; the text on the other side.
+  hook's verb, or one object that carries the tension), on one side; the text on the other side. In the letter
+  concept the subject is whoever has the hook's problem — usually the listener, not the narrator.
+- Only the bottom edge may cut the subject: a head or a stem cut by the top edge reads as something else (a cut apple
+  read as a moon). `export.py cover` warns.
 - Cover text: ≤ 8 characters (3–6 is best), 200–280 px at 1080p, ink with the paper halo. It adds to the title — the
   feeling or the stake ("시간이 샌다", "왜 나만?") — and never repeats the title or gives away the answer.
 - Show the tension, not the payoff: the empty clock, the stuck figure, the tilted ladder. The answer is the video.
@@ -238,11 +246,14 @@ spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면
 - Lines: `renderCover()` draws every ink line 2.4x as thick; still, prefer big simple shapes.
 - Check `out/cover_check.jpg` (1280 / 320 / 168 px): at 168 px you must read the text and name the subject. Fix every
   `WARNING cover:` line from `export.py cover`.
-- Make 2–3 covers (`export.py cover --out cover_b` after changing COVER) when the channel can use Test & Compare.
+- Make 2–3 covers when the channel can use Test & Compare: `COVER_B`, `COVER_C` in scenes.js; `export.py cover` renders
+  every one (`out/cover_b.jpg` …). The channel needs advanced features for a custom thumbnail: check the upload
+  dialog's 썸네일 "파일 업로드" button.
 
 **Description**
-- First two lines (shown before 더보기): the hook question again in other words, then what the viewer gets ("책 세
-  권이 말하는 방법 다섯 가지"). Not "N분에 걸어 보는 도슨트북".
+- First three lines (YouTube shows about three before 더보기): the hook question again in other words, what the viewer
+  gets ("책 세 권이 말하는 방법 다섯 가지"), and the book(s) with author. Not "N분에 걸어 보는 도슨트북", and not a
+  timestamp: the chapters start after a blank line.
 - Then the chapters from `out/chapters.txt` (YouTube needs ≥ 3 timestamps, starting at 0:00), the books with their
-  Korean editions, music credits (`out/music_credits.txt`), and for health, law or money topics one plain line: this
-  video is a book review, not advice; see a professional.
+  Korean editions, music credits (`out/music_credits.txt`), and for health (mental health included), law or money
+  topics one plain line: this video is a book review, not advice; see a professional.

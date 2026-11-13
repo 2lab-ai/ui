@@ -3,6 +3,19 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-14 · packaging — owner: "제목이랑 커버 … 클릭을 잘 할 수 있는 제목 리서치해서 개선" (research-skill run)
+- Every title read "책 이름 — 부제 (20분 도슨트북)" · the only example in the kit (GEB project.json) had that shape and
+  the skill said only "title" · REFERENCE §10, GEB example rewritten hook-first, `title_check.py --strict`.
+- No thumbnail: YouTube would pick a frame, the audiobook cover was the 1.5 s title card (text only, and only because the
+  first scene has a subtitle) · `export.py cover` from scenes.js `COVER`, `coverText()`, `coverPage()`, ink 2.4x thick,
+  168 px check image and warnings (text size and length, small subject, edge cut, time-stamp corner).
+- Keywords taken from the book's name: 2,838 views (하늘과 바람과 별과 시), songs of the same name (블랙 스완 → BTS) ·
+  `title_check.py --keyword` measures median and small-channel hits; `--strict` wants one measured keyword in the title,
+  on topic, over the bar.
+- A stubborn sentence (number:2 failed the pad cut 3 times) stopped the whole narration on a shared GPU · the run now
+  finishes every other scene, then stops before the timeline and prints the `--redo` to run. A run that timed out while
+  its job still ran now picks the same job up again (`job.json`); `SOMA_VOICE_TURN_S` (default 40) for a shared GPU.
+
 ## 2026-11-13 · 'Stoics on time' (Seneca, Marcus, Epictetus; 20:40, five authors, first book on the ink-mode kit)
 Gate C (a fresh reviewer on every sentence's stills) found what the lint passed:
 - Three seated figures with no legs · the chair seat ran as deep as the thighs, so the thighs lay on its top edge and
