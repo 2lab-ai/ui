@@ -117,10 +117,10 @@ def process(raw_path):
     clip, info = cut(a, SR)
     if clip is None: return None, info
     if not edges_ok(clip, SR): return None, f'cut lands on sound (edges {edge_db(clip, SR)} dB vs speech)'
-    if VERIFY:   # one pass hears both pieces (whisper encodes a 30 s window either way): half the CPU time
-        head, tail = removed(a, SR, info)
-        heard = ear(np.concatenate([head, np.zeros(int(0.6 * SR), np.float32), tail]))
-        if not is_filler_text(heard): return None, f'cut-off heard as {heard!r}'
+    if VERIFY:   # each side on its own: one pass over both can hear a single filler and miss the other side
+        for side, piece in zip(('head', 'tail'), removed(a, SR, info)):
+            heard = ear(piece)
+            if not is_filler_text(heard): return None, f'{side} cut-off heard as {heard!r}'
     return clip, None
 
 
@@ -208,6 +208,15 @@ def run_jobs_http(texts, seed, tag):
     t0 = time.time(); out = []
     tmp = os.path.join(CACHE, f'http_{seed}_{hashlib.sha1(json.dumps(texts, ensure_ascii=False).encode()).hexdigest()[:8]}')
     os.makedirs(tmp, exist_ok=True)
+    try:   # a run cut off after the job finished: its pieces are already here (same texts, seed, voice, padding)
+        m = json.load(open(os.path.join(tmp, 'manifest.json')))
+        done = [os.path.join(tmp, f'r{i:03d}.wav') for i in range(len(texts))]
+        if (m.get('texts'), m.get('seed'), m.get('voice'), m.get('pad')) == (list(texts), seed, VOICE, PAD) \
+                and all(os.path.isfile(p) for p in done):
+            print(f'  {tag}: {len(texts)} sentences from the finished job in {os.path.basename(tmp)}', flush=True)
+            return done
+    except (OSError, ValueError):
+        pass
     if len(texts) > 1:
         turns = [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t} for t in texts]
         job = http('POST', '/api/tts', {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
@@ -218,7 +227,7 @@ def run_jobs_http(texts, seed, tag):
         sr = int(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=sample_rate',
                                  '-of', 'csv=p=0', src], capture_output=True, text=True, check=True).stdout.strip())
         pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', src, '-f', 's16le', '-ac', '1', '-'], capture_output=True, check=True).stdout
-        pieces = split_at_silence(np.frombuffer(pcm, np.int16), sr, len(texts), 0.9 * SPLIT_MS / 1000)
+        pieces = split_at_silence(np.frombuffer(pcm, np.int16), sr, len(texts), 0.9 * SPLIT_MS / 1000, 1.5 * SPLIT_MS / 1000)
         if pieces is not None:
             for i, pc in enumerate(pieces):
                 p0, p = os.path.join(tmp, f's{i:03d}.raw'), os.path.join(tmp, f'r{i:03d}.wav')
@@ -284,21 +293,40 @@ def run_job(texts, seed, tag):
 
 
 GPU = concurrent.futures.ThreadPoolExecutor(max_workers=1)   # one job at a time, in submission order
-AHEAD = {}   # (texts, seed) -> future: the next scene's first job, synthesising while this scene is cut and checked
+AHEAD = {}   # scene -> ((texts, seed), future): its first job, synthesising while the scene before is cut and checked
+FATAL = []   # set by the first failed job: nothing queued after it reaches the server (its job may still be running)
 
 
-def job(texts, seed, tag):
-    """the future of run_job(texts, seed): the one queued ahead for exactly these texts and seed, or a new one."""
-    return AHEAD.pop((tuple(texts), seed), None) or GPU.submit(run_job, list(texts), seed, tag)
+def gpu_job(texts, seed, tag):
+    if FATAL: raise SystemExit(f'{tag}: not started, an earlier job failed ({FATAL[0]})')
+    try:
+        return run_job(texts, seed, tag)
+    except BaseException as e:
+        FATAL.append(f'{tag}: {e}'); raise
+
+
+def job(texts, seed, tag, scene):
+    """the future of run_job(texts, seed): the scene's job queued ahead when it is for exactly these texts and seed
+    (otherwise that one is cancelled, or left to finish if it already runs), else a new one."""
+    k, fut = AHEAD.pop(scene, (None, None))
+    if fut is not None and k == (tuple(texts), seed): return fut
+    if fut is not None: fut.cancel()
+    return GPU.submit(gpu_job, list(texts), seed, tag)
+
+
+def rescuable(rec, text):
+    """usable() would re-cut this take from its recorded raw take (no GPU)."""
+    return bool(rec and rec.get('text') == text and rec.get('voice') == VOICE and os.path.isfile(os.path.join(PROJ, rec.get('raw') or '')))
 
 
 def ahead(items, tag):
-    """queue a scene's first job now (cheap record check only; synth_scene decides what it really needs)."""
+    """queue a scene's first job now, for the takes neither recorded nor rescuable from a raw take."""
     paths = [os.path.join(CACHE, f'{key_of(t, k)}.wav') for t, k in items]
-    todo = [i for i, p in enumerate(paths) if not record_ok(read_record(p), items[i][0], p)]
-    if todo:
+    recs = [read_record(p) for p in paths]
+    todo = [i for i, p in enumerate(paths) if not record_ok(recs[i], items[i][0], p) and not rescuable(recs[i], items[i][0])]
+    if todo and tag not in AHEAD:
         texts, seed = tuple(items[i][0] for i in todo), items[todo[0]][1]
-        AHEAD.setdefault((texts, seed), GPU.submit(run_job, list(texts), seed, f'{tag} r0'))
+        AHEAD[tag] = ((texts, seed), GPU.submit(gpu_job, list(texts), seed, f'{tag} r0'))
 
 
 def synth_scene(items, tag):
@@ -308,7 +336,7 @@ def synth_scene(items, tag):
         todo = [i for i, p in enumerate(paths) if not usable(p, items[i][0])]
         if not todo: return paths
         job_seed = items[todo[0]][1] + 1000 * rnd
-        raws = job([items[i][0] for i in todo], job_seed, f'{tag} r{rnd}').result()
+        raws = job([items[i][0] for i in todo], job_seed, f'{tag} r{rnd}', tag).result()
         for pos, (i, raw) in enumerate(zip(todo, raws)):
             clip, why = process(raw)
             if clip is None:
@@ -461,4 +489,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:   # an exit (a failed job, ^C) drops whatever is still queued instead of running it
+        GPU.shutdown(wait=False, cancel_futures=True)

@@ -128,6 +128,12 @@ class SplitAtSilence(unittest.TestCase):
         a = np.concatenate([self.turn(300, 1), np.zeros(200, np.int16), self.turn(400, 2), np.zeros(1000, np.int16), self.turn(200, 3)])
         self.assertEqual([len(x) for x in split_at_silence(a, self.sr, 2, 0.9)], [900, 200])
 
+    def test_an_empty_turn_is_not_hidden(self):   # its two gaps merge into one long run: no cut, count fails
+        a = np.concatenate([self.turn(300, 1), np.zeros(2000, np.int16), self.turn(500, 2), np.zeros(1000, np.int16),
+                            np.zeros(0, np.int16), self.turn(200, 3), np.zeros(1100, np.int16), self.turn(100, 4)])
+        self.assertIsNone(split_at_silence(a, self.sr, 4, 0.9, 1.5))
+        self.assertEqual(len(split_at_silence(a, self.sr, 4, 0.9)), 4)   # without the cap the long run would pass
+
     def test_wrong_count_gives_none(self):   # the caller falls back to one job per sentence
         a = np.concatenate([self.turn(300, 1), np.zeros(1000, np.int16), self.turn(500, 2)])
         self.assertIsNone(split_at_silence(a, self.sr, 3, 0.9))
