@@ -11,7 +11,7 @@ cast('viewer', { name: '나', hair: 'side' });   // the running figure: no tag, 
 // T2 dialogue · T3 two more people · T7 animal · T4 inner voice
 SCENES.talk = (t, q) => shots(t, [
   [q.s(0), (t, lt) => {
-    const a = person('musk', 700, 870, { pose: 'point', face: 'happy', tag: true, p: dp(lt, 0, 0.8) });   // named here: tag once
+    const a = person('musk', 700, 870, { pose: 'point', face: 'happy', p: dp(lt, 0, 0.8) });   // a bubble is the shot's word: no tag here
     say(a, '다시 쓰자!', { p: dp(lt, 0.9, 0.4) });
   }],
   [q.s(1), (t, lt) => {   // the verb: two engineers shake their heads; one bubble speaks for both
@@ -58,7 +58,7 @@ SCENES.devices = (t, q) => shots(t, [
 // edge cases: a top hat speaking sideways, a hat thinking, animals talking (one bubble per shot)
 SCENES.hats = (t, q) => shots(t, [
   [q.s(0), (t, lt) => {
-    const g = person('gent', 700, 870, { pose: 'present', face: 'smile', tag: true, p: dp(lt, 0, 0.6) });
+    const g = person('gent', 700, 870, { pose: 'present', face: 'smile', p: dp(lt, 0, 0.6) });
     say(g, '안녕하세요', { side: 'right', p: dp(lt, 0.7, 0.3) });
   }],
   [q.s(1), (t, lt) => {

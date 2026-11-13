@@ -175,7 +175,7 @@ function docentReport() {
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far, tailHigh: high.map(([x, y]) => [Math.round(x), Math.round(y)]),
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals,
     things: DOCENT.things, words: DOCENT.words, marks: DOCENT.redInk ? DOCENT.marks.concat('red line') : DOCENT.marks, colours: DOCENT.colours,
-    listItems: DOCENT.listItems || 0 };
+    listItems: DOCENT.listItems || 0, budget: !docentColourful() };   // the budget checks apply to ink-mode (docent) projects
 }
 
 // ---------- small maths ----------
@@ -791,7 +791,7 @@ function bubble(x, y, w, h, { tail = null, kind = 'speech', text: str = null, si
     } else {
       inkPath(bubblePath(x, y, w, h, Math.min(40, h / 2.2), tail), { closed: true, fill: PAPER(), w: 3.6, jit: 0.8, color });
     }
-    if (str) { DOCENT.noWord++; try { handBlock(str, cx, cy, w - 50, { size, color: color || INK() }); } finally { DOCENT.noWord--; } }
+    if (str) handBlock(str, cx, cy, w - 50, { size, color: color || INK() });   // a bubble's words are written words too (trinity)
     if (body) { const k0 = DOCENT.heads.length; body(x, y, w, h); entry[5] = [k0, DOCENT.heads.length]; }
     ctx.restore();
   });
@@ -1599,14 +1599,14 @@ function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w,
 // ---------- emphasis budget: what competes for the eye (2026-11-13) ----------
 // Things: every top-level primitive call (not one drawn inside another) is one thing on screen; a crowd, a row of the
 // same prop or animal and a line of ants count once. Words and red marks count wherever they are drawn (inside a
-// thought bubble's picture too), except text that belongs to a drawing (a prop's own lettering, a bubble's speech) and
+// thought bubble's picture and a bubble's speech too), except text that belongs to a drawing (a prop's own lettering) and
 // composites that count their own (a board's term, a list, a quote, a sign, a name tag). REFERENCE §0 budgets them:
 // one subject + two around it, one written word, one red mark. tools/lint_scenes.py turns the counts into `busy`,
 // `words`, `list`, `marks`, `colour`. figure / person / seated / animal / prop / crab / ant also draw in ink mode.
 (function docentBudget() {
   const G = globalThis;
   const optsOf = (args) => { for (let i = args.length - 1; i >= 0; i--) { const v = args[i]; if (v && typeof v === 'object' && !Array.isArray(v)) return v; } return null; };
-  const live = (o) => !DOCENT.ghostOk && !DOCENT.measure && !(o && ((o.p ?? 1) <= 0 || (o.a ?? 1) <= 0)) && ctx.globalAlpha > 0.05;
+  const live = (o) => !DOCENT.ghostOk && !DOCENT.measure && !(o && (o.ghostOk || (o.p ?? 1) <= 0 || (o.a ?? 1) <= 0)) && ctx.globalAlpha > 0.05;
   const thing = (k) => { if (!DOCENT.things.includes(k)) DOCENT.things.push(k); };
   const one = (kind) => thing(kind + '#' + DOCENT.things.length);
   const word = (w) => { if (!DOCENT.noWord) DOCENT.words.push(String(w == null ? '' : w).slice(0, 24)); };

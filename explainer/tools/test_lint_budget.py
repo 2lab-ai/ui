@@ -11,7 +11,7 @@ os.chdir(_cwd)
 def frame(**kw):
     r = {'partial': [], 'ghost': [], 'zone': [], 'off': [], 'empty': [], 'tailFar': [], 'tailHigh': [], 'cover': [],
          'overflow': [], 'rig': [], 'people': [], 'wordy': [], 'propFace': [], 'ink': [600, 300, 1300, 880],
-         'textBig': False, 'figures': 1, 'things': [], 'words': [], 'marks': [], 'colours': []}
+         'textBig': False, 'figures': 1, 'things': [], 'words': [], 'marks': [], 'colours': [], 'budget': True}
     r.update(kw); return r
 
 
@@ -36,6 +36,12 @@ class Budget(unittest.TestCase):
 
     def test_colour(self):
         self.assertIn(('P2', 'colour'), codes(frame(colours=['#d9661c'])))
+
+    def test_not_in_colour_projects(self):   # older and make-3b1b projects are not held to the budget
+        self.assertEqual(codes(frame(budget=False, words=['a', 'b', 'c'], marks=['cross', 'ring'])), set())
+
+    def test_list(self):
+        self.assertIn(('P2', 'list'), codes(frame(listItems=4)))
 
     def test_bottom_heavy_is_gone(self):   # an empty top is the reference's default, not a defect
         self.assertEqual(codes(frame(ink=[700, 480, 1200, 880], figures=1, things=['person#0'])), set())

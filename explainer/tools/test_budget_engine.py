@@ -55,9 +55,12 @@ class BudgetOnEngine(unittest.TestCase):
                                             'sentences': sents, 'words': []}]}, open(os.path.join(cls.proj, 'timeline.json'), 'w'))
         open(os.path.join(cls.proj, 'scenes.js'), 'w').write(SCENES)
 
-    def test_word_inside_a_thought_counts_speech_does_not(self):
+    def test_word_inside_a_thought_and_speech_count_prop_lettering_does_not(self):
         self.assertEqual(report(self.proj, 1.5, False)['words'], ['내 판단'])
-        self.assertEqual(report(self.proj, 3.5, False)['words'], [])   # speech bubble text, the calendar's own label
+        self.assertEqual(report(self.proj, 3.5, False)['words'], ['말풍선은 단어가 아님'])   # not the calendar's own label
+
+    def test_budget_only_in_ink_mode(self):
+        self.assertTrue(report(self.proj, 1.5, False)['budget']); self.assertFalse(report(self.proj, 1.5, None)['budget'])
 
     def test_list_items_and_a_mark_inside_the_list(self):
         r = report(self.proj, 5.5, False)

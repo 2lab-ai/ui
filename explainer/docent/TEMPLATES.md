@@ -39,10 +39,11 @@ No `accent` and no `outfit` (ink mode paints them as ink anyway): people differ 
 Then `python tools/gallery.py cast` and look at the sheet before writing any scene.
 
 ## T2. Dialogue (two people facing each other)
-One bubble per shot: the answer is the next shot. Tag only the person the narration names for the first time.
+One bubble per shot: the answer is the next shot. A bubble's words are the shot's one written word, so a name tag goes
+in a shot without a bubble (the first time the narration names the person).
 ```js
 [q.s(3), (t, lt) => {
-  const a = person('musk', 620, 870, { pose: 'point', face: 'happy', tag: true, p: dp(lt, 0, 0.8) });
+  const a = person('musk', 620, 870, { pose: 'point', face: 'happy', p: dp(lt, 0, 0.8) });
   person('eng', 1300, 870, { pose: 'shrug', face: 'worried', flip: true, p: dp(lt, 0.15, 0.8) });
   say(a, '다시 쓰자!', { p: dp(lt, 0.9, 0.4) });
 }],

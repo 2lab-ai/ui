@@ -20,7 +20,8 @@ P1  busy: 5+ things in one frame · words: 3+ written words or labels · marks: 
 P2  busy: 4 things · words: 2 · list: a written list of 3+ lines · colour: any colour besides ink, purple and red
     (ink-mode projects) · mark-budget: red in more shots than about one per 45 s of a scene
 Words and marks count wherever they are drawn (a word inside a thought bubble's picture too; a hand-drawn red line is a
-mark); a bubble's speech, a prop's own lettering and a list's items do not count as words.
+mark); a bubble's speech counts as a word; a prop's own lettering and a list's items do not. Only projects in ink mode
+(project.json "colour": false, every new docent project) are held to the budget.
 """
 import asyncio, base64, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -58,6 +59,7 @@ def judge(r):
     # emphasis budget (2026-11-13, owner: "the reference is minimal; you show too much and emphasise everything"):
     # one thing per shot plus at most two around it, one written word, one red verdict, ink plus purple and red only.
     # (bottom-heavy, which asked to fill the top of every frame, is gone: empty page is the reference's default.)
+    if not r.get('budget'): return out   # older and make-3b1b projects (no project.json "colour": false) are not held to it
     things, words, marks, colours = r.get('things') or [], r.get('words') or [], r.get('marks') or [], r.get('colours') or []
     if len(things) >= 5: out.append(('P1', 'busy', f"{len(things)} things compete for the eye ({', '.join(things[:7])}): one subject, at most two around it — cut what the sentence can do without"))
     elif len(things) == 4: out.append(('P2', 'busy', f"4 things on screen ({', '.join(things)}): can one go?"))

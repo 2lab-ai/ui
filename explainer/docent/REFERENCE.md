@@ -29,9 +29,9 @@ drawing (ingredients, axes, units, "price / margin / habit" rows), dates under e
 chapter, examples and sub-points, clothes and decoration (stripes, shading, backgrounds, motion lines that are not the
 verb), and the narration itself (no sentence on screen: subtitles go to YouTube as captions, `export.py srt`).
 
-**The budget, per shot** (lint `busy`, `words`, `marks`, `colour`): one subject plus at most two things around it;
-at most one written word (two only for a deliberate pair or a picture equation); at most one red mark; ink, plus purple
-on the written word and red on the mark. **Per chapter:** one named idea, red in about one shot (lint `mark-budget`),
+**The budget, per shot** (lint `busy`, `words`, `list`, `marks`, `colour`): one subject plus at most two things around
+it; at most one written word — a bubble's words and a name tag count (two only for a deliberate pair or a picture
+equation); at most one red mark; ink, plus purple on the written word and red on the mark. **Per chapter:** one named idea, red in about one shot (lint `mark-budget`),
 at most one or two bubbles. Before adding anything to a shot, ask: if I take it away, does the sentence still read? If
 yes, take it away.
 
