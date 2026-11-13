@@ -206,7 +206,8 @@ def run_jobs_http(texts, seed, tag):
     """SOMA_VOICE_FETCH=http: one multi-turn job, split at the merge's silences (see SPLIT_MS); one job per text when
     that fails. Returns local raw wav paths in order (48 kHz mono)."""
     t0 = time.time(); out = []
-    tmp = os.path.join(CACHE, f'http_{seed}_{hashlib.sha1(json.dumps(texts, ensure_ascii=False).encode()).hexdigest()[:8]}')
+    req = json.dumps([VOICE, PAD, list(texts)], ensure_ascii=False).encode()   # everything that shapes the takes
+    tmp = os.path.join(CACHE, f'http_{seed}_{hashlib.sha1(req).hexdigest()[:8]}')
     os.makedirs(tmp, exist_ok=True)
     try:   # a run cut off after the job finished: its pieces are already here (same texts, seed, voice, padding)
         m = json.load(open(os.path.join(tmp, 'manifest.json')))
@@ -216,6 +217,10 @@ def run_jobs_http(texts, seed, tag):
             print(f'  {tag}: {len(texts)} sentences from the finished job in {os.path.basename(tmp)}', flush=True)
             return done
     except (OSError, ValueError):
+        pass
+    try:   # this folder is rewritten now: until the new manifest lands it must not read as finished
+        os.remove(os.path.join(tmp, 'manifest.json'))
+    except FileNotFoundError:
         pass
     if len(texts) > 1:
         turns = [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t} for t in texts]

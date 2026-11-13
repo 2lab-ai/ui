@@ -57,5 +57,32 @@ class Queue(unittest.TestCase):
         self.assertNotIn(('s r0', ('a', 'b'), 100), self.calls)
 
 
+class HttpCache(unittest.TestCase):
+    """a finished http job is reused only for the same texts, seed, voice and padding (no server)."""
+    def setUp(self):
+        self.n = load()
+        def no_server(*a, **k): raise RuntimeError('server called')
+        self.n.http = no_server
+
+    def finished(self, texts, seed):
+        """run the reuse path's folder logic once by writing what a finished job leaves behind."""
+        import hashlib, json
+        req = json.dumps([self.n.VOICE, self.n.PAD, list(texts)], ensure_ascii=False).encode()
+        tmp = os.path.join(self.n.CACHE, f'http_{seed}_{hashlib.sha1(req).hexdigest()[:8]}')
+        os.makedirs(tmp, exist_ok=True)
+        for i in range(len(texts)): open(os.path.join(tmp, f'r{i:03d}.wav'), 'wb').write(b'x')
+        json.dump({'texts': list(texts), 'seed': seed, 'voice': self.n.VOICE, 'pad': self.n.PAD},
+                  open(os.path.join(tmp, 'manifest.json'), 'w'), ensure_ascii=False)
+        return tmp
+
+    def test_same_request_is_reused_without_the_server(self):
+        tmp = self.finished(['가', '나'], 7)
+        self.assertEqual(self.n.run_jobs_http(['가', '나'], 7, 't'), [os.path.join(tmp, 'r000.wav'), os.path.join(tmp, 'r001.wav')])
+
+    def test_another_voice_does_not_reuse_it(self):
+        self.finished(['가', '나'], 7)
+        self.n.VOICE = 'elon'
+        with self.assertRaises(RuntimeError): self.n.run_jobs_http(['가', '나'], 7, 't')
+
 if __name__ == '__main__':
     unittest.main()
