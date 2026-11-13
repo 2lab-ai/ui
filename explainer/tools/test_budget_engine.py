@@ -82,7 +82,7 @@ class BudgetOnEngine(unittest.TestCase):
         self.assertTrue(report(self.proj, 12.5, False)['propBody'])
         self.assertEqual(report(self.proj, 14.5, False)['propBody'], [])   # bodyOk: hugging it is the point; a book held to read
         big = report(self.proj, 16.5, False)['propBody']   # a giant clock still counts (faceOk only skips the face test);
-        self.assertEqual(len(big), 1, big)                  # stairs the figure stands by do not; nor does a music note
+        self.assertEqual(len(big), 1, big)                  # stairs beside the figure, centred elsewhere, do not
         self.assertIn("'clock'", big[0])
 
     def test_hand_drawn_red_line_is_a_mark(self):

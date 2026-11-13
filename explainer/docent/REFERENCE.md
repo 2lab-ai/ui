@@ -113,7 +113,7 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
 - A held prop sits at the hand, beside the body. A round or bulging one (vase, clock, purse, heart) drawn over the
   torso becomes the body: a vase-man, a clock-belly. Lint `prop-over-body` (P2) flags one covering more than half of
   a torso with its centre on the body, at any size; it skips names ending in a flat sheet (book, letter, paper …) and
-  scenery whose centre is elsewhere (stairs the figure stands on). Hugging it is the point? Keep it small at the chest
+  scenery whose centre is off the body (stairs beside the figure). Hugging it is the point? Keep it small at the chest
   and pass `bodyOk: true`.
 - In ink mode a light fill paints as the page: a grey that carries meaning (weeks already lived) disappears. Draw
   that meaning in ink (hatching, a line) or give that one call `colour: true`. A missing animal, prop or pose is registered from scenes.js
