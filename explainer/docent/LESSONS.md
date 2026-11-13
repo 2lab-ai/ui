@@ -16,9 +16,11 @@ Gate C (a fresh reviewer on every sentence's stills) found what the lint passed:
 - The lived weeks shaded grey vanished · ink mode paints a light fill as the page, so a grey that carries meaning
   disappears · draw meaning with ink (hatching, a line), or `colour: true` on that one call.
 - Narration in the sandboxed session ran at ~55 s a sentence (4-5 hours for 308) · http mode sent one job per
-  sentence, so the voice model reloaded every time, and the ear check (Metal unavailable: whisper on the CPU) ran twice
-  per sentence after it · one multi-turn job per scene cut at the merge's digital silence (~14-16 s a sentence), both
-  cut-off pieces heard in one pass, and the next scene synthesising while this one is checked (narrate_soma.py).
+  sentence, so the voice model reloaded every time, and the ear check (Metal unavailable: whisper on the CPU) ran
+  after each scene's synthesis · one multi-turn job per scene cut at the merge's digital silence (~14-16 s a sentence)
+  and the next scene synthesising while this one is checked (narrate_soma.py). Hearing both cut-off pieces in one
+  whisper pass was tried and dropped: it heard one "아아." for two pieces, and a per-side re-check then caught a tail
+  heard as "응." that the one pass had let through.
 
 ## 2026-11-13 · owner: "the reference is minimal; you show too much, like AI slop — you emphasise everything"
 Compared side by side: Productive Peter frames hold 1 to 3 things, 0 or 1 written word, black ink with purple on the
