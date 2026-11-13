@@ -153,9 +153,31 @@ def load_lexicon(proj):
     return (json.load(open(p)).get('say_lexicon') or {}) if os.path.exists(p) else {}
 
 
+# Drama 3 performance directions (TTS only, never spoken or subtitled): a free-form [direction] that holds until the next
+# one, and the paired word tags. Fish Audio docs, drama-3 (2026-11): "[barely holding it together] I'm fine. [sighs]"
+TAG = re.compile(r'(\[[^\[\]]{1,120}\]|</?(?:whisper|emphasis|soft|fast|slow|stress|forceful)>)')
+
+
+def strip_tags(text):
+    """the words alone: what the listener hears and the hearing check compares."""
+    return re.sub(r'\s{2,}', ' ', TAG.sub(' ', text)).strip()
+
+
 def spoken(sentence, lexicon):
-    """a script.json sentence -> the text the voice model gets: its own "say", else to_say(text)."""
-    return sentence.get('say') or to_say(sentence['text'], lexicon)
+    """a script.json sentence -> the text the voice model gets.
+    "tts" (the sentence with inline directions) beats "say" beats "text"; the words between tags go through to_say,
+    the tags pass as written. "dir" is a leading direction for the whole sentence ("softly, a little shy")."""
+    src = sentence.get('tts')
+    if src:
+        def words(p):   # to_say trims: keep the spaces around the fragment so tags do not glue words together
+            core = to_say(p, lexicon)
+            return p[:len(p) - len(p.lstrip())] + core + p[len(p.rstrip()):]
+        out = ''.join(p if TAG.fullmatch(p) else words(p) if p.strip() else p for p in TAG.split(src))
+        out = re.sub(r'\s{2,}', ' ', out).strip()
+    else:
+        out = sentence.get('say') or to_say(sentence['text'], lexicon)
+    d = (sentence.get('dir') or '').strip().strip('[]').strip()
+    return f'[{d}] {out}' if d else out
 
 
 def check_script(script, lexicon):
@@ -165,7 +187,7 @@ def check_script(script, lexicon):
     for sc in script['scenes']:
         for k, s in enumerate(sc['sentences']):
             try:
-                check_say(spoken(s, lexicon), f'{sc["id"]}:{k}')
+                check_say(strip_tags(spoken(s, lexicon)), f'{sc["id"]}:{k}')
             except ValueError as e:
                 bad.append(str(e))
     if bad:

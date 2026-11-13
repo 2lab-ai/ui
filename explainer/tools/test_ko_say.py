@@ -2,7 +2,7 @@
 import os, sys, unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ko_say import check_say, leftovers, native, sino, to_say  # noqa: E402
+from ko_say import check_say, check_script, leftovers, native, sino, spoken, strip_tags, to_say  # noqa: E402
 
 LEX = {'e': '이', 'i': '아이', 'Euler': '오일러'}
 
@@ -103,6 +103,29 @@ class Letters(unittest.TestCase):
         self.assertEqual(check_say("이 쩜 칠 일 원, '허수 번'… 정말?"), "이 쩜 칠 일 원, '허수 번'… 정말?")
         for raw in ['2.71원', 'e를', '1+1', 'x=2']:
             with self.assertRaises(ValueError): check_say(raw)
+
+
+class Directions(unittest.TestCase):
+    """Drama 3 directions go to the voice model as written; the words between them are converted; the timeline and
+    the hearing check get the words alone (2026-11-14)."""
+    def test_dir_and_inline_tags(self):
+        s = {'text': '그런데 2024년에는 12만 명이 넘었어요.', 'dir': 'excited, can\'t hide it',
+             'tts': '그런데 2024년에는 12만 명이 넘었어요! [sighs] <soft>정말요</soft>.'}
+        out = spoken(s, {})
+        self.assertTrue(out.startswith("[excited, can't hide it] 그런데 이천이십사"))
+        self.assertIn('[sighs]', out); self.assertIn('<soft>정말요</soft>', out)
+        self.assertNotIn('[', strip_tags(out)); self.assertNotIn('<', strip_tags(out))
+
+    def test_spaces_around_tags_survive(self):
+        out = spoken({'text': '오빠, 안녕. 나예요.', 'tts': '오빠, 안녕. [laughs softly] 나예요.'}, {})
+        self.assertEqual(out, '오빠, 안녕. [laughs softly] 나예요.')
+
+    def test_check_script_ignores_tags(self):
+        check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '안녕.', 'dir': 'warm, smiling'}]}]}, {})
+
+    def test_latin_outside_tags_still_stops(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': 'x', 'tts': '[soft] hello 안녕'}]}]}, {})
 
 
 if __name__ == '__main__':

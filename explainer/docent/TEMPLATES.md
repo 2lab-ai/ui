@@ -241,25 +241,30 @@ Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118
 - Bubbles keep clear of props and boards (they reserve their box), so draw the props of a shot before its bubbles.
 
 ## Cover. The YouTube thumbnail (REFERENCE §10)
-One frame composed for 168 px, not a still of the video. Draw it at the end of `scenes.js`; `export.py cover` renders
-it to `out/cover.jpg` (1280×720) and `out/cover_check.jpg`, and prints a `WARNING cover:` line for each limit it breaks.
+One frame composed for 168 px **in the video's own look**: the page colour, the line, the cast and a place from the
+video, re-arranged so the subject is big and the text has room. Draw it at the end of `scenes.js` with the video's
+own place helpers; `export.py cover` renders it to `out/cover.jpg` (1280×720) and `out/cover_check.jpg`, and prints a
+`WARNING cover:` line for each limit it breaks.
 ```js
 COVER = () => {
-  coverPage();                                                              // deeper page: stands out from YouTube's white
-  person('oppa', 370, 1560, { s: 4.0, pose: 'facepalm', face: 'worried' });       // one subject, cut by the bottom edge only; head ≥ 30 px below the top
-  const x = 1000, y = 960, s = 3.8;
-  prop('hourglass', x, y, s, { fill: C.paper, colour: true });              // at most one object: the tension, not the answer; a cream fill, not a pale one
-  inkPath([[x - 30 * s, y - 160 * s], [x + 30 * s, y - 160 * s], [x + 6 * s, y - 108 * s], [x - 6 * s, y - 108 * s]],
-          { closed: true, fill: MARK(), color: INK(), w: 4 });               // the one accent on what carries the tension: the sand that is left
-  [[x + 62 * s, y - 14 * s, 16], [x + 74 * s, y + 18 * s, 14]].forEach(([a, b, r]) => inkDot(a, b, r, { color: MARK() }));   // leaking
-  coverText('시간이', 1570, 300, { size: 260, rot: -0.03 });               // ≤ 8 characters that add to the title
-  coverText('샌다', 1570, 610, { size: 320, rot: -0.03 });
+  coverPage();                                                              // the video's page colour
+  const s = 2.75, k = s * CAST.oppa.h, x = 360, y = 1050, T = y - 155 * k;   // one subject, bigger than in the video; head ≥ 30 px below the top
+  inkLine(40, y, 1520, y, { w: 3, color: C.dim });                          // the floor stops before the running-time corner
+  openWindow(640, 60, 420, 330, { night: 1 });                              // the video's night window: its dark pane carries at 168 px
+  inkRect(x + 60 * k, T, 1340 - (x + 60 * k), 18, { w: 4.4, fill: PAPER() });   // his desk, as in the video
+  inkLine(x + 110 * k, T + 18, x + 110 * k, y, { w: 4 }); inkLine(1300, T + 18, 1300, y, { w: 4 });
+  // … the laptop from the video (base + lid) …
+  prop('clock', 1225, T, 1.3, { time: [11, 50], fill: PAPER() });           // the one object with the tension: it is late
+  person('oppa', x, y, { s, sit: true, pose: 'coverHead', face: 'worried' });   // a hand on his head
+  coverText('벌써', 1585, 320, { size: 300, rot: -0.03 });                  // ≤ 8 characters that add to the title
+  coverText('밤?', 1585, 670, { size: 370, rot: -0.03 });
 };
 // keep x > 1600, y > 950 empty: YouTube draws the running time there
 ```
-Two lines of text are fine (`coverText` twice, 200–320 px each) when the words are short. A second and third cover for
+Two lines of text are fine (`coverText` twice, 250–370 px each) when the words are short. A second and third cover for
 Test & Compare: `COVER_B = () => { … }`, `COVER_C`. Then `python $K/tools/export.py cover` → open every
-`out/cover*_check.jpg`; fix each `WARNING` line. At s ≥ 2.5 a pose reads differently (facepalm reads as a hand on the
-chin): judge it on the check image. Stick figures are mostly page: the first draft of this cover was 83 % bare page and
-its pale-blue hourglass vanished at 168 px; the cream fill, the red sand and s 4.0 brought it to ≤ 75 %. Used for
-'게을러서가 아니라 시간이 안 보여서예요' (2026-11-14): 오빠 + a leaking hourglass + "시간이 / 샌다".
+`out/cover*_check.jpg` next to a still of the video; fix each `WARNING` line. At s ≥ 2.5 a pose reads differently
+(facepalm reads as a hand on the chin): judge it on the check image. Bare page: the room (window, desk, chair) and big
+text bring a stick-figure cover under 75 %, without colours the video does not use. Used for '게을러서가 아니라 시간이
+안 보여서예요' (2026-11-14, remade): 오빠 at his desk at night + the clock at 11:50 + "벌써 / 밤?". The first cover
+(a deeper page, 2.4x lines, a red-sand hourglass) was rejected by the owner: it did not look like the video.

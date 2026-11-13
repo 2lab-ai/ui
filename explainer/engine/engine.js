@@ -244,8 +244,8 @@ function renderCover(name = 'COVER') {
   ctx.globalAlpha = 1; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
   if (typeof fn !== 'function') return false;
   if (typeof COVER_INFO === 'object') COVER_INFO.texts = [];
-  // every ink line 2.4x as thick: a 5 px line at 1920 is under 1 px at 168 px wide
-  if (typeof DOCENT === 'object') DOCENT.lw = 2.4;
+  // ink lines 1.6x as thick: firm enough at 168 px wide, still the video's line (2.4x made the cover look like another video)
+  if (typeof DOCENT === 'object') DOCENT.lw = 1.6;
   ctx.save(); try { fn(); if (typeof docentTags === 'function') docentTags(); } finally { ctx.restore(); if (typeof DOCENT === 'object') DOCENT.lw = 1; }
   return true;
 }

@@ -311,7 +311,8 @@ const inkDot = (x, y, r = 5, o = {}) => disc(x, y, r, o.color || INK(), (o.a ?? 
 const COVER_INFO = { texts: [] };
 function coverPage(color = null) {
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-  ctx.fillStyle = color || opaqueMix(KEY(), 0.28, C.bg || '#bcd0e8'); ctx.fillRect(0, 0, W, H); ctx.restore();
+  // the video's own page: the cover must look like the video (owner 2026-11-14)
+  ctx.fillStyle = color || C.bg || '#bcd0e8'; ctx.fillRect(0, 0, W, H); ctx.restore();
 }
 function coverText(str, x, y, { size = 240, color = null, align = 'center', rot = 0 } = {}) {
   COVER_INFO.texts.push({ str: String(str), chars: [...String(str).replace(/\s/g, '')].length, size });
