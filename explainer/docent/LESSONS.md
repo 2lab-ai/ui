@@ -9,8 +9,8 @@ Gate C (a fresh reviewer on every sentence's stills) found what the lint passed:
   the shins hung right beside its front leg (a third chair leg) · TEMPLATES T15 "Seated figure": the seat stops at
   x + 34 s, the knees bend at x + 64 s.
 - A vase for a body, a clock for a belly, a purse for a paunch, a pouch that read as a cat · a round prop the size of
-  the torso drawn over it becomes the body · lint `prop-over-body` (P2: a round or bulging prop over more than half
-  of a torso drawn before it; flat sheets and scenery skip it; `bodyOk: true` when hugging is the point); REFERENCE §4.
+  the torso drawn over it becomes the body · lint `prop-over-body` (P2: a prop centred on a torso drawn before it,
+  covering more than half of it; flat sheets skip it; `bodyOk: true` when hugging is the point); REFERENCE §4.
   Run after the Gate C fixes, it still found 9 frames (one a Gate C frame whose fix had not gone far enough), all
   fixed: held at the hand, beside the body, or small at the chest.
 - The lived weeks shaded grey vanished · ink mode paints a light fill as the page, so a grey that carries meaning
