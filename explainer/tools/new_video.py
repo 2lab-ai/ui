@@ -1,7 +1,7 @@
 """Scaffold or refresh an explainer video project from this repo.
 
     python explainer/tools/new_video.py <project_dir> [--theme mono-black|sketch|3b1b] [--from explainer/examples/<name>]
-                                                    [--slug <file-name>] [--title "<title>"]
+                                                    [--slug <file-name>] [--title "<title>"] [--docent]
 
 - copies engine/engine.js, engine/docent.js and engine/video.html into the project (refreshing them is safe: scenes
   are untouched)
@@ -13,6 +13,8 @@
 - --from copies an example's script.json, scenes.js, formulas.py and project.json (only files the project lacks)
 - fetches public-domain images listed in project.json "commons" (Wikimedia Commons titles) into <project>/img
 - records the repo commit it was made from in project.json "ui_commit"
+- a new sketch project (or --docent) gets project.json "subtitles": "off" and "chip": false: docent videos show the
+  drawing only, the narration goes to YouTube as captions (export.py srt)
 """
 import json, os, shutil, subprocess, sys, tempfile, urllib.parse, urllib.request
 
@@ -131,6 +133,11 @@ def main():
         shutil.copy(c, os.path.join(proj, 'fonts', f))
     pj_path = os.path.join(proj, 'project.json')
     pj = json.load(open(pj_path)) if os.path.exists(pj_path) else {}
+    # docent projects (the sketch page, or --docent for a mono-black book) start minimal like the reference: no burned
+    # subtitles (export.py srt -> YouTube captions) and no chapter chip. Only for a new project or an explicit --docent:
+    # refreshing an older project's engine does not change how it looks.
+    if '--docent' in sys.argv or (th['id'] == 'sketch' and not pj.get('ui_commit')):
+        pj.setdefault('subtitles', 'off'); pj.setdefault('chip', False)
     if opt('--slug'): pj['slug'] = opt('--slug')
     pj.setdefault('slug', os.path.basename(proj))
     if opt('--title'): pj['title'] = opt('--title')

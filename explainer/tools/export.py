@@ -1,7 +1,9 @@
 """Export: mix (music ducked under voice), stills, the MP4 (Playwright frames -> ffmpeg, parallel slices) and the
 audiobook (the mix as an M4A with one chapter marker per scene, plus out/chapters.txt for the YouTube description).
 usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]
-                        | audiobook [--cover still.jpg] [--out name]"""
+                        | audiobook [--cover still.jpg] [--out name] | srt [--out name]
+srt: the subtitles as out/<slug>.srt (one cue per sentence, its `text`) for the YouTube caption track — docent videos
+do not burn them in (project.json "subtitles": "off")."""
 import asyncio, base64, json, os, subprocess, sys, threading, http.server, functools, socketserver
 
 HERE = os.getcwd()   # the project folder (video.html, timeline.json, narration.wav, score.wav)
@@ -104,6 +106,17 @@ def audiobook(cover=None, name=None):
     subprocess.run(cmd, check=True)
     print(dst, f"{len(tl['scenes'])} chapters", os.path.join(OUT, 'chapters.txt'))
 
+def srt(name=None):
+    """out/<slug>.srt: one cue per sentence (the subtitle `text`), timed from timeline.json."""
+    tl = json.load(open(os.path.join(HERE, 'timeline.json')))
+    name = name or json.load(open(os.path.join(HERE, 'project.json'))).get('slug', 'explainer')
+    ts = lambda x: f"{int(x // 3600):02d}:{int(x % 3600 // 60):02d}:{int(x % 60):02d},{int(round((x % 1) * 1000)) % 1000:03d}"
+    cues = [(s['start'], s.get('end', s['start'] + s['dur']), s['text']) for sc in tl['scenes'] for s in sc['sentences']]
+    path = os.path.join(OUT, f'{name}.srt')
+    with open(path, 'w', encoding='utf-8') as f:
+        for i, (a, b, text) in enumerate(cues, 1): f.write(f"{i}\n{ts(a)} --> {ts(b)}\n{text}\n\n")
+    print(path, f'{len(cues)} cues')
+
 class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 
@@ -193,6 +206,8 @@ if __name__ == '__main__':
         if '--to' in args: kw['t_to'] = float(args[args.index('--to') + 1])
         if '--out' in args: kw['name'] = args[args.index('--out') + 1]
         asyncio.run(video(**kw))
+    elif cmd == 'srt':
+        args = sys.argv[2:]; srt(name=args[args.index('--out') + 1] if '--out' in args else None)
     elif cmd == 'audiobook':
         args = sys.argv[2:]
         audiobook(cover=args[args.index('--cover') + 1] if '--cover' in args else None,

@@ -4,8 +4,44 @@ What a good docent-book video looks and sounds like, as rules you can check. `ma
 every run, and `research-skill make-docent-book` adds to it. Every rule here came from a real defect (see
 [LESSONS.md](LESSONS.md)) or a cited source (bottom). Shot recipes are in [TEMPLATES.md](TEMPLATES.md).
 
-Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text · 6 Composition · 7 Music · 8 Gates ·
-9 Sources
+Map: 0 Emphasis budget · 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text · 6 Composition ·
+7 Music · 8 Gates · 9 Sources
+
+## 0. Emphasis budget — read this first
+In short: the reference shows one thing at a time in plain black ink, and saves purple and red for the one thing that
+matters. Ours showed everything and emphasised everything, so nothing stood out — the owner's "AI slop" (2026-11-13).
+
+**Measured on the reference** (Productive Peter, "Life is Short", 202 frames, `~/2lab.ai/ARTIFACTS/docent/reference-peter/`):
+about half the frames hold one element (a figure, a prop, or a word alone on the page); almost none hold more than three.
+Most frames have no written word; a frame with a word has one. Lines are black; purple is only on the written word;
+red is a single X or ring, a few times a chapter; no clothes, fills or backgrounds; no burned-in subtitles; no chapter
+label in the corner. Our Elon Musk v2 and ten-books v2 frames held 5 to 12 things, 3 to 4 labels, coloured shirts,
+stalls and charts, up to 9 red X's at once, a subtitle sentence in every frame and a chip in the corner.
+
+**What may be emphasised** (written, purple, red, or coloured) — only these:
+1. The chapter's named idea (script.json `idea`): written once, after its picture; it may come back later.
+2. A number the viewer must remember (the hook number, the one statistic of the chapter).
+3. The chapter's one verdict: a red X on the wrong habit, or a red ring on the right choice — not both.
+4. A colour that is itself the meaning (a red heart, a magenta brain, a gold coin among grey ones): `colour: true`.
+
+**What is never emphasised** — draw it plain or leave it out: who is speaking (the look carries it), parts of a
+drawing (ingredients, axes, units, "price / margin / habit" rows), dates under every dot, a second or third term in a
+chapter, examples and sub-points, clothes and decoration (stripes, shading, backgrounds, motion lines that are not the
+verb), and the narration itself (no sentence on screen: subtitles go to YouTube as captions, `export.py srt`).
+
+**The budget, per shot** (lint `busy`, `words`, `marks`, `colour`): one subject plus at most two things around it;
+at most one written word (two only for a deliberate pair or a picture equation); at most one red mark; ink, plus purple
+on the written word and red on the mark. **Per chapter:** one named idea, red in about one shot (lint `mark-budget`),
+at most one or two bubbles. Before adding anything to a shot, ask: if I take it away, does the sentence still read? If
+yes, take it away.
+
+**Shot types the reference uses**, in roughly this order of frequency: a figure doing the sentence's verb, alone · one
+object or metaphor alone · a word alone on the page · a figure with one object · a picture equation (A = B) · a figure
+with a thought bubble holding one tiny drawing or word. A classroom board or a chapter sign appears once per chapter.
+
+**Defaults that enforce it** (docent.js): figures, cast looks, animals and props draw in ink — every colour inside them
+paints as ink or page (`colour: true` on the call keeps it). New sketch projects get `"subtitles": "off"` and
+`"chip": false`. Name tags are ink.
 
 ## 1. Picture rhythm
 - A new picture every 3 to 5 s (Productive Peter reference: 3.7 s). Never hold one longer than 8 s (lint: `long-hold`).
@@ -24,17 +60,20 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
   the 0.22 s overlap read as a double exposure in every probe).
 
 ## 2. People
+- People are plain stick figures, as in the reference. A look is a silhouette — height, hair, hat, beard, glasses, a
+  tie — never a colour or a coloured outfit (ink mode paints `accent` and outfit fills as ink and page anyway).
 - Every person in a book gets one fixed look, set once with `cast(id, look)` and drawn with `person(id, x, y, o)`. Two
   different people in one frame must never share a look (lint: `twins`; the same person twice, e.g. before/after, is
   fine); every crowd member that is not a person sets `crowd: true`. Two cast looks may not share hair and hat
-  (lint: `cast-similar`) — a different colour alone is not a different person.
+  (lint: `cast-similar`). Two people in a shot is common; three is a crowd scene and rare.
 - Silhouette test: fill each figure black; you must still tell who is who. Vary in this order: height (`h` 0.85 to
-  1.15), hair or hat (`short spiky curly long bun ponytail side bald`, `top cap beanie bowler crown laurel`), outfit
-  (`suit coat dress tshirt`), one accent colour (`red teal orange green magenta yellow purple`), then one prop
-  (glasses, beard). `hair: 'long'` reads as a woman on the sheet; for a long-haired man add a beard.
-- Name tag (`tag: true`) the first time a person appears in a chapter; then the look carries the identity. The tag is
-  the name the narration uses (never a bare "나"), sits beside the waist on the side the figure turns away from, at
-  42 px or more with a paper outline, dark enough to read (a light accent such as grey is darkened to 4.5:1). Tags are placed when the shot is complete (`docentTags()`): free side, other
+  1.15), hair or hat (`short spiky curly long bun ponytail side bald`, `top cap beanie bowler crown laurel`), then one
+  prop (glasses, beard, tie). No outfits or accent colours unless the outfit is the role (a toga, a lab coat) — then in
+  ink. `hair: 'long'` reads as a woman on the sheet; for a long-haired man add a beard.
+- Name tag (`tag: true`) only the first time the narration names a person in the whole video, and only in a shot with
+  no other written word (a tag is a word: lint `words`); then the look carries the identity. The running figure never
+  has a tag. The tag is the name the narration uses (never a bare "나"), in ink, beside the waist on the side the figure
+  turns away from, at 42 px or more with a paper outline. Tags are placed when the shot is complete (`docentTags()`): free side, other
   side, then above the head, whichever covers nobody — so people, animals, props and bubbles drawn later count (lint:
   `name tag over name tag`, `name tag over another figure or animal`). Clothes are opaque; the body line is under them.
 - A quote is acted by the person who said it, in their look; the running figure only asks and reacts.
@@ -46,6 +85,8 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
   head where it covers no face, no other figure and no earlier bubble, inside the safe frame, and aim the tail at the
   mouth (thought: puffs toward the head).
 - Draw every figure of the shot first, then the bubbles (placement avoids what is already registered).
+- One bubble per shot; a reply is the next shot. Bubbles are for the inner voice and the "most people say" line, not
+  for narrating what the picture already shows.
 - 1 to 6 words in a bubble (lint: `wordy-bubble` over 8). Never an empty bubble (lint: `empty-bubble`); a bubble with
   a picture inside passes `body`.
 - The tail must point at a head (lint: `tail-far`), the bubble must not cover a face (lint: `bubble-over-face`), text
@@ -63,6 +104,8 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - Each animal shows the 3 or 4 features people name it by (anteater: long tube snout, tiny head and eye, bushy tail
   as big as the body, thick clawed front legs, dark shoulder stripe). A new kind is added to `ANIMALS` in docent.js
   and passes the gallery gate (a stranger names it in 2 s) before any scene uses it.
+- Draw only the props the sentence needs: one metaphor object, not the room around it. Props are line art; their
+  built-in colours paint as ink and page unless the colour is the meaning (`colour: true`).
 - Props: `prop(name, …)`. A prop that stands in front of another gets `solid: true` (its shape is painted in the page
   colour first, so the one behind does not show through; its own parts and colours stay). Lint `prop-over-face` (P2)
   flags a prop whose box covers a face drawn before it: open the frame; `faceOk: true` when hiding a face is the joke. A missing animal, prop or pose is registered from scenes.js
@@ -70,7 +113,11 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
   sheet; the retro moves generic ones into docent.js.
 
 ## 5. Text
+- 0 or 1 written word or short phrase per shot (§0): the named idea, or the one number to remember. Most shots have
+  none. No labels on parts of a drawing, no dates under every point, no captions under objects (lint: `words`).
 - 1 to 5 handwritten words, never a sentence. Keywords 56 to 90 px. Subject 40 to 60 % of frame height.
+- No burned-in subtitles and no chapter chip on docent videos (`project.json` `"subtitles": "off"`, `"chip": false`):
+  the narration is the caption track (`export.py srt`), uploaded with the video.
 - Nothing under y = 905 (subtitle box) (lint: `subtitle-zone`), nothing off the frame (lint: `off-frame`).
 - On `sketch`, `C.blue` is the purple keyword colour: use `C.teal` for water, rain and sky details.
 - Math and science books on `mono-black`: lead with the 3b1b devices (formula write-on, one running example, as in
@@ -81,13 +128,15 @@ Map: 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text 
 - One idea per shot, one focal point. Main subject ≥ 30 % of frame height (lint: `small-subject` when everything drawn
   fits in less than 30 % of the height and half the width).
 - Two or three people: spread over the width (x ≈ 520 / 1180 / 1480), feet on one ground line (y 860 to 880).
-- Use the height: something drawn above y ≈ 450 in every shot with people — the named idea, a thought, a sky, a
-  building, or a bigger subject (lint: `bottom-heavy`, P2; four of five verification clips left the top 40 % empty).
+- Empty page is the default, not a defect: the reference leaves most of the frame blank. Do not fill the top of the
+  frame to "use the height" (that rule and its `bottom-heavy` check were removed on 2026-11-13: they added things to
+  every shot). Make the one subject big enough instead.
 - Things stand on what holds them: a whale in the water, a town on its hill, feet on the ground line, a board's legs
   on the floor, a phone in a hand or on a table, a building on the line the people stand on. The lint cannot see
   support: Gate C asks it for every shot (the most common P2 of the 2026-11-10 v2 reviews).
 - A thing in front of lines is opaque: animals are; a prop needs `solid: true` (money bags, bowls, phones).
 - Do not repeat the same shot template three shots in a row.
+- Lines only: no background scenery, no ground textures, no shading; a ground line only when something stands on it.
 
 ## 7. Music
 Built by `tools/library_score.py` from `music/library.json`: recorded, human-composed CC BY tracks (README "Music").
@@ -125,8 +174,10 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
    someone looks at every `out/lint_sheet*.jpg` page (every rest frame): lint cannot see a wrong metaphor, a roof that does not
    meet its wall, or an arm through a prop.
 3. **Contact sheets** — stills at every sentence start + 0.8 s and end − 0.3 s; a fresh reviewer looks at every sheet
-   and answers per sentence: is its verb drawn? does every tail end at a mouth? is any tag on someone else? is the top
-   of the frame used? does anything float (a whale over the water, a hill over its line)?
+   next to a reference sheet (`reference-peter/sheets/`) and answers per sentence: where does the eye land first, and
+   is that the thing the sentence is about? could one thing be removed and the sentence still read? is anything
+   emphasised (purple, red, colour, size) that is not the named idea, the number or the verdict? is its verb drawn?
+   does every tail end at a mouth? is any tag on someone else? does anything float (a whale over the water)?
    Voice: `audio_check.py --sentences` (numbers normalised, names from project.json `names`): every sentence `ok`.
 4. **Music** — `out/cue_sheet.md`: distinct tracks = sections, moods that fit; `out/music_credits.txt` in the
    description; `mix_check.py` exits 0 (20–22 dB under the voice, swell ≤ 6 dB,

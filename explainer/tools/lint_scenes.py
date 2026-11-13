@@ -15,6 +15,10 @@ P1  half-drawn element at rest; faded "ghost" element (a < 0.55); ink under the 
 P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at the frame); a picture held longer than 8 s; a shot shorter than 1.2 s; a scene without shots();
     two or more people in one frame and one of them without a cast look; two cast looks with the same silhouette
     (hair and hat), so they differ only by colour
+Emphasis budget (docent.js counts what each top-level call drew; REFERENCE.md §0):
+P1  busy: 5+ things in one frame · words: 3+ written words or labels · marks: 2+ red marks
+P2  busy: 4 things · words: 2 · colour: any colour besides ink, purple and red · mark-budget: red in more shots than
+    about one per 45 s of a scene
 """
 import asyncio, base64, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -49,8 +53,16 @@ def judge(r):
     ink = r.get('ink')
     if ink and not r.get('textBig') and (ink[3] - ink[1]) < 0.3 * 1080 and (ink[2] - ink[0]) < 0.5 * 1920:
         out.append(('P2', 'small-subject', f"everything drawn fits in {int(ink[2] - ink[0])}x{int(ink[3] - ink[1])} px (< 30 % of the height): draw the subject bigger"))
-    if ink and not r.get('textBig') and ink[1] > 0.42 * 1080 and r.get('figures'):
-        out.append(('P2', 'bottom-heavy', f"nothing drawn above y {int(ink[1])}: the top 42 % is empty — bigger subject, higher ground, or the named idea above"))
+    # emphasis budget (2026-11-13, owner: "the reference is minimal; you show too much and emphasise everything"):
+    # one thing per shot plus at most two around it, one written word, one red verdict, ink plus purple and red only.
+    # (bottom-heavy, which asked to fill the top of every frame, is gone: empty page is the reference's default.)
+    things, words, marks, colours = r.get('things') or [], r.get('words') or [], r.get('marks') or [], r.get('colours') or []
+    if len(things) >= 5: out.append(('P1', 'busy', f"{len(things)} things compete for the eye ({', '.join(things[:7])}): one subject, at most two around it — cut what the sentence can do without"))
+    elif len(things) == 4: out.append(('P2', 'busy', f"4 things on screen ({', '.join(things)}): can one go?"))
+    if len(words) >= 3: out.append(('P1', 'words', f"{len(words)} written words or labels ({' / '.join(words[:5])}): write only the named idea or the one number to remember"))
+    elif len(words) == 2: out.append(('P2', 'words', f"2 written words ({' / '.join(words)}): fine for a deliberate pair or equation, otherwise keep one"))
+    if len(marks) >= 2: out.append(('P1', 'marks', f"{len(marks)} red marks ({', '.join(marks)}): one verdict per shot — the red means 'this one'"))
+    if colours: out.append(('P2', 'colour', f"colours besides ink, purple and red: {', '.join(colours[:6])} — paint only what the colour means (`colour: true` on that call), the rest in ink"))
     return out
 
 async def main(only, strict):
@@ -61,7 +73,7 @@ async def main(only, strict):
     async with async_playwright() as pw:
         browser, page, errs = await open_page(pw, port)
         # the project's engine copy must match these checks (an older docent.js silently skips the newer ones)
-        stale = await page.evaluate("typeof DOCENT_KINDS === 'undefined' || !DOCENT_KINDS.includes('faces') || typeof docentReport !== 'function'")
+        stale = await page.evaluate("typeof DOCENT_KINDS === 'undefined' || !DOCENT_KINDS.includes('things') || typeof docentReport !== 'function'")
         if stale:
             await browser.close(); srv.shutdown()
             print('[P0] the project\'s engine/docent.js is older than this lint: run tools/new_video.py <project> to refresh it, then lint again')
@@ -88,8 +100,10 @@ async def main(only, strict):
                     if 0 < held < 1.2 and k + 1 < len(ts): report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'short-shot', f'shot only {held:.1f}s')]})
                 shots_out[sc['id']] = ts
             # 2. judge each rest frame
+            marked = []
             for t in rest:
                 r = await page.evaluate('(t) => { renderAt(t); return docentReport(); }', t)
+                if r.get('marks'): marked.append(round(t, 2))
                 thumbs.append((sc['id'], t, await page.evaluate("() => document.getElementById('c').toDataURL('image/jpeg', 0.7).slice(23)")))
                 iss = judge(r)
                 if iss:
@@ -97,6 +111,9 @@ async def main(only, strict):
                     if any(s in ('P0', 'P1') for s, _, _ in iss):
                         b64 = await page.evaluate("(t) => { renderAt(t); return document.getElementById('c').toDataURL('image/jpeg', 0.85).slice(23); }", t)
                         open(os.path.join(OUT, 'lint', f"{sc['id']}_{t:07.2f}.jpg"), 'wb').write(base64.b64decode(b64))
+            budget = max(1, round((end - body0) / 45))   # about one red verdict per chapter, more only in a long one
+            if len(marked) > budget:
+                report.append({'scene': sc['id'], 't': marked[0], 'issues': [('P2', 'mark-budget', f"red marks in {len(marked)} shots ({marked[:6]}), budget {budget}: keep red for the chapter's one verdict")]})
         miss = await page.evaluate('[...MISS].concat(window.missingCues ? window.missingCues() : [])')
         cast = await page.evaluate('typeof CAST === "object" ? CAST : {}')
         await browser.close()

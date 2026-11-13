@@ -258,9 +258,11 @@ function renderAt(t) {
     SCENES[sc.id](t, q, sc);
     if (typeof docentTags === 'function') docentTags();   // name tags not placed by shots() yet
     ctx.restore();
-    chip(sc.chip, body * 0.95);
+    if (PROJECT.chip !== false) chip(sc.chip, body * 0.95);   // docent projects: false (the reference has no chapter chip)
   }
-  // subtitles
+  // subtitles: burned in unless project.json "subtitles": "off" (docent: the narration goes to YouTube as captions,
+  // export.py srt; a sentence on screen under a drawing is the 'too much on screen' the owner called AI slop, 2026-11-13)
+  if (PROJECT.subtitles === 'off') return;
   const sents = sc.sentences;
   for (let k = 0; k < sents.length; k++) {
     const s = sents[k]; const sEnd = s.start + s.dur;
