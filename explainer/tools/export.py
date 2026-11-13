@@ -203,33 +203,43 @@ def cover_warnings(rep):
     if not rep: return []
     out, texts = [], rep.get('texts') or []
     if not texts: out.append('no coverText(): a cover without words gave reviewers nothing to read at 168 px (research 2026-11-14)')
+    total = sum(t['chars'] for t in texts)
+    if total > 8: out.append(f"cover text is {total} characters in all ({' / '.join(t['str'] for t in texts)}): keep ≤ 8, it must read at 168 px")
     for t in texts:
-        if t['chars'] > 8: out.append(f"\"{t['str']}\" is {t['chars']} characters (keep ≤ 8: it must read at 168 px)")
         if t['size'] < 160: out.append(f"\"{t['str']}\" is {t['size']} px (use 200-320 at 1080p; under 160 it blurs at 168 px)")
-    ink = rep.get('ink')
+    ink = rep.get('ink')   # the drawing only: coverText() words are not counted
+    if not ink: out.append('nothing drawn but words: one subject (a figure doing the hook\'s verb, or one object) must fill ≥ 50 % of the height')
     if ink and (ink[3] - ink[1]) < 0.5 * rep['H']: out.append(f"ink spans {100 * (ink[3] - ink[1]) / rep['H']:.0f} % of the height (make the subject bigger: ≥ 50 %)")
     if ink and (ink[1] < 12 or ink[0] < 12 or ink[2] > rep['W'] - 12):
         out.append('something touches the top or a side edge: a head or a stem cut by the frame reads as something else (only the bottom edge may cut the subject)')
     return out
 
 def corner_ink(png):
-    """Share of dark pixels in the bottom-right 330 × 140 px of a 1920 × 1080 cover, where YouTube draws the running time."""
+    """Share of the bottom-right 330 × 140 px of a 1920 × 1080 cover (where YouTube draws the running time) that is not
+    page: measured against the cover's own page colour, so a dark page (mono-black) is not counted as ink."""
     from PIL import Image
-    im = Image.open(png).convert('L'); w, h = im.size
-    box = im.crop((w - int(330 * w / 1920), h - int(140 * h / 1080), w, h))
-    hist = box.histogram()
-    return sum(hist[:90]) / max(1, sum(hist))
+    im = Image.open(png).convert('RGB'); w, h = im.size
+    pr, pg, pb = page_colour(im)
+    b = im.crop((w - int(330 * w / 1920), h - int(140 * h / 1080), w, h)).tobytes()
+    px = [(b[i], b[i + 1], b[i + 2]) for i in range(0, len(b), 3)]
+    return sum(abs(r - pr) + abs(g - pg) + abs(bl - pb) >= 60 for r, g, bl in px) / max(1, len(px))
 
 PAGE_MAX = 0.75   # verification 2026-11-14: covers with 77-84 % bare page scored focal 3-4 of 5; the one at 65 % scored 5
+
+def page_colour(im):
+    """The cover's page: its most common colour (5-bit bins) on a 320 × 180 copy."""
+    from collections import Counter
+    b = im.convert('RGB').resize((320, 180)).tobytes()
+    return tuple(c * 8 + 4 for c in Counter((b[i] >> 3, b[i + 1] >> 3, b[i + 2] >> 3) for i in range(0, len(b), 3)).most_common(1)[0][0])
 
 def page_share(png):
     """Share of a cover that is bare page: pixels within a small distance of its most common colour, on a 320 × 180 copy.
     Pale fills count as page: at 168 px wide they vanish into it (fills measured 1.45:1 against the page)."""
     from PIL import Image
-    from collections import Counter
-    b = Image.open(png).convert('RGB').resize((320, 180)).tobytes()
+    im = Image.open(png).convert('RGB')
+    pr, pg, pb = page_colour(im)
+    b = im.resize((320, 180)).tobytes()
     px = [(b[i], b[i + 1], b[i + 2]) for i in range(0, len(b), 3)]
-    pr, pg, pb = (c * 8 + 4 for c in Counter((r >> 3, g >> 3, bl >> 3) for r, g, bl in px).most_common(1)[0][0])
     return sum(abs(r - pr) + abs(g - pg) + abs(bl - pb) < 40 for r, g, bl in px) / len(px)
 
 async def render_slice(port, f0, f1, path):

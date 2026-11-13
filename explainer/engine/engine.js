@@ -235,6 +235,7 @@ let TITLE_CARD = null;
 // Optional YouTube cover: scenes.js may set COVER = () => {...} to draw one composed frame, not a still of the video
 // (REFERENCE §10, TEMPLATES "Cover"). export.py cover calls renderCover() at 1920x1080 and saves it at 1280x720.
 let COVER = null;
+var COVER_B = null, COVER_C = null;   // var: a strict-mode scenes.js can assign them, and renderCover finds them on window
 // renderCover('COVER_B') draws a second cover for Test & Compare (export.py cover renders every COVER, COVER_B, COVER_C)
 function renderCover(name = 'COVER') {
   const fn = name === 'COVER' ? COVER : (typeof window[name] === 'function' ? window[name] : null);

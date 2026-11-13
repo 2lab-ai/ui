@@ -1,6 +1,7 @@
 """Unit tests for title_check.py's offline parts (form lint, hook, keyword bar, off-topic). python -m unittest"""
 import os, sys, unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import title_check  # noqa: E402
 from title_check import hook_of, is_small_hit, lint, off_topic, passes_bar
 
 
@@ -28,6 +29,40 @@ class Form(unittest.TestCase):
         self.assertIn('long', codes('가' * 56))
         self.assertIn('hook-long', codes('나' * 31 + ' — 책'))
         self.assertEqual(hook_of('질문인가요? — 책 | 저자'), '질문인가요?')
+
+    def test_a_name_is_not_a_hook(self):   # trinity review: 법 inside a word and a bare number used to pass
+        self.assertIn('no-hook', codes('방법서설 — 데카르트'))
+        self.assertIn('no-hook', codes('1984 — 조지 오웰'))
+        self.assertNotIn('no-hook', codes('습관을 만드는 법 — 아주 작은 습관의 힘'))
+        self.assertNotIn('no-hook', codes('세 번 터졌다 — 일론 머스크'))
+        self.assertNotIn('no-hook', codes('37배 차이 — 작은 습관'))
+
+    def test_one_label_per_place(self):   # "도슨트북" matched two patterns and was reported twice
+        self.assertEqual(sum(c == 'label' for c, _ in lint('그릿 — 도슨트북')), 1)
+        self.assertEqual(sum(c == 'label' for c, _ in lint('그릿 (20분 도슨트북)')), 2)   # the running time and the format
+
+
+class Strict(unittest.TestCase):
+    def test_strict_needs_a_keyword(self):
+        with self.assertRaises(SystemExit) as e: title_check.main(['시간이 샌다면 — 책', '--strict'])
+        self.assertEqual(e.exception.code, 1)
+        with self.assertRaises(SystemExit) as e: title_check.main(['시간이 샌다면 — 책', '--strict', '--keyword', '시간', '--no-net'])
+        self.assertEqual(e.exception.code, 1)
+
+    def test_failed_subscriber_lookups_are_not_cached(self):
+        import tempfile, json
+        old_cache, old_ytdlp = title_check.CACHE, title_check.ytdlp
+        title_check.CACHE = tempfile.mkdtemp()
+        def flaky(*a):
+            if a[-1].endswith('/ok'): return {'channel_follower_count': 5}
+            raise RuntimeError('timeout')
+        title_check.ytdlp = flaky
+        try:
+            got = title_check.subs_of(['ok', 'bad'])
+            self.assertEqual(got, {'ok': 5, 'bad': None})
+            self.assertEqual(json.load(open(os.path.join(title_check.CACHE, 'subs.json'))), {'ok': 5})
+        finally:
+            title_check.CACHE, title_check.ytdlp = old_cache, old_ytdlp
 
 
 class Demand(unittest.TestCase):

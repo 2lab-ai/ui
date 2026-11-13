@@ -24,7 +24,7 @@ explainer/
 │   ├── padcut.py        cuts the filler ("아아. [pause] … [pause] 아아.") off each take
 │   ├── ko_say.py        Korean spoken form: digits, symbols and Latin letters -> Hangul before the TTS
 │   ├── cwon_say.py      one-off voice clip (no video): text -> padded, cut, ear-checked cwon wav/mp3
-│   ├── narrate_edge.py  fallback narration with edge-tts when the GPU host is down
+│   ├── narrate_edge.py  fallback narration with edge-tts when the GPU host is down (never for the letter concept: cwon only, docent/CONCEPTS.md)
 │   ├── render_formulas.py  formulas.py -> formulas.json (Computer Modern glyph outlines)
 │   ├── music.py         original D-major piano + pad score, peak 0.8 (math videos)
 │   ├── music_lib.py     the cue library: 120 original cues in 12 moods, MIDI by code -> fluidsynth

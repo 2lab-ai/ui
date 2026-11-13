@@ -242,7 +242,7 @@ spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면
   concept the subject is whoever has the hook's problem — usually the listener, not the narrator.
 - Only the bottom edge may cut the subject: a head or a stem cut by the top edge reads as something else (a cut apple
   read as a moon). `export.py cover` warns.
-- Cover text: ≤ 8 characters (3–6 is best), 200–320 px at 1080p, ink with the paper halo. It adds to the title — the
+- Cover text: ≤ 8 characters in all lines together (3–6 is best), 200–320 px at 1080p, ink with the paper halo. It adds to the title — the
   feeling or the stake ("시간이 샌다", "왜 나만?") — and never repeats the title or gives away the answer.
 - Show the tension, not the payoff: the empty clock, the stuck figure, the tilted ladder. The answer is the video.
 - `coverPage()` paints a deeper page than the video's: the video's pale blue is 1.6:1 against YouTube's white.

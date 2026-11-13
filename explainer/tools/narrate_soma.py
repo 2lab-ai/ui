@@ -208,14 +208,26 @@ TURN_S = float(os.environ.get('SOMA_VOICE_TURN_S', '40'))   # wait per turn befo
 
 
 def live_job(tmp):
-    """The job this folder's last run submitted, if the server still has it running or finished (jobs live in memory:
-    a service restart forgets them, and then a new job is submitted)."""
+    """The job this folder's last run submitted, if the server still has it running or finished. None when there is
+    none to resume: no job.json, the server answers 404 (a restart forgot it) or the job failed. Any other error (a
+    timeout, a 5xx) is retried and then stops the run: it is no proof the job is gone, and submitting it again would
+    run the same scene twice on a shared GPU."""
     try:
         job = json.load(open(os.path.join(tmp, 'job.json')))['job']
-        st = http('GET', f'/api/jobs/{job}')
-        return job if JOB_ID.match(job) and st.get('status') in ('pending', 'queued', 'running', 'succeeded', 'completed') else None
-    except Exception:
+    except (OSError, ValueError, KeyError, TypeError):
         return None
+    if not isinstance(job, str) or not JOB_ID.match(job): return None
+    for attempt in range(3):
+        try:
+            st = http('GET', f'/api/jobs/{job}')
+            return job if st.get('status') in ('pending', 'queued', 'running', 'succeeded', 'completed') else None
+        except urllib.error.HTTPError as e:
+            if e.code == 404: return None
+            err = e
+        except (OSError, ValueError) as e:   # URLError and timeouts are OSErrors
+            err = e
+        time.sleep(5 * (attempt + 1))
+    sys.exit(f'job {job}: could not ask the voice server whether it is still running ({err}); re-run when it answers')
 
 
 def run_jobs_http(texts, seed, tag):

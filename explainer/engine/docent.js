@@ -315,7 +315,9 @@ function coverPage(color = null) {
 }
 function coverText(str, x, y, { size = 240, color = null, align = 'center', rot = 0 } = {}) {
   COVER_INFO.texts.push({ str: String(str), chars: [...String(str).replace(/\s/g, '')].length, size });
+  const k = DOCENT.ink;   // the words do not count as the subject: export.py checks the drawing's height
   hand(str, x, y, { size, color: color || INK(), align, rot, halo: true, weight: 700 });
+  DOCENT.ink = k;
 }
 
 // ---------- handwritten text ----------

@@ -51,6 +51,9 @@ the question (why → how → what to try). Introduce each book where it first a
 - Cast: the narrator is the running figure (one fixed look, never tagged, e.g. `hair: 'long'`). The listener gets a
   plain look of their own and appears when the narrator addresses him ("오빠도 이런 적 있잖아요" → draw him doing it).
   Authors and people in the books follow REFERENCE §2.
+- Health topics: the listener is never drawn as the person who has the condition, nor labelled with a symptom. "ADHD가
+  있는 어른은 …" is a plain crowd figure (`figure(…, { crowd: true })`), not the listener: the narrator says "오빠가
+  ADHD라는 얘기는 아니에요", and a picture must not say otherwise (Gate C, 2026-11-14: P0).
 - Chapter cards: `TITLE_CARD = signCard` with the narrator holding the sign. An envelope or letter prop for the
   opening and the close is enough; do not draw a letter in every shot.
 - Music moods lean `warm`, `reflective`, `nostalgic`, with `curious` for the explanations (REFERENCE §7).
@@ -60,8 +63,8 @@ the question (why → how → what to try). Introduce each book where it first a
 The style of the first docent videos (괴델·에셔·바흐, 일론 머스크, 생각을 바꾸는 책 10권, 스토아). A guide explains the
 book to a smart adult viewer.
 - 해요체, second person, short sentences whose verb can be drawn (SKILL §2).
-- Format by book type: the matrix in the skill (§1): numbered lessons, story then lecture, turning points, reading
-  guide, Socratic Q&A, lecture with one running example, gallery tour, tour with dialogues.
+- Format by book type: the matrix below (numbered lessons, story then lecture, turning points, reading guide,
+  Socratic Q&A, lecture with one running example, gallery tour, tour with dialogues).
 - Opening: a felt number, the common confusion, the one question, a promise, the running figure. Each chapter: one
   question answered, one named idea, one everyday metaphor, one inner-voice objection answered, a hand-over line.
   Ending: callback, one-sentence chain, one thing to try.
@@ -88,7 +91,7 @@ Chapters per 10/20/30 min: about 5/9/12 (fiction and science 4/7/10).
 
 ## Choosing
 
-- No `concept` given → letter.
-- The owner names the lecture style, or the book is a reference work best taught as a lesson (a math or physics
-  explainer) → lecture.
+- No `concept` given → letter, for every kind of book. A math or science book keeps the letter: its chapters follow
+  the lecture-style shape in the matrix above, told by the narrator.
+- Lecture only when the owner asks for it ("강의형", "concept=lecture", "예전 스타일").
 - Never mix the two in one video. The narrator either writes to someone or lectures to everyone.
