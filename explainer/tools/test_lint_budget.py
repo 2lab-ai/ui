@@ -47,5 +47,19 @@ class Budget(unittest.TestCase):
         self.assertEqual(codes(frame(ink=[700, 480, 1200, 880], figures=1, things=['person#0'])), set())
 
 
+class EngineSource(unittest.TestCase):
+    """A statement written after a trailing // comment is dead code: twice an edit appended a comment to a line and
+    swallowed the registrations after it (docent.js 2026-11-13: a SyntaxError, then figs/mouths silently gone)."""
+    def test_no_statement_after_a_trailing_comment(self):
+        import re
+        code = re.compile(r'\b[A-Za-z_$][\w$.]*\.push\(|\);\s*[A-Za-z_$][\w$.]*(\.[\w$]+)+\(')
+        bad = []
+        for rel in ('engine/docent.js', 'engine/engine.js', 'noderender/page.js'):
+            for i, line in enumerate(open(os.path.join(HERE, '..', rel), encoding='utf-8'), 1):
+                m = re.search(r'(?<![:\'"])//(?![\'"])', line)
+                if m and line[:m.start()].strip() and code.search(line[m.end():]): bad.append(f'{rel}:{i}')
+        self.assertEqual(bad, [], 'code after a trailing // comment never runs: put the comment on its own line')
+
+
 if __name__ == '__main__':
     unittest.main()

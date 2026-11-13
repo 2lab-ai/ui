@@ -218,6 +218,18 @@ const m = person('musk', 700, 870, { pose: 'akimbo', p: dp(lt, 0, 0.5) }); armor
 Scale from the anchors, not from a guessed `s` (the first armour, sized for r = 34, covered the arms of a tall figure).
 Show it once on a still at Gate A, on a tall adult and on a child.
 
+## T15. Seated figure (chair, armchair, bench)
+`figure({ sit: true })` puts the hip at y - 100 s, lays the thighs flat and bends the knees at x + 64 s (feet at
+x + 64 to 74 s). A seat as deep as the thighs hides them on its top edge and turns the shins into a third chair leg:
+the seat stops at x + 34 s. The kit `chair` at 1.4 s puts its front leg at x + 56 s, so draw this one instead:
+```js
+const sideChair = (x, y, s, o) => inkPoly([[x - 38 * s, y - 232 * s], [x - 38 * s, y], [x - 38 * s, y - 100 * s],
+                                          [x + 34 * s, y - 100 * s], [x + 34 * s, y]], o);   // sitter faces right
+sideChair(x, y, s, { p: dp(lt, 0, 0.4) });                          // the chair first, so the thighs lie on top
+person('viewer', x, y, { s, sit: true, pose: 'hold', p: dp(lt, 0.1, 0.5) });
+```
+Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118 s).
+
 ## Placement notes
 - Draw people in any order, bubbles last: name tags are placed when the shot is complete (`docentTags()`), clear of
   every figure, animal, prop, board and bubble in it. Force a side with `tag: true, tagSide: 'left' | 'right'`.

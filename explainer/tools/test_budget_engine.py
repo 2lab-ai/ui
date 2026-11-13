@@ -24,6 +24,9 @@ SCENES.s = (t, q) => shots(t, [
   [4.0, (t, lt) => { scrollList(600, 150, 600, '규칙', ['하나', '둘', '셋', '넷'], { mark: [2] }); }],
   [6.0, (t, lt) => { inkPath([[300, 300], [600, 700]], { color: MARK(), w: 6 }); cross(900, 300, 200, 200); }],
   [8.0, (t, lt) => { hand('나', 500, 400); hand('너', 900, 400); hand('우리', 1300, 400); }],
+  [11.0, (t, lt) => { person('a', 700, 880, {}); prop('clock', 700, 760, 1.0); }],
+  [13.0, (t, lt) => { person('a', 700, 880, {}); prop('clock', 700, 760, 1.0, { bodyOk: true }); prop('openbook', 1300, 800, 1.0); person('b', 1300, 880, {}); prop('openbook', 1300, 800, 1.0); }],
+  [15.0, (t, lt) => { person('a', 500, 880, {}); prop('clock', 500, 820, 2.4, { faceOk: true }); person('b', 1300, 880, {}); prop('stairs', 1180, 900, 2.0); }],
 ]);
 """
 
@@ -50,8 +53,8 @@ class BudgetOnEngine(unittest.TestCase):
         cls.proj = tempfile.mkdtemp()
         for f in ('engine.js', 'docent.js', 'video.html'): shutil.copy(os.path.join(EX, 'engine', f), cls.proj)
         th = new_video.theme('sketch'); json.dump({k: v for k, v in th.items() if k != 'fontFiles'}, open(os.path.join(cls.proj, 'theme.json'), 'w'))
-        sents = [{'text': '가', 'start': 0.1, 'end': 9.5, 'dur': 9.9}]
-        json.dump({'total': 10, 'scenes': [{'id': 's', 'chip': '1', 'title': 't', 'subtitle': '', 'start': 0, 'lead': 0, 'dur': 10,
+        sents = [{'text': '가', 'start': 0.1, 'end': 16.5, 'dur': 16.9}]
+        json.dump({'total': 17, 'scenes': [{'id': 's', 'chip': '1', 'title': 't', 'subtitle': '', 'start': 0, 'lead': 0, 'dur': 17,
                                             'sentences': sents, 'words': []}]}, open(os.path.join(cls.proj, 'timeline.json'), 'w'))
         open(os.path.join(cls.proj, 'scenes.js'), 'w').write(SCENES)
 
@@ -69,6 +72,18 @@ class BudgetOnEngine(unittest.TestCase):
     def test_counts_reset_every_frame(self):
         self.assertEqual(report(self.proj, 9.5, False, before=5.5)['listItems'], 0)
         self.assertEqual(report(self.proj, 1.5, False, before=9.5)['words'], ['내 판단'])
+
+    def test_people_register_as_figures(self):   # PR #64 round 1: a trailing comment swallowed figs.push and mouths.push
+        r = report(self.proj, 12.5, False)
+        self.assertEqual(len(r['people']), 1)
+        self.assertEqual(r['figures'], 1)
+
+    def test_prop_over_a_torso(self):   # an hourglass or clock for a chest (Stoic run Gate C)
+        self.assertTrue(report(self.proj, 12.5, False)['propBody'])
+        self.assertEqual(report(self.proj, 14.5, False)['propBody'], [])   # bodyOk: hugging it is the point; a book held to read
+        big = report(self.proj, 16.5, False)['propBody']   # a giant clock still counts (faceOk only skips the face test);
+        self.assertEqual(len(big), 1, big)                  # stairs beside the figure, centred elsewhere, do not
+        self.assertIn("'clock'", big[0])
 
     def test_hand_drawn_red_line_is_a_mark(self):
         self.assertEqual(sorted(report(self.proj, 7.5, False)['marks']), ['cross', 'red line'])
