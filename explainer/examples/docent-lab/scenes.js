@@ -7,6 +7,8 @@ cast('cfo',    { name: '재무 담당', hair: 'ponytail', h: 0.95 });
 cast('gent',   { name: '신사', hat: 'top', mustache: true, h: 1.1 });
 cast('marcus', { name: '아우렐리우스', hat: 'laurel', hair: 'short', beard: true, h: 1.05 });
 cast('viewer', { name: '나', hair: 'side' });   // the running figure: no tag, ever
+cast('me',     { name: '나', hair: 'long', h: 0.94 });                      // the letter's narrator: never tagged
+cast('oppa',   { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the letter's listener
 
 // T2 dialogue · T3 two more people · T7 animal · T4 inner voice
 SCENES.talk = (t, q) => shots(t, [
@@ -110,6 +112,20 @@ SCENES.idea = (t, q) => shots(t, [
   [q.s(1), (t, lt) => {
     const v = person('marcus', 760, 880, { pose: 'think', face: 'think', p: dp(lt, 0, 0.5) });
     think(v, null, { w: 420, h: 260, p: dp(lt, 0.5, 0.4), body: (x, y) => hand('내 판단', x + 210, y + 130, { size: 64 }) });
+  }],
+]);
+
+// Letter places (TEMPLATES "Letter places", CONCEPTS letter): her night desk, his room, the letter page
+SCENES.letter = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => letterNight({ p: dp(lt, 0, 1.2), t, pen: 1, write: lt })],
+  [q.s(1), (t, lt) => {   // his day turns into evening: the sky darkens, the sun sinks, the clock runs on
+    const e = dp(t, q.w('정신을', 1), 1.4), late = e > 0.6;
+    letterRoom({ p: dp(lt, 0, 1.0), t, night: e, sunY: e * 1.3, time: [9 + Math.round(10 * e), 0], pose: late ? 'facepalm' : 'deskType', face: late ? 'surprised' : 'smile' });
+  }],
+  [q.s(2), (t, lt) => {   // the idea is sketched on the letter, inside the box the sheet returns
+    const b = letterSheet({ p: dp(lt, 0, 0.6), lines: 1, seed: 2 });
+    onSheet(() => prop('clock', b.x + 300, b.y + b.h - 10, 2.2, { p: dp(lt, 0.4, 0.6), fill: PAPER() }));   // PAPER() is the letter's cream here
+    hand('새는 시간', b.x + b.w - 260, b.y + 170, { size: 104, p: dp(t, q.w('새어', 2), 0.8) });
   }],
 ]);
 

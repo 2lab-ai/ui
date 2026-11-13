@@ -10,7 +10,7 @@ one written word, at most one red mark, ink only. When a sentence seems to need 
 
 Map: S script.json · T1 cast block · T2 dialogue · T3 three people · T4 inner voice · T5 named idea · T6 picture
 equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd · T12 a poem on the wall · T13 a chart
-with a break · A adding an asset · C one-scene clip · Cover the YouTube thumbnail
+with a break · A adding an asset · C one-scene clip · P letter places · Cover the YouTube thumbnail
 
 ## S. script.json fields that drive pictures and music
 ```json
@@ -240,17 +240,59 @@ Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118
   (`p: dp(lt, 0, 0.5)`), labels and details after. Word-timed parts (`o('word', k, q.s(k))`) move with it.
 - Bubbles keep clear of props and boards (they reserve their box), so draw the props of a shot before its bubbles.
 
+## P. Letter places (concept letter: her night desk, his room, the letter page)
+A letter video has two kinds of shots (CONCEPTS letter, "Pictures"): room shots, with the narrator or the listener big
+in one place that stays for the chapter, and letter-page shots, with the idea sketched on a sheet of letter paper. The
+kit draws the places, so every chapter starts in the same rich room instead of a bare desk:
+- `letterNight(o)`: her night desk. A bookcase, the night window, lamp light on the letter, tea steaming, and her at
+  s 2.15 facing right. Returns `{ me, top, hand }`.
+- `letterRoom(o)`: his room. A window, a desk with his laptop, a wall clock (`time: [h, m]`) and a door, with him at
+  s 2.05 facing left. Returns him.
+- `letterSheet(o)`: a cream letter page filling the frame. Returns the box `{ x, y, w, h }` for the idea.
+
+The cast keys default to `'me'` and `'oppa'`; pass `who:` for others. The pieces are kit functions too: `nightWindow`,
+`deskLamp` with `lampGlow`, and `bookcase`. The seated poses are `deskWrite`, `deskChin`, `deskRead`, `deskShow`,
+`deskPalms`, `deskFinger` and `deskType`.
+```js
+cast('me',   { name: '나', hair: 'long', h: 0.94 });                       // the narrator: never tagged
+cast('oppa', { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the listener
+SCENES.letter = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => letterNight({ p: dp(lt, 0, 1.2), t, pen: 1, write: lt })],   // she writes: the line on the letter grows
+  [q.s(1), (t, lt) => {   // a room shot: his day turns into evening in the window, the clock runs on, he notices late
+    const e = dp(t, q.w('정신을', 1), 1.4), late = e > 0.6;
+    letterRoom({ p: dp(lt, 0, 1.0), t, night: e, sunY: e * 1.3, time: [9 + Math.round(10 * e), 0], pose: late ? 'facepalm' : 'deskType', face: late ? 'surprised' : 'smile' });
+  }],
+  [q.s(2), (t, lt) => {   // a letter-page shot: the idea sketched inside the box, then its name
+    const b = letterSheet({ p: dp(lt, 0, 0.6), lines: 1, seed: 2 });
+    onSheet(() => prop('clock', b.x + 300, b.y + b.h - 10, 2.2, { p: dp(lt, 0.4, 0.6), fill: PAPER() }));   // PAPER() is the letter's cream here
+    hand('새는 시간', b.x + b.w - 260, b.y + 170, { size: 104, p: dp(t, q.w('새어', 2), 0.8) });
+  }],
+]);
+```
+- Hold a shot for 6 to 15 s and change one thing per sentence inside it: the pose (`deskWrite` → `deskChin`), the face,
+  `look: 1` (her eyes go to the window), `night` and `sunY` (the day passing), `pile` (books on her desk), or `write`.
+- `letterNight`'s `me` takes a bubble (`think(me, null, { side: 'right', body })`) or a prop at `me.hands`. `hand` is
+  her pencil hand.
+- On the sheet, stand things on `b.y + b.h`, and draw them inside `onSheet(() => …)`. Without it, figures and props
+  fill with the blue page, so heads and clock faces on the cream letter come out blue.
+- For the budget, a room counts as two things, the setting and its person, however many pieces it draws. Add one
+  more at most (a prop in a hand or a bubble): a fourth thing is lint `busy`. The letter page counts nothing; what is
+  sketched on it counts as usual.
+- A place the chapter needs that the kit lacks (a clinic, a subway car): build it from the same pieces, on the same
+  ground line (`DOCENT_LETTER.ground`, 870) and with a `nightWindow`, so it looks like the rest of the video.
+
 ## Cover. The YouTube thumbnail (REFERENCE §10)
 One frame composed for 168 px **in the video's own look**: the page colour, the line, the cast and a place from the
 video, re-arranged so the subject is big and the text has room. Draw it at the end of `scenes.js` with the video's
 own place helpers; `export.py cover` renders it to `out/cover.jpg` (1280×720) and `out/cover_check.jpg`, and prints a
 `WARNING cover:` line for each limit it breaks.
 ```js
+POSES.coverHead = { la: [[40, 54], [96, 74]], ra: [[62, -8], [20, -64]] };   // one hand on the keyboard, the other on his head
 COVER = () => {
   coverPage();                                                              // the video's page colour
   const s = 2.75, k = s * CAST.oppa.h, x = 360, y = 1050, T = y - 155 * k;   // one subject, bigger than in the video; head ≥ 30 px below the top
   inkLine(40, y, 1520, y, { w: 3, color: C.dim });                          // the floor stops before the running-time corner
-  openWindow(640, 60, 420, 330, { night: 1 });                              // the video's night window: its dark pane carries at 168 px
+  nightWindow(640, 60, 420, 330, { night: 1 });                             // the video's night window: its dark pane carries at 168 px
   inkRect(x + 60 * k, T, 1340 - (x + 60 * k), 18, { w: 4.4, fill: PAPER() });   // his desk, as in the video
   inkLine(x + 110 * k, T + 18, x + 110 * k, y, { w: 4 }); inkLine(1300, T + 18, 1300, y, { w: 4 });
   // … the laptop from the video (base + lid) …
