@@ -5,7 +5,7 @@ every run, and `research-skill make-docent-book` adds to it. Every rule here cam
 [LESSONS.md](LESSONS.md)) or a cited source (bottom). Shot recipes are in [TEMPLATES.md](TEMPLATES.md).
 
 Map: 0 Emphasis budget · 1 Picture rhythm · 2 People · 3 Bubbles · 4 Animals and props · 5 Text · 6 Composition ·
-7 Music · 8 Gates · 9 Sources
+7 Music · 8 Gates · 9 Sources · 10 Title, cover, description
 
 ## 0. Emphasis budget — read this first
 In short: the reference shows one thing at a time in plain black ink, and saves purple and red for the one thing that
@@ -202,3 +202,69 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
 - Music under voice: MusicVivo "music under voiceover" (−20 to −25 dB), umbrellacreators measurements (beds 24 to 31 dB
   under voice), kenjosephmusic on cue thinning, audiodrome on transitions at structural breaks.
 - Full notes of the 2026-11-10 research: `RESEARCH-LOG.md`.
+
+## 10. Title, cover, description — what makes someone click
+In short: people click a question about their own life, not a book's name. The title opens with the viewer's problem,
+question or a surprising claim, and the book comes after it. The cover is drawn for the size YouTube shows it — 168 px
+wide on a phone — with one big subject and at most 8 big characters that add to the title.
+
+**Why** (research-skill packaging run, 2026-11-14, `RESEARCH-LOG.md`): 10 videos packaged by the old skill scored 2.33 of
+5 on a 10-criterion click rubric, 0 of 10 passing. Every title was "책 이름 — 부제 (20분 도슨트북)", copied from the only
+example in the kit. Every cover was the 1.5 s title card or a frame YouTube would pick: thin lines on an empty page,
+unreadable at 168 px. In search data (126 keywords, 3,780 results) the same genre differed 100x by keyword: 세네카
+median 1,682 views vs 쇼펜하우어 198,213; 칸토어 24,702 vs 수학 역설 262,821. Small channels broke through where the title
+spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면 꼭 들어 보세요", a 10k-subscriber channel, 540k views).
+
+**Title**
+- Hook first, within about 30 characters: the viewer's situation ("~했다면"), a "왜" question, a surprising claim, or
+  a number contrast. The book, author or "책 N권" go after a separator (` — ` or ` | `). Whole title ≤ about 55.
+- Never: a running time, "도슨트북", "N분 요약", "~의 역사" as the whole title, the book's name first.
+- One searchable keyword people type, measured: `python $K/tools/title_check.py "<title>" --keyword <kw> ...` prints
+  the median views of the top 30 results and the small-channel hits. Prefer a keyword with median ≥ 100k or ≥ 8/30
+  small-channel hits. Read its top-5 titles: if they are songs or another thing of the same name (블랙 스완 → BTS,
+  노인과 바다 → songs), add the author or the topic word, or lead with the problem keyword instead.
+- A person's name only when people search for that person (쇼펜하우어 yes; 칸토어 no — say the question instead).
+- Measure first, then write the hooks around a keyword that passes. Write 3 titles; `title_check.py "<title>"
+  --keyword <kw> --strict` passes on the one you upload: its form, and one measured keyword that is in the title, on
+  topic (fewer than 3 of its top 5 are music, ASMR or sleep sound — 집중력 is study music, 서시 is songs) and over the
+  bar. Keep the other two for Test & Compare.
+- The hook may be the viewer's situation ("~할 때", "~한 밤", "~했다면"), but a situation plus the genre's stock
+  claim ("의지 탓이 아니에요", "~이 없다면") reads like every competitor: in the 2026-11-14 verification such hooks
+  scored 4 and click appeal 3. Read the keyword's top 5 and add what they lack: one concrete specific (a number, a
+  scene, a named result) or the "why" the video answers ("~인 이유", "시간이 안 보여서").
+- When people search the book's own name (안네의 일기), they want the book: the hook promises its story or its answer,
+  not only its theme, and the name still comes after the separator ("2년을 숨어 산 방에서 쓴 편지 — 안네의 일기").
+- Honest: the video delivers exactly what the title promises. No medical, legal or money promises.
+
+**Cover (the YouTube thumbnail)** — drawn in `scenes.js` `COVER`, rendered by `export.py cover` (TEMPLATES "Cover").
+- Not a still of the video and not the title card. One subject filling ≥ 50 % of the height (a figure doing the
+  hook's verb, or one object that carries the tension), on one side; the text on the other side. In the letter
+  concept the subject is whoever has the hook's problem — usually the listener, not the narrator.
+- Only the bottom edge may cut the subject: a head or a stem cut by the top edge reads as something else (a cut apple
+  read as a moon). `export.py cover` warns.
+- Cover text: ≤ 8 characters in all lines together (3–6 is best), 200–320 px at 1080p, ink with the paper halo. It
+  adds to the title — the feeling or the stake ("시간이 샌다", "왜 나만?") — and never repeats the title or gives away
+  the answer.
+- Show the tension, not the payoff: the empty clock, the stuck figure, the tilted ladder. The answer is the video.
+- `coverPage()` paints a deeper page than the video's: the video's pale blue is 1.6:1 against YouTube's white.
+- At most 75 % of the frame is bare page (`export.py cover` warns). Pale fills count as page: they were 1.45:1 against
+  it and vanished at 168 px. The thing that carries the tension is solid ink or the one MARK accent, and one big
+  shape: flies, dots and a thin finger disappear at 168 px.
+- Fit the mood and vary the picture: the pose and the page tint (`coverPage(colour)`) follow the title (a night title
+  is not a daytime study page), and the layout differs from the channel's last cover. Four of five verification covers
+  shared one template (figure left, text right, same tint) and read as the same video.
+- Leave the bottom-right corner (about 300 × 130 px at 1080p) empty: YouTube draws the running time there.
+- Lines: `renderCover()` draws every ink line 2.4x as thick; still, prefer big simple shapes.
+- Check `out/cover_check.jpg` (1280 / 320 / 168 px): at 168 px you must read the text and name the subject. Fix every
+  `WARNING cover:` line from `export.py cover`.
+- Make 2–3 covers when the channel can use Test & Compare: `COVER_B`, `COVER_C` in scenes.js; `export.py cover` renders
+  every one (`out/cover_b.jpg` …). The channel needs advanced features for a custom thumbnail: check the upload
+  dialog's 썸네일 "파일 업로드" button.
+
+**Description**
+- First three lines (YouTube shows about three before 더보기): the hook question again in other words, what the viewer
+  gets ("책 세 권이 말하는 방법 다섯 가지"), and the book(s) with author. Not "N분에 걸어 보는 도슨트북", and not a
+  timestamp: the chapters start after a blank line.
+- Then the chapters from `out/chapters.txt` (YouTube needs ≥ 3 timestamps, starting at 0:00), the books with their
+  Korean editions, music credits (`out/music_credits.txt`), and for health (mental health included), law or money
+  topics one plain line: this video is a book review, not advice; see a professional.

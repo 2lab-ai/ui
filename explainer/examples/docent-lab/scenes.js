@@ -112,3 +112,14 @@ SCENES.idea = (t, q) => shots(t, [
     think(v, null, { w: 420, h: 260, p: dp(lt, 0.5, 0.4), body: (x, y) => hand('내 판단', x + 210, y + 130, { size: 64 }) });
   }],
 ]);
+
+// YouTube cover (TEMPLATES "Cover"): one big subject doing the hook's verb, at most 8 big characters that add to the
+// title, a deeper page than the video's, the one accent on the tension, ≤ 75 % bare page, the bottom-right corner clear.
+COVER = () => {
+  coverPage();
+  person('musk', 380, 1560, { s: 4.0, pose: 'facepalm', face: 'worried' });
+  prop('rocket', 1000, 1020, 4.8, { fill: C.paper, colour: true });
+  crossAt(1000, 560, 480, 700, { color: MARK(), w: 18 });
+  coverText('세 번', 1530, 300, { size: 250, rot: -0.04 });
+  coverText('터졌다', 1530, 600, { size: 260, rot: -0.04 });
+};

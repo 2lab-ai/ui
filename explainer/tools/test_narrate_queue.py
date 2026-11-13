@@ -84,5 +84,68 @@ class HttpCache(unittest.TestCase):
         self.n.VOICE = 'elon'
         with self.assertRaises(RuntimeError): self.n.run_jobs_http(['가', '나'], 7, 't')
 
+
+class ForgottenJob(unittest.TestCase):
+    """a server restart forgets its jobs: a 404 while waiting submits the job once more (2026-11-14), never twice."""
+    def setUp(self):
+        import urllib.error
+        self.n = load(); self.posts = []; self.fetched = []
+        ids = ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333']
+        def http(method, path, body=None, timeout=60):
+            if method == 'POST': self.posts.append(body); return {'job_id': ids[len(self.posts) - 1]}
+            raise urllib.error.HTTPError(path, 404, 'not found', {}, None)   # live_job: nothing to resume
+        self.gone = set()
+        def wait_job(job, tag, limit):
+            if job in self.gone: raise urllib.error.HTTPError(job, 404, 'not found', {}, None)
+        def fetch_result(job, dst, timeout=900):
+            self.fetched.append(job); raise KeyboardInterrupt   # stop before ffprobe: the job id is what is checked
+        self.n.http, self.n.wait_job, self.n.fetch_result = http, wait_job, fetch_result
+        self.ids = ids
+
+    def test_resubmits_once_after_a_404(self):
+        self.gone = {self.ids[0]}
+        with self.assertRaises(KeyboardInterrupt): self.n.run_jobs_http(['가', '나'], 7, 't')
+        self.assertEqual(len(self.posts), 2); self.assertEqual(self.fetched, [self.ids[1]])
+
+    def test_a_second_404_stops(self):
+        import urllib.error
+        self.gone = {self.ids[0], self.ids[1]}
+        with self.assertRaises(urllib.error.HTTPError): self.n.run_jobs_http(['가', '나'], 7, 't')
+        self.assertEqual(len(self.posts), 2); self.assertEqual(self.fetched, [])
+
+
+class ResumeLookup(unittest.TestCase):
+    """live_job: a 404 means gone (submit again); a 5xx or a timeout is no proof, so the run stops instead (trinity)."""
+    def setUp(self):
+        import json
+        self.n = load(); self.tmp = tempfile.mkdtemp(); self.posts = 0
+        self.job = '44444444-4444-4444-4444-444444444444'
+        json.dump({'job': self.job}, open(os.path.join(self.tmp, 'job.json'), 'w'))
+        self.sleep = self.n.time.sleep; self.n.time.sleep = lambda s: None   # the time module is shared: restored below
+
+    def tearDown(self):
+        self.n.time.sleep = self.sleep
+
+    def answer(self, code=None, status='running'):
+        import urllib.error
+        def http(method, path, body=None, timeout=60):
+            if code: raise urllib.error.HTTPError(path, code, 'x', {}, None)
+            return {'status': status}
+        self.n.http = http
+
+    def test_running_job_is_resumed(self):
+        self.answer(); self.assertEqual(self.n.live_job(self.tmp), self.job)
+
+    def test_404_means_gone(self):
+        self.answer(404); self.assertIsNone(self.n.live_job(self.tmp))
+
+    def test_503_stops_instead_of_submitting_again(self):
+        self.answer(503)
+        with self.assertRaises(SystemExit): self.n.live_job(self.tmp)
+
+    def test_no_job_file(self):
+        self.answer(); self.assertIsNone(self.n.live_job(tempfile.mkdtemp()))
+
+
 if __name__ == '__main__':
     unittest.main()

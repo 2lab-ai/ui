@@ -10,7 +10,7 @@ one written word, at most one red mark, ink only. When a sentence seems to need 
 
 Map: S script.json · T1 cast block · T2 dialogue · T3 three people · T4 inner voice · T5 named idea · T6 picture
 equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd · T12 a poem on the wall · T13 a chart
-with a break · A adding an asset · C one-scene clip
+with a break · A adding an asset · C one-scene clip · Cover the YouTube thumbnail
 
 ## S. script.json fields that drive pictures and music
 ```json
@@ -239,3 +239,27 @@ Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118
 - Each shot cuts in 0.3 s before its word (`shots(t, list, { lead })`, default 0.3): put the subject first in the shot
   (`p: dp(lt, 0, 0.5)`), labels and details after. Word-timed parts (`o('word', k, q.s(k))`) move with it.
 - Bubbles keep clear of props and boards (they reserve their box), so draw the props of a shot before its bubbles.
+
+## Cover. The YouTube thumbnail (REFERENCE §10)
+One frame composed for 168 px, not a still of the video. Draw it at the end of `scenes.js`; `export.py cover` renders
+it to `out/cover.jpg` (1280×720) and `out/cover_check.jpg`, and prints a `WARNING cover:` line for each limit it breaks.
+```js
+COVER = () => {
+  coverPage();                                                              // deeper page: stands out from YouTube's white
+  person('oppa', 370, 1560, { s: 4.0, pose: 'facepalm', face: 'worried' });       // one subject, cut by the bottom edge only; head ≥ 30 px below the top
+  const x = 1000, y = 960, s = 3.8;
+  prop('hourglass', x, y, s, { fill: C.paper, colour: true });              // at most one object: the tension, not the answer; a cream fill, not a pale one
+  inkPath([[x - 30 * s, y - 160 * s], [x + 30 * s, y - 160 * s], [x + 6 * s, y - 108 * s], [x - 6 * s, y - 108 * s]],
+          { closed: true, fill: MARK(), color: INK(), w: 4 });               // the one accent on what carries the tension: the sand that is left
+  [[x + 62 * s, y - 14 * s, 16], [x + 74 * s, y + 18 * s, 14]].forEach(([a, b, r]) => inkDot(a, b, r, { color: MARK() }));   // leaking
+  coverText('시간이', 1570, 300, { size: 260, rot: -0.03 });               // ≤ 8 characters that add to the title
+  coverText('샌다', 1570, 610, { size: 320, rot: -0.03 });
+};
+// keep x > 1600, y > 950 empty: YouTube draws the running time there
+```
+Two lines of text are fine (`coverText` twice, 200–320 px each) when the words are short. A second and third cover for
+Test & Compare: `COVER_B = () => { … }`, `COVER_C`. Then `python $K/tools/export.py cover` → open every
+`out/cover*_check.jpg`; fix each `WARNING` line. At s ≥ 2.5 a pose reads differently (facepalm reads as a hand on the
+chin): judge it on the check image. Stick figures are mostly page: the first draft of this cover was 83 % bare page and
+its pale-blue hourglass vanished at 168 px; the cream fill, the red sand and s 4.0 brought it to ≤ 75 %. Used for
+'게을러서가 아니라 시간이 안 보여서예요' (2026-11-14): 오빠 + a leaking hourglass + "시간이 / 샌다".

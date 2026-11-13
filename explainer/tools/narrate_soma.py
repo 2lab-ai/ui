@@ -16,6 +16,8 @@ Run inside a video project folder (script.json there). Writes narration.wav + ti
   otherwise it is re-cut from its raw take (no GPU) or re-synthesised.
 
 usage: python narrate_soma.py [--voice cwon] [--no-pad] [--no-verify] [--redo scene:k[:seed],...] [--recut]
+  SOMA_VOICE_TURN_S (default 40): seconds to wait per sentence of a scene job; a GPU shared with another model needs
+  ~150. A run that gave up is re-run as is: it waits for the job it had submitted (job.json in the take folder).
   --recut  re-cut and re-check every cached take from its recorded raw take (no GPU). Takes without a record
            (made by an older version) are adopted only from a raw take of exactly the same text that passes both
            checks; anything else is dropped and re-synthesised on the next run.
@@ -25,7 +27,7 @@ The takes are copied from blade-4090 by tools/blade/fetchjob.sh; with SOMA_VOICE
 result URL instead (one job per scene cut at the merge's digital silence, no access to blade-4090 needed beyond the
 tunnel). Jobs run one at a time on one worker thread; the next scene synthesises while this one is cut and checked.
 """
-import concurrent.futures, hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.request, wave
+import concurrent.futures, hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.error, urllib.request, wave
 import numpy as np
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
@@ -202,6 +204,32 @@ def wait_job(job, tag, limit):
         time.sleep(3)
 
 
+TURN_S = float(os.environ.get('SOMA_VOICE_TURN_S', '40'))   # wait per turn before giving up; a shared GPU needs more
+
+
+def live_job(tmp):
+    """The job this folder's last run submitted, if the server still has it running or finished. None when there is
+    none to resume: no job.json, the server answers 404 (a restart forgot it) or the job failed. Any other error (a
+    timeout, a 5xx) is retried and then stops the run: it is no proof the job is gone, and submitting it again would
+    run the same scene twice on a shared GPU."""
+    try:
+        job = json.load(open(os.path.join(tmp, 'job.json')))['job']
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not isinstance(job, str) or not JOB_ID.match(job): return None
+    for attempt in range(3):
+        try:
+            st = http('GET', f'/api/jobs/{job}')
+            return job if st.get('status') in ('pending', 'queued', 'running', 'succeeded', 'completed') else None
+        except urllib.error.HTTPError as e:
+            if e.code == 404: return None
+            err = e
+        except (OSError, ValueError) as e:   # URLError and timeouts are OSErrors
+            err = e
+        time.sleep(5 * (attempt + 1))
+    sys.exit(f'job {job}: could not ask the voice server whether it is still running ({err}); re-run when it answers')
+
+
 def run_jobs_http(texts, seed, tag):
     """SOMA_VOICE_FETCH=http: one multi-turn job, split at the merge's silences (see SPLIT_MS); one job per text when
     that fails. Returns local raw wav paths in order (48 kHz mono)."""
@@ -224,11 +252,22 @@ def run_jobs_http(texts, seed, tag):
         pass
     if len(texts) > 1:
         turns = [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t} for t in texts]
-        job = http('POST', '/api/tts', {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
-                                        'merge_policy': {'silence_min_ms': SPLIT_MS, 'silence_max_ms': SPLIT_MS}})['job_id']
-        if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
-        wait_job(job, tag, 180 + 40 * len(texts))
-        src = fetch_result(job, os.path.join(tmp, 'merged'))
+        for attempt in (0, 1):
+            job = live_job(tmp) if attempt == 0 else None   # a run cut off while its job still ran picks it up again
+            if not job:
+                job = http('POST', '/api/tts', {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
+                                                'merge_policy': {'silence_min_ms': SPLIT_MS, 'silence_max_ms': SPLIT_MS}})['job_id']
+                if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
+                json.dump({'job': job}, open(os.path.join(tmp, 'job.json'), 'w'))
+            else:
+                print(f'  {tag}: resuming job {job[:8]}', flush=True)
+            try:
+                wait_job(job, tag, 180 + TURN_S * len(texts))
+                src = fetch_result(job, os.path.join(tmp, 'merged'))
+                break
+            except urllib.error.HTTPError as e:   # 404: the service restarted and forgot its jobs (2026-11-14)
+                if e.code != 404 or attempt: raise
+                print(f'  {tag}: the server forgot job {job[:8]} (restarted?); submitting it again', flush=True)
         sr = int(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=sample_rate',
                                  '-of', 'csv=p=0', src], capture_output=True, text=True, check=True).stdout.strip())
         pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', src, '-f', 's16le', '-ac', '1', '-'], capture_output=True, check=True).stdout
@@ -334,6 +373,9 @@ def ahead(items, tag):
         AHEAD[tag] = ((texts, seed), GPU.submit(gpu_job, list(texts), seed, f'{tag} r0'))
 
 
+STUBBORN = []   # scene:k that failed 3 rounds; the run finishes every other scene, then stops (re-run with --redo)
+
+
 def synth_scene(items, tag):
     """items: [(text, take)]. Failed cuts / ear checks retry with a new job seed (3 rounds)."""
     paths = [os.path.join(CACHE, f'{key_of(t, k)}.wav') for t, k in items]
@@ -349,7 +391,10 @@ def synth_scene(items, tag):
             store(paths[i], clip, items[i][0], items[i][1], job_seed + pos, raw)
             if rnd > 0: print(f'    {tag}:{i} fixed in round {rnd}', flush=True)
     missing = [i for i, p in enumerate(paths) if not usable(p, items[i][0])]
-    if missing: sys.exit(f'{tag}: sentences {missing} still failed the pad cut / ear check after 3 rounds')
+    if missing:   # keep the queue busy with the other scenes; the run stops before the timeline (see main)
+        STUBBORN.extend(f'{tag}:{i}' for i in missing)
+        print(f'  {tag}: sentences {missing} still failed the pad cut / ear check after 3 rounds; going on', flush=True)
+        return None
     return paths
 
 
@@ -459,7 +504,11 @@ def main():
     if ids: ahead(items[0], ids[0])
     for j, sc in enumerate(script['scenes']):
         if j + 1 < len(ids): ahead(items[j + 1], ids[j + 1])   # the GPU works on the next scene meanwhile
-        clips[sc['id']] = [wav_read(p) if PAD else trim(wav_read(p)) for p in synth_scene(items[j], sc['id'])]
+        got = synth_scene(items[j], sc['id'])
+        if got is not None: clips[sc['id']] = [wav_read(p) if PAD else trim(wav_read(p)) for p in got]
+    if STUBBORN:
+        sys.exit(f'stopped before the timeline: {",".join(STUBBORN)} failed 3 rounds; every other take is cached. '
+                 f'Re-run with --redo {",".join(STUBBORN)} (a new take seed), or reword the sentence.')
     target = float(np.median([level(c) for cs in clips.values() for c in cs]))
     t = 0.0; scenes = []; track = []
     for sc in script['scenes']:

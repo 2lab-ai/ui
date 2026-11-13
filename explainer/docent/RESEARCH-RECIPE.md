@@ -6,7 +6,9 @@ here from their `## Research recipe` line.
 
 ## Run folder and freeze
 - `run=~/2lab.ai/ARTIFACTS/research/<skill>/<YYYY-MM-DD-HHMM>/` (never /tmp: session folders are wiped).
-- Freeze the whole kit repository for the run: `git -C ~/2lab.ai/ui archive <commit> | tar -x -C RUN/kit`, and note the
+- Freeze the whole kit repository for the run: `git -C ~/2lab.ai/ui archive <commit> | tar -x -C RUN/kit`, and write the
+  commit to `RUN/kit/KIT_COMMIT` (`new_video.py` reads that name; `COMMIT` left every probe's `ui_commit` empty in the
+  2026-11-14 run). Probes run with `PYTHONDONTWRITEBYTECODE=1` so no `__pycache__` lands in the frozen kit. Note the
   commit (the whole repository: `new_video.py` reads `src/core/tokens.json` for the themes). In run 1 the kit changed
   three times under running probes and the authors had to re-lint and re-render.
 - The host-kept skill is updated only after this repository's PR with the kit changes it relies on has merged.
@@ -18,6 +20,11 @@ here from their `## Research recipe` line.
   1080p MP4 clip.
 - **make-3b1b**: 10 topics from a written pool (geometry, probability, the history of a formula, …), each a 10 s clip
   with one formula: script → cwon voice → animation → score → mix → 1080p render.
+
+- **Packaging** (title, cover, description — the owner's 2026-11-14 scope): the same book pool; each probe makes the
+  title, the description's first lines and the YouTube cover from the skill, on a minimal project (opening chapter,
+  draft timeline, no voice). Keep `rubric.md` out of the authors' sight (`RUN/review/`). Review evidence: the cover at
+  1280 / 320 / 168 px and `title_check.py` facts (form, keyword medians, top-5 competitor titles).
 
 ## Shared resource
 The cwon GPU voice (one host, one queue). Authors write all scripts first; the voice jobs then run one after another.

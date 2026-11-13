@@ -259,7 +259,7 @@ function inkPath(pts, { color = null, w = 4, p = 1, closed = false, jit = 1.4, s
       ctx.fillStyle = fill; ctx.beginPath(); q.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill();
       ctx.globalAlpha = g;
     }
-    ctx.strokeStyle = color || INK(); ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = color || INK(); ctx.lineWidth = w * (DOCENT.lw || 1); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (dash) ctx.setLineDash(dash);
     let L = 0; const seg = [0];
     for (let i = 1; i < q.length; i++) { L += Math.hypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]); seg.push(L); }
@@ -302,6 +302,23 @@ function inkArrow(x1, y1, x2, y2, { via = null, head = 22, p = 1, ...o } = {}) {
   inkPath([[x2 - Math.cos(ang - 0.45) * head, y2 - Math.sin(ang - 0.45) * head], [x2, y2], [x2 - Math.cos(ang + 0.45) * head, y2 - Math.sin(ang + 0.45) * head]], { ...o, p: ph });
 }
 const inkDot = (x, y, r = 5, o = {}) => disc(x, y, r, o.color || INK(), (o.a ?? 1) * clamp01((o.p ?? 1) * 2));
+
+// ---------- YouTube cover (REFERENCE §10, TEMPLATES "Cover"; export.py cover renders scenes.js COVER) ----------
+// The cover is composed for a 168 px wide search result: one big subject, at most 8 big characters, a page that stands
+// out from YouTube's white. renderCover() draws every ink line 2.4x as thick (DOCENT.lw), so lines survive the shrink
+// to 168 px. coverText() records what it wrote in COVER_INFO; export.py cover prints a
+// warning for more than 8 characters, text under 160 px, or ink spanning less than half the height.
+const COVER_INFO = { texts: [] };
+function coverPage(color = null) {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  ctx.fillStyle = color || opaqueMix(KEY(), 0.28, C.bg || '#bcd0e8'); ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+function coverText(str, x, y, { size = 240, color = null, align = 'center', rot = 0 } = {}) {
+  COVER_INFO.texts.push({ str: String(str), chars: [...String(str).replace(/\s/g, '')].length, size });
+  const k = DOCENT.ink;   // the words do not count as the subject: export.py checks the drawing's height
+  hand(str, x, y, { size, color: color || INK(), align, rot, halo: true, weight: 700 });
+  DOCENT.ink = k;
+}
 
 // ---------- handwritten text ----------
 // Written on left to right (clip reveal) as p goes 0 -> 1. Default colour is the keyword colour.
