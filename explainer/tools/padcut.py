@@ -13,8 +13,10 @@ Where to cut (v3): not at the -40 dB run edge plus a fixed margin. A Korean sent
 (the vowel of -다 fading at -41..-56 dB for 100-300 ms) and often starts with a soft consonant (ㅎ ㅅ ㅈ) that never
 crosses -40 dB; v2 cut them off, and the +13 dB loudness gain afterwards made the chop audible ("…였습" with 다
 gone). v3 measures each gap's own noise floor and follows the sound that is continuous with the sentence (frames
-above floor + SETTLE_DB, dips up to MAX_DIP allowed) until it settles, then adds a short margin. A breath separated
-from the sentence by silence stays out. Sound still continuing at the middle of a gap is rejected (re-synthesised).
+above floor + SETTLE_DB, dips up to MAX_DIP allowed; before the speech up to ONSET_DIP, v4) until it settles, then
+adds a short margin. A breath separated from the sentence by more silence than that stays out; one closer than
+ONSET_DIP before the speech comes in (the price of keeping a fricative before a stop closure). Sound still continuing
+at the middle of a gap is rejected (re-synthesised).
 """
 import re
 
