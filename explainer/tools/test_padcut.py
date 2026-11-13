@@ -92,6 +92,20 @@ class SoftEdges(unittest.TestCase):
         self.assertAlmostEqual(info['onset'], 0.9, delta=0.02)
         self.assertLessEqual(info['cut'][0], 0.9)
 
+    def test_a_fricative_before_a_stop_closure_is_kept(self):
+        # "스토아": a soft s of 0.09 s, 0.11 s of closure silence, then the voiced speech at 1.10 s -> onset at 0.90 s
+        a = take(('v', .3), ('s', .6), ('d', .09), ('s', .11), ('v', 1.0), ('s', .6), ('v', .3))
+        clip, info = cut(a, SR)
+        self.assertIsNotNone(clip, info)
+        self.assertAlmostEqual(info['onset'], 0.9, delta=0.02)
+
+    def test_a_breath_just_past_the_onset_dip_stays_out(self):
+        # breath, 0.18 s of silence (more than ONSET_DIP 0.16), speech at 1.08 s: the onset stays at the speech
+        a = take(('v', .3), ('s', .5), ('d', .1), ('s', .18), ('v', 1.0), ('s', .6), ('v', .3))
+        clip, info = cut(a, SR)
+        self.assertIsNotNone(clip, info)
+        self.assertAlmostEqual(info['onset'], 1.08, delta=0.02)
+
     def test_a_breath_separated_by_silence_stays_out(self):
         # breath at 0.55-0.70 s, then 0.25 s of silence, then speech at 0.95 s: the cut starts after the breath
         a = take(('v', .3), ('s', .25), ('d', .15), ('s', .25), ('v', 1.0), ('s', .6), ('v', .3))

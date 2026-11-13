@@ -47,7 +47,7 @@ FETCH = os.path.join(TOOLS, 'blade', 'fetchjob.sh')
 # not give one piece per sentence (a turn with its own long all-zero run), the scene falls back to one job per
 # sentence. Job seed s + i keeps the server seed of turn i either way (see run_job).
 FETCH_MODE = os.environ.get('SOMA_VOICE_FETCH', 'ssh')
-CUTTER = 'padcut-v3'   # v3: cut where the sound settles on the gap's floor (v2 chopped soft endings)
+CUTTER = 'padcut-v4'   # v4: an onset may hold a stop closure (v3 cut the 스 off 스토아); v3: follow the sound to the floor
 ARGS = sys.argv[1:]
 VOICE = ARGS[ARGS.index('--voice') + 1] if '--voice' in ARGS else 'cwon'
 PAD = '--no-pad' not in ARGS

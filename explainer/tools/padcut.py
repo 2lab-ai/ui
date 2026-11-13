@@ -13,8 +13,10 @@ Where to cut (v3): not at the -40 dB run edge plus a fixed margin. A Korean sent
 (the vowel of -다 fading at -41..-56 dB for 100-300 ms) and often starts with a soft consonant (ㅎ ㅅ ㅈ) that never
 crosses -40 dB; v2 cut them off, and the +13 dB loudness gain afterwards made the chop audible ("…였습" with 다
 gone). v3 measures each gap's own noise floor and follows the sound that is continuous with the sentence (frames
-above floor + SETTLE_DB, dips up to MAX_DIP allowed) until it settles, then adds a short margin. A breath separated
-from the sentence by silence stays out. Sound still continuing at the middle of a gap is rejected (re-synthesised).
+above floor + SETTLE_DB, dips up to MAX_DIP allowed; before the speech up to ONSET_DIP, v4) until it settles, then
+adds a short margin. A breath separated from the sentence by more silence than that stays out; one closer than
+ONSET_DIP before the speech comes in (the price of keeping a fricative before a stop closure). Sound still continuing
+at the middle of a gap is rejected (re-synthesised).
 """
 import re
 
@@ -26,6 +28,8 @@ FILLER_MIN, FILLER_MAX = 0.08, 0.95   # seconds of voice in "아아"
 SETTLE_DB = 12          # a decay or breath louder than the gap's noise floor + this still belongs to the sentence
 FLOOR_MAX_DB = -50      # a gap whose floor is louder than this is not a silence: reject
 MAX_DIP = 0.06          # a dip below floor + SETTLE_DB shorter than this does not end the sound (stop closures)
+ONSET_DIP = 0.16        # before the speech a longer one: a fricative, then a stop's closure ("스토아" = s, ~0.1 s of
+                        # silence, tʰo); with 0.06 s the cut fell in the closure and took the 스 (Stoic run, 2026-11-13)
 FILLER_TEXT = re.compile(r'^[\s.,!?…~\-]*[아어오와하음ㅏ][\s아어오와하음ㅏ.,!?…~\-]*$')   # at least one filler syllable, nothing else
 
 
@@ -83,8 +87,8 @@ def cut(a, sr, min_gap=0.2, pre=0.04, post=0.05, fade=0.008):
     hfloor = float(np.percentile(db[h0:h1], 20)); tfloor = float(np.percentile(db[t0:t1], 20))
     if hfloor > FLOOR_MAX_DB or tfloor > FLOOR_MAX_DB:
         return None, f'gaps are not silent (floor {hfloor:.0f} / {tfloor:.0f} dB)'
-    dip = max(1, int(round(MAX_DIP / step)))
-    first = follow(db, h1 - 1, hm - 1, hfloor + SETTLE_DB, dip)    # walk back from the speech into the head gap
+    dip = max(1, int(round(MAX_DIP / step))); onset_dip = max(1, int(round(ONSET_DIP / step)))
+    first = follow(db, h1 - 1, hm - 1, hfloor + SETTLE_DB, onset_dip)    # walk back from the speech into the head gap
     if first is None: return None, 'sound continues past the middle of the head gap'
     last = follow(db, t0, tm, tfloor + SETTLE_DB, dip)             # walk on from the speech into the tail gap
     if last is None: return None, 'the sentence is still sounding at the middle of the tail gap'

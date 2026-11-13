@@ -21,6 +21,12 @@ Gate C (a fresh reviewer on every sentence's stills) found what the lint passed:
   and the next scene synthesising while this one is checked (narrate_soma.py). Hearing both cut-off pieces in one
   whisper pass was tried and dropped: it heard one "아아." for two pieces, and a per-side re-check then caught a tail
   heard as "응." that the one pass had let through.
+- "스토아" heard as "토아" in 4 sentences (audio_check) while the raw takes said 스토아 · padcut followed the onset back
+  with a 0.06 s dip allowance, and the closure of ㅌ after the s (~0.1 s of silence) ended it, so the s went with the
+  filler; the ear check heard that head piece as "아" all the same · padcut v4: the onset side allows 0.16 s
+  (ONSET_DIP), the tail keeps 0.06; all 308 takes re-cut from their raws (19 re-synthesised), tests for the
+  closure (kept) and a breath 0.18 s before the speech (left out). The price: a breath within 0.16 s of the onset
+  now comes into the clip.
 
 ## 2026-11-13 · owner: "the reference is minimal; you show too much, like AI slop — you emphasise everything"
 Compared side by side: Productive Peter frames hold 1 to 3 things, 0 or 1 written word, black ink with purple on the
