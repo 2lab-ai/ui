@@ -41,6 +41,7 @@ explainer/
 │   ├── sheets.py        contact sheets of stills for review
 │   ├── upload_slack.py  upload files to a Slack thread
 │   └── blade/           ssh helpers for blade-4090 (WSL runs behind the Windows host)
+├── noderender/          a browser-free page (Node + Skia) behind a playwright stand-in, for hosts where Chromium cannot start
 ├── docent/              REFERENCE (rules + checks) · TEMPLATES (shot recipes) · LESSONS (defects) · RESEARCH-LOG ·
 │                        RESEARCH-RECIPE (what research-skill probes and checks for the explainer skills)
 ├── music/library.json   recorded narration beds (CC BY, measured and mood-tagged; audio cached, not in git)
@@ -82,6 +83,13 @@ python $K/tools/export.py video --slices 12    # out/<slug>.mp4, about 3 minutes
 ```
 
 Python needs `numpy matplotlib playwright pillow`. Add `edge-tts` for the fallback voice and `mlx-whisper` for QA. Install Chromium with `playwright install chromium`, and install `ffmpeg`.
+
+Where no browser can start (a sandboxed agent session on macOS denies Chromium's Mach `bootstrap_check_in`), render
+with `noderender/`: `npm install` there once, then run every tool with `PYTHONPATH=$K/noderender/shim` (and
+`NODE_PATH=$K/noderender/node_modules`). The stand-in gives the tools a page that runs the project's engine.js,
+docent.js and scenes.js on Node + Skia (`@napi-rs/canvas`), fonts from video.html's `@font-face`. Lint, gallery, stills
+and the MP4 work unchanged; text antialiasing differs slightly from Chromium, so render a whole video with one of the two.
+Without ssh to blade-4090, narrate with `SOMA_VOICE_FETCH=http` (the takes come from the job's result URL).
 
 ## Themes
 
@@ -148,9 +156,18 @@ Worked example: `examples/geb` ('Gödel, Escher, Bach'; 30:31 once narrated with
 (`tiles`, `ruleCard`, `pqString`, `penrose`, `drawingHands`, `screenLoop`, `dolls`, `antBand`) and then one block per
 chapter, about one shot per 4 seconds.
 
-House rules for book videos: change the picture every 3 to 5 seconds; put 1 to 5 handwritten words on screen, never a
-sentence; show the picture before the name; keep the bottom 170 px clear for subtitles; draw everything (no real cover
-or artwork images unless they are public domain).
+House rules for book videos: change the picture every 3 to 5 seconds; one subject per shot, at most one written word
+(the chapter's named idea or the one number), at most one red mark, black ink only — the emphasis budget,
+[REFERENCE.md](docent/REFERENCE.md) §0; show the picture before the name; keep the bottom 170 px clear (YouTube draws
+its captions there); draw everything (no real cover or artwork images unless they are public domain).
+
+Ink mode (project.json `"colour": false`, which `new_video.py` writes for every new sketch project or with `--docent`):
+`figure`, `person`, `seated`, `animal`, `prop`, `crab` and `ant` paint every colour inside them as ink (lines, text) and
+every fill that is not ink-dark as the page, so cast accents, outfits, animal coats and prop fills come out as unfilled
+line art. Pass `colour: true` on a call when the colour is the meaning (a red heart). A project without the key (an
+older video, a make-3b1b project) keeps its colours when its engine is refreshed. New docent projects also get
+`"subtitles": "off"` and `"chip": false`; `export.py srt` writes the narration as `out/<slug>.srt` for the YouTube
+caption track.
 
 The craft rules, the shot recipes and the defect history live in `docent/`: [REFERENCE.md](docent/REFERENCE.md) (what
 good looks like, with the check for each rule), [TEMPLATES.md](docent/TEMPLATES.md) (dialogue, three people, inner
@@ -159,7 +176,9 @@ voice, animal, timeline, …), [LESSONS.md](docent/LESSONS.md) (every defect fou
 
 Every primitive reports what it drew in the current frame (`DOCENT`, `docentReport()`): half-drawn parts, faded
 ghosts, ink under the subtitles or off the frame, empty bubbles, tails that point at no head, bubbles over faces or
-name tags, people sharing a look, animals on the stick-figure rig. Three tools use it:
+name tags, people sharing a look, animals on the stick-figure rig — and the emphasis budget: the things on screen (each
+top-level call; a crowd or a row of the same prop counts once), the written words (name tags included), the red marks
+and any colour besides ink, purple and red. Three tools use it:
 
 | Tool | Gate |
 |---|---|

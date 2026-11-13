@@ -21,6 +21,8 @@ usage: python narrate_soma.py [--voice cwon] [--no-pad] [--no-verify] [--redo sc
            checks; anything else is dropped and re-synthesised on the next run.
 The API is reached through an SSH tunnel to the Windows host (WSL uses mirrored networking):
     ssh -f -N -L 19999:127.0.0.1:9999 blade-4090-ps        (override the URL with SOMA_VOICE_URL)
+The takes are copied from blade-4090 by tools/blade/fetchjob.sh; with SOMA_VOICE_FETCH=http they come from the job's
+result URL instead (one job per sentence, no access to blade-4090 needed beyond the tunnel).
 """
 import hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.request, wave
 import numpy as np
@@ -38,6 +40,9 @@ LEAD_TITLE, LEAD, TAIL = 2.6, 0.7, 1.1
 GAP, GAP_Q = 0.50, 0.70            # silence between sentences (longer after a question)
 CACHE = os.path.join(PROJ, 'cache_voice'); os.makedirs(CACHE, exist_ok=True)
 FETCH = os.path.join(TOOLS, 'blade', 'fetchjob.sh')
+# SOMA_VOICE_FETCH=http: no ssh to blade-4090 (a sandboxed session cannot read ~/.ssh): one job per sentence, its audio
+# from GET /api/jobs/{id}/result over the same tunnel. Job seed s + i keeps the server seed of turn i (see run_job).
+FETCH_MODE = os.environ.get('SOMA_VOICE_FETCH', 'ssh')
 CUTTER = 'padcut-v3'   # v3: cut where the sound settles on the gap's floor (v2 chopped soft endings)
 ARGS = sys.argv[1:]
 VOICE = ARGS[ARGS.index('--voice') + 1] if '--voice' in ARGS else 'cwon'
@@ -167,8 +172,51 @@ def usable(path, text):
     return False
 
 
+def fetch_result(job, dst, timeout=900):
+    """GET /api/jobs/{id}/result until it is ready (202 while running); writes the audio file as served."""
+    t0 = time.time()
+    while True:
+        req = urllib.request.Request(API + f'/api/jobs/{job}/result', method='GET')
+        with urllib.request.urlopen(req, timeout=120) as r:
+            if r.status == 200:
+                data = r.read()
+                if len(data) < 1000: sys.exit(f'job {job}: result is only {len(data)} bytes')
+                open(dst, 'wb').write(data)
+                return dst
+        if time.time() - t0 > timeout: sys.exit(f'job {job}: no result after {timeout}s')
+        time.sleep(3)
+
+
+def run_jobs_http(texts, seed, tag):
+    """SOMA_VOICE_FETCH=http: one async job per text (seed + i, the server seed turn i gets in a shared job), audio from
+    the job's result URL; returns local raw wav paths in order (48 kHz mono)."""
+    t0 = time.time(); out = []
+    tmp = os.path.join(CACHE, f'http_{seed}_{hashlib.sha1(json.dumps(texts, ensure_ascii=False).encode()).hexdigest()[:8]}')
+    os.makedirs(tmp, exist_ok=True)
+    for i, t in enumerate(texts):
+        body = {'mode': 'async', 'format': 'wav', 'seed': seed + i, 'turns': [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t}]}
+        job = http('POST', '/api/tts', body)['job_id']
+        if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
+        tj = time.time()
+        while True:
+            st = http('GET', f'/api/jobs/{job}')
+            if st['status'] in ('succeeded', 'completed'): break
+            if st['status'] == 'failed': sys.exit(f'{tag}: job {job} failed: {st.get("error")}')
+            if time.time() - tj > 900: sys.exit(f'{tag}: job {job} still {st["status"]} after 900 s')
+            time.sleep(2)
+        src = fetch_result(job, os.path.join(tmp, f'src{i:03d}'))
+        p = os.path.join(tmp, f'r{i:03d}.wav')
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', src, '-ar', str(SR), '-ac', '1', p], check=True)
+        out.append(p)
+    json.dump({'jobs': 'http', 'seed': seed, 'texts': texts, 'voice': VOICE, 'pad': PAD},
+              open(os.path.join(tmp, 'manifest.json'), 'w'), ensure_ascii=False)
+    print(f'  {tag}: {len(texts)} sentences in {time.time() - t0:.0f}s (http, {len(texts)} jobs)', flush=True)
+    return out
+
+
 def run_job(texts, seed, tag):
     """one async job, one turn per text; returns local raw wav paths in order (48 kHz mono)."""
+    if FETCH_MODE == 'http': return run_jobs_http(texts, seed, tag)
     turns = [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t} for t in texts]
     body = {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
             'merge_policy': {'silence_min_ms': 100, 'silence_max_ms': 100}}
@@ -181,7 +229,8 @@ def run_job(texts, seed, tag):
         if st['status'] == 'failed': sys.exit(f'{tag}: job {job} failed: {st.get("error")}')
         time.sleep(4)
     tmp = os.path.join(CACHE, 'job_' + job); os.makedirs(tmp, exist_ok=True)
-    subprocess.run([FETCH, job, tmp], check=True)
+    if subprocess.run([FETCH, job, tmp]).returncode != 0:
+        sys.exit(f'{tag}: copying job {job} from blade-4090 failed — without that access, run with SOMA_VOICE_FETCH=http')
     chunks = st['response']['chunks']
     if len(chunks) != len(texts): sys.exit(f'{tag}: expected {len(texts)} chunks, got {len(chunks)} (a turn was split)')
     out = []

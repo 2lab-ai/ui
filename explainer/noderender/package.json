@@ -1,0 +1,6 @@
+{
+  "name": "explainer-noderender",
+  "private": true,
+  "description": "Headless page for the explainer engine on Node + Skia, for hosts where no browser can start",
+  "dependencies": { "@napi-rs/canvas": "^0.1.100" }
+}

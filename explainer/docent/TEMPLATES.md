@@ -5,6 +5,8 @@ Copy-and-adapt recipes for the beats every book video needs. Each one passes the
 When a template produces a defect, fix the template here in the same PR as the scene fix, and log it in LESSONS.md.
 Timing rule for every recipe: everything in a shot finishes drawing by 60 % of the shot's length (a 2 s shot: by
 1.2 s), or the lint reports it half-drawn at rest.
+Every recipe stays inside the emphasis budget (REFERENCE §0): one subject plus at most two things around it, at most
+one written word, at most one red mark, ink only. When a sentence seems to need more, it needs two shots.
 
 Map: S script.json · T1 cast block · T2 dialogue · T3 three people · T4 inner voice · T5 named idea · T6 picture
 equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd · T12 a poem on the wall · T13 a chart
@@ -12,12 +14,13 @@ with a break · A adding an asset · C one-scene clip
 
 ## S. script.json fields that drive pictures and music
 ```json
-{"id": "rocket", "chip": "4 · 로켓", "title": "세 번의 폭발", "subtitle": "4장", "mood": "tension",
+{"id": "rocket", "chip": "4 · 로켓", "title": "세 번의 폭발", "subtitle": "4장", "mood": "tension", "idea": "세 번째 기회",
  "sentences": [
    {"text": "첫 발사는 33초 만에 끝났어요."},
    {"text": "그리고 네 번째, 마침내 궤도에 올랐습니다.", "music": "triumph"}]}
 ```
 `mood` = the chapter's music family (REFERENCE §7); `music` on a sentence = change cue exactly there.
+`idea` = the chapter's one named idea: the only phrase that gets written in purple in that chapter (REFERENCE §0).
 Cue keys use the spoken form: a sentence "1911년엔…" is `q.w('천구백십일', k)`, not `q.w('1911', k)`.
 `q.w` matches the start of a word (`q.w('모두')` also hits "모두의" earlier in the sentence); use `q.wx` for the exact
 word when the same stem appears twice
@@ -27,31 +30,37 @@ Put the names the voice must say in `project.json` `"names": ["이스마엘", "�
 ## T1. Cast block (top of scenes.js, once per book)
 ```js
 TITLE_CARD = signCard;
-cast('musk',  { name: '머스크', hair: 'short', outfit: 'suit', accent: 'red', h: 1.08 });
-cast('mom',   { name: '메이', hair: 'bun', outfit: 'dress', accent: 'magenta', h: 0.95 });
-cast('eng',   { name: '엔지니어', hair: 'curly', glasses: 'round', outfit: 'tshirt', accent: 'teal' });
-cast('viewer',{ name: '나', hair: 'side', accent: 'purple' });   // the running figure
+cast('musk',  { name: '머스크', hair: 'short', tie: true, h: 1.08 });          // silhouettes: height, hair/hat, one prop
+cast('mom',   { name: '메이', hair: 'bun', h: 0.95 });
+cast('eng',   { name: '엔지니어', hair: 'curly', glasses: 'round' });
+cast('viewer',{ name: '나', hair: 'side' });   // the running figure: never tagged
 ```
+No `accent` and no `outfit` (ink mode paints them as ink anyway): people differ by silhouette, as in the reference.
 Then `python tools/gallery.py cast` and look at the sheet before writing any scene.
 
 ## T2. Dialogue (two people facing each other)
+One bubble per shot: the answer is the next shot. A bubble's words are the shot's one written word, so a name tag goes
+in a shot without a bubble (the first time the narration names the person).
 ```js
 [q.s(3), (t, lt) => {
-  const a = person('musk', 620, 870, { pose: 'point', face: 'happy', tag: true, p: dp(lt, 0, 0.8) });
-  const b = person('eng', 1300, 870, { pose: 'shrug', face: 'worried', flip: true, p: dp(lt, 0.15, 0.8) });
+  const a = person('musk', 620, 870, { pose: 'point', face: 'happy', p: dp(lt, 0, 0.8) });
+  person('eng', 1300, 870, { pose: 'shrug', face: 'worried', flip: true, p: dp(lt, 0.15, 0.8) });
   say(a, '다시 쓰자!', { p: dp(lt, 0.9, 0.4) });
-  say(b, '불가능해요', { p: dp(lt, 2.0, 0.4) });   // second speaker answers later in the shot
+}],
+[q.s(3) + 1.6, (t, lt) => {
+  person('musk', 620, 870, { pose: 'point', face: 'happy' });
+  const b = person('eng', 1300, 870, { pose: 'shrug', face: 'worried', flip: true });
+  say(b, '불가능해요', { p: dp(lt, 0.2, 0.4) });
 }],
 ```
 
-## T3. Three people (argument, meeting)
-Spread x 520 / 1180 / 1480, all on one ground line; figures first, bubbles last; at most two bubbles per shot.
+## T3. A group (argument, meeting)
+Draw the group's verb, not every member: two people and one bubble say "the engineers refused". Three named people in
+one shot is 4 things with a bubble (lint `busy`): show the one who acts and let the narration carry the rest.
 ```js
-const m = person('musk', 520, 860, { pose: 'point', face: 'happy', p: dp(lt, 0, 0.8) });
-const a = person('eng', 1180, 860, { pose: 'akimbo', face: 'angry', flip: true, p: dp(lt, 0.2, 0.8) });
-const b = person('cfo', 1480, 860, { pose: 'facepalm', face: 'sad', flip: true, p: dp(lt, 0.3, 0.8) });
-say(a, '불가능해요', { p: dp(lt, 0.9, 0.4) });
-think(b, '또 시작이네…', { p: dp(lt, 1.6, 0.4) });
+const a = person('eng', 760, 860, { pose: 'shrug', face: 'worried', p: dp(lt, 0, 0.8) });
+person('cfo', 1180, 860, { pose: 'facepalm', face: 'sad', flip: true, p: dp(lt, 0.2, 0.8) });
+say(a, '불가능해요', { p: dp(lt, 0.9, 0.4) });   // one bubble speaks for the group
 ```
 
 ## T4. Inner voice (the viewer's objection)
@@ -86,27 +95,30 @@ think(b, '또 시작이네…', { p: dp(lt, 1.6, 0.4) });
 ```
 
 ## T8. Timeline (biography, history)
+Moments are pictures on the line, each drawn on the word that says it; the years are spoken, not written. Write one
+year only when the whole chapter hinges on it (then it is the shot's one word).
 ```js
 [q.s(0), (t, lt) => {
-  inkArrow(160, 560, 1760, 560, { p: dp(lt, 0, 0.8) });
-  [['1971', '태어남'], ['1995', '창업'], ['2002', '로켓']].forEach(([y, w], i) => {
-    const x = 400 + i * 520, p = dp(lt, 0.6 + i * 0.5, 0.4);
-    inkDot(x, 560, 10, { p }); hand(y, x, 500, { size: 56, p }); hand(w, x, 630, { size: 48, color: INK(), p });
+  inkArrow(160, 640, 1760, 640, { p: dp(lt, 0, 0.6) });
+  [['house', '천구백칠십일'], ['garage', '천구백구십오'], ['rocket', '이천이']].forEach(([name, cue], i) => {
+    const x = 420 + i * 540, p = dp(t, q.w(cue, 0), 0.4);
+    inkDot(x, 640, 10, { p }); prop(name, x, 560, 0.9, { p });
   });
 }],
 ```
 
 ## T9. Wrong idea vs right idea
+One verdict: the X on the wrong one; the right one stands plain beside it (an X and a ring together is two verdicts).
 ```js
 [q.s(4), (t, lt) => {
-  prop('ladder', 560, 760, 1.6, { p: dp(lt, 0, 0.6) }); cross(420, 380, 280, 400, { p: dp(lt, 0.8, 0.5) });
-  prop('loop', 1320, 760, 1.6, { p: dp(lt, 1.4, 0.6) }); ring(1320, 600, 220, 200, { p: dp(lt, 2.0, 0.5) });
+  prop('ladder', 560, 760, 1.6, { p: dp(lt, 0, 0.6) }); crossAt(560, 580, 300, 380, { p: dp(lt, 0.8, 0.5) });
+  prop('loop', 1320, 760, 1.6, { p: dp(t, q.w('고리', 4), 0.6) });
 }],
 ```
 
 ## T10. List
 ```js
-[q.s(2), (t, lt) => scrollList(660, 150, 600, '네 가지 규칙', ['하나', '둘', '셋', '넷'], { p: dp(lt, 0, 1.4), mark: [2] })],
+[q.s(2), (t, lt) => scrollList(660, 150, 600, '네 가지 규칙', ['하나', '둘', '셋', '넷'], { p: dp(lt, 0, 1.4) })],   // mark: [k] only when that item is the verdict
 ```
 
 ## T11. Crowd (people who are not characters)
@@ -133,12 +145,12 @@ One short line, named; the frame's `inside(x, y, w, h, p)` draws the picture in 
 [q.s(1), (t, lt) => {
   inkArrow(260, 820, 260, 220, { p: dp(lt, 0, 0.4) }); inkArrow(260, 820, 1660, 820, { p: dp(lt, 0, 0.4) });
   const pts = []; for (let i = 0; i <= 40; i++) pts.push([280 + i * 32, 800 - Math.pow(i / 40, 1.4) * 480]);
-  inkPath(pts, { p: dp(lt, 0.4, 1.4), w: 6, color: KEY() });
-  inkPath([[1560, 320], [1600, 780]], { p: dp(t, q.w('천한', 1), 0.3), w: 7, color: MARK() });   // the break
-  hand('1,000일', 1560, 868, { size: 44, color: C.dim, p: dp(lt, 1.2, 0.4) });
+  inkPath(pts, { p: dp(lt, 0.4, 1.4), w: 6 });                                                    // the line in ink
+  inkPath([[1560, 320], [1600, 780]], { p: dp(t, q.w('천한', 1), 0.3), w: 7, color: MARK() });   // the break in red
+  hand('1,000일', 1560, 868, { size: 52, p: dp(lt, 1.2, 0.4) });                                 // the one number
 }],
 ```
-Axes first, then the line that "feels safe", then the break on the word that names it. Numbers stay 1 to 3 labels.
+Axes first, then the line that "feels safe", then the break on the word that names it. One number, no axis labels.
 
 ## A. Adding an asset (animal, prop, pose, hat) from scenes.js
 The kit is read-only during a run; register what is missing at the top of scenes.js, after the cast block. It then
@@ -168,15 +180,19 @@ never the ending — no picture that gives the ending away). Two or three senten
 one mood and no `"music"` change; the scene's `title` is the book's title (it is the title card); 2 to 4 shots.
 
 ## T14. An idea inside a head (philosophy, psychology: "the judgment", "the story we tell")
+Two shots: the thing outside is crossed out ("it is not the work"), then the thing inside is the answer, the named idea.
 ```js
+[q.s(1), (t, lt) => {
+  prop('crate', 1240, 860, 1.6, { p: dp(lt, 0, 0.5) });                                   // the event
+  person('marcus', 700, 880, { pose: 'point', face: 'worried', p: dp(lt, 0, 0.5) });
+  crossAt(1240, 720, 300, 280, { p: dp(t, q.w('아니에요', 1), 0.4) });
+}],
 [q.s(2), (t, lt) => {
   const v = person('marcus', 760, 880, { pose: 'think', face: 'think', p: dp(lt, 0, 0.5) });
-  prop('cloud', 1420, 520, 1.4, { p: dp(lt, 0.2, 0.5), fill: mix(C.dim, 0.5) }); cross(1300, 380, 240, 200, { p: dp(lt, 0.8, 0.4) });   // the event
-  think(v, null, { w: 420, h: 260, p: dp(lt, 1.0, 0.4), body: (x, y) => hand('내 판단', x + 210, y + 130, { size: 64 }) });   // the cause
+  think(v, null, { w: 420, h: 260, p: dp(lt, 0.5, 0.4), body: (x, y) => hand('내 판단', x + 210, y + 130, { size: 64 }) });   // the cause
 }],
 ```
-The thing outside is crossed out, the thing inside is the answer. `think(who, null, { w, h, body })` draws a picture in
-the bubble.
+`think(who, null, { w, h, body })` draws a picture or the one word in the bubble.
 
 ## M. Many authors on one video (parts/ + parts.py)
 Long videos are drawn by several authors at once. Each owns `parts/<id>.js`; `parts/common.js` holds the cast block,

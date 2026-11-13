@@ -3,6 +3,28 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-13 · owner: "the reference is minimal; you show too much, like AI slop — you emphasise everything"
+Compared side by side: Productive Peter frames hold 1 to 3 things, 0 or 1 written word, black ink with purple on the
+word and one red mark; Elon Musk v2 and ten-books v2 frames held 5 to 12 things, 3 to 4 labels, coloured clothes and
+props, up to 9 red X's, a subtitle sentence and a chapter chip in every frame. The rules themselves pushed the clutter:
+- Shots filled to the edges · `bottom-heavy` (P2) told every author to draw something in the top 42 % · removed;
+  REFERENCE §6 now says the empty page is the default.
+- Everything emphasised, so nothing stood out · no rule said what may be emphasised · REFERENCE §0 "Emphasis budget":
+  only the named idea, the one number, the one verdict, a colour that is the meaning; lint `busy` (5+ things P1, 4 P2),
+  `words` (3+ P1, 2 P2), `marks` (2+ P1), `colour` (P2), `mark-budget` (red in more than ~1 shot per 45 s).
+- Coloured shirts, stalls, cakes, charts · cast looks carried an accent colour and outfit fills, props had built-in
+  fills · ink mode (project.json `"colour": false`, set for new docent projects; older projects keep their colours):
+  figure / person / animal / prop paint every colour as ink and every light fill as page; `colour: true` keeps one.
+- A full sentence under every drawing · subtitles burned in by default · new sketch projects get `"subtitles": "off"`
+  and `"chip": false`; `export.py srt` writes the caption track for YouTube.
+- Every device in every chapter (sign, situation, bubble, board, equation, X and ring) · the skill listed them as a
+  chapter's order · the skill now picks one device per sentence; the board and the red mark once per chapter.
+- Recipes that broke the budget themselves · T3 (three people, two bubbles), T8 (six labels), T9 (X and ring), T13
+  (purple line + label), T14 (cloud, X and bubble in one shot) · rewritten; docent-lab lints clean under the new checks.
+- Tooling found in this run (sandboxed session): Chromium and Firefox cannot start (macOS Mach `bootstrap_check_in`
+  denied) · `noderender/` runs the same engine on Node + Skia behind a playwright stand-in; the voice takes were
+  copied over ssh · `SOMA_VOICE_FETCH=http` takes them from the job's result URL.
+
 ## 2026-11-10 · music of the two v2 videos — owner: "음악 너무 개쓰레기같음" (the music is garbage)
 - The music sounded like a toy under a documentary voice · `score.py` cues are General MIDI instruments (marimba,
   xylophone, kalimba arpeggios) changing every ~35 s · recorded CC BY narration beds (`library_score.py`,
