@@ -108,7 +108,7 @@ async def main(only, strict):
             marked = []
             for t in rest:
                 r = await page.evaluate('(t) => { renderAt(t); return docentReport(); }', t)
-                if r.get('marks'): marked.append(round(t, 2))
+                if r.get('budget') and r.get('marks'): marked.append(round(t, 2))   # only ink-mode projects carry the budget
                 thumbs.append((sc['id'], t, await page.evaluate("() => document.getElementById('c').toDataURL('image/jpeg', 0.7).slice(23)")))
                 iss = judge(r)
                 if iss:

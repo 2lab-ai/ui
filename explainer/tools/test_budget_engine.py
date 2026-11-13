@@ -1,5 +1,5 @@
 """The emphasis-budget counts measured on the real engine (docent.js), not on synthetic reports: words and red marks
-drawn inside other primitives count, a bubble's speech and a prop's own lettering do not, a list's items are counted,
+drawn inside other primitives count, so does a bubble's speech; a prop's own lettering does not; a list's items are counted,
 ink mode strips colours only in a project with "colour": false. Runs the engine on Node + Skia (noderender/); skipped
 when node or @napi-rs/canvas is not installed (npm install in explainer/noderender)."""
 import json, os, shutil, subprocess, sys, tempfile, unittest
@@ -20,7 +20,7 @@ SCENES = r"""
 cast('a', { name: '갑', hair: 'short', outfit: 'suit', accent: 'red' });
 SCENES.s = (t, q) => shots(t, [
   [0.0, (t, lt) => { const v = person('a', 700, 880, {}); think(v, null, { w: 400, h: 240, body: (x, y) => hand('내 판단', x + 200, y + 120, { size: 60 }) }); }],
-  [2.0, (t, lt) => { const v = person('a', 700, 880, {}); say(v, '말풍선은 단어가 아님'); prop('calendar', 1300, 860, 1.2, { label: '월' }); }],
+  [2.0, (t, lt) => { const v = person('a', 700, 880, {}); say(v, '말풍선도 단어'); prop('calendar', 1300, 860, 1.2, { label: '월' }); }],
   [4.0, (t, lt) => { scrollList(600, 150, 600, '규칙', ['하나', '둘', '셋', '넷'], { mark: [2] }); }],
   [6.0, (t, lt) => { inkPath([[300, 300], [600, 700]], { color: MARK(), w: 6 }); cross(900, 300, 200, 200); }],
   [8.0, (t, lt) => { hand('나', 500, 400); hand('너', 900, 400); hand('우리', 1300, 400); }],
@@ -57,7 +57,7 @@ class BudgetOnEngine(unittest.TestCase):
 
     def test_word_inside_a_thought_and_speech_count_prop_lettering_does_not(self):
         self.assertEqual(report(self.proj, 1.5, False)['words'], ['내 판단'])
-        self.assertEqual(report(self.proj, 3.5, False)['words'], ['말풍선은 단어가 아님'])   # not the calendar's own label
+        self.assertEqual(report(self.proj, 3.5, False)['words'], ['말풍선도 단어'])   # not the calendar's own label
 
     def test_budget_only_in_ink_mode(self):
         self.assertTrue(report(self.proj, 1.5, False)['budget']); self.assertFalse(report(self.proj, 1.5, None)['budget'])

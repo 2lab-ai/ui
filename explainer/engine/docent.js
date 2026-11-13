@@ -71,7 +71,8 @@ function docentPatchCtx() {
   const wrap = (fn, prop, asInk) => function (...args) {
     const keep = this[prop]; let swapped = false;
     if (DOCENT_INK > 0) {
-      if (asInk ? docentIsColour(keep) : !docentDark(keep) && !docentSame(keep, PAPER())) { this[prop] = asInk ? INK() : PAPER(); swapped = true; }
+      // ink fills stay ink (white ink on mono-black); any other light or coloured fill becomes the page
+      if (asInk ? docentIsColour(keep) : !docentDark(keep) && !docentSame(keep, PAPER()) && !docentSame(keep, INK())) { this[prop] = asInk ? INK() : PAPER(); swapped = true; }
     } else if (!DOCENT.ghostOk && !DOCENT.measure && this.globalAlpha > 0.05 && !docentColourful()) {
       if (docentSame(keep, MARK()) && !DOCENT.inMark) DOCENT.redInk = true;   // a red line drawn by hand is a mark too
       else if (docentIsColour(keep) && !docentSame(keep, KEY()) && !docentSame(keep, MARK())) {
