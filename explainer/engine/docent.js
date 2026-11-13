@@ -121,7 +121,7 @@ function docentTags() {
     });
     placed.push(bs); const rec = [...best, g.own]; rec.m = g.m; DOCENT.tags.push(rec);
     ctx.save(); ctx.setTransform(g.m); ctx.globalAlpha = g.a; if (g.ghostOk) DOCENT.ghostOk++;
-    DOCENT.depth++; hand(g.str, (best[0] + best[2]) / 2, (best[1] + best[3]) / 2, { size: g.size, color: g.color, halo: true }); DOCENT.depth--;
+    DOCENT.depth++; hand(g.str, (best[0] + best[2]) / 2, (best[1] + best[3]) / 2, { size: g.size, color: g.color, halo: !g.plain }); DOCENT.depth--;   // ink mode: no paper halo
     if (!g.ghostOk && !DOCENT.ghostOk && g.a > 0.05) DOCENT.words.push('tag:' + g.str);
     if (g.ghostOk) DOCENT.ghostOk--; ctx.restore();
   }
@@ -449,7 +449,10 @@ function figure(x, y, o = {}) {
     if (style === 'long') for (const side of [-1, 1]) inkPath([[hc[0] + side * R * 0.2, hc[1] - R * 1.0], [hc[0] + side * R * 1.25, hc[1] - R * 0.5], [hc[0] + side * R * 1.2, hc[1] + R * 1.15], [hc[0] + side * R * 0.7, hc[1] + R * 1.1]], { p: hp, w: lw * 0.8, fill: ink, fillA: 0.85, closed: true, color: ink });
     if (style === 'ponytail') inkCurve([hc[0] - dir * R * 0.7, hc[1] - R * 0.6], [hc[0] - dir * R * 1.9, hc[1] - R * 0.2], [hc[0] - dir * R * 1.4, hc[1] + R * 1.0], { p: hp, w: lw * 2.2, color: ink });
     // head: filled a shade lighter than the page so it reads as a face, not a hole (2026-11-10 review: 'unfilled heads')
-    const headFill = C.paper ? opaqueMix(C.paper, 0.75, PAPER()) : PAPER();   // not `face`: that is the expression
+    // ink mode: an open head in the page colour, as in the reference (2026-11-13: three reviewers saw the lighter disc as
+    // 'filled pale faces' that pulled the eye); colour mode keeps the lighter disc (2026-11-10: page-coloured heads read
+    // as holes among filled clothes)
+    const headFill = DOCENT_INK > 0 ? PAPER() : (C.paper ? opaqueMix(C.paper, 0.75, PAPER()) : PAPER());   // not `face`: that is the expression
     if (snout) inkPath([F(head[0] + 30, head[1] - 4), F(head[0] + 118, head[1] + 18), F(head[0] + 116, head[1] + 30), F(head[0] + 30, head[1] + 22)], { p: ph(0, 6), w: lw, fill: PAPER(), color: ink });
     inkEllipse(hc[0], hc[1], R, (shell ? 40 * s0 * h : R), { p: ph(0, 6), w: lw, fill: headFill, color: ink });
     const pf = ph(4.5, 6);
@@ -494,7 +497,7 @@ function figure(x, y, o = {}) {
         inkLine(hc[0] - (hr + 4) * s, hc[1] - 2 * s, hc[0] - (hr - 10) * s, hc[1] + 26 * s, { w: lw, color: ink });
         inkCurve([hc[0] - 34 * s, hc[1] - 50 * s], [hc[0] + 6 * s, hc[1] - 112 * s], [hc[0] + 56 * s, hc[1] - 40 * s], { w: lw * 2.6, color: C.red });
       }
-      if (tag) DOCENT.pendingTags.push({ str: tag, size: tagS, color: (o.colour || docentColourful()) ? (docentTagInk(acc) || KEY()) : INK(), w: tagW, own: anchors.box, m: ctx.getTransform(), a: ctx.globalAlpha, ghostOk: !!o.ghostOk,
+      if (tag) DOCENT.pendingTags.push({ str: tag, size: tagS, color: (o.colour || docentColourful()) ? (docentTagInk(acc) || KEY()) : INK(), plain: DOCENT_INK > 0, w: tagW, own: anchors.box, m: ctx.getTransform(), a: ctx.globalAlpha, ghostOk: !!o.ghostOk,
         cands: o.tagSide ? [[tagX, tagY]] : [[tagX, tagY], [tagX === toward ? away : toward, tagY], [x, topY - tagS * 0.75]] });
     });
   });
@@ -1586,8 +1589,8 @@ PROPS.notebook = (x, y, s, o) => {
 function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w, h, o); }   // a function: a project may redefine it
 
 // ---------- emphasis budget: what competes for the eye (2026-11-13) ----------
-// Every top-level primitive call (not one drawn inside another) is one thing on screen; written words and red marks
-// are counted apart. tools/lint_scenes.py turns the counts into checks: `busy` (things), `words`, `marks`, `colour`.
+// Every top-level primitive call (not one drawn inside another) is one thing on screen; written words (hand, tags, the
+// term on a board) and red marks are counted apart, as REFERENCE §0 budgets them: one subject + two around it + one word. tools/lint_scenes.py turns the counts into checks: `busy` (things), `words`, `marks`, `colour`.
 // A crowd, a row of the same prop or animal, and a line of ants count once; a name tag is a word, not a thing.
 // figure / person / seated / animal / prop / crab / ant also draw in ink mode (see inkMode near the top).
 (function docentBudget() {
@@ -1611,7 +1614,7 @@ function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w,
     quote: (a) => { one('quote'); word(a[3]); },
     bookCover: (a, o) => { one('book'); word((o && o.title) || 'book'); },
     chapterMap: () => { one('map'); word('map'); },
-    hand: (a) => { one('word'); word(a[0]); }, handBlock: (a) => { one('word'); word([].concat(a[0]).join(' ')); },
+    hand: (a) => word(a[0]), handBlock: (a) => word([].concat(a[0]).join(' ')),   // a written word counts against `words`, not `busy`
     cross: () => DOCENT.marks.push('cross'), crossAt: () => DOCENT.marks.push('cross'),
     ring: () => DOCENT.marks.push('ring'), underline: () => DOCENT.marks.push('underline'),
   };
