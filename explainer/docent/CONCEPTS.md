@@ -33,7 +33,7 @@ narrator's name in it is an example the owner does not want used). The owner sai
 - The length formula (size × tone) and the part table. **The owner's requested length always overrides it** (≈ 410
   characters of `text` per minute, as in the skill).
 - The 7-step structure, the 애교 level by tone (casual more, serious less), and the flow patterns A/B/C.
-- The narrator is **never named** (owner, 2026-11-14: "채원이라는 이름 쓰지마"): "오빠, 안녕. 나예요.".
+- The narrator is **never named** (owner, 2026-11-14: no name for her, on screen, in the voice or in the script): "오빠, 안녕. 나예요.".
 
 **Several books on one question** (e.g. "ADHD를 위한 시간관리법" from 2–3 books): the listener's problem is the hook
 ("요즘 시간이 자꾸 새어 나간다고 했잖아요. 그래서 책 세 권을 읽었어요"). Each book is a voice answering one part of

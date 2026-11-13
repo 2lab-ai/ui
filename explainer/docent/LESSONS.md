@@ -19,7 +19,9 @@ that comes back means the fix was not structural: replace it with a check.
 - The cover was a different video (a deeper page, 2.4x lines, a red-sand hourglass) · REFERENCE §10 asked for a cover
   that stands out from the video · the cover looks like the video: its page, lines 1.6x, its cast and place
   (REFERENCE §10, TEMPLATES "Cover").
-- The narrator was named 채원 (CONCEPTS.md's example name) on screen and in the voice · an example was read as the
+- Books were ink drawings (a turtle on a blank cover) while the owner wanted the real books · the kit said "draw every
+  cover" · the real covers of the original and the Korean edition (REFERENCE §4, owner 2026-11-14).
+- The narrator had a name (the one in concepts/letter.prompt, the owner's example) on screen and in the voice · an example was read as the
   default · the narrator is never named (CONCEPTS.md); `project.json` "names" must not list her.
 
 ## 2026-11-14 · '게을러서가 아니라 시간이 안 보여서예요' (ADHD and time, three books, letter concept, 27:19, five authors)
