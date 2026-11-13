@@ -232,6 +232,25 @@ const SCENES = {};   // id -> draw(t, q, local)
 // (a = fade, lt = seconds since the scene started)
 // (docent.js offers signCard: a figure holding the chapter sign). Unset, the default centred title below is drawn.
 let TITLE_CARD = null;
+// Optional YouTube cover: scenes.js may set COVER = () => {...} to draw one composed frame, not a still of the video
+// (REFERENCE §10, TEMPLATES "Cover"). export.py cover calls renderCover() at 1920x1080 and saves it at 1280x720.
+let COVER = null;
+function renderCover() {
+  if (typeof DOCENT_FRAME === 'function') DOCENT_FRAME(0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  if (typeof COVER !== 'function') return false;
+  if (typeof COVER_INFO === 'object') COVER_INFO.texts = [];
+  // every ink line 2.4x as thick: a 5 px line at 1920 is under 1 px at 168 px wide
+  if (typeof DOCENT === 'object') DOCENT.lw = 2.4;
+  ctx.save(); try { COVER(); if (typeof docentTags === 'function') docentTags(); } finally { ctx.restore(); if (typeof DOCENT === 'object') DOCENT.lw = 1; }
+  return true;
+}
+// What the cover drew, for export.py cover's warnings: the coverText() calls and the ink's bounding box.
+function coverReport() {
+  const ink = typeof DOCENT === 'object' && DOCENT.ink ? DOCENT.ink : null;
+  return { texts: typeof COVER_INFO === 'object' ? COVER_INFO.texts : [], ink, W, H };
+}
 function sceneAt(t) {
   for (let i = ORDER.length - 1; i >= 0; i--) if (t >= SC[ORDER[i]].start) return SC[ORDER[i]];
   return SC[ORDER[0]];

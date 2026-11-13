@@ -1,7 +1,10 @@
 """Export: mix (music ducked under voice), stills, the MP4 (Playwright frames -> ffmpeg, parallel slices) and the
 audiobook (the mix as an M4A with one chapter marker per scene, plus out/chapters.txt for the YouTube description).
 usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]
-                        | audiobook [--cover still.jpg] [--out name] | srt [--out name]
+                        | audiobook [--cover still.jpg] [--out name] | srt [--out name] | cover [--at T] [--out name]
+cover: the YouTube thumbnail as out/cover.jpg (1280x720, under 2 MB) from scenes.js COVER (REFERENCE §10); without COVER,
+the still at --at T. out/cover_check.jpg shows it at 1280, 320 and 168 px wide: the cover must read at 168 px (the size
+of a search result on a phone).
 srt: the subtitles as out/<slug>.srt (one cue per sentence, its `text`) for the YouTube caption track — docent videos
 do not burn them in (project.json "subtitles": "off")."""
 import asyncio, base64, json, os, subprocess, sys, threading, http.server, functools, socketserver
@@ -155,6 +158,46 @@ async def stills(times, prefix='still'):
     if miss: print('MISSING CUES:', miss)
     print('\n'.join(paths))
 
+async def cover(at=None, name='cover'):
+    from playwright.async_api import async_playwright
+    srv, port = serve()
+    async with async_playwright() as pw:
+        browser, page, errs = await open_page(pw, port)
+        drew = await page.evaluate("() => typeof renderCover === 'function' && renderCover()")
+        if not drew:
+            if at is None: sys.exit('cover: scenes.js has no COVER and no --at T was given (REFERENCE §10)')
+            await page.evaluate("(t) => renderAt(t)", at)
+        rep = await page.evaluate("() => typeof coverReport === 'function' ? coverReport() : null") if drew else None
+        b64 = await page.evaluate("() => document.getElementById('c').toDataURL('image/png').slice(22)")
+        await browser.close()
+    srv.shutdown()
+    if errs: print('PAGE ERRORS:', errs)
+    big = os.path.join(OUT, f'{name}_1920.png'); open(big, 'wb').write(base64.b64decode(b64))
+    path = os.path.join(OUT, f'{name}.jpg')
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', big, '-vf', 'scale=1280:720:flags=lanczos', '-q:v', '2', path], check=True)
+    check = os.path.join(OUT, f'{name}_check.jpg')
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', big, '-filter_complex',
+                    '[0]scale=1280:720:flags=lanczos[a];[0]scale=320:180:flags=lanczos,pad=320:720:0:0:white[b];'
+                    '[0]scale=168:94:flags=lanczos,pad=168:720:0:0:white[c];[a][b][c]hstack=inputs=3', '-q:v', '3', check], check=True)
+    os.remove(big)
+    size = os.path.getsize(path)
+    if size >= 2 * 1024 * 1024: sys.exit(f'cover: {path} is {size} bytes; YouTube takes under 2 MB')
+    for w in cover_warnings(rep): print('WARNING cover:', w)
+    print(path); print(check)
+
+def cover_warnings(rep):
+    """REFERENCE §10 limits, from what COVER drew: ≤ 8 characters of cover text, text ≥ 160 px tall at 1080p (≈ 14 px at
+    168 px wide), ink spanning ≥ half the height (one big subject, not a small figure on an empty page)."""
+    if not rep: return []
+    out, texts = [], rep.get('texts') or []
+    if not texts: out.append('no coverText(): a cover without words gave reviewers nothing to read at 168 px (research 2026-11-14)')
+    for t in texts:
+        if t['chars'] > 8: out.append(f"\"{t['str']}\" is {t['chars']} characters (keep ≤ 8: it must read at 168 px)")
+        if t['size'] < 160: out.append(f"\"{t['str']}\" is {t['size']} px (use 200-280 at 1080p; under 160 it blurs at 168 px)")
+    ink = rep.get('ink')
+    if ink and (ink[3] - ink[1]) < 0.5 * rep['H']: out.append(f"ink spans {100 * (ink[3] - ink[1]) / rep['H']:.0f} % of the height (make the subject bigger: ≥ 50 %)")
+    return out
+
 async def render_slice(port, f0, f1, path):
     from playwright.async_api import async_playwright
     async with async_playwright() as pw:
@@ -207,6 +250,10 @@ if __name__ == '__main__':
         if '--to' in args: kw['t_to'] = float(args[args.index('--to') + 1])
         if '--out' in args: kw['name'] = args[args.index('--out') + 1]
         asyncio.run(video(**kw))
+    elif cmd == 'cover':
+        args = sys.argv[2:]
+        asyncio.run(cover(at=float(args[args.index('--at') + 1]) if '--at' in args else None,
+                          name=args[args.index('--out') + 1] if '--out' in args else 'cover'))
     elif cmd == 'srt':
         args = sys.argv[2:]; srt(name=args[args.index('--out') + 1] if '--out' in args else None)
     elif cmd == 'audiobook':
