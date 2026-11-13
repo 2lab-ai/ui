@@ -125,6 +125,8 @@ paints as ink or page (`colour: true` on the call keeps it). New sketch projects
   a hat or beard, not a colour, and keep handwriting for 1–2 labels. Formulas are not linted: check them on the sheet.
 
 ## 6. Composition
+- Fewer things, bigger: the reference's figures fill 40–70 % of the frame height; ours at `s: 1` fill about 33 %. A lone
+  figure goes at `s` 1.3–1.6, two people at 1.1–1.3 (feet still on y 860–880); the empty page around it stays empty.
 - One idea per shot, one focal point. Main subject ≥ 30 % of frame height (lint: `small-subject` when everything drawn
   fits in less than 30 % of the height and half the width).
 - Two or three people: spread over the width (x ≈ 520 / 1180 / 1480), feet on one ground line (y 860 to 880).
