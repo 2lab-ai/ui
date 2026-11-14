@@ -65,6 +65,8 @@ crops, rows of figures). The letter uses the same picture grammar as the lecture
 3. Every picture reads for a stranger in 2 s on a phone: a person doing something with a recognisable object, never
    an arrangement of symbols.
 4. The narrator is the running figure; 오빠 appears when she addresses him; the books are their real covers.
+5. Written words: only a term the viewer must remember (시간 근시, 자기 조절) or a number; never a purple caption that
+   repeats the picture in every chapter (Gate C v3 counted 19 and cut 14).
 The letter places, camera and letter-sheet card (TEMPLATES "P") are an option for a single shot or an opening, not the
 grammar of a whole video. Reference frames: `~/2lab.ai/ARTIFACTS/docent/reference-stoic/` (the Stoic video's Gate C sheets, and the two rejected looks).
 
