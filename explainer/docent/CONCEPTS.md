@@ -64,8 +64,10 @@ the subtitles, the timeline or the hearing check). Directions are English, never
 3. Hold a shot 6–15 s (2–3 sentences) and change one thing per sentence inside it (a gesture, a face, a line on the
    page); about 8 shots per chapter, not 20.
 4. Fill the frame; never a small lone figure on a blank page. The emphasis budget (REFERENCE §0) still holds.
-5. One look for the whole video: the places are shared helpers (`parts/common.js`) drawn before the scenes; every
-   author uses the same desk, room and letter page.
+5. One look for the whole video: the kit's letter places (`letterNight`, `letterRoom`, `letterSheet`, TEMPLATES "P")
+   before any author starts; every author uses the same desk, room and letter page.
+6. The camera (whole-watch review, 2026-11-14): room shots alternate a wide and a medium framing, pages are seen close
+   enough to fill the frame, and a place never redraws on a cut (`letterCam`, built into the places).
 The lecture's "a new picture every 2.5–5 s, draw each sentence's verb" does not apply to the letter.
 
 **How it maps to the kit**
@@ -76,9 +78,9 @@ The lecture's "a new picture every 2.5–5 s, draw each sentence's verb" does no
 - Health topics: the listener is never drawn as the person who has the condition, nor labelled with a symptom. "ADHD가
   있는 어른은 …" is a plain crowd figure (`figure(…, { crowd: true })`), not the listener: the narrator says "오빠가
   ADHD라는 얘기는 아니에요", and a picture must not say otherwise (Gate C, 2026-11-14: P0).
-- Chapter cards: `TITLE_CARD = signCard` with the narrator holding the sign. The settings come from shared helpers
-  in the project's common part (a night desk with window, lamp, mug and letter paper; the letter page; 오빠's room) so
-  every author draws the same places.
+- Chapter cards: `TITLE_CARD = letterCard` (a fresh letter sheet with the chapter title in her hand). The settings
+  are the kit's letter places (TEMPLATES "P"); a chapter's own place (a subway, a clinic) is drawn at the same scale.
+- Books: the real covers of the original and the Korean edition (`realCoverPair`, REFERENCE §4).
 - Music moods lean `warm`, `reflective`, `nostalgic`, with `curious` for the explanations (REFERENCE §7).
 
 ## Concept 1 — lecture (general)

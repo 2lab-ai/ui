@@ -104,7 +104,8 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   edition and, when one exists, the Korean edition, side by side. Get them in step 1 (publisher page `og:image` or its
   large cover path, Aladin/Yes24 `og:image` for Korean editions, Open Library or Amazon by ISBN as a fallback), save them
   as `img/cover_<book>_<en|ko>.jpg`, list them in `project.json` `"images"` and the source URLs in `"book_covers"`.
-  Show them where a book is introduced or held up (on the letter page, on the desk, in a hand), never redrawn in ink;
+  Show them (`realCoverPair` / `realCover`) where a book is introduced or held up (on the letter page, on the desk, in a
+  hand), never redrawn in ink;
   the cover carries the title, so no written word beside it. Other artwork is still drawn.
 - Animals come from `animal(kind, …)`: anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse
   hen swan blackswan octopus bat bee turtle tick. Never build an animal on the stick-figure rig (`figure({snout})` is flagged: lint

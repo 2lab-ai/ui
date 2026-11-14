@@ -14,6 +14,9 @@ that comes back means the fix was not structural: replace it with a check.
   inline tags (`tts`), `ko_say.spoken()` / `strip_tags()`; CONCEPTS.md "Voice".
 - A laugh tag at the end of a sentence ("… 있었어요. [small laugh]") failed the pad cut 3 rounds · the laugh runs into
   the tail pad · put sound tags inside the sentence, never last (CONCEPTS.md "Voice").
+- Gate C whole-watch (round 1): "one locked wide desk shot and a small card on blue, it reads as slides"; every cut
+  redrew the room from nothing; pages opened blank; the sign card spent its 2.6 s drawing itself · no camera, places
+  drew on with the shot · `letterCam` (wide/medium alternating, page 1.4x), places draw at once, `letterCard`.
 - Drama 3's engine died mid-job twice ("Remote end closed connection without response") and the whole run stopped ·
   one failed job ended the run · `narrate_soma.py`: a failed job is submitted again after /health answers (3 times).
 - The cover was a different video (a deeper page, 2.4x lines, a red-sand hourglass) · REFERENCE §10 asked for a cover
