@@ -163,7 +163,7 @@ def main():
             dst = os.path.join(proj, 'img', name + '.jpg')
             if not os.path.exists(dst):
                 print(f'image {name}: {title} ({commons(title, dst)})')
-        pj['images'] = list(imgs)
+        pj['images'] = list(dict.fromkeys(list(pj.get('images') or []) + list(imgs)))   # keep a project's own images (real covers)
     json.dump(pj, open(pj_path, 'w'), ensure_ascii=False, indent=1)
     print(f'{proj}: theme {th["id"]}, engine from {pj.get("ui_commit", "?")}')
 

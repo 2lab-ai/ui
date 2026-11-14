@@ -136,7 +136,7 @@ function docentTags() {
   }
 }
 // a letter place's own ink (LETTER_CAM.setting > 0) may be cut by a closer camera framing: not a subtitle or frame defect
-function docentNote(kind, what) { if ((kind === 'zone' || kind === 'off') && LETTER_CAM.setting > 0) return; if (DOCENT[kind].length < 40) DOCENT[kind].push(what); }
+function docentNote(kind, what) { if ((kind === 'zone' || kind === 'off') && LETTER_CAM.setting > 0 && DOCENT.shot && DOCENT.shot.zoomed) return; if (DOCENT[kind].length < 40) DOCENT[kind].push(what); }
 function docentReport() {
   const far = DOCENT.tails.filter(([tx, ty]) => !DOCENT.heads.some(([hx, hy, r, top]) => Math.hypot(tx - hx, ty - hy) < r + 70
       || (top != null && tx > hx - r * 1.4 && tx < hx + r * 1.4 && ty > top - 40 && ty < hy))
@@ -1439,7 +1439,11 @@ function shots(t, list, { fade = 0, settle = 0.035, settleT = 0.22, lead = 0.3 }
   const fresh = () => ({ figs: [], heads: [], tags: [], bubbles: [], things: [] });
   if (fade > 0 && i > 0 && t - t0 < fade) {   // optional cross-fade: only the old picture, fading out
     const lp = t - st(i - 1) - (i - 1 > 0 ? fade : 0);   // the old shot's own clock, as when it was current
-    DOCENT.slots = fresh(); DOCENT.ghostOk++; withAlpha(1 - (t - t0) / fade, () => { list[i - 1][1](t, lp); docentTags(); }); DOCENT.ghostOk--;
+    // the old shot draws as itself (its own index and clock for the letter camera) and its transform stays inside
+    const cur = DOCENT.shot; DOCENT.shot = { i: i - 1, t0: st(i - 1), t1: t0, n: list.length };
+    DOCENT.slots = fresh(); DOCENT.ghostOk++; ctx.save();
+    try { withAlpha(1 - (t - t0) / fade, () => { list[i - 1][1](t, lp); docentTags(); }); }
+    finally { ctx.restore(); DOCENT.ghostOk--; DOCENT.shot = cur; }
     return i;
   }
   DOCENT.slots = fresh();
@@ -1707,6 +1711,8 @@ function letterCam(kind, { cx = 960, by = 850 } = {}) {
     z *= 1 + LETTER_CAM.push * smooth(u);
   }
   if (z === 1) return;
+  // only a zoomed shot lets the place's own ink run under the subtitle line or off the frame (docentNote)
+  sh.zoomed = true;
   ctx.translate(ox, oy); ctx.scale(z, z); ctx.translate(-ox, -oy);
 }
 // the sky in a window: 0 = day (the page), 1 = night

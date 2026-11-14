@@ -127,6 +127,27 @@ class Directions(unittest.TestCase):
         with self.assertRaises(SystemExit):
             check_script({'scenes': [{'id': 'a', 'sentences': [{'text': 'x', 'tts': '[soft] hello 안녕'}]}]}, {})
 
+    def test_bracket_in_text_still_stops(self):
+        # a bracket in plain text would reach Drama 3 as a direction and never be said (PR #69 review)
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '오늘의 책은 [아주 작은 습관의 힘]이에요.'}]}]}, {})
+
+    def test_tag_splitting_number_and_counter_stops(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [
+                {'text': '하루에 2번이나 잊었어요.', 'tts': '하루에 <emphasis>2</emphasis>번이나 잊었어요.'}]}]}, {})
+        check_script({'scenes': [{'id': 'a', 'sentences': [
+            {'text': '하루에 2번이나 잊었어요.', 'tts': '하루에 <emphasis>2번</emphasis>이나 잊었어요.'}]}]}, {})
+        self.assertIn('<emphasis>두 번</emphasis>', spoken({'text': '2번', 'tts': '<emphasis>2번</emphasis>'}, {}))
+
+    def test_paired_tag_keeps_the_word_whole(self):
+        self.assertEqual(strip_tags('<emphasis>정신</emphasis>을 차려 보니'), '정신을 차려 보니')
+        self.assertEqual(strip_tags('안녕. [laughs softly] 나예요.'), '안녕. 나예요.')
+
+    def test_tts_words_must_match_text(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '새 문장이에요.', 'tts': '[soft] 옛 문장이에요.'}]}]}, {})
+
 
 if __name__ == '__main__':
     unittest.main()
