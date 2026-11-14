@@ -54,21 +54,19 @@ around the one word that matters. The words of `tts` equal `text`; the direction
 the subtitles, the timeline or the hearing check). Directions are English, never Korean inside brackets. A sound tag
 (a laugh, a breath) goes inside the sentence, never last: a closing laugh runs into the cut and fails it.
 
-**Pictures: the letter's visual grammar** (2026-11-14, after v1 was 27 minutes of flashcards)
-1. One place per chapter: the narrator's night desk, 오빠's room, or the real place the chapter needs (a subway, a
-   clinic, a bedroom), drawn life-size on the ground line with a window that shows the time of day. It stays for the
-   chapter.
-2. Two kinds of shots only. Room shots: the narrator and/or 오빠 big (s 1.9–2.4) in the place, acting the line's
-   feeling. Letter-page shots: a sheet of letter paper fills the frame and the explanation (a study, a number, the
-   book's idea) is sketched inside it — the ideas live on the letter, never float on an empty page.
-3. Hold a shot 6–15 s (2–3 sentences) and change one thing per sentence inside it (a gesture, a face, a line on the
-   page); about 8 shots per chapter, not 20.
-4. Fill the frame; never a small lone figure on a blank page. The emphasis budget (REFERENCE §0) still holds.
-5. One look for the whole video: the kit's letter places (`letterNight`, `letterRoom`, `letterSheet`, TEMPLATES "P")
-   before any author starts; every author uses the same desk, room and letter page.
-6. The camera (whole-watch review, 2026-11-14): room shots alternate a wide and a medium framing, pages are seen close
-   enough to fill the frame, and a place never redraws on a cut (`letterCam`, built into the places).
-The lecture's "a new picture every 2.5–5 s, draw each sentence's verb" does not apply to the letter.
+**Pictures: the Stoic video's level** (owner, 2026-11-14, after two remakes: "그전에 최대한 미니멀하게 해달라고 했는데
+넌 중간이 없니? 스토아 학파 영상 정도가 적당한것 같음"). v1 was too empty (heads on sticks, abstract symbols, dot grids,
+half-drawn frames); v2 was slop (ruled letter paper over half the film, the same furnished room again and again, zoom
+crops, rows of figures). The letter uses the same picture grammar as the lecture (REFERENCE §0–§6):
+1. A plain page; one subject doing the sentence's verb, at most two things around it; a lone figure big (≥ 40 % of
+   the frame height). A place is one simple prop when the verb needs it (a desk and a chair, a door, a bed).
+2. A new picture per sentence (two short ones may share), about 3–6 s; everything drawn by 60 % of the shot, the
+   subject by 0.5 s; never a blank or half-drawn frame.
+3. Every picture reads for a stranger in 2 s on a phone: a person doing something with a recognisable object, never
+   an arrangement of symbols.
+4. The narrator is the running figure; 오빠 appears when she addresses him; the books are their real covers.
+The letter places, camera and letter-sheet card (TEMPLATES "P") are an option for a single shot or an opening, not the
+grammar of a whole video. Reference frames: `~/2lab.ai/ARTIFACTS/docent/reference-stoic/` (the Stoic video's Gate C sheets, and the two rejected looks).
 
 **How it maps to the kit**
 - A part is a scene in `script.json`. A part's text is split into sentences of up to ~120 characters for cwon.
@@ -78,8 +76,7 @@ The lecture's "a new picture every 2.5–5 s, draw each sentence's verb" does no
 - Health topics: the listener is never drawn as the person who has the condition, nor labelled with a symptom. "ADHD가
   있는 어른은 …" is a plain crowd figure (`figure(…, { crowd: true })`), not the listener: the narrator says "오빠가
   ADHD라는 얘기는 아니에요", and a picture must not say otherwise (Gate C, 2026-11-14: P0).
-- Chapter cards: `TITLE_CARD = letterCard` (a fresh letter sheet with the chapter title in her hand). The settings
-  are the kit's letter places (TEMPLATES "P"); a chapter's own place (a subway, a clinic) is drawn at the same scale.
+- Chapter cards: `TITLE_CARD = signCard`, as in the Stoic video (`letterCard` only when asked).
 - Books: the real covers of the original and the Korean edition (`realCoverPair`, REFERENCE §4).
 - Music moods lean `warm`, `reflective`, `nostalgic`, with `curious` for the explanations (REFERENCE §7).
 
