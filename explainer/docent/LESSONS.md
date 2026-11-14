@@ -3,6 +3,30 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-14 · same video, remade after the owner watched it ("개 좇같이 만들었는데 이유를 생각해봐")
+- 27 minutes of flashcards: a small figure and one prop on an empty pale page, a hard cut every 2.5–5 s, one literal
+  pictogram per sentence · the letter concept reused the lecture's picture rules (REFERENCE §1) · CONCEPTS.md "Pictures:
+  the letter's visual grammar": one place per chapter (her night desk, his room), people big, ideas drawn on the letter
+  page, shots held 6–15 s.
+- Five authors drew five different desks (one rich night room, four bare lines) · each author built the place from
+  scratch · the places are shared helpers in parts/common.js before any scene is drawn; the first good one is promoted.
+- The voice was flat for 27 minutes · s2-pro, no directions · Drama 3 with a direction on every sentence (`dir`) and
+  inline tags (`tts`), `ko_say.spoken()` / `strip_tags()`; CONCEPTS.md "Voice".
+- A laugh tag at the end of a sentence ("… 있었어요. [small laugh]") failed the pad cut 3 rounds · the laugh runs into
+  the tail pad · put sound tags inside the sentence, never last (CONCEPTS.md "Voice").
+- Gate C whole-watch (round 1): "one locked wide desk shot and a small card on blue, it reads as slides"; every cut
+  redrew the room from nothing; pages opened blank; the sign card spent its 2.6 s drawing itself · no camera, places
+  drew on with the shot · `letterCam` (wide/medium alternating, page 1.4x), places draw at once, `letterCard`.
+- Drama 3's engine died mid-job twice ("Remote end closed connection without response") and the whole run stopped ·
+  one failed job ended the run · `narrate_soma.py`: a failed job is submitted again after /health answers (3 times).
+- The cover was a different video (a deeper page, 2.4x lines, a red-sand hourglass) · REFERENCE §10 asked for a cover
+  that stands out from the video · the cover looks like the video: its page, lines 1.6x, its cast and place
+  (REFERENCE §10, TEMPLATES "Cover").
+- Books were ink drawings (a turtle on a blank cover) while the owner wanted the real books · the kit said "draw every
+  cover" · the real covers of the original and the Korean edition (REFERENCE §4, owner 2026-11-14).
+- The narrator had a name (the one in concepts/letter.prompt, the owner's example) on screen and in the voice · an example was read as the
+  default · the narrator is never named (CONCEPTS.md); `project.json` "names" must not list her.
+
 ## 2026-11-14 · '게을러서가 아니라 시간이 안 보여서예요' (ADHD and time, three books, letter concept, 27:19, five authors)
 - The listener was drawn as the person with ADHD (오빠 grinning at the small coin, walking both "ADHD로 가는 길"
   paths, labelled "시간 근시", seated as the patient at the doctor's desk) while the narrator says "오빠가 ADHD라는

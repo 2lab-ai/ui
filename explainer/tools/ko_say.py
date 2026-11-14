@@ -153,19 +153,61 @@ def load_lexicon(proj):
     return (json.load(open(p)).get('say_lexicon') or {}) if os.path.exists(p) else {}
 
 
+# Drama 3 performance directions (TTS only, never spoken or subtitled): a free-form [direction] that holds until the next
+# one, and the paired word tags. Fish Audio docs, drama-3 (2026-11): "[barely holding it together] I'm fine. [sighs]"
+TAG = re.compile(r'(\[[^\[\]]{1,120}\]|</?(?:whisper|emphasis|soft|fast|slow|stress|forceful)>)')
+PAIRED = re.compile(r'</?(?:whisper|emphasis|soft|fast|slow|stress|forceful)>')
+DIRECTION = re.compile(r'\[[^\[\]]{1,120}\]')
+# a number cut from its counter by a tag ("<emphasis>2</emphasis>번" -> "이 번"): to_say only sees one side of the tag
+SPLIT_NUMBER = re.compile(r'\d\s*(?:(?:</?(?:whisper|emphasis|soft|fast|slow|stress|forceful)>|\[[^\[\]]{1,120}\])\s*)+[가-힣]')
+
+
+def strip_tags(text):
+    """the words alone: what the listener hears and the hearing check compares. A paired tag sits inside a word
+    ("<emphasis>정신</emphasis>을" -> "정신을"); a [direction] stands between words."""
+    return re.sub(r'\s{2,}', ' ', DIRECTION.sub(' ', PAIRED.sub('', text))).strip()
+
+
 def spoken(sentence, lexicon):
-    """a script.json sentence -> the text the voice model gets: its own "say", else to_say(text)."""
-    return sentence.get('say') or to_say(sentence['text'], lexicon)
+    """a script.json sentence -> the text the voice model gets.
+    "tts" (the sentence with inline directions) beats "say" beats "text"; the words between tags go through to_say,
+    the tags pass as written. "dir" is a leading direction for the whole sentence ("softly, a little shy")."""
+    src = sentence.get('tts')
+    if src:
+        def words(p):   # to_say trims: keep the spaces around the fragment so tags do not glue words together
+            core = to_say(p, lexicon)
+            return p[:len(p) - len(p.lstrip())] + core + p[len(p.rstrip()):]
+        out = ''.join(p if TAG.fullmatch(p) else words(p) if p.strip() else p for p in TAG.split(src))
+        out = re.sub(r'\s{2,}', ' ', out).strip()
+    else:
+        out = sentence.get('say') or to_say(sentence['text'], lexicon)
+    d = (sentence.get('dir') or '').strip().strip('[]').strip()
+    return f'[{d}] {out}' if d else out
 
 
 def check_script(script, lexicon):
-    """every sentence's spoken form, checked up front (before any GPU job). Exits listing all problems."""
+    """every sentence's spoken form, checked up front (before any GPU job). Exits listing all problems.
+    Tags are removed only from what came from "tts" and "dir": a bracket in "text" or "say" still stops the run (it
+    would reach Drama 3 as a direction and never be said)."""
     import sys
     bad = []
     for sc in script['scenes']:
         for k, s in enumerate(sc['sentences']):
+            where = f'{sc["id"]}:{k}'
             try:
-                check_say(spoken(s, lexicon), f'{sc["id"]}:{k}')
+                d = (s.get('dir') or '').strip().strip('[]')
+                if '[' in d or ']' in d: raise ValueError(f'{where}: "dir" holds a bracket: {d!r}')
+                if len(d) > 120: raise ValueError(f'{where}: "dir" is over 120 characters (keep a direction short)')
+                tts = s.get('tts')
+                if tts:
+                    if SPLIT_NUMBER.search(tts):
+                        raise ValueError(f'{where}: a tag splits a number from its counter; put both inside the tag ("<emphasis>2번</emphasis>")')
+                    words = re.sub(r'\s+', '', strip_tags(tts))
+                    ok = {re.sub(r'\s+', '', s['text'])} | ({re.sub(r'\s+', '', s['say'])} if s.get('say') else set())
+                    if not words or words not in ok:
+                        raise ValueError(f'{where}: "tts" words differ from "text" (or "say"): edit both')
+                body = spoken({**s, 'dir': None}, lexicon)
+                check_say(strip_tags(body) if tts else body, where)
             except ValueError as e:
                 bad.append(str(e))
     if bad:

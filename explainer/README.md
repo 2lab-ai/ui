@@ -138,7 +138,7 @@ for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue
 | `hand(str, x, y, {size, color, p})`, `handBlock` | handwritten text, written on left to right |
 | `cross(x, y, w, h)`, `crossAt(cx, cy, w, h)`, `ring(cx, cy, rx, ry)`, `underline`, `eqSign`, `plusSign` | red X (`cross` from the top-left corner, `crossAt` from the centre), red circle (centre), underline, picture-equation signs |
 | `scrollList(x, y, w, title, items, {mark, strike, p})` | a handwritten list on paper, items ringed or struck through |
-| `bookCover`, `quote`, `chapterMap` | a drawn cover (never a real one), a short quote, a progress map for long videos |
+| `bookCover`, `quote`, `chapterMap` | a drawn cover for a book without a cover image (a docent book shows its real covers, REFERENCE §4), a short quote, a progress map for long videos |
 | `prop(name, x, y, s, {p, fill, t, time})` | (`time: [h, m]` fixes a clock's hands, default 10:10) 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium ship whaleboat harpoon flask testtubes medal moon wind frame trolley lever bowl garage pcb fire barn crate rocket car mars factory moneybag satellite wheelchair barbell card seesaw notebook (`note` is a music note) … (`Object.keys(PROPS)`) |
 | `shots(t, [[t0, draw], …])` | quick cuts: the last shot that has started is drawn, fading in over 0.22 s; `draw(t, lt)` gets the time since it started |
 | `pop(t, t0)`, `dp(t, t0, d)` | pop-in scale with a small overshoot; draw-on progress |
@@ -162,7 +162,8 @@ chapter, about one shot per 4 seconds.
 House rules for book videos: change the picture every 3 to 5 seconds; one subject per shot, at most one written word
 (the chapter's named idea or the one number), at most one red mark, black ink only — the emphasis budget,
 [REFERENCE.md](docent/REFERENCE.md) §0; show the picture before the name; keep the bottom 170 px clear (YouTube draws
-its captions there); draw everything (no real cover or artwork images unless they are public domain).
+its captions there); draw everything except the books' own covers: a docent book shows the real cover of the original
+and of the Korean edition (REFERENCE §4); other artwork only when it is public domain.
 
 Ink mode (project.json `"colour": false`, which `new_video.py` writes for every new sketch project or with `--docent`):
 `figure`, `person`, `seated`, `animal`, `prop`, `crab` and `ant` paint every colour inside them as ink (lines, text) and

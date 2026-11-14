@@ -9,7 +9,7 @@ replaces it. Refuses to overwrite a real timeline (one whose voice is not 'draft
 """
 import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ko_say import load_lexicon, spoken   # the same spoken form narrate_soma.py sends to cwon, so q.w() cues match
+from ko_say import load_lexicon, spoken, strip_tags   # the same words narrate_soma.py puts in the timeline, so q.w() cues match
 
 LEAD_TITLE, LEAD, TAIL, GAP, GAP_Q = 2.6, 0.7, 1.1, 0.50, 0.70
 
@@ -26,7 +26,7 @@ def draft(script, cps=7.8, lexicon=None):
         start, cur, sents, words = t, t + lead, [], []
         ss = sc['sentences']
         for k, s in enumerate(ss):
-            try: say = spoken(s, lexicon or {})
+            try: say = strip_tags(spoken(s, lexicon or {}))   # Drama 3 directions are not words
             except Exception: say = s.get('say') or s['text']   # unconvertible text: narrate_soma will stop on it anyway
             d = max(1.2, max(len(s['text']), len(say)) / cps)   # numbers are longer spoken (1898 -> 천팔백구십팔)
             gap = (GAP_Q if say.rstrip().endswith('?') else GAP) if k + 1 < len(ss) else 0.0

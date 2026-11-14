@@ -10,7 +10,7 @@
   light-blue paper, black ink, purple handwritten keywords (Gaegu), for docent.js stick-figure videos. `3b1b` is the
   classic manim palette.
 - fetches the theme's fonts into <project>/fonts (cached in ~/.cache/2lab-explainer-fonts)
-- --from copies an example's script.json, scenes.js, formulas.py and project.json (only files the project lacks)
+- --from copies an example's script.json, scenes.js, formulas.py, project.json and img/ (only files the project lacks)
 - fetches public-domain images listed in project.json "commons" (Wikimedia Commons titles) into <project>/img
 - records the repo commit it was made from in project.json "ui_commit"
 - a new sketch project (or --docent) gets project.json "colour": false (ink mode), "subtitles": "off" and "chip": false:
@@ -123,6 +123,11 @@ def main():
         for f in ('script.json', 'scenes.js', 'formulas.py', 'project.json'):
             if os.path.exists(os.path.join(src, f)) and not os.path.exists(os.path.join(proj, f)):
                 shutil.copy(os.path.join(src, f), proj)
+        isrc = os.path.join(src, 'img')
+        if os.path.isdir(isrc):   # the example's own images (docent-lab's book covers, project.json "images")
+            os.makedirs(os.path.join(proj, 'img'), exist_ok=True)
+            for f in os.listdir(isrc):
+                if not os.path.exists(os.path.join(proj, 'img', f)): shutil.copy(os.path.join(isrc, f), os.path.join(proj, 'img', f))
     for f in ('engine.js', 'docent.js', 'video.html'):
         shutil.copy(os.path.join(EXPLAINER, 'engine', f), proj)
     json.dump({k: v for k, v in th.items() if k != 'fontFiles'}, open(os.path.join(proj, 'theme.json'), 'w'), indent=1)
@@ -158,7 +163,7 @@ def main():
             dst = os.path.join(proj, 'img', name + '.jpg')
             if not os.path.exists(dst):
                 print(f'image {name}: {title} ({commons(title, dst)})')
-        pj['images'] = list(imgs)
+        pj['images'] = list(dict.fromkeys(list(pj.get('images') or []) + list(imgs)))   # keep a project's own images (real covers)
     json.dump(pj, open(pj_path, 'w'), ensure_ascii=False, indent=1)
     print(f'{proj}: theme {th["id"]}, engine from {pj.get("ui_commit", "?")}')
 

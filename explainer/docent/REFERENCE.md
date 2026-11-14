@@ -99,6 +99,14 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   right facing each other (`flip: true` for the right one).
 
 ## 4. Animals and props
+- **Books: the real covers** (owner 2026-11-14: "도슨트북은 항상 실제 책 커버 원서랑 한글판 있으면 한글판도 이미지 둘다
+  찾아서 해당 실제 책 커버 이미지 사용해줘"). Every book the video reads is shown with its real cover image: the original
+  edition and, when one exists, the Korean edition, side by side. Get them in step 1 (publisher page `og:image` or its
+  large cover path, Aladin/Yes24 `og:image` for Korean editions, Open Library or Amazon by ISBN as a fallback), save them
+  as `img/cover_<book>_<en|ko>.jpg`, list them in `project.json` `"images"` and the source URLs in `"book_covers"`.
+  Show them (`realCoverPair` / `realCover`) where a book is introduced or held up (on the letter page, on the desk, in a
+  hand), never redrawn in ink;
+  the cover carries the title, so no written word beside it. Other artwork is still drawn.
 - Animals come from `animal(kind, …)`: anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse
   hen swan blackswan octopus bat bee turtle tick. Never build an animal on the stick-figure rig (`figure({snout})` is flagged: lint
   `animal-on-rig`).
@@ -237,29 +245,29 @@ spoke to a present problem ("모임이 귀찮아지고 혼자가 좋아졌다면
 - Honest: the video delivers exactly what the title promises. No medical, legal or money promises.
 
 **Cover (the YouTube thumbnail)** — drawn in `scenes.js` `COVER`, rendered by `export.py cover` (TEMPLATES "Cover").
-- Not a still of the video and not the title card. One subject filling ≥ 50 % of the height (a figure doing the
-  hook's verb, or one object that carries the tension), on one side; the text on the other side. In the letter
-  concept the subject is whoever has the hook's problem — usually the listener, not the narrator.
+- **The cover looks like the video** (owner, 2026-11-14: "지금 영상이랑 커버 이미지랑 괴리가 너무 크네"). Same page colour,
+  same line weight, the same cast drawn the same way, and a place from the video (the letter's night desk, the
+  listener's room). A cover in its own palette (a deeper page, cream fills, a red accent, 2.4x lines) promised a
+  different video than the one that played. `coverPage()` paints the video's own page; `renderCover()` draws lines
+  1.6x, enough for 168 px without changing the look.
+- Compose it, do not grab a still: one subject filling ≥ 50 % of the height (a figure from the video doing the hook's
+  verb), on one side; the text on the other side. In the letter concept the subject is whoever has the hook's problem
+  — usually the listener, at his desk — or the narrator writing the letter.
 - Only the bottom edge may cut the subject: a head or a stem cut by the top edge reads as something else (a cut apple
   read as a moon). `export.py cover` warns.
 - Cover text: ≤ 8 characters in all lines together (3–6 is best), 200–320 px at 1080p, ink with the paper halo. It
   adds to the title — the feeling or the stake ("시간이 샌다", "왜 나만?") — and never repeats the title or gives away
   the answer.
 - Show the tension, not the payoff: the empty clock, the stuck figure, the tilted ladder. The answer is the video.
-- `coverPage()` paints a deeper page than the video's: the video's pale blue is 1.6:1 against YouTube's white.
-- At most 75 % of the frame is bare page (`export.py cover` warns). Pale fills count as page: they were 1.45:1 against
-  it and vanished at 168 px. The thing that carries the tension is solid ink or the one MARK accent, and one big
-  shape: flies, dots and a thin finger disappear at 168 px.
-- Fit the mood and vary the picture: the pose and the page tint (`coverPage(colour)`) follow the title (a night title
-  is not a daytime study page), and the layout differs from the channel's last cover. Four of five verification covers
-  shared one template (figure left, text right, same tint) and read as the same video.
+- At most 75 % of the frame is bare page (`export.py cover` warns): fill it with the video's place (desk, window,
+  lamp) and a big figure, not with colours the video does not use.
 - Leave the bottom-right corner (about 300 × 130 px at 1080p) empty: YouTube draws the running time there.
-- Lines: `renderCover()` draws every ink line 2.4x as thick; still, prefer big simple shapes.
-- Check `out/cover_check.jpg` (1280 / 320 / 168 px): at 168 px you must read the text and name the subject. Fix every
-  `WARNING cover:` line from `export.py cover`.
+- Check `out/cover_check.jpg` (1280 / 320 / 168 px) next to a still of the video: the same look, and at 168 px you
+  read the text and name the subject. Fix every `WARNING cover:` line from `export.py cover`.
 - Make 2–3 covers when the channel can use Test & Compare: `COVER_B`, `COVER_C` in scenes.js; `export.py cover` renders
-  every one (`out/cover_b.jpg` …). The channel needs advanced features for a custom thumbnail: check the upload
-  dialog's 썸네일 "파일 업로드" button.
+  every one (`out/cover_b.jpg` …). Custom thumbnails have a daily limit per channel (Sentient Architect: about 4 a day
+  until the channel's one-time verification); a fifth upload opens the "일회성 인증 필요" dialog. Spend them on the
+  video that is about to go public.
 
 **Description**
 - First three lines (YouTube shows about three before 더보기): the hook question again in other words, what the viewer

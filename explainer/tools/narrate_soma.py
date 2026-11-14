@@ -33,7 +33,7 @@ import numpy as np
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TOOLS)
 from padcut import PAD_HEAD, PAD_TAIL, cut, edge_db, edges_ok, is_filler_text, removed, split_at_silence  # noqa: E402
-from ko_say import check_script, load_lexicon, spoken  # noqa: E402
+from ko_say import check_script, load_lexicon, spoken, strip_tags  # noqa: E402
 
 PROJ = os.getcwd()
 LEX = load_lexicon(PROJ)
@@ -59,7 +59,8 @@ JOB_ID = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 _whisper = None
 
 
-def say_of(s): return spoken(s, LEX)   # Hangul only: digits/Latin converted or rejected (ko_say.py)
+def say_of(s): return spoken(s, LEX)   # what the voice model gets: Hangul words (ko_say.py) + Drama 3 directions
+def heard_of(s): return strip_tags(say_of(s))   # the words alone: timeline, word cues, hearing check
 
 
 def http(method, path, body=None, timeout=60):
@@ -194,14 +195,42 @@ def fetch_result(job, dst, timeout=900):
         time.sleep(3)
 
 
+class JobFailed(RuntimeError):
+    """The server marked a job failed. Drama 3's engine process can die mid-job ("Remote end closed connection
+    without response", 2026-11-14) and is restarted by its supervisor, so the caller submits the job again."""
+
+
 def wait_job(job, tag, limit):
     t0 = time.time()
     while True:
         st = http('GET', f'/api/jobs/{job}')
         if st['status'] in ('succeeded', 'completed'): return st
-        if st['status'] == 'failed': sys.exit(f'{tag}: job {job} failed: {st.get("error")}')
+        if st['status'] == 'failed': raise JobFailed(f'{tag}: job {job} failed: {st.get("error")}')
         if time.time() - t0 > limit: sys.exit(f'{tag}: job {job} still {st["status"]} after {limit:.0f} s')
         time.sleep(3)
+
+
+RESUBMITS = 3   # a failed job is submitted again this many times before the run stops
+
+
+def healthy(wait=180):
+    """Wait until /health answers ok (the engine restarts after a crash)."""
+    t0 = time.time()
+    while time.time() - t0 < wait:
+        try:
+            if http('GET', '/health', timeout=10).get('status') == 'ok': return True
+        except (OSError, ValueError):
+            pass
+        time.sleep(10)
+    return False
+
+
+def retry_failed(e, tag, attempt):
+    """After a failed job: stop on the last attempt, else wait for the server and say so."""
+    if attempt >= RESUBMITS: sys.exit(str(e))
+    print(f'  {tag}: {e}; submitting it again ({attempt + 1}/{RESUBMITS})', flush=True)
+    time.sleep(20)
+    if not healthy(): sys.exit(f'{e}; the voice server did not come back')
 
 
 TURN_S = float(os.environ.get('SOMA_VOICE_TURN_S', '40'))   # wait per turn before giving up; a shared GPU needs more
@@ -252,7 +281,8 @@ def run_jobs_http(texts, seed, tag):
         pass
     if len(texts) > 1:
         turns = [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t} for t in texts]
-        for attempt in (0, 1):
+        forgot = False
+        for attempt in range(RESUBMITS + 1):
             job = live_job(tmp) if attempt == 0 else None   # a run cut off while its job still ran picks it up again
             if not job:
                 job = http('POST', '/api/tts', {'mode': 'async', 'format': 'wav', 'seed': seed, 'turns': turns,
@@ -265,9 +295,14 @@ def run_jobs_http(texts, seed, tag):
                 wait_job(job, tag, 180 + TURN_S * len(texts))
                 src = fetch_result(job, os.path.join(tmp, 'merged'))
                 break
+            except JobFailed as e:
+                retry_failed(e, tag, attempt)
             except urllib.error.HTTPError as e:   # 404: the service restarted and forgot its jobs (2026-11-14)
-                if e.code != 404 or attempt: raise
+                if e.code != 404 or forgot: raise
+                forgot = True
                 print(f'  {tag}: the server forgot job {job[:8]} (restarted?); submitting it again', flush=True)
+        else:
+            sys.exit(f'{tag}: no job finished after {RESUBMITS + 1} submissions')
         sr = int(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=sample_rate',
                                  '-of', 'csv=p=0', src], capture_output=True, text=True, check=True).stdout.strip())
         pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', src, '-f', 's16le', '-ac', '1', '-'], capture_output=True, check=True).stdout
@@ -286,15 +321,14 @@ def run_jobs_http(texts, seed, tag):
         print(f'  {tag}: merged result did not split into {len(texts)} turns; one job per sentence', flush=True)
     for i, t in enumerate(texts):
         body = {'mode': 'async', 'format': 'wav', 'seed': seed + i, 'turns': [{'voice': VOICE, 'text': (PAD_HEAD + t + PAD_TAIL) if PAD else t}]}
-        job = http('POST', '/api/tts', body)['job_id']
-        if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
-        tj = time.time()
-        while True:
-            st = http('GET', f'/api/jobs/{job}')
-            if st['status'] in ('succeeded', 'completed'): break
-            if st['status'] == 'failed': sys.exit(f'{tag}: job {job} failed: {st.get("error")}')
-            if time.time() - tj > 900: sys.exit(f'{tag}: job {job} still {st["status"]} after 900 s')
-            time.sleep(2)
+        for attempt in range(RESUBMITS + 1):
+            job = http('POST', '/api/tts', body)['job_id']
+            if not JOB_ID.match(job): sys.exit(f'{tag}: unexpected job id {job!r}')
+            try:
+                wait_job(job, f'{tag}:{i}', 900)
+                break
+            except JobFailed as e:
+                retry_failed(e, f'{tag}:{i}', attempt)
         src = fetch_result(job, os.path.join(tmp, f'src{i:03d}'))
         p = os.path.join(tmp, f'r{i:03d}.wav')
         subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', src, '-ar', str(SR), '-ac', '1', p], check=True)
@@ -519,9 +553,9 @@ def main():
         for k, (s, c) in enumerate(zip(sc['sentences'], cs)):
             c = c * (10 ** (np.clip(target - level(c), -6, 6) / 20))
             d = len(c) / SR
-            gap = (GAP_Q if say_of(s).rstrip().endswith('?') else GAP) if k + 1 < len(cs) else 0.0
-            sents.append({'text': s['text'], 'say': say_of(s), 'start': round(t0 + cur, 3), 'end': round(t0 + cur + d, 3), 'dur': round(d + gap, 3)})
-            words += word_times(say_of(s), t0 + cur + 0.06, max(0.1, d - 0.12))
+            gap = (GAP_Q if heard_of(s).rstrip().endswith('?') else GAP) if k + 1 < len(cs) else 0.0
+            sents.append({'text': s['text'], 'say': heard_of(s), 'start': round(t0 + cur, 3), 'end': round(t0 + cur + d, 3), 'dur': round(d + gap, 3)})
+            words += word_times(heard_of(s), t0 + cur + 0.06, max(0.1, d - 0.12))
             pieces += [c, np.zeros(int(gap * SR), np.float32)]
             cur += d + gap
         audio = np.concatenate(pieces)

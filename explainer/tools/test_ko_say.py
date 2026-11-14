@@ -2,7 +2,7 @@
 import os, sys, unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ko_say import check_say, leftovers, native, sino, to_say  # noqa: E402
+from ko_say import check_say, check_script, leftovers, native, sino, spoken, strip_tags, to_say  # noqa: E402
 
 LEX = {'e': '이', 'i': '아이', 'Euler': '오일러'}
 
@@ -103,6 +103,57 @@ class Letters(unittest.TestCase):
         self.assertEqual(check_say("이 쩜 칠 일 원, '허수 번'… 정말?"), "이 쩜 칠 일 원, '허수 번'… 정말?")
         for raw in ['2.71원', 'e를', '1+1', 'x=2']:
             with self.assertRaises(ValueError): check_say(raw)
+
+
+class Directions(unittest.TestCase):
+    """Drama 3 directions go to the voice model as written; the words between them are converted; the timeline and
+    the hearing check get the words alone (2026-11-14)."""
+    def test_dir_and_inline_tags(self):
+        s = {'text': '그런데 2024년에는 12만 명이 넘었어요.', 'dir': 'excited, can\'t hide it',
+             'tts': '그런데 2024년에는 12만 명이 넘었어요! [sighs] <soft>정말요</soft>.'}
+        out = spoken(s, {})
+        self.assertTrue(out.startswith("[excited, can't hide it] 그런데 이천이십사"))
+        self.assertIn('[sighs]', out); self.assertIn('<soft>정말요</soft>', out)
+        self.assertNotIn('[', strip_tags(out)); self.assertNotIn('<', strip_tags(out))
+
+    def test_spaces_around_tags_survive(self):
+        out = spoken({'text': '오빠, 안녕. 나예요.', 'tts': '오빠, 안녕. [laughs softly] 나예요.'}, {})
+        self.assertEqual(out, '오빠, 안녕. [laughs softly] 나예요.')
+
+    def test_check_script_ignores_tags(self):
+        check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '안녕.', 'dir': 'warm, smiling'}]}]}, {})
+
+    def test_latin_outside_tags_still_stops(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': 'x', 'tts': '[soft] hello 안녕'}]}]}, {})
+
+    def test_bracket_in_text_still_stops(self):
+        # a bracket in plain text would reach Drama 3 as a direction and never be said (PR #69 review)
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '오늘의 책은 [아주 작은 습관의 힘]이에요.'}]}]}, {})
+
+    def test_tag_splitting_number_and_counter_stops(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [
+                {'text': '하루에 2번이나 잊었어요.', 'tts': '하루에 <emphasis>2</emphasis>번이나 잊었어요.'}]}]}, {})
+        check_script({'scenes': [{'id': 'a', 'sentences': [
+            {'text': '하루에 2번이나 잊었어요.', 'tts': '하루에 <emphasis>2번</emphasis>이나 잊었어요.'}]}]}, {})
+        self.assertIn('<emphasis>두 번</emphasis>', spoken({'text': '2번', 'tts': '<emphasis>2번</emphasis>'}, {}))
+        with self.assertRaises(SystemExit):   # nested tags between the digit and its counter
+            check_script({'scenes': [{'id': 'a', 'sentences': [
+                {'text': '하루에 2번이나 잊었어요.', 'tts': '하루에 <slow><emphasis>2</emphasis></slow>번이나 잊었어요.'}]}]}, {})
+
+    def test_paired_tag_keeps_the_word_whole(self):
+        self.assertEqual(strip_tags('<emphasis>정신</emphasis>을 차려 보니'), '정신을 차려 보니')
+        self.assertEqual(strip_tags('안녕. [laughs softly] 나예요.'), '안녕. 나예요.')
+
+    def test_tts_of_tags_only_stops(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '안녕.', 'tts': '[sighs]'}]}]}, {})
+
+    def test_tts_words_must_match_text(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '새 문장이에요.', 'tts': '[soft] 옛 문장이에요.'}]}]}, {})
 
 
 if __name__ == '__main__':
