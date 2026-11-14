@@ -1711,8 +1711,9 @@ function letterCam(kind, { cx = 960, by = 850 } = {}) {
     z *= 1 + LETTER_CAM.push * smooth(u);
   }
   if (z === 1) return;
-  // only a zoomed shot lets the place's own ink run under the subtitle line or off the frame (docentNote)
-  sh.zoomed = true;
+  // only a medium or page framing lets the place's own ink run under the subtitle line or off the frame (docentNote);
+  // a wide shot's 3 % push-in stays inside the frame, so it is still checked
+  sh.zoomed = z >= 1.2;
   ctx.translate(ox, oy); ctx.scale(z, z); ctx.translate(-ox, -oy);
 }
 // the sky in a window: 0 = day (the page), 1 = night

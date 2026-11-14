@@ -139,6 +139,9 @@ class Directions(unittest.TestCase):
         check_script({'scenes': [{'id': 'a', 'sentences': [
             {'text': '하루에 2번이나 잊었어요.', 'tts': '하루에 <emphasis>2번</emphasis>이나 잊었어요.'}]}]}, {})
         self.assertIn('<emphasis>두 번</emphasis>', spoken({'text': '2번', 'tts': '<emphasis>2번</emphasis>'}, {}))
+        with self.assertRaises(SystemExit):   # nested tags between the digit and its counter
+            check_script({'scenes': [{'id': 'a', 'sentences': [
+                {'text': '하루에 2번이나 잊었어요.', 'tts': '하루에 <slow><emphasis>2</emphasis></slow>번이나 잊었어요.'}]}]}, {})
 
     def test_paired_tag_keeps_the_word_whole(self):
         self.assertEqual(strip_tags('<emphasis>정신</emphasis>을 차려 보니'), '정신을 차려 보니')

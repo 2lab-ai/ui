@@ -159,7 +159,7 @@ TAG = re.compile(r'(\[[^\[\]]{1,120}\]|</?(?:whisper|emphasis|soft|fast|slow|str
 PAIRED = re.compile(r'</?(?:whisper|emphasis|soft|fast|slow|stress|forceful)>')
 DIRECTION = re.compile(r'\[[^\[\]]{1,120}\]')
 # a number cut from its counter by a tag ("<emphasis>2</emphasis>번" -> "이 번"): to_say only sees one side of the tag
-SPLIT_NUMBER = re.compile(r'\d\s*(?:</?(?:whisper|emphasis|soft|fast|slow|stress|forceful)>|\[[^\[\]]{1,120}\])\s*[가-힣]')
+SPLIT_NUMBER = re.compile(r'\d\s*(?:(?:</?(?:whisper|emphasis|soft|fast|slow|stress|forceful)>|\[[^\[\]]{1,120}\])\s*)+[가-힣]')
 
 
 def strip_tags(text):
@@ -197,12 +197,14 @@ def check_script(script, lexicon):
             try:
                 d = (s.get('dir') or '').strip().strip('[]')
                 if '[' in d or ']' in d: raise ValueError(f'{where}: "dir" holds a bracket: {d!r}')
+                if len(d) > 120: raise ValueError(f'{where}: "dir" is over 120 characters (keep a direction short)')
                 tts = s.get('tts')
                 if tts:
                     if SPLIT_NUMBER.search(tts):
                         raise ValueError(f'{where}: a tag splits a number from its counter; put both inside the tag ("<emphasis>2번</emphasis>")')
-                    if re.sub(r'\s+', '', strip_tags(tts)) != re.sub(r'\s+', '', s['text']):
-                        raise ValueError(f'{where}: "tts" words differ from "text" (edit both)')
+                    words = re.sub(r'\s+', '', strip_tags(tts))
+                    if words not in (re.sub(r'\s+', '', s['text']), re.sub(r'\s+', '', s.get('say') or '')):
+                        raise ValueError(f'{where}: "tts" words differ from "text" (or "say"): edit both')
                 body = spoken({**s, 'dir': None}, lexicon)
                 check_say(strip_tags(body) if tts else body, where)
             except ValueError as e:
