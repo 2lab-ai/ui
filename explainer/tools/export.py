@@ -7,8 +7,12 @@ out/cover_b.jpg / cover_c.jpg from COVER_B / COVER_C for Test & Compare; without
 the still at --at T. out/cover_check.jpg shows it at 1280, 320 and 168 px wide: the cover must read at 168 px (the size
 of a search result on a phone).
 srt: the subtitles as out/<slug>.srt (one cue per sentence, its `text`) for the YouTube caption track — docent videos
-do not burn them in (project.json "subtitles": "off")."""
+do not burn them in (project.json "subtitles": "off").
+Every frame is rendered at the project's size (frame.py: project.json "format": "short" is a vertical 1080x1920 Short;
+no format is 1920x1080)."""
 import asyncio, base64, json, os, subprocess, sys, threading, http.server, functools, socketserver
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from frame import frame_size
 
 HERE = os.getcwd()   # the project folder (video.html, timeline.json, narration.wav, score.wav)
 OUT = os.path.join(HERE, 'out'); os.makedirs(OUT, exist_ok=True)
@@ -131,9 +135,16 @@ def serve():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv, srv.server_address[1]
 
+def project_frame():
+    """(width, height) of the project in the current folder (frame.py; 1920x1080 without a project.json)."""
+    pj = os.path.join(HERE, 'project.json')
+    if not os.path.exists(pj): return frame_size({})
+    with open(pj) as f: return frame_size(json.load(f))
+
 async def open_page(pw, port):
+    w, h = project_frame()   # a bad "format" / "size" stops here, before a browser waits on a page that cannot load
     browser = await pw.chromium.launch(args=['--disable-gpu-vsync', '--force-color-profile=srgb'])
-    page = await browser.new_page(viewport={'width': 1920, 'height': 1080}, device_scale_factor=1)
+    page = await browser.new_page(viewport={'width': w, 'height': h}, device_scale_factor=1)
     errs = []
     page.on('pageerror', lambda e: errs.append(str(e)))
     await page.goto(f'http://127.0.0.1:{port}/video.html?export=1')
@@ -178,14 +189,21 @@ async def cover(at=None, name='cover'):
     if errs: print('PAGE ERRORS:', errs)
     for nm, rep, b64 in jobs: save_cover(nm, rep, b64)
 
+def cover_sizes(w, h):
+    """The cover and its two check sizes (a quarter, and 168 px on the long side: a search result on a phone) for a
+    frame of w x h: 1280x720, 320x180, 168x94 for a landscape frame, 720x1280, 180x320, 94x168 for an upright one."""
+    cw, ch = (1280, 720) if w >= h else (720, 1280)
+    return [(cw, ch), (cw // 4, ch // 4), (int(cw * 168 / 1280), int(ch * 168 / 1280))]
+
 def save_cover(name, rep, b64):
     big = os.path.join(OUT, f'{name}_1920.png'); open(big, 'wb').write(base64.b64decode(b64))
     path = os.path.join(OUT, f'{name}.jpg')
-    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', big, '-vf', 'scale=1280:720:flags=lanczos', '-q:v', '2', path], check=True)
+    (cw, ch), (qw, qh), (sw, sh) = cover_sizes(*project_frame())
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', big, '-vf', f'scale={cw}:{ch}:flags=lanczos', '-q:v', '2', path], check=True)
     check = os.path.join(OUT, f'{name}_check.jpg')
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', big, '-filter_complex',
-                    '[0]scale=1280:720:flags=lanczos[a];[0]scale=320:180:flags=lanczos,pad=320:720:0:0:white[b];'
-                    '[0]scale=168:94:flags=lanczos,pad=168:720:0:0:white[c];[a][b][c]hstack=inputs=3', '-q:v', '3', check], check=True)
+                    f'[0]scale={cw}:{ch}:flags=lanczos[a];[0]scale={qw}:{qh}:flags=lanczos,pad={qw}:{ch}:0:0:white[b];'
+                    f'[0]scale={sw}:{sh}:flags=lanczos,pad={sw}:{ch}:0:0:white[c];[a][b][c]hstack=inputs=3', '-q:v', '3', check], check=True)
     warns = cover_warnings(rep)
     if corner_ink(big) > 0.004: warns.append('ink in the bottom-right corner: YouTube draws the running time there')
     bare = page_share(big)
@@ -215,12 +233,14 @@ def cover_warnings(rep):
     return out
 
 def corner_ink(png):
-    """Share of the bottom-right 330 × 140 px of a 1920 × 1080 cover (where YouTube draws the running time) that is not
-    page: measured against the cover's own page colour, so a dark page (mono-black) is not counted as ink."""
+    """Share of the bottom-right 330 × 140 px of a cover (where YouTube draws the running time; px at a short side of
+    1080, so 1920 × 1080 and 1080 × 1920 frames both measure 330 × 140) that is not page: measured against the cover's
+    own page colour, so a dark page (mono-black) is not counted as ink."""
     from PIL import Image
     im = Image.open(png).convert('RGB'); w, h = im.size
     pr, pg, pb = page_colour(im)
-    b = im.crop((w - int(330 * w / 1920), h - int(140 * h / 1080), w, h)).tobytes()
+    k = min(w, h) / 1080
+    b = im.crop((w - int(330 * k), h - int(140 * k), w, h)).tobytes()
     px = [(b[i], b[i + 1], b[i + 2]) for i in range(0, len(b), 3)]
     return sum(abs(r - pr) + abs(g - pg) + abs(bl - pb) >= 60 for r, g, bl in px) / max(1, len(px))
 

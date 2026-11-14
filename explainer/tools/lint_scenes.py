@@ -26,13 +26,14 @@ mark); a bubble's speech counts as a word; a prop's own lettering and a list's i
 """
 import asyncio, base64, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from export import serve, open_page, OUT
+from export import serve, open_page, project_frame, OUT
 
 STEP = 0.1     # finer than the shortest shot worth judging
 FADE = 0.22    # shots() cross-fade: a frame inside it shows two shots at once
 
-def judge(r):
-    """docentReport() of one rest frame -> list of (severity, code, detail)."""
+def judge(r, size=(1920, 1080)):
+    """docentReport() of one rest frame -> list of (severity, code, detail). size: the frame (export.project_frame())."""
+    fw, fh = size
     out = []
     if r['partial']: out.append(('P1', 'half-drawn', f"{len(r['partial'])} parts still drawing at rest: {sorted(set(r['partial']))[:4]}"))
     if r['ghost']: out.append(('P1', 'ghost', f"faded parts left on screen: {r['ghost'][:3]}"))
@@ -56,7 +57,7 @@ def judge(r):
     if r.get('propFace'): out.append(('P2', 'prop-over-face', str(r['propFace'][:3]) + ' — open the frame: a box test, it can be empty space'))
     if r.get('propBody'): out.append(('P2', 'prop-over-body', str(r['propBody'][:3]) + ' — a prop over the torso reads as the body: hold it at the hand, beside the body (bodyOk: true if hugging is the point)'))
     ink = r.get('ink')
-    if ink and not r.get('textBig') and (ink[3] - ink[1]) < 0.3 * 1080 and (ink[2] - ink[0]) < 0.5 * 1920:
+    if ink and not r.get('textBig') and (ink[3] - ink[1]) < 0.3 * fh and (ink[2] - ink[0]) < 0.5 * fw:
         out.append(('P2', 'small-subject', f"everything drawn fits in {int(ink[2] - ink[0])}x{int(ink[3] - ink[1])} px (< 30 % of the height): draw the subject bigger"))
     # emphasis budget (2026-11-13, owner: "the reference is minimal; you show too much and emphasise everything"):
     # one thing per shot plus at most two around it, one written word, one red verdict, ink plus purple and red only.
@@ -75,7 +76,7 @@ def judge(r):
 async def main(only, strict):
     from playwright.async_api import async_playwright
     tl = json.load(open('timeline.json'))
-    srv, port = serve(); report = []; shots_out = {}; thumbs = []
+    srv, port = serve(); report = []; shots_out = {}; thumbs = []; size = project_frame()
     os.makedirs(os.path.join(OUT, 'lint'), exist_ok=True)
     async with async_playwright() as pw:
         browser, page, errs = await open_page(pw, port)
@@ -112,7 +113,7 @@ async def main(only, strict):
                 r = await page.evaluate('(t) => { renderAt(t); return docentReport(); }', t)
                 if r.get('budget') and r.get('marks'): marked.append(round(t, 2))   # only ink-mode projects carry the budget
                 thumbs.append((sc['id'], t, await page.evaluate("() => document.getElementById('c').toDataURL('image/jpeg', 0.7).slice(23)")))
-                iss = judge(r)
+                iss = judge(r, size)
                 if iss:
                     report.append({'scene': sc['id'], 't': round(t, 2), 'issues': iss})
                     if any(s in ('P0', 'P1') for s, _, _ in iss):
@@ -151,6 +152,7 @@ async def main(only, strict):
         import io
         from PIL import Image, ImageDraw
         cols, tw, th, per = 3, 640, 360, 60   # big enough to see an arm through a prop
+        if size[1] > size[0]: cols, tw, th = 5, 384, 683   # an upright frame: same width per row, thumbnails not squashed
         for pg in range(0, len(thumbs), per):
             part = thumbs[pg:pg + per]; rows = (len(part) + cols - 1) // cols
             sheet = Image.new('RGB', (cols * tw, rows * (th + 22)), 'white'); d = ImageDraw.Draw(sheet)

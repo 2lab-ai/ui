@@ -1,7 +1,34 @@
 // engine.js — @2lab.ai/ui explainer engine (explainer/README.md). Shared canvas helpers for a 3Blue1Brown-style
 // explainer video. One clock: renderAt(t) draws any frame from the time alone, so preview, scrubbing and export agree.
 'use strict';
-const W = 1920, H = 1080, FPS = 30;
+// Frame formats. project.json "format" picks one ("short": a vertical YouTube Short), "size": [w, h] sets any size (an
+// upright size gets the short's layout); neither is the 1080p landscape video every older project was made for.
+// tools/frame.py holds the same sizes for the export (tools/test_frame.py checks that the two agree).
+// safe: the share of the frame [x0, y0, x1, y1] where text stays clear of the player. A Short's player covers the
+// bottom 20 % (title, channel, sound) and the right 15 % (like, comment, share); the top 6 % and left 5 % are margin.
+// sub: subtitle font size and line height in px.
+const FORMATS = {
+  landscape: { size: [1920, 1080], safe: [0, 0, 1, 1], sub: [36, 50] },
+  short: { size: [1080, 1920], safe: [0.05, 0.06, 0.85, 0.8], sub: [48, 66] },
+};
+function frameOf(p = {}) {
+  const size = Array.isArray(p.size) ? p.size.map(Number) : null;
+  const id = p.format || (size && size[1] > size[0] ? 'short' : 'landscape');
+  const f = FORMATS[id];
+  if (!f) throw new Error(`project.json "format": "${id}" is not one of ${Object.keys(FORMATS).join(', ')}`);
+  const [w, h] = size || f.size;
+  const safe = { x0: f.safe[0] * w, y0: f.safe[1] * h, x1: f.safe[2] * w, y1: f.safe[3] * h };
+  const subBottom = Math.min(h - 44, safe.y1 - 24);   // 1080p: 44 px above the bottom edge, as it always was
+  // subTop: the top of a two-line subtitle box, less 5 px. docent.js counts ink below it as under the subtitles (905 at 1080p)
+  return { format: id, W: w, H: h, safe, sub: f.sub, subBottom, subTop: subBottom - (2 * f.sub[1] + 26) - 5 };
+}
+let FRAME = frameOf({}), W = FRAME.W, H = FRAME.H;
+const FPS = 30;
+// project.json -> frame; the canvas is resized only when the size differs (a 1080p project never touches it)
+function setFrame(p) {
+  FRAME = frameOf(p); W = FRAME.W; H = FRAME.H;
+  if (canvas && (canvas.width !== W || canvas.height !== H)) { canvas.width = W; canvas.height = H; }
+}
 // Palette and fonts come from the project's theme.json (written by tools/new_video.py). The values below are the
 // classic 3Blue1Brown look; theme "mono-black" maps them onto the Modern Mono design tokens of @2lab.ai/ui.
 const C = {
@@ -212,17 +239,19 @@ function wrapLines(str, maxW, size, font) {
   if (cur) lines.push(cur);
   return lines;
 }
+// the subtitle box sits at the bottom of the frame's safe area, centred in it (1080p: the whole frame, 1480 px wide)
 function subtitle(str, a) {
   if (!str || a <= 0) return;
-  const size = 36, lh = 50, maxW = 1480;
+  const [size, lh] = FRAME.sub, s = FRAME.safe;
+  const cx = (s.x0 + s.x1) / 2, maxW = Math.min(1480, s.x1 - s.x0 - 56);
   const lines = wrapLines(str, maxW, size, SANS);
   ctx.font = `500 ${size}px ${SANS}`;
   const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 56;
   const h = lines.length * lh + 26;
-  const y = H - 44 - h;
+  const y = FRAME.subBottom - h;
   withAlpha(a, () => {
-    rrect(W / 2 - w / 2, y, w, h, 16); ctx.fillStyle = C.panel; ctx.fill();
-    lines.forEach((l, i) => text(l, W / 2, y + 13 + lh / 2 + i * lh + 1, { size, font: SANS, color: C.panelText, weight: 500 }));
+    rrect(cx - w / 2, y, w, h, 16); ctx.fillStyle = C.panel; ctx.fill();
+    lines.forEach((l, i) => text(l, cx, y + 13 + lh / 2 + i * lh + 1, { size, font: SANS, color: C.panelText, weight: 500 }));
   });
 }
 
@@ -233,7 +262,8 @@ const SCENES = {};   // id -> draw(t, q, local)
 // (docent.js offers signCard: a figure holding the chapter sign). Unset, the default centred title below is drawn.
 let TITLE_CARD = null;
 // Optional YouTube cover: scenes.js may set COVER = () => {...} to draw one composed frame, not a still of the video
-// (REFERENCE §10, TEMPLATES "Cover"). export.py cover calls renderCover() at 1920x1080 and saves it at 1280x720.
+// (REFERENCE §10, TEMPLATES "Cover"). export.py cover calls renderCover() at the frame size and saves it at 1280x720
+// (an upright frame: 720x1280).
 let COVER = null;
 var COVER_B = null, COVER_C = null;   // var: a strict-mode scenes.js can assign them, and renderCover finds them on window
 // renderCover('COVER_B') draws a second cover for Test & Compare (export.py cover renders every COVER, COVER_B, COVER_C)
@@ -301,7 +331,7 @@ async function loadAll() {
   canvas = document.getElementById('c'); ctx = canvas.getContext('2d');
   const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const [tl, fm, theme, project] = await Promise.all([get('timeline.json'), get('formulas.json'), get('theme.json'), get('project.json')]);
-  applyTheme(theme); PROJECT = project || {};
+  applyTheme(theme); PROJECT = project || {}; setFrame(PROJECT);
   TL = tl; FORM = prepFormulas(fm || {});
   TL.scenes.forEach(s => { SC[s.id] = s; ORDER.push(s.id); });
   const imgs = PROJECT.images || [];

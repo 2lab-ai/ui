@@ -11,15 +11,17 @@
   @font-face { font-family: 'NotoSansKR'; src: url('fonts/NotoSansKR.ttf'); font-weight: 100 900; }
   @font-face { font-family: 'Gaegu'; src: url('fonts/Gaegu-Regular.ttf'); font-weight: 400; }
   @font-face { font-family: 'Gaegu'; src: url('fonts/Gaegu-Bold.ttf'); font-weight: 700; }
+  /* --ar, --w, --h: the project's frame (engine.js setFrame); the defaults are the 1080p landscape video */
+  :root { --ar: 16 / 9; --w: 1920px; --h: 1080px; }
   html, body { margin: 0; background: #0b0c0e; color: #ececec; font-family: NotoSansKR, sans-serif; }
   #wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px; }
-  canvas { width: min(96vw, calc((100vh - 90px) * 16 / 9)); aspect-ratio: 16 / 9; background: #101114; border-radius: 8px; }
-  #bar { display: flex; gap: 12px; align-items: center; width: min(96vw, calc((100vh - 90px) * 16 / 9)); }
+  canvas { width: min(96vw, calc((100vh - 90px) * var(--ar))); aspect-ratio: var(--ar); background: #101114; border-radius: 8px; }
+  #bar { display: flex; gap: 12px; align-items: center; width: min(96vw, calc((100vh - 90px) * var(--ar))); }
   #seek { flex: 1; } button { background: #23262d; color: #ececec; border: 1px solid #3a3d45; border-radius: 6px; padding: 6px 14px; font-size: 15px; cursor: pointer; }
-  #chap { display: flex; gap: 6px; flex-wrap: wrap; width: min(96vw, calc((100vh - 90px) * 16 / 9)); }
+  #chap { display: flex; gap: 6px; flex-wrap: wrap; width: min(96vw, calc((100vh - 90px) * var(--ar))); }
   #chap button { font-size: 13px; padding: 4px 10px; color: #9aa0aa; }
   body.export #bar, body.export #chap { display: none; }
-  body.export #wrap { padding: 0; } body.export canvas { width: 1920px; height: 1080px; border-radius: 0; }
+  body.export #wrap { padding: 0; } body.export canvas { width: var(--w); height: var(--h); border-radius: 0; }
 </style>
 </head>
 <body>
@@ -37,6 +39,8 @@
   const exportMode = new URLSearchParams(location.search).has('export');
   if (exportMode) document.body.classList.add('export');
   await loadAll();
+  const root = document.documentElement.style;   // the frame from project.json: the canvas keeps its shape in the player
+  root.setProperty('--ar', `${W} / ${H}`); root.setProperty('--w', W + 'px'); root.setProperty('--h', H + 'px');
   document.title = TL.title || document.title;
   document.body.style.background = C.bg;
   window.renderAt = renderAt;
