@@ -203,7 +203,8 @@ def check_script(script, lexicon):
                     if SPLIT_NUMBER.search(tts):
                         raise ValueError(f'{where}: a tag splits a number from its counter; put both inside the tag ("<emphasis>2번</emphasis>")')
                     words = re.sub(r'\s+', '', strip_tags(tts))
-                    if words not in (re.sub(r'\s+', '', s['text']), re.sub(r'\s+', '', s.get('say') or '')):
+                    ok = {re.sub(r'\s+', '', s['text'])} | ({re.sub(r'\s+', '', s['say'])} if s.get('say') else set())
+                    if not words or words not in ok:
                         raise ValueError(f'{where}: "tts" words differ from "text" (or "say"): edit both')
                 body = spoken({**s, 'dir': None}, lexicon)
                 check_say(strip_tags(body) if tts else body, where)

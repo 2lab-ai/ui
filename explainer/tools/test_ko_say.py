@@ -147,6 +147,10 @@ class Directions(unittest.TestCase):
         self.assertEqual(strip_tags('<emphasis>정신</emphasis>을 차려 보니'), '정신을 차려 보니')
         self.assertEqual(strip_tags('안녕. [laughs softly] 나예요.'), '안녕. 나예요.')
 
+    def test_tts_of_tags_only_stops(self):
+        with self.assertRaises(SystemExit):
+            check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '안녕.', 'tts': '[sighs]'}]}]}, {})
+
     def test_tts_words_must_match_text(self):
         with self.assertRaises(SystemExit):
             check_script({'scenes': [{'id': 'a', 'sentences': [{'text': '새 문장이에요.', 'tts': '[soft] 옛 문장이에요.'}]}]}, {})
