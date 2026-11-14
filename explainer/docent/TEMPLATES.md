@@ -241,6 +241,9 @@ Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118
 - Bubbles keep clear of props and boards (they reserve their box), so draw the props of a shot before its bubbles.
 
 ## P. Letter places (concept letter: her night desk, his room, the letter page, the real covers)
+Optional (owner 2026-11-14): a whole video in these places read as slop; the letter's default is the Stoic level
+(CONCEPTS "Pictures"). Use a place for one shot or an opening at most. The real covers (`realCover`, `realCoverPair`)
+are the part every docent book uses.
 A letter video has two kinds of shots (CONCEPTS letter, "Pictures"): room shots, with the narrator or the listener big
 in one place that stays for the chapter, and letter-page shots, with the idea sketched on a sheet of letter paper. The
 kit draws the places, so every chapter starts in the same rich room instead of a bare desk:

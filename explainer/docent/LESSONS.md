@@ -3,6 +3,13 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-14 · same video, third pictures pass — owner: "음성 좋은데 영상은 … 개 slop임 … 넌 중간이 없니? 스토아 학파 영상 정도가 적당"
+- v2 swung from empty to cluttered: ruled letter paper on about half the frames, the same furnished room (bookcase,
+  curtains, lamp cone, drawers) in every desk shot, 1.4x zoom crops, rows of figures · a whole-watch review asked for
+  "more to look at" and the fix added decoration instead of clearer pictures · CONCEPTS "Pictures": the Stoic
+  video's level for the letter too; the letter places are an option for one shot, not the grammar. Compare every new
+  video's sampled frames with the Stoic sheets before Gate C.
+
 ## 2026-11-14 · same video, remade after the owner watched it ("개 좇같이 만들었는데 이유를 생각해봐")
 - 27 minutes of flashcards: a small figure and one prop on an empty pale page, a hard cut every 2.5–5 s, one literal
   pictogram per sentence · the letter concept reused the lecture's picture rules (REFERENCE §1) · CONCEPTS.md "Pictures:
