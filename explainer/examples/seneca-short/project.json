@@ -1,0 +1,28 @@
+{
+ "slug": "seneca-life-is-not-short",
+ "title": "인생은 짧지 않다 — 세네카",
+ "lang": "ko",
+ "format": "short",
+ "subtitles": "off",
+ "chip": false,
+ "commons": {
+  "seneca": "File:Portretbuste van Seneca, RP-P-OB-6738.jpg"
+ },
+ "names": [
+  "세네카",
+  "파울리누스"
+ ],
+ "say_lexicon": {},
+ "sources": {
+  "translation": "https://dosi.dev/post/2025-05-12-de-brevitate-vitae-seneca/",
+  "facts": [
+   "https://en.wikipedia.org/wiki/De_Brevitate_Vitae_(Seneca)",
+   "https://en.wikipedia.org/wiki/Seneca_the_Younger"
+  ],
+  "image": "https://commons.wikimedia.org/wiki/File:Portretbuste_van_Seneca,_RP-P-OB-6738.jpg (Rijksmuseum, CC0)"
+ },
+ "youtube": {
+  "title": "인생이 짧은 게 아니라, 우리가 낭비할 뿐 — 세네카 #shorts",
+  "description": "\"Non exiguum temporis habemus, sed multum perdidimus.\" — 세네카, 『인생의 짧음에 대해』 1.3 (서기 49년 무렵, 파울리누스에게)\n\n인용 번역: 「세네카의 『인생의 짧음에 대해』 라틴어 전문 번역」 https://dosi.dev/post/2025-05-12-de-brevitate-vitae-seneca/\n그림: Rijksmuseum, 세네카 흉상 판화 (CC0, Wikimedia Commons)\n음성: soma-voice (cwon)\n만든 도구: @2lab.ai/ui explainer kit\n\nMusic:\n'We Don't Know How it Ends' by Lee Rosevere — CC BY 4.0 (https://archive.org/details/leerosevere_musicforpodcasts_6)"
+ }
+}

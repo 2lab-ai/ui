@@ -11,7 +11,7 @@ for (const m of html.matchAll(/@font-face\s*\{\s*font-family:\s*'([^']+)';\s*src
   const p = path.join(dir, m[2]);
   if (fs.existsSync(p)) { try { GlobalFonts.registerFromPath(p, m[1]); } catch (e) { errors.push('font ' + m[2] + ': ' + e.message); } }
 }
-const canvas = createCanvas(1920, 1080);
+const canvas = createCanvas(1920, 1080);   // engine.js setFrame() resizes it to the project's frame (project.json "format" / "size")
 canvas.style = {};
 const ctx2d = canvas.getContext('2d');
 const _drawImage = ctx2d.drawImage.bind(ctx2d);
@@ -40,6 +40,7 @@ const document = {
   title: '',
   getElementById: (id) => (id === 'c' ? canvas : stub()),
   body: stub(),
+  documentElement: { style: { setProperty() {} } },   // video.html sets the player's CSS frame variables
   createElement: (tag) => (tag === 'canvas' ? (() => { const c = createCanvas(300, 150); return c; })() : stub()),
   createElementNS: () => ({ ...stub(), getTotalLength() { return pathLen(this.d); } }),
   fonts: { load: async () => [], ready: Promise.resolve() },

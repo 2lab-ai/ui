@@ -2,6 +2,7 @@
 
     python explainer/tools/new_video.py <project_dir> [--theme mono-black|sketch|3b1b] [--from explainer/examples/<name>]
                                                     [--slug <file-name>] [--title "<title>"] [--docent]
+                                                    [--format landscape|short]
 
 - copies engine/engine.js, engine/docent.js and engine/video.html into the project (refreshing them is safe: scenes
   are untouched)
@@ -15,8 +16,11 @@
 - records the repo commit it was made from in project.json "ui_commit"
 - a new sketch project (or --docent) gets project.json "colour": false (ink mode), "subtitles": "off" and "chip": false:
   docent videos show the drawing in ink only, the narration goes to YouTube as captions (export.py srt)
+- --format short writes project.json "format": "short": a vertical YouTube Short, 1080x1920 (frame.py). Without it a
+  project renders at 1920x1080
 """
 import json, os, shutil, subprocess, sys, tempfile, urllib.parse, urllib.request
+from frame import frame_size
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 EXPLAINER = os.path.dirname(HERE)
@@ -147,6 +151,9 @@ def main():
     if opt('--slug'): pj['slug'] = opt('--slug')
     pj.setdefault('slug', os.path.basename(proj))
     if opt('--title'): pj['title'] = opt('--title')
+    if opt('--format'): pj['format'] = opt('--format')
+    try: w, h = frame_size(pj)
+    except ValueError as e: sys.exit(str(e))
     pj['theme'] = th['id']
     try:
         pj['ui_commit'] = subprocess.run(['git', '-C', REPO, 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
@@ -165,7 +172,7 @@ def main():
                 print(f'image {name}: {title} ({commons(title, dst)})')
         pj['images'] = list(dict.fromkeys(list(pj.get('images') or []) + list(imgs)))   # keep a project's own images (real covers)
     json.dump(pj, open(pj_path, 'w'), ensure_ascii=False, indent=1)
-    print(f'{proj}: theme {th["id"]}, engine from {pj.get("ui_commit", "?")}')
+    print(f'{proj}: theme {th["id"]}, {w}x{h}, engine from {pj.get("ui_commit", "?")}')
 
 
 if __name__ == '__main__':

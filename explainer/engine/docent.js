@@ -18,11 +18,11 @@ const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 // Every primitive reports what it drew in the current frame: half-drawn parts, faded "ghost" parts, ink inside the
 // subtitle zone or off the frame, empty bubbles, bubble tails, figure heads. engine.js calls DOCENT_FRAME(t) at the
 // start of every renderAt, so the registry always describes exactly one frame.
-const SUB_Y = 905;   // ink below this line sits under the subtitle box
+let SUB_Y = 905;   // ink below this line sits under the subtitle box (engine.js FRAME.subTop: 905 at 1080p; set each frame)
 const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props', 'faces',
   'things', 'words', 'marks', 'colours', 'torsos'];   // emphasis budget (2026-11-13): what competes for the eye in this frame
 const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null, depth: 0 };
-function DOCENT_FRAME(t) { if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
+function DOCENT_FRAME(t) { if (typeof FRAME === 'object') SUB_Y = FRAME.subTop; if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [], things: [] }; }   // slots: where things are or will be (placement)
 DOCENT_FRAME(0);
 
