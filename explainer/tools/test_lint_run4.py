@@ -18,8 +18,10 @@ class CoverLate(unittest.TestCase):
     def test_time(self):   # once per shot, at its cut + 0.8 s (fix round F1: no per-sentence checks inside a shot)
         self.assertEqual(L.cover_time(10.0, 20.0, 3.0), 10.8)
         self.assertIsNone(L.cover_time(10.0, 10.5, 3.0))   # a shot shorter than 0.8 s is not judged
-        self.assertIsNone(L.cover_time(0.0, 9.0, 3.0))     # 0.8 s is still the title card: no scene is drawn there
-        self.assertEqual(L.cover_time(2.4, 9.0, 3.0), 3.2)
+        self.assertEqual(L.cover_time(0.0, 9.0, 3.0), 3.4)  # cut inside the title card: judged 0.8 s after the body shows
+        self.assertIsNone(L.cover_time(0.0, 3.2, 3.0))     # ... unless the shot ends before that
+        self.assertEqual(L.cover_time(2.4, 9.0, 3.0), 3.4)  # cut in the lead: first seen at the first sentence (2.6)
+        self.assertEqual(L.cover_time(3.0, 9.0, 3.0), 3.8)
 
     def test_late(self):
         rest = [['cover_a_en', 1.0], ['cover_a_ko', 1.0]]
@@ -117,6 +119,23 @@ def write(path, obj):
 
 def read(path):
     with open(path, encoding='utf-8') as f: return json.load(f)
+
+
+# fable, trinity round 2: a shot declared at sc.start is first seen when the title card ends; its cover is judged
+# 0.8 s after that, not skipped. Scene a is clean; scene b's one shot draws its cover 1.5 s after the first sentence.
+TITLE_CARD_LATE = """
+TITLE_CARD = signCard;
+cast('me', { name: '나', hair: 'long', h: 0.94 });
+cast('oppa', { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });
+SCENES.a = (t, q) => shots(t, [
+  [q.s(0), (t, lt) => { const f = person('me', 560, 870, { s: 1.5, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
+                        holdCover(f, 'cover_x_ko', { h: 280, p: dp(lt, 0, 0.5) }); }],
+]);
+SCENES.b = (t, q, sc) => shots(t, [
+  [sc.start, (t, lt) => { person('me', 560, 870, { s: 1.5, pose: 'present', face: 'happy', p: dp(lt, 0, 0.5) });
+                          realCover('cover_x_ko', 1300, 860, 420, { p: dp(lt, q.s(0) - sc.start + 1.5, 0.5) }); }],
+]);
+"""
 
 
 def fixture(scenes=FIXTURE, project=None, sentences=('가' * 40, '나' * 40, '다' * 30)):
@@ -258,6 +277,18 @@ class ToolsOnFixture(unittest.TestCase):
         for t in ('1.0', '2.5'):
             subprocess.run([PY, os.path.join(HERE, 'export.py'), 'stills', t], cwd=d, env=self.env, check=True, capture_output=True, timeout=120)
         self.assertEqual(sorted(f for f in os.listdir(os.path.join(d, 'out')) if f.startswith('still_')), ['still_0002.50.jpg'])
+
+
+@unittest.skipUnless(node_ok(), 'node or @napi-rs/canvas missing (npm install in explainer/noderender)')
+class TitleCardShot(unittest.TestCase):
+    def test_late_cover_in_a_shot_cut_inside_the_title_card(self):
+        d = fixture(TITLE_CARD_LATE, project={'concept': 'letter'})
+        p, rep = lint(d)
+        b = read(os.path.join(d, 'timeline.json'))['scenes'][1]
+        late = [(sc, t) for sc, t, s, c in issues(rep) if c == 'cover-late']
+        self.assertEqual([sc for sc, t in late], ['b'], issues(rep))   # scene a's held cover is on time
+        self.assertAlmostEqual(late[0][1], b['sentences'][0]['start'] + 0.8, delta=0.45)
+        self.assertEqual(p.returncode, 1)
 
 
 if __name__ == '__main__':
