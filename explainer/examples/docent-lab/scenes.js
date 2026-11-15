@@ -51,9 +51,15 @@ SCENES.devices = (t, q) => shots(t, [
     prop('loop', 1320, 760, 1.6, { p: dp(t, q.w('고리', 3), 0.6) });
   }],
   [q.s(4), (t, lt) => scrollList(660, 150, 600, '네 가지 규칙', ['하나', '둘', '셋', '넷'], { p: dp(lt, 0, 1.4) })],
-  [q.s(5), (t, lt) => {
-    for (let i = 0; i < 6; i++) figure(300 + i * 260, 860, { s: 0.7, crowd: true, face: 'neutral', p: dp(lt, i * 0.08, 0.6) });
-    hand('아무도 안 믿음', 960, 320, { size: 72, p: dp(lt, 0.8, 0.6) });
+  [q.s(5), (t, lt) => {   // T11 many people: three big figures in front, the rest as heads behind one line (never a row of small figures)
+    for (let i = 0; i < 12; i++) {   // heads and shoulders behind a low wall
+      const x = 240 + i * 131, p = dp(lt, i * 0.02, 0.4);
+      inkCircle(x, 580, 26, { w: 3.6, p, fill: PAPER() }); inkArc(x, 640, 34, 30, Math.PI, Math.PI * 2, { w: 3.6, p });
+    }
+    for (const [a, b] of [[160, 470], [650, 870], [1050, 1270], [1450, 1760]]) inkLine(a, 640, b, 640, { w: 4, p: dp(lt, 0, 0.4) });
+    [[560, 'akimbo'], [960, 'shrug'], [1360, 'akimbo']].forEach(([x, pose], i) =>
+      figure(x, 880, { s: 1.15, crowd: true, pose, face: 'neutral', flip: i === 2, p: dp(lt, 0.15 + i * 0.08, 0.5) }));
+    hand('아무도 안 믿음', 960, 150, { size: 72, p: dp(lt, 0.8, 0.6) });
   }],
 ]);
 

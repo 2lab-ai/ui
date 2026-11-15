@@ -3,6 +3,47 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-15 · research-skill run 4 — the letter at the Stoic level (10 books × ~17 s clips, blind: 4.31, 9/10 pass)
+- All 10 clips opened on the narrator in `present` pointing at a cover pair standing on nothing: 다 읽었어요 not drawn,
+  오빠 absent in four though the line was about him, the Korean cover still a grey ghost at start + 0.8 s (p01–p04) ·
+  TEMPLATES P showed the pair only on a letter sheet, and `realCoverPair` finished the second cover only at p 1, with
+  no in-hand mode · `holdCover` + `POSES.showBook`, both covers by p 0.6, lint `cover-late`; TEMPLATES B, REFERENCE §4.
+- "The original edition" meant six things for Greek, Italian, French, Dutch, Hebrew and Korean originals (an anthology
+  for the Apology, the English *Little Prince*, a Dutch original saved as `_en`), and 3–24 Korean editions had no
+  tie-break · REFERENCE §4 assumed an English original (`cover_<book>_<en|ko>`) · the edition rule,
+  `cover_<book>_<lang>`, the `book_covers` schema (REFERENCE §4).
+- Music sat 19.3–24.3 dB under the voice in six clips and mix_check said ok; p03 and p06 failed "flat" on the title
+  card · mix_check passed 18–26 against REFERENCE's 20–22, and its open stretch included the bed's 1.5 s fade-in ·
+  `export.py mix` trims the bed to ~21 dB in one measured pass, mix_check 19.5–22.5, the open stretch skips the first
+  1.5 s (REFERENCE §7).
+- Lines about many people became rows of five to eight small figures (p04 p09 p10) · TEMPLATES T11 was a row of six,
+  and `busy` counts a crowd as one thing · T11 rewritten (≤ 3 big figures + the number once, or heads behind one
+  line), lint `crowd-row` (P1).
+- Schrödinger (side hair + round glasses) read as 오빠 sewing (p08, the one fail) · a letter that never draws 오빠
+  never cast him, so `cast-lookalike` had nothing to compare · `me` and `oppa` in every letter cast block (TEMPLATES
+  T1), `new_video.py` writes a starter scenes.js, lint `letter-cast` (P2).
+- A running fox stood still and a monkey could not hold its banana (p05 p07 p09) · `animal()` passed only p a color w
+  s dir fill to the drawing · every option passes through (test; TEMPLATES A contract).
+- Probes built two foxes, a lion, a wolf, a monkey, a plane, DNA, a diary, a reach-down and a hand-in-hand pose, and
+  first drawings misread (banana = pea pod, hoop = pocket watch, well = tub) · the kit lacked them · ANIMALS fox lion
+  wolf monkey, PROPS plane dna diary, POSES reachDown linked moved into docent.js, on the gallery.
+- Linting the draft after a real timeline existed needed a file swap (p02 p06); `export.py stills` left old stills
+  that `sheets.py` tiled (p06); `lint_scenes.py --help` ran the lint (p03) · `--timeline <file>`, stills clears its
+  own `out/still_*.jpg` first, `--help` prints usage.
+- "Listen, then --redo" is a step an agent cannot do; ear traps 2년 (이 년), 수놓아 (heard 순호와), 그는, 자기가 (the
+  pet name), 꾀 (heard 꿰), and a "slowing on the last words" direction that failed the pad cut (p01 p05 p06 p08 p10);
+  clips ran 17–19 s for a 12 s brief, the 2.6 s title card uncounted, every one opening "오빠, …을 읽었어요" ·
+  CONCEPTS "Voice": redo once, then reword, the ear-trap list; TEMPLATES C: the card counts, one line of her own.
+- Gary Keller was drawn bald + bearded (photos: full grey hair, a mustache), the look of Socrates and Diamond ·
+  REFERENCE §2 said "their look" and no step looked it up · one photo per real person, a beard only for people known
+  by one (REFERENCE §2).
+- Verification (v1 v2 r08 r09 r10): all five authors met her + him + desk + pair = 4 (`busy`) and dropped 오빠,
+  split the line or took the P2; r09 showed the Hebrew *Sapiens* nobody here knows, and seated figures read as
+  standing behind a box (v2, r10) · TEMPLATES B had no rule for a bare "오빠," or a desk; "the original" meant the
+  original language; T15 put the seat on the thighs and a chair leg beside the shins · a bare "오빠," does not draw
+  him, a line about him is two shots (the hand-over, then her + the pair on a desk in lines); the original = the
+  Korean translation's source (REFERENCE §4); T15 redrawn and checked at 360 px.
+
 ## 2026-11-15 · 총균쇠 (Guns, Germs, and Steel, letter, 40:42, five authors + four fixers)
 - The Maori club (patu: a round flat blade on a lashed grip) read as a light bulb at chatham:4–14, and two chapters
   later the kit bulb meant "idea" · its outline is the bulb's (a round glass on a narrow neck), and Gate A judged the

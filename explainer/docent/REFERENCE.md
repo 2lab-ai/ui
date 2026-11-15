@@ -67,7 +67,8 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
 - Every person in a book gets one fixed look, set once with `cast(id, look)` and drawn with `person(id, x, y, o)`. Two
   different people in one frame must never share a look (lint: `twins`; the same person twice, e.g. before/after, is
   fine); every crowd member that is not a person sets `crowd: true`. Two cast looks may not share a head (lint:
-  `cast-similar`, below). Two people in a shot is common; three is a crowd scene and rare.
+  `cast-similar`, below). Two people in a shot is common; three is a crowd scene and rare. A line about many people is
+  TEMPLATES T11, never a row of 5+ small figures (lint `crowd-row`).
 - Silhouette test: fill each figure black; you must still tell who is who. Vary in this order: height (`h` 0.85 to
   1.15), hair or hat (`short spiky curly long bun ponytail side bald`, `top cap beanie bowler crown laurel morion`),
   then one prop (glasses, beard, tie). At phone size in ink some are one shape: `short` = `side` (a dark cap), `bun` =
@@ -80,7 +81,18 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   side, then above the head, whichever covers nobody — so people, animals, props and bubbles drawn later count (lint:
   `name tag over name tag`, `name tag over another figure or animal`). Clothes are opaque; the body line is under them.
 - A quote is acted by the person who said it, in their look; the running figure only asks and reacts.
-- A real person is a stand-in figure with their look, never a photo or caricature of the face.
+- A real person is a stand-in figure with their look, never a photo or caricature of the face. Look up one photo of
+  each real person (Wikimedia Commons, the publisher's author page), take the silhouette from it (hair, beard or not,
+  glasses) and write it in the cast comment (`// photo: full grey hair swept back, a mustache`). A beard only for
+  people known by one (Socrates, Darwin): run 4 drew Gary Keller bald + bearded like Socrates and Diamond, and bald +
+  beard had become the default "author" head.
+- When the kit lacks their hair (wavy, a bob) or their beard's shape (a fringe beard under the jaw), pick the nearest
+  look the kit has that still differs from 오빠 (short + square glasses) and the narrator (long), and write the swap in
+  the cast comment (`// photo: wavy hair, a fringe beard → curly + beard: no wavy or fringe in the kit`). Verification
+  drew Thoreau with tight curls and a full beard and Anne with a ponytail, and neither comment said so.
+- A girl or a woman from the book never takes the narrator's composition, seated at a desk on a side chair: r10's Anne
+  writing at that desk, one shot after the narrator sat there, read as the narrator. Stage her another way (standing,
+  on the floor, by a window, with her own prop) and tag her the first time she is named.
 - Look-alikes: no unnamed figure (a crowd, an extra, a generic king or scholar) may share a cast member's silhouette —
   the same head top, plus that cast look's beard or glasses — or viewers read it as that person (총균쇠: foragers with
   curly hair read as Yali, a crowd bun as 정화, a scholar with side hair and glasses as 오빠). A crown or a laurel does
@@ -120,15 +132,33 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
 ## 4. Animals and props
 - **Books: the real covers** (owner 2026-11-14: "도슨트북은 항상 실제 책 커버 원서랑 한글판 있으면 한글판도 이미지 둘다
   찾아서 해당 실제 책 커버 이미지 사용해줘"). Every book the video reads is shown with its real cover image: the original
-  edition and, when one exists, the Korean edition, side by side. Get them in step 1 (publisher page `og:image` or its
+  edition and, when one exists, the Korean edition. Get them in step 1 (publisher page `og:image` or its
   large cover path, Aladin/Yes24 `og:image` for Korean editions, Open Library or Amazon by ISBN as a fallback), save them
-  as `img/cover_<book>_<en|ko>.jpg`, list them in `project.json` `"images"` and the source URLs in `"book_covers"`.
-  Show them (`realCoverPair` / `realCover`) where a book is introduced or held up (on the letter page, on the desk, in a
-  hand), never redrawn in ink;
-  the cover carries the title, so no written word beside it. Other artwork is still drawn.
+  as `img/cover_<book>_<lang>.jpg` (`<lang>` = the edition's language: `en`, `fr`, `nl`, `ko` …), list them in
+  `project.json` `"images"`, and record each in `"book_covers"`:
+  `{ "<book>": { "<lang>": { "url": "…", "edition": "publisher, year, translator", "why": "why this edition" } } }`.
+- **Which edition** (run 4: 6 of 10 books had a Greek, Italian, French, Dutch, Hebrew or Korean original and no rule).
+  The original = the edition the Korean translation was made from: the Korean edition's 원제 and translation source
+  (Aladin's 원제 line, the copyright page). So pick the Korean edition first (below), then its source. 사피엔스 was
+  translated from the English *Sapiens*, so its original is the English edition, not the Hebrew (verification r09
+  showed the Hebrew cover, which a Korean viewer does not connect to the book). When the source is not known, or there
+  is no Korean edition: an edition in the book's original language. A modern printing is fine, an anthology with
+  another title is not (p01 showed *The Last Days of Socrates* for the Apology). A pre-modern book (Plato, Machiavelli): a
+  standard modern edition in the original language, or the best-known English edition, the reason in `why`. A Korean
+  original (윤동주) shows the Korean edition alone; its first edition only as an extra. The Korean edition = the one in
+  print with the most readers (Aladin's Sales Point), not the newest or the first. A real cover may carry the author's
+  photo: the photo rule in §2 is about drawing people.
+- **The book shot draws the sentence's verb**: she reads it, holds it up (`holdCover(fig, name)`, pose `showBook`) or
+  hands it to 오빠 (or he to her), and 오빠 is in the shot when the line is about him; "오빠," only calling him does not
+  draw him. The original is shown at least once in the video: the pair stands on a desk line (`realCoverPair` on a
+  desk drawn in plain lines, which are support and not a thing), never on nothing; a Korean original shows its Korean
+  edition alone. A line about him that also brings in both editions is two shots: the hand-over, then her with the
+  pair. Run 4: all 10 probes opened on the narrator pointing at a free-standing pair, 다 읽었어요 not drawn, 오빠 absent
+  in four though the line was about him. Recipes: TEMPLATES B. A cover is fully in by its shot's start + 0.8 s (lint `cover-late`), never redrawn
+  in ink; the cover carries the title, so no written word beside it. Other artwork is still drawn.
 - Animals come from `animal(kind, …)`: anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse
-  hen swan blackswan octopus bat bee turtle tick. Never build an animal on the stick-figure rig (`figure({snout})` is flagged: lint
-  `animal-on-rig`).
+  hen swan blackswan octopus bat bee turtle tick cow sheep goat llama zebra squirrel duck fox lion wolf monkey. Never
+  build an animal on the stick-figure rig (`figure({snout})` is flagged: lint `animal-on-rig`).
 - Each animal shows the 3 or 4 features people name it by (anteater: long tube snout, tiny head and eye, bushy tail
   as big as the body, thick clawed front legs, dark shoulder stripe). A new kind is added to `ANIMALS` in docent.js
   and passes the gallery gate (a stranger names it in 2 s) before any scene uses it.
@@ -206,13 +236,27 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
   title cards, chapter breaks, the end (no voice for ≥ 1.2 s) — it rises (+10.5 dB for a library bed, +6 dB for MIDI
   cues) to about −29 dBFS so the new chapter's music is heard, and the end fades over 1.5 s, after the last word. Check: `mix_check.py` (`music_open_dbfs` −30…−22; before 2026-11-10 it
   sat near −33, which every reviewer called near-silent).
+- The 20–22 dB is held by the tools, not by hand: `export.py mix` measures the music under the voice after its first
+  render and, outside 20.5–21.5 dB, renders once more with the bed gain corrected to ~21 dB (it prints both numbers).
+  `mix_check.py` passes 19.5–22.5 dB (the target with 0.5 dB tolerance; it passed 18–26 until run 4, where six of ten
+  clips sat at 19.3–24.3). The open-stretch level skips the video's first 1.5 s, the bed's own fade-in: a one-scene
+  clip's only open stretch is its title card, and p03 and p06 failed "flat" there. After the trim, `export.py mix` also
+  measures that open stretch and, below −29 dBFS, lifts it toward −27 dBFS (at most +8 dB; it prints
+  `open stretch X -> lift +Y dB -> Z dBFS`), then prints the mix_check verdict or a WARNING. A track whose first
+  seconds are near-silent still fails: pick another track for the mood, do not raise `--lufs` by hand.
 - In a clip under ~20 s, do not force a `"music"` change: one track is enough.
 
 ## 8. Gates (in order, each one blocks the next)
+`lint_scenes.py`, `narrate_soma.py` and `timeline_draft.py` print their usage with `--help` and do nothing else
+(`narrate_soma.py --help` used to start a narration). The other tools do not parse `--help`: read the docstring at the
+top of the file instead of running them with it.
 1. **Asset gallery** — `tools/gallery.py cast animals [props]`; look at every sheet. Fix looks before writing scenes.
    The gallery tests identity ("a wolf"); whether a drawing reads as the action ("nursing", "lifting") is checked at
    gate 3 by a fresh reviewer.
-2. **Scene lint** — `tools/lint_scenes.py` must exit 0 (no P0/P1) on the draft timeline and again on the real one, and
+2. **Scene lint** — `tools/lint_scenes.py` must exit 0 (no P0/P1) on the draft timeline and again on the real one
+   (`--timeline <file>` lints against another timeline file without swapping them). Narration writes `timeline.json`
+   over the draft, so keep the draft in its own file: `timeline_draft.py --out timeline_draft.json`, then
+   `lint_scenes.py --timeline timeline_draft.json`. And
    someone looks at every `out/lint_sheet*.jpg` page (every rest frame): lint cannot see a wrong metaphor, a roof that does not
    meet its wall, or an arm through a prop.
 3. **Contact sheets** — stills at every sentence start + 0.8 s and end − 0.3 s; a fresh reviewer looks at every sheet
@@ -222,7 +266,7 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
    does every tail end at a mouth? is any tag on someone else? does anything float (a whale over the water)?
    Voice: `audio_check.py --sentences` (numbers normalised, names from project.json `names`): every sentence `ok`.
 4. **Music** — `out/cue_sheet.md`: distinct tracks = sections, moods that fit; `out/music_credits.txt` in the
-   description; `mix_check.py` exits 0 (20–22 dB under the voice, swell ≤ 6 dB,
+   description; `mix_check.py` exits 0 (19.5–22.5 dB under the voice, swell ≤ 6 dB,
    title cards −30…−22 dBFS); the mix stays near -15.5 LUFS.
 5. **Retro** — after delivery, append what went wrong to LESSONS.md and fix the rule/template/code (PR).
 

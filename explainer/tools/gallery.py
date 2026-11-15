@@ -1,7 +1,7 @@
 """Asset gallery: draw every cast look, animal and prop on labelled sheets, so a person can review them BEFORE any
 scene uses them (make-docent-book §4 gate). Run inside a project folder (needs timeline.json; a draft one is fine).
 
-    python gallery.py [cast] [animals] [props] [figures]     # default: cast animals
+    python gallery.py [cast] [animals] [props] [figures] [poses]     # default: cast animals
 
 Writes out/gallery_<kind>_<page>.jpg. Look at every sheet: each person must be told apart by silhouette alone (hair
 or hat, height, outfit, accent colour), each animal must be named by a stranger in 2 seconds, nothing may be broken

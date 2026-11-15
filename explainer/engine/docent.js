@@ -20,9 +20,10 @@ const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 // start of every renderAt, so the registry always describes exactly one frame.
 let SUB_Y = 905;   // ink below this line sits under the subtitle box (engine.js FRAME.subTop: 905 at 1080p; set each frame)
 const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props', 'faces',
-  'things', 'words', 'marks', 'colours', 'torsos'];   // emphasis budget (2026-11-13): what competes for the eye in this frame
+  'things', 'words', 'marks', 'colours', 'torsos',   // emphasis budget (2026-11-13): what competes for the eye in this frame
+  'covers'];   // real covers drawn: [name, opacity] (lint cover-late, 2026-11-15)
 const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null, depth: 0 };
-function DOCENT_FRAME(t) { if (typeof FRAME === 'object') SUB_Y = FRAME.subTop; if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
+function DOCENT_FRAME(t) { if (typeof FRAME === 'object') SUB_Y = FRAME.subTop; if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; DOCENT.topFig = 0; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [], things: [] }; }   // slots: where things are or will be (placement)
 DOCENT_FRAME(0);
 
@@ -212,7 +213,7 @@ function docentReport() {
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far, tailHigh: high.map(([x, y]) => [Math.round(x), Math.round(y)]),
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals,
     things: DOCENT.things, words: DOCENT.words, marks: DOCENT.redInk ? DOCENT.marks.concat('red line') : DOCENT.marks, colours: DOCENT.colours,
-    listItems: DOCENT.listItems || 0, budget: !docentColourful() };   // the budget checks apply to ink-mode (docent) projects
+    listItems: DOCENT.listItems || 0, budget: !docentColourful(), covers: DOCENT.covers };   // the budget checks apply to ink-mode (docent) projects
 }
 
 // ---------- small maths ----------
@@ -426,7 +427,7 @@ function figure(x, y, o = {}) {
   const { s: s0 = 1, pose = 'stand', face = 'smile', p = 1, a = 1, flip = false, t = 0, walk = 0, sit = false,
     tie = false, glasses = false, hair = false, helmet = false, shell = false, snout = false, hat = false,
     beard = false, mustache = false, outfit = null, accent = null, h = 1, tag = null,
-    blindfold = false, look = 0, color = null, w = 4.2 } = o;
+    blindfold = false, look = 0, color = null, w = 4.2, holdHand = null } = o;
   const s = s0 * h;
   const P = POSES[pose] || POSES.stand;
   const ink = color || INK();
@@ -442,6 +443,11 @@ function figure(x, y, o = {}) {
     brim: hat === 'cap' ? dir : 0,   // a cap's brim reaches 1.7 R on the facing side: say() keeps upper bubbles off that side
     hands: [F(sh[0] + P.la[1][0] - (outfit ? 21 : 0), sh[1] + P.la[1][1]), F(sh[0] + P.ra[1][0] + (outfit ? 21 : 0), sh[1] + P.ra[1][1])],
     box: [x - 70 * s, topY, x + 70 * s, y] };
+  // holdHand: 'left' | 'right' leaves the arm on that side of the screen to holdHands(), which draws it to a grip shared
+  // with the other person. anchors.arms: each arm's shoulder (la, ra), the arm left off, and the line holdHands draws with.
+  const offArm = holdHand ? ((holdHand === 'right') === (dir > 0) ? 1 : 0) : -1;
+  anchors.arms = { off: offArm, s, a, p, lw: w * Math.max(0.7, Math.sqrt(s)), ink,
+    sh: [0, 1].map((k) => F(sh[0] + (outfit === 'dress' ? 16 : outfit ? 26 : 0) * (k ? 1 : -1), sh[1] + (outfit ? 6 : 0))) };
   // the name tag sits beside the waist on the free side (not between two people), clear of every bubble above.
   // This spot is provisional (bubbles keep clear of it); docentTags() places the tag when the shot is complete, so
   // people, animals, props and bubbles drawn AFTER this figure count too (2026-11-10: a tag landed on a later figure).
@@ -462,8 +468,10 @@ function figure(x, y, o = {}) {
     const n = F(...neck), hp = F(...hip), tb = withM([Math.min(n[0], hp[0]) - 26 * s, n[1], Math.max(n[0], hp[0]) + 26 * s, hp[1]]);
     if (clamp01((p * 6 - 1) / 1.4) > 0.5) DOCENT.torsos.push([...scr(tb), DOCENT.seq]); }
   DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
+  const sb = scr(withM([...anchors.box]));   // its height on screen (lint crowd-row); top: a scene's own call, not a composite's part
   DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|'),
-    look: { hair: hair === true ? 'long' : hair || null, hat: hat === true ? 'top' : hat || null, beard: !!beard, glasses: !!glasses, helmet: !!helmet, shell: !!shell } });   // lint cast-lookalike
+    look: { hair: hair === true ? 'long' : hair || null, hat: hat === true ? 'top' : hat || null, beard: !!beard, glasses: !!glasses, helmet: !!helmet, shell: !!shell },   // lint cast-lookalike
+    hpx: Math.round(sb[3] - sb[1]), top: DOCENT.topFig > 0 });
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
   const ph = (k, n) => clamp01((p * n - k) / 1.4);   // staged draw-on: head, body, arms, legs, face
   const lw = w * Math.max(0.7, Math.sqrt(s));
@@ -512,7 +520,8 @@ function figure(x, y, o = {}) {
       const ox = (outfit === 'dress' ? 16 : outfit ? 26 : 0) * (k ? 1 : -1), oy = outfit ? 6 : 0;   // arms hang outside the jacket
       inkPoly([F(sh[0] + ox, sh[1] + oy), F(sh[0] + el[0] + ox, sh[1] + el[1] + oy), F(sh[0] + hd[0] + ox * 0.8, sh[1] + hd[1] + oy)], { p: ph(2, 6), w: lw, color: ink });
     };
-    arm(P.la, 0); arm(P.ra, 1);
+    if (offArm !== 0) arm(P.la, 0);
+    if (offArm !== 1) arm(P.ra, 1);
     // hair behind the head (long, ponytail)
     const hp = ph(0.3, 6);
     const style0 = hair === true ? 'long' : hair;
@@ -658,7 +667,7 @@ function ant(x, y, { s = 1, p = 1, a = 1, t = 0, dir = 1, color = null } = {}) {
 
 // ---------- animals ----------
 // animal(kind, x, y, o): (x, y) = the point under the body on the ground; o: { s (1 = about 300 px long), dir (1 faces
-// right), p, a, t, color, fill, tag }. Each animal is built from ovals with the 3 or 4 features people name it by
+// right), p, a, t, color, fill, tag, and any option of the kind's own (fox run, lion mood, monkey banana) }. Each animal is built from ovals with the 3 or 4 features people name it by
 // (anteater: long tube snout, tiny head and eye, bushy tail as big as the body, thick clawed front legs, dark
 // shoulder stripe). Never draw an animal with the stick-figure rig (figure()). Check new kinds on a gallery sheet
 // (docentGallery('animals')) before a scene uses them. Returns { head: [x, y], r, mouth, top, box, dir } like figure().
@@ -781,7 +790,9 @@ function animal(kind, x, y, o = {}) {
   const T = (px, py) => [x + dir * px * s, y + py * s];
   const q = (k) => clamp01((oo.p * 5.6 - k) / 1.4);   // staged draw-on in five steps; every step is complete at p = 1
   const hidden = oo.p <= 0 || oo.a <= 0;
-  const io = { p: hidden ? 0 : oo.p, a: oo.a, color: oo.color, w: oo.w, s, dir, fill: oo.fill };
+  // every option reaches the drawing (a running fox: run, a sad lion: mood); p, a, color, w, s, dir, fill as computed here.
+  // Until run 4 only those seven passed: a fox asked to run stood still, with no error (p05, p07, p09).
+  const io = { ...o, p: hidden ? 0 : oo.p, a: oo.a, color: oo.color, w: oo.w, s, dir, fill: oo.fill };
   let anc = null;
   withAlpha(hidden ? 0 : 1, () => { anc = f(T, io, hidden ? () => 0 : q); });   // p = 0 draws nothing but still yields the anchors
   const half = (anc.half || 270) * s, xs = [x - half, x + half].sort((u, v) => u - v);
@@ -797,16 +808,29 @@ function animal(kind, x, y, o = {}) {
   return anc;
 }
 // Asset gallery: every cast look, animal and prop on one labelled sheet, for review before a scene uses them
-// (make-docent-book §4 gate; tools/gallery.py renders it). kind: 'cast' | 'animals' | 'props' | 'figures'.
+// (make-docent-book §4 gate; tools/gallery.py renders it). kind: 'cast' | 'animals' | 'props' | 'figures' | 'poses'.
+// DOCENT_GALLERY_MORE: cells drawn after the plain kinds, { kind: [[label, draw(x, y)], …] } (fix round 2026-11-16, r09:
+// Gate A never showed the monkey's banana option, so a banana that vanished in ink mode was first seen at Gate C).
+const DOCENT_GALLERY_MORE = {
+  animals: [['monkey banana', (x, y) => animal('monkey', x, y, { s: 0.62, banana: true, mood: 'stern' })]],
+  poses: [['holdHands', (x, y) => {   // two heights (r09: h 1.04 and 0.92), one grip
+    const a = figure(x - 70, y, { s: 0.85, h: 1.04, hair: 'curly', holdHand: 'right' });
+    const b = figure(x + 70, y, { s: 0.85, h: 0.92, hair: 'bun', flip: true, holdHand: 'left' });
+    holdHands(a, b); }]],
+};
 function docentGallery(kind, page = 0) {
-  const items = kind === 'cast' ? Object.keys(CAST) : kind === 'animals' ? Object.keys(ANIMALS) : kind === 'props' ? Object.keys(PROPS) : ['short', 'spiky', 'curly', 'long', 'bun', 'ponytail', 'side', 'bald'];
+  const more = DOCENT_GALLERY_MORE[kind] || [], extra = Object.fromEntries(more);
+  const items = (kind === 'cast' ? Object.keys(CAST) : kind === 'animals' ? Object.keys(ANIMALS) : kind === 'props' ? Object.keys(PROPS)
+    : kind === 'poses' ? Object.keys(POSES) : ['short', 'spiky', 'curly', 'long', 'bun', 'ponytail', 'side', 'bald']).concat(more.map(([k]) => k));
   const per = 8, cols = 4, list = items.slice(page * per, page * per + per);   // wide props (ship, stadium) need a 473 px cell
   list.forEach((id, i) => {
     const cy = i < cols ? 460 : 880;
     const x = 250 + (i % cols) * 473;
-    if (kind === 'cast') person(id, x, cy - 40, { s: 0.85, tag: true });
+    if (extra[id]) extra[id](x, kind === 'poses' ? cy - 40 : cy - 60);
+    else if (kind === 'cast') person(id, x, cy - 40, { s: 0.85, tag: true });
     else if (kind === 'animals') animal(id, x, cy - 60, { s: 0.62 });
     else if (kind === 'props') prop(id, x, cy - 90, 0.75);
+    else if (kind === 'poses') figure(x, cy - 40, { s: 0.85, pose: id, sit: id.startsWith('desk') });   // the desk poses are seated
     else figure(x, cy - 40, { s: 0.85, hair: id, accent: ['red', 'blue', 'green', 'orange', 'teal', 'magenta', 'yellow', 'grey'][i], outfit: ['suit', 'dress', 'tshirt', 'coat'][i % 4] });
     hand(id, x, cy - 10, { size: 34, color: C.dim });
   });
@@ -1690,6 +1714,8 @@ Object.assign(PROPS, {
 Object.assign(POSES, {
   lift: { la: [[-50, -55], [-56, -150]], ra: [[50, -55], [56, -150]] },   // both arms straight up
   stop: { la: [[-18, 52], [-28, 108]], ra: [[56, -6], [96, -40]] },     // one hand up, palm out
+  // the front hand up beside the shoulder, holding a book up toward the viewer: holdCover(fig, name) (run 4)
+  showBook: { la: [[-18, 52], [-28, 108]], ra: [[42, 34], [66, -30]] },
 });
 // A spiral notepad (an author's or a reporter's notebook). The kit's `note` is a music note: six authors of the
 // Elon Musk v2 redraw asked for a notebook, got a quaver, and drew their own.
@@ -2124,6 +2150,254 @@ function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w,
   };
 })();
 
+// ---------- library additions: research run 4 (the letter at the Stoic level), 2026-11-15 ----------
+// Drawn by the probe authors of run 4 (p03 어린 왕자, p05 이기적 유전자, p07 군주론, p09 사피엔스, p10 안네의 일기) in
+// their scenes.js, read by a blind reviewer, then moved here with the misreads the reviews named fixed: every animal
+// draws its body and head first (the p05 fox was a headless sausage and the p07 lion two loose arcs 0.5 s after the
+// cut), the monkey is line art (its solid ink coat was the only filled mass in its clip) and takes a banana and a
+// stern face as options, the helix is wider with more rungs (70 px of it did not read on a phone), the diary has a
+// ribbon, a strap and written lines (an open book alone reads as any book). Ink mode as the 총균쇠 block: bodies fill
+// with the page (o.fill, or the page under solid: true), marks are ink. Animals follow the ANIMALS contract (T(), q(k):
+// body q(0), head q(1), legs q(2), tail q(3), details q(4)); props take (x, y) = bottom centre and s = 1 ≈ 160 px tall
+// and draw their body first, their details after.
+(() => {
+  const pv = (o) => (o.p == null ? 1 : o.p);
+  const st = (o, a, b) => ({ ...o, p: clamp01((pv(o) - a) / (b - a)) });   // a staged draw-on window of the prop's p
+  const fl = (o, c) => (o.paperFill ? null : o.fill) || c;
+  const dotA = (o, k) => (o.a ?? 1) * clamp01(k * 2);
+
+  // fox, side view (p05, p07): tall pointed ears with dark insides, a long thin snout with a black nose, a slim body,
+  // dark socks, a bushy tail held low with a pale tip. o.run: 1 flings the legs out (running).
+  ANIMALS.fox = (T, o, q) => {
+    const f = o.fill || opaqueMix(C.orange, 0.5), s = o.s, dark = o.color || INK();
+    inkPath([T(-78, -92), T(-150, -118), T(-226, -96), T(-262, -66), T(-236, -50), T(-170, -54), T(-104, -66)], { ...o, closed: true, round: 2, p: q(3), fill: f });
+    inkCurve(T(-214, -100), T(-226, -76), T(-208, -52), { ...o, p: q(3), w: o.w * 0.8 });   // the pale tip's edge
+    const legs = o.run ? [[-70, -64, 1], [62, 60, 1], [-44, -76, 0], [84, 72, 0]] : [[-60, 0, 1], [56, 0, 1], [-36, 0, 0], [80, 0, 0]];
+    for (const [lx, sw, far] of legs) {   // [hip x, swing, far side]: thin legs with dark socks
+      inkPath([T(lx - 9, -84), T(lx + sw * 0.5 - 8, -34), T(lx + sw - 8, 0), T(lx + sw + 8, 0), T(lx + sw * 0.5 + 8, -34), T(lx + 9, -84)], { ...o, closed: true, p: q(2), fill: far ? opaqueMix(C.dim, 0.35) : f });
+      inkPath([T(lx + sw * 0.5 - 8, -34), T(lx + sw - 8, 0), T(lx + sw + 8, 0), T(lx + sw * 0.5 + 8, -34)], { ...o, closed: true, p: q(2), fill: dark, w: o.w * 0.6 });
+    }
+    inkEllipse(...T(0, -98), 96 * s, 34 * s, { ...o, p: q(0), fill: f });                       // the slim body
+    inkPath([T(70, -112), T(74, -150), T(80, -196), T(102, -156), T(114, -158), T(124, -200), T(134, -150), T(196, -116), T(150, -102), T(98, -96)],
+      { ...o, closed: true, p: q(1), fill: f });                                                   // head, snout and the two tall ears
+    for (const [a, b, c] of [[T(80, -184), T(84, -158), T(96, -160)], [T(122, -188), T(116, -160), T(128, -158)]])
+      inkPath([a, b, c], { ...o, closed: true, p: q(4), fill: dark, w: o.w * 0.5 });             // dark inner ears
+    inkCurve(T(150, -104), T(116, -96), T(96, -70), { ...o, p: q(4), w: o.w * 0.7 });             // the pale cheek and chest
+    const n = T(196, -117); disc(n[0], n[1], 7 * s, dark, dotA(o, q(4)));
+    inkLine(...T(128, -134), ...T(144, -128), { ...o, p: q(4), w: o.w * 0.9 });                   // a narrow slanted eye
+    return { head: T(124, -130), r: 40 * s, mouth: T(180, -108), top: T(124, -200) };
+  };
+  // lion, side view (p07): a jagged mane ring with strands, a broad muzzle, heavy legs, a tail with a dark tuft.
+  // o.mood: 'sad' (a downturned mouth: caught), 'roar' (an open mouth), else a calm smile.
+  ANIMALS.lion = (T, o, q) => {
+    const f = o.fill || opaqueMix(C.yellow, 0.45), s = o.s, dark = o.color || INK();
+    inkCurve(T(-118, -120), T(-200, -70), T(-206, -150), { ...o, p: q(3), w: o.w * 1.1 });      // the tail
+    inkEllipse(...T(-206, -160), 13 * s, 17 * s, { ...o, p: q(3), fill: dark });                 // its dark tuft
+    for (const [k, lx] of [-62, 92, -100, 54].entries())                                         // far legs, then near legs
+      inkPath([T(lx - 17, -96), T(lx - 17, -6), T(lx - 21, 0), T(lx + 21, 0), T(lx + 17, -6), T(lx + 17, -96)], { ...o, closed: true, round: 1, p: q(2), fill: k < 2 ? opaqueMix(C.dim, 0.35) : f });
+    inkEllipse(...T(-8, -122), 126 * s, 54 * s, { ...o, p: q(0), fill: f });                    // the body
+    const [mx, my] = T(118, -176), N = 22, mane = [];                                             // the mane: a jagged ring
+    for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, r = (i % 2 ? 70 : 88) * s; mane.push([mx + Math.cos(a) * r * o.dir, my + Math.sin(a) * r]); }
+    inkPath(mane, { ...o, closed: true, p: q(1), fill: f, jit: 1.2 });
+    for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 + 0.3, r0 = 50 * s, r1 = 66 * s;   // its strands
+      inkLine(mx + Math.cos(a) * r0 * o.dir, my + Math.sin(a) * r0, mx + Math.cos(a) * r1 * o.dir, my + Math.sin(a) * r1, { ...o, p: q(1), w: o.w * 0.6 }); }
+    inkCircle(...T(124, -176), 46 * s, { ...o, p: q(1), fill: f });                               // the face
+    inkEllipse(...T(150, -160), 26 * s, 18 * s, { ...o, p: q(1), fill: f });                      // the muzzle
+    inkPath([T(160, -176), T(176, -176), T(168, -164)], { ...o, closed: true, p: q(4), fill: dark, w: o.w * 0.7 });   // the nose
+    const e = T(134, -192); disc(e[0], e[1], 5.5 * s, dark, dotA(o, q(4)));
+    if (o.mood === 'sad') inkArc(...T(152, -140), 12 * s, 7 * s, Math.PI * 1.15, Math.PI * 1.85, { ...o, p: q(4), w: o.w * 0.7 });
+    else if (o.mood === 'roar') inkEllipse(...T(158, -142), 11 * s, 9 * s, { ...o, p: q(4), fill: dark, w: o.w * 0.7 });
+    else inkArc(...T(156, -150), 10 * s, 6 * s, Math.PI * 0.15, Math.PI * 0.85, { ...o, p: q(4), w: o.w * 0.7 });
+    return { head: T(124, -176), r: 80 * s, mouth: T(170, -150), top: T(118, -266) };
+  };
+  // wolf, side view (p07): bigger than the fox, long legs, upright ears, a deep muzzle with the jaw open and pale fangs,
+  // raised hackles, a jagged neck ruff, a tail hanging low (a closed narrow snout read as a big fox at Gate A).
+  ANIMALS.wolf = (T, o, q) => {
+    const f = o.fill || opaqueMix(C.grey, 0.6), s = o.s, dark = o.color || INK(), pale = C.paper || '#ffffff';
+    inkPath([T(-118, -150), T(-152, -120), T(-168, -60), T(-150, -44), T(-132, -86), T(-110, -128)], { ...o, closed: true, round: 2, p: q(3), fill: f });   // the tail
+    for (const [k, lx] of [-70, 84, -100, 52].entries())
+      inkPath([T(lx - 13, -112), T(lx - 11, -6), T(lx - 16, 0), T(lx + 16, 0), T(lx + 11, -6), T(lx + 13, -112)], { ...o, closed: true, round: 1, p: q(2), fill: k < 2 ? opaqueMix(C.dim, 0.35) : f });
+    inkPath([T(-130, -146), T(-60, -178), T(40, -176), T(100, -160), T(110, -120), T(60, -102), T(-60, -104), T(-124, -116)], { ...o, closed: true, round: 2, p: q(0), fill: f });   // body, high shoulders
+    for (let i = 0; i < 5; i++) inkLine(...T(-70 + i * 26, -176 + Math.abs(i - 2) * 1.5), ...T(-60 + i * 26, -194 + Math.abs(i - 2) * 1.5), { ...o, p: q(3), w: o.w * 0.6 });   // hackles
+    const ruff = []; for (let i = 0; i <= 8; i++) ruff.push(T(i % 2 ? 66 : 50, -186 + i * 12));
+    inkPath(ruff, { ...o, p: q(3), w: o.w * 0.8 });                                                // the jagged neck ruff
+    inkPath([T(62, -204), T(76, -262), T(100, -218), T(116, -264), T(136, -216), T(176, -206), T(228, -194), T(234, -176), T(226, -170),
+      T(176, -164), T(212, -150), T(204, -140), T(150, -136), T(96, -146), T(64, -172)], { ...o, closed: true, p: q(1), fill: f });   // head, deep muzzle, open jaw
+    inkPath([T(226, -170), T(176, -164), T(212, -150)], { ...o, closed: true, p: q(4), fill: dark, w: o.w * 0.6 });   // the open mouth
+    for (const u of [0.2, 0.5, 0.8]) { const [ax, ay] = T(226 - u * 50, -170 + u * 6), [bx, by] = T(222 - u * 50, -160 + u * 6);
+      inkPath([[ax - 5 * s * o.dir, ay], [ax + 5 * s * o.dir, ay], [bx, by]], { ...o, closed: true, p: q(4), fill: pale, color: pale, w: o.w * 0.3 }); }   // fangs
+    const n = T(232, -186); disc(n[0], n[1], 10 * s, dark, dotA(o, q(4)));
+    inkLine(...T(124, -222), ...T(150, -208), { ...o, p: q(4), w: o.w * 1.1 });                   // the angry brow
+    const e = T(140, -202); disc(e[0], e[1], 6 * s, dark, dotA(o, q(4)));
+    return { head: T(140, -190), r: 56 * s, mouth: T(214, -160), top: T(116, -266) };
+  };
+  // a banana (the monkey's), drawn to read in ink alone: a fat crescent curving up at both ends, a bold outline, two
+  // ridges along it, a dark stalk with a squared end and a dark tip. Its yellow fill paints only in colour mode (fix
+  // round 2026-11-16, r09: in ink mode the fill is the page, and the old thin crescent with one ridge vanished into the
+  // monkey's pale belly, so the author turned colour on for the one object of the sentence). s = 1 ≈ 170 px long,
+  // (x, y) = bottom centre, the stalk at the back (dir), rot turns it.
+  const banana = (x, y, s, o, dir = 1, rot = 0) => {
+    const c = Math.cos(rot), n = Math.sin(rot), L = 136, W = 22, sag = 30, p = o.p ?? 1, w = o.w || 4;
+    const P = (u, v) => { const X = u * s * dir, Y = v * s; return [x + X * c - Y * n, y + X * n + Y * c]; };
+    const mid = (u) => [u, -W - sag * (2 * u / L) ** 2];                      // the centre line: both ends raised
+    const nrm = (u) => { const d = -8 * sag * u / (L * L), k = Math.hypot(1, d); return [-d / k, 1 / k]; };   // toward the belly side
+    const half = (t) => W * (0.32 + 0.68 * Math.sin(Math.PI * t) ** 0.7);    // fat in the middle, narrow at the ends
+    const at = (t, side) => { const u = -L / 2 + t * L, [mu, mv] = mid(u), [nu, nv] = nrm(u), h = half(t) * side; return P(mu + nu * h, mv + nv * h); };
+    const ts = Array.from({ length: 17 }, (_, i) => i / 16);
+    inkPath([...ts.map((t) => at(t, -1)), ...ts.slice().reverse().map((t) => at(t, 1))], { ...o, closed: true, round: 2, w, jit: 0.5, fill: opaqueMix(C.yellow, 0.6) });
+    for (const k of [-0.36, 0.36]) inkPath(ts.slice(2, 15).map((t) => at(t, k)), { ...o, w: w * 0.5, jit: 0.4 });   // its ridges
+    const pk = clamp01(p * 2 - 1), dark = { ...o, p: pk, closed: true, w: w * 0.6, fill: o.color || INK() };
+    const end = (u, out, len, h0, h1) => {   // a dark cap past one end, along the centre line: the stalk or the tip
+      const [mu, mv] = mid(u), [nu, nv] = nrm(u), tu = -nv * out, tv = nu * out;   // the tangent, pointing out of the banana
+      return [P(mu + nu * h0, mv + nv * h0), P(mu + tu * len + nu * h1, mv + tv * len + nv * h1), P(mu + tu * len - nu * h1, mv + tv * len - nv * h1), P(mu - nu * h0, mv - nv * h0)];
+    };
+    if (pk > 0) { inkPath(end(-L / 2, -1, 24, 6, 5), dark); inkPath(end(L / 2, 1, 8, 5, 3), dark); }   // the stalk, the tip
+  };
+  // a limb as a closed tube round a polyline of screen points, half-width r px (filled with the coat, outlined in ink)
+  const tube = (pts, r) => {
+    const L = [], R = [];
+    pts.forEach(([x, y], i) => {
+      const [ax, ay] = pts[Math.max(0, i - 1)], [bx, by] = pts[Math.min(pts.length - 1, i + 1)], d = Math.hypot(bx - ax, by - ay) || 1;
+      const nx = -(by - ay) / d * r, ny = (bx - ax) / d * r; L.push([x + nx, y + ny]); R.push([x - nx, y - ny]);
+    });
+    return [...L, ...R.reverse()];
+  };
+  // monkey, sitting, three-quarter view (p09): big round ears on both sides of the head, a pale heart-shaped face with a
+  // muzzle, long arms, knees up, a long tail curling at the tip; s = 1 ≈ 300 px tall. Line art: the coat is the page
+  // (p09's solid ink coat was the heaviest mass in its clip). o.banana: true holds a banana to the chest in both arms;
+  // o.mood: 'stern' presses the mouth flat under lowered brows, the eyes turned aside (won't hand it over), else a smile.
+  ANIMALS.monkey = (T, o, q) => {
+    const coat = o.fill || opaqueMix(C.orange, 0.35), pale = C.paper || '#ffffff', dark = o.color || INK(), s = o.s, R = { ...o, round: 2 };
+    const limb = (pts, r, k) => inkPath(tube(pts.map(([u, v]) => T(u, v)), r * s), { ...R, closed: true, p: q(k), fill: coat });
+    inkPath([T(-40, -24), T(-100, -18), T(-150, -40), T(-172, -92), T(-160, -136), T(-126, -146), T(-108, -124), T(-120, -100), T(-138, -106)],
+      { ...o, p: q(3), w: o.w * 1.7 });                                                             // the tail, curling at its tip
+    inkEllipse(...T(6, -100), 66 * s, 86 * s, { ...o, p: q(0), fill: coat });                      // the sitting body
+    inkEllipse(...T(10, -96), 36 * s, 54 * s, { ...o, p: q(0), fill: pale, w: o.w * 0.6 });       // the pale belly
+    for (const ex of [-50, 80]) { inkCircle(...T(ex, -222), 26 * s, { ...o, p: q(1), fill: coat }); inkCircle(...T(ex, -222), 13 * s, { ...o, p: q(1), fill: pale, w: o.w * 0.5 }); }
+    inkCircle(...T(15, -222), 62 * s, { ...o, p: q(1), fill: coat });                              // the head
+    for (const k of [-1, 0, 1]) inkLine(...T(15 + k * 16, -282), ...T(15 + k * 22, -298), { ...o, p: q(1), w: o.w * 0.7 });   // a tuft on top
+    inkPath([T(15, -236), T(0, -262), T(-22, -260), T(-34, -236), T(-30, -206), T(-14, -180), T(15, -170), T(44, -180), T(60, -206), T(64, -236), T(52, -260), T(30, -262)],
+      { ...R, closed: true, p: q(1), fill: pale, w: o.w * 0.8 });                                   // the heart-shaped face
+    for (const [hip, knee, foot] of [[[-24, -46], [-58, -78], [-50, -6]], [[34, -46], [72, -78], [62, -6]]]) {   // knees up, feet in front
+      limb([hip, knee, foot], 15, 2);
+      inkEllipse(...T(foot[0] + 6, -8), 20 * s, 9 * s, { ...o, p: q(2), fill: coat });
+    }
+    const a4 = dotA(o, q(4)), look = o.mood === 'stern' ? 5 * o.dir : 0;
+    for (const ex of [0, 32]) { const e = T(ex, -228); disc(e[0] + look * s, e[1], 6.5 * s, dark, a4); }
+    for (const nx of [10, 22]) { const n = T(nx, -204); disc(n[0], n[1], 2.6 * s, dark, a4); }
+    if (o.mood === 'stern') {
+      inkLine(...T(2, -194), ...T(30, -194), { ...o, p: q(4), w: o.w * 0.8 });                    // the mouth pressed flat
+      inkLine(...T(-12, -246), ...T(10, -240), { ...o, p: q(4), w: o.w * 0.8 }); inkLine(...T(44, -246), ...T(22, -240), { ...o, p: q(4), w: o.w * 0.8 });   // brows down
+    } else inkArc(...T(16, -196), 20 * s, 9 * s, 0.15 * Math.PI, 0.85 * Math.PI, { ...o, p: q(4), w: o.w * 0.6 });
+    if (o.banana) {   // held up in the front hand beside the head, out of the body's outline: the whole banana on the page
+      const S = s, rot = -1.05 * o.dir, c = Math.cos(rot), n = Math.sin(rot), [hx, hy] = T(118, -168);
+      const X0 = -20 * S * o.dir, Y0 = -30 * S;   // the grip, a little above the stalk (in the banana's own frame): the stalk shows
+      banana(hx - (X0 * c - Y0 * n), hy - (X0 * n + Y0 * c), S, { ...o, p: q(2) }, o.dir, rot);
+      limb([[-46, -150], [-66, -112], [-60, -84]], 12, 2);    // the back arm down to the knee
+      limb([[60, -152], [122, -112], [118, -168]], 12, 2);    // the front arm: elbow out and low, the hand up round the banana
+    } else {          // the long arms down to the knees
+      limb([[-46, -150], [-66, -112], [-60, -84]], 12, 2);
+      limb([[58, -152], [80, -114], [74, -86]], 12, 2);
+    }
+    return { head: T(15, -222), r: 64 * s, mouth: T(16, -192), top: T(15, -298), half: 190 };
+  };
+
+  // a small biplane, side view, nose to the right (p03): fuselage, tail fin, two wings with struts and a bracing wire, a
+  // wheel, a propeller; s = 1 ≈ 160 px tall, 365 px long. o.crash: tilted nose-down, the propeller bent in the sand
+  // (the wheel still on the ground).
+  PROPS.plane = (x, y, s, o) => {
+    const k = s * 0.865, ang = o.crash ? 0.2 : 0, cs = Math.cos(ang), sn = Math.sin(ang), lift = o.crash ? -16 : 0;
+    const M = (u, v) => [x + (u * cs - v * sn) * k, y + (u * sn + v * cs + lift) * k], P = (pts) => pts.map(([u, v]) => M(u, v));
+    const E = (cu, cv, ru, rv) => { const pts = []; for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; pts.push([cu + Math.cos(a) * ru, cv + Math.sin(a) * rv]); } return P(pts); };
+    const fill = fl(o, PAPER()), A = st(o, 0, 0.45), B = st(o, 0.25, 0.7), D = st(o, 0.5, 1);
+    inkPath(P([[-190, -92], [-224, -164], [-182, -164], [-140, -104]]), { ...A, closed: true, fill });   // the tail fin
+    inkPath(P([[-200, -92], [-80, -112], [150, -112], [186, -102], [186, -48], [150, -38], [-80, -40], [-200, -74]]), { ...A, closed: true, fill });   // fuselage
+    inkPath(E(-185, -80, 46, 7), { ...A, closed: true, fill });                                  // tailplane
+    inkPath(E(60, -174, 150, 11), { ...B, closed: true, fill });                                 // the upper wing
+    inkPath(E(50, -40, 128, 10), { ...B, closed: true, fill });                                  // the lower wing
+    inkPath(P([[-30, -112], [-18, -134], [0, -134], [6, -112]]), { ...D, w: o.w * 0.8 });        // windscreen
+    inkLine(...M(-10, -164), ...M(-10, -48), { ...D, w: o.w * 0.8 }); inkLine(...M(120, -164), ...M(120, -48), { ...D, w: o.w * 0.8 });   // struts
+    inkLine(...M(-10, -164), ...M(120, -48), { ...D, w: o.w * 0.45 });                         // the bracing wire
+    inkLine(...M(40, -40), ...M(62, -18), { ...D, w: o.w * 0.8 }); inkLine(...M(84, -40), ...M(62, -18), { ...D, w: o.w * 0.8 });
+    inkPath(E(62, -18, 18, 18), { ...D, closed: true, fill });                                   // the wheel
+    inkPath(E(192, -75, 9, 9), { ...D, closed: true, fill: fl(o, INK()) });                     // the hub
+    inkPath(P(o.crash ? [[196, -150], [194, -75], [186, -24]] : [[197, -150], [197, 0]]), { ...D, w: o.w * 1.5 });   // the propeller
+  };
+  // a DNA double helix standing upright (p05): two strands twisting round each other two full turns, rungs between
+  // them; s = 1 ≈ 160 px tall, 76 px wide (the p05 helix, 52 px wide, did not read at 70 px tall: keep s ≥ 0.8).
+  PROPS.dna = (x, y, s, o) => {
+    const H = 160 * s, R = 38 * s, turns = 2, n = 48, A = [], B = [], w = o.w || 4;
+    for (let i = 0; i <= n; i++) { const u = i / n, a = u * turns * Math.PI * 2, yy = y - u * H; A.push([x + R * Math.sin(a), yy]); B.push([x - R * Math.sin(a), yy]); }
+    inkPath(A, { ...st(o, 0, 0.55), w: w * 1.3, jit: 0.5 }); inkPath(B, { ...st(o, 0.1, 0.65), w: w * 1.3, jit: 0.5 });
+    const S = st(o, 0.45, 1);
+    for (let i = 2; i < n; i += 3) if (Math.abs(A[i][0] - B[i][0]) > 8 * s) inkLine(A[i][0], A[i][1], B[i][0], B[i][1], { ...S, w: w * 0.7, jit: 0.3 });
+  };
+  // a diary, open (p10): two pages in a checked cover (Anne Frank's autograph book), a ribbon bookmark from the spine, a
+  // strap with a small lock hanging off the right edge, and o.lines handwritten lines on each page (default 3; 0 for
+  // blank pages to write a word on); s = 1 ≈ 160 px tall, 230 px wide.
+  PROPS.diary = (x, y, s, o) => {
+    const k = s * 0.66, w = 300 * k, h = 200 * k, L = x - w / 2, T = y - 12 * k - h, c = 12 * k, ow = o.w || 4;
+    const A = st(o, 0, 0.45), B = st(o, 0.3, 0.75), D = st(o, 0.55, 1), fill = fl(o, PAPER());
+    inkRect(L - c, T - c, w + 2 * c, h + 2 * c, { ...A, fill });                                   // the cover
+    inkRect(L, T, w / 2, h, { ...A, fill: fl(o, C.paper || PAPER()) }); inkRect(x, T, w / 2, h, { ...A, fill: fl(o, C.paper || PAPER()) });   // the pages
+    for (let i = 1; i < 12; i++) { const cx = L - c + (i / 12) * (w + 2 * c);                       // its checks
+      inkLine(cx, T - c, cx, T, { ...B, w: ow * 0.5 }); inkLine(cx, T + h, cx, T + h + c, { ...B, w: ow * 0.5 }); }
+    inkPath([[x - 6 * k, T + h], [x - 8 * k, T + h + 52 * k], [x, T + h + 42 * k], [x + 8 * k, T + h + 52 * k], [x + 6 * k, T + h]], { ...B, closed: true, fill: fl(o, INK()) });   // ribbon
+    const sx = L + w + c;                                                                           // the strap and its lock
+    inkPath([[sx, T + h * 0.38], [sx + 34 * k, T + h * 0.38], [sx + 34 * k, T + h * 0.62], [sx, T + h * 0.62]], { ...B, closed: true, fill });
+    inkRect(sx + 26 * k, T + h * 0.42, 18 * k, h * 0.16, { ...B, fill: fl(o, INK()) });
+    const n = o.lines ?? 3;
+    for (let pg = 0; pg < 2; pg++) for (let i = 0; i < n; i++) {                                     // the handwriting: wavy lines
+      const x0 = (pg ? x : L) + 20 * k, x1 = x0 + w / 2 - 40 * k - (i === n - 1 ? 50 * k : 0), yy = T + (40 + i * 44) * k, pts = [];
+      for (let j = 0; j <= 16; j++) { const u = j / 16; pts.push([x0 + (x1 - x0) * u, yy + Math.sin(u * 22 + i + pg * 3) * 3 * k]); }
+      inkPath(pts, { ...st(D, (pg * n + i) / (2 * n), (pg * n + i + 1) / (2 * n)), w: ow * 0.55, jit: 0.3 });
+    }
+  };
+})();
+// Poses from the run-4 probes: a hand down to something at the feet (p03, the box at the prince's feet), and both
+// arms out and down to the sides, hands meeting a neighbour's (p09: figures at s 1 spaced 180 px join hands).
+Object.assign(POSES, {
+  reachDown: { la: [[-18, 52], [-28, 108]], ra: [[48, 44], [96, 98]] },
+  linked: { la: [[-46, 44], [-90, 72]], ra: [[46, 44], [90, 72]] },
+});
+// Two people holding hands (fix round 2026-11-16, r09: POSES.linked places each hand from its own figure's height, so
+// the hands of two figures with different h missed by ~26 px). Draw both figures first, each with holdHand on its
+// inner side (toward the other: the left one's 'right', the right one's 'left'), any pose for the other arm; then
+// holdHands(a, b) draws those two arms from the shoulders to one grip point between the figures, a little bent at the
+// elbows, and returns the grip [x, y] (also each figure's hands[] entry). Space the figures about 150-180 × s apart
+// (head to head): the hands hang low; up to ~210 × s the arms rise toward level; farther, they go straight. opts: p (the arms draw on). A figure drawn
+// without holdHand on that side would show three arms: it is reported (MISS, lint P0).
+function holdHands(a, b, { p = 1 } = {}) {
+  if (!a || !b || !a.arms || !b.arms) { MISS.add('holdHands: two figure() / person() anchors'); return null; }
+  const [A, B] = a.head[0] <= b.head[0] ? [a, b] : [b, a];
+  const inner = (f, side) => {   // f's arm on that side of the screen
+    const k = (side === 'right') === (f.dir > 0) ? 1 : 0;
+    if (f.arms.off !== k) MISS.add(`holdHands: draw the ${side === 'right' ? 'left' : 'right'} figure with holdHand: '${side}'`);
+    return { f, k, r: f.arms, S: f.arms.sh[k] };
+  };
+  const L = inner(A, 'right'), R = inner(B, 'left'), l1 = (e) => 55 * e.r.s, l2 = (e) => 57 * e.r.s;   // upper arm, forearm (POSES.stand)
+  // the grip: halfway between the shoulders, where a relaxed arm hangs (0.72 of its length below the shoulder), raised
+  // when the other person stands far enough that it would not reach (0.95 of its length). Each figure has its own; the
+  // higher one is in reach of both (the shorter person reaches up a little, as a child holding a grown-up's hand)
+  const gx = (L.S[0] + R.S[0]) / 2, G = [gx, Math.min(...[L, R].map((e) => {
+    const n = l1(e) + l2(e), d = 0.95 * n, dx = Math.abs(gx - e.S[0]);
+    return e.S[1] + Math.min(0.72 * n, Math.sqrt(Math.max(0, d * d - dx * dx))); }))];
+  for (const [e, out] of [[L, -1], [R, 1]]) {   // out: away from the other person, where the elbow bends
+    const [sx, sy] = e.S, u1 = l1(e), u2 = l2(e), vx = G[0] - sx, vy = G[1] - sy, d = Math.hypot(vx, vy) || 1;
+    let el;
+    if (d >= u1 + u2) el = [sx + vx * u1 / (u1 + u2), sy + vy * u1 / (u1 + u2)];   // out of reach: a straight arm
+    else {
+      const t = (u1 * u1 - u2 * u2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, u1 * u1 - t * t));
+      const sg = (-vy / d) * out >= 0 ? 1 : -1;
+      el = [sx + vx * t / d - sg * vy / d * h, sy + vy * t / d + sg * vx / d * h];
+    }
+    const arm = () => withAlpha(e.r.a, () => inkPoly([e.S, el, G], { p: clamp01(p) * (e.r.p > 0 ? 1 : 0), w: e.r.lw, color: e.r.ink }));
+    inkMode(null, arm);   // in ink like the figure's own arms
+    e.f.hands[e.k] = G;
+  }
+  return G;
+}
+
 // ---------- letter concept places (CONCEPTS 'Pictures', 2026-11-14) ----------
 // The letter concept's places, so every letter video starts in the same room every chapter instead of a bare desk:
 // the narrator's night desk (letterNight), the listener's room (letterRoom) and the letter page (letterSheet), built
@@ -2459,6 +2733,9 @@ function docentCoverRatio(name) { const im = typeof IMG === 'object' ? IMG[name]
 function realCover(name, x, y, h, { p = 1, rot = 0, ratio = null } = {}) {
   if (!(typeof IMG === 'object' && IMG[name])) MISS.add('img:' + name);
   const w = h * (ratio || docentCoverRatio(name)), k = smooth(clamp01(p)), dy = (1 - k) * 30, box = { x: x - w / 2, y: y - h, w, h };
+  // lint cover-late: [name, opacity on screen]; a cover not started yet is listed at 0 (run 4 fix round: one drawn from
+  // 1.2 s into its shot was absent at the check and went unreported)
+  if (!DOCENT.ghostOk && !DOCENT.measure) DOCENT.covers.push([name, Math.round(k * ctx.globalAlpha * 1000) / 1000]);
   if (k <= 0) return box;
   if (k < 0.98) docentNote('partial', 'cover:' + name);
   // its box on screen, rotation and camera included: the lint's subtitle-line, frame-edge and extent checks
@@ -2483,14 +2760,37 @@ function realCover(name, x, y, h, { p = 1, rot = 0, ratio = null } = {}) {
   } finally { DOCENT.ghostOk--; }
   return box;
 }
-// The original and its Korean edition side by side, the Korean one in front and slightly overlapping, drawn on one
-// after the other as p goes 0 -> 1; (x, y) = bottom centre, h = height. opts: p, gap (the overlap, a share of h).
+// The original (nameA, left) and its Korean edition (nameB) side by side, the Korean one in front and slightly
+// overlapping; (x, y) = bottom centre, h = height. opts: p, gap (the overlap, a share of h). Both are fully drawn by
+// p 0.6: A over p 0-0.45, B over p 0.15-0.6 (run 4, 2026-11-15: B drew over p 0.375-1, so with the usual
+// dp(lt, 0.2, 0.8) the Korean cover was still a grey ghost at the shot's start + 0.8 s in four probes; lint cover-late).
 // Returns the pair's box.
-function realCoverPair(nameEn, nameKo, x, y, h, { p = 1, gap = 0.04 } = {}) {
-  const re = docentCoverRatio(nameEn), rk = docentCoverRatio(nameKo), we = h * re, wk = h * rk, span = we + wk - gap * h;
-  realCover(nameEn, x - span / 2 + we / 2, y, h, { p: clamp01(p * 1.6), rot: -0.04, ratio: re });
-  realCover(nameKo, x + span / 2 - wk / 2, y, h, { p: clamp01(p * 1.6 - 0.6), rot: 0.03, ratio: rk });
+function realCoverPair(nameA, nameB, x, y, h, { p = 1, gap = 0.04 } = {}) {
+  const ra = docentCoverRatio(nameA), rb = docentCoverRatio(nameB), wa = h * ra, wb = h * rb, span = wa + wb - gap * h;
+  realCover(nameA, x - span / 2 + wa / 2, y, h, { p: clamp01(p / 0.45), rot: -0.04, ratio: ra });
+  realCover(nameB, x + span / 2 - wb / 2, y, h, { p: clamp01((p - 0.15) / 0.45), rot: 0.03, ratio: rb });
   return { x: x - span / 2, y: y - h, w: span, h };
+}
+// A real cover held up in a figure's hand (run 4: in ten probes nobody held the book; the pair stood free on the
+// ground beside her). fig = the anchors person() / figure() return; side 'front' (the hand on the side the figure
+// faces) or 'back'. The cover stands upright beside the body, its inner edge in the hand (gripped a third of the way
+// up), turned a little toward the viewer, and never over the face: when the hand is close to the head the cover moves
+// out until it clears the head and its hair. The fingers are drawn over its edge. Pose: POSES.showBook (the front hand
+// up beside the shoulder). opts: h (its height in px), p. Returns the cover's box { x, y, w, h }.
+function holdCover(fig, name, { h = 260, p = 1, side = 'front' } = {}) {
+  const back = side === 'back', dir = fig.dir || 1, out = back ? -dir : dir;
+  const [hx, hy] = fig.hands[back ? 0 : 1], [fx, fy] = fig.head, R = fig.r || 44;
+  const w = h * docentCoverRatio(name), bottom = Math.min(hy + 0.32 * h, fig.box ? fig.box[3] : Infinity);
+  let inner = hx - out * 0.1 * w;                                 // the edge in the hand
+  const clear = fx + out * R * 1.4;                               // past the head and its hair, when beside the head
+  if (bottom > fy - R * 1.3 && bottom - h < fy + R * 1.3 && (inner - clear) * out < 0) inner = clear;
+  const box = realCover(name, inner + out * w / 2, bottom, h, { p, rot: out * 0.035 });
+  const k = clamp01(p * 2 - 1);                                   // the fingers over its edge, once it is mostly there
+  if (k > 0) {
+    const lw = 4.2 * Math.max(0.7, Math.sqrt(R / 44)), x0 = out > 0 ? Math.max(hx, inner) : Math.min(hx, inner), len = Math.max(lw * 3, w * 0.08);
+    for (const dy of [-1.1, 1.1]) inkLine(hx - out * lw, hy + dy * lw, x0 + out * len, hy + dy * lw + lw * 0.6, { p: k, w: lw, jit: 0.3 });
+  }
+  return box;
 }
 
 // ---------- emphasis budget: what competes for the eye (2026-11-13) ----------
@@ -2521,24 +2821,25 @@ function realCoverPair(nameEn, nameKo, x, y, h, { p = 1, gap = 0.04 } = {}) {
     scrollList: [() => one('list'), (a) => { word(a[3] || 'list'); DOCENT.listItems = (DOCENT.listItems || 0) + (a[4] || []).length; }, true],
     quote: [() => one('quote'), (a) => word(a[3]), true],
     bookCover: [() => one('book'), (a, o) => word((o && o.title) || 'book'), true],
-    realCover: [() => one('book')], realCoverPair: [() => one('book')],
+    realCover: [() => one('book')], realCoverPair: [() => one('book')], holdCover: [() => one('book')],
     chapterMap: [() => one('map'), () => word('map'), true],
     hand: [null, (a) => word(a[0])], handBlock: [null, (a) => word([].concat(a[0]).join(' ')), true],
     cross: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true], crossAt: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true],
     ring: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('ring'); }, false, true], underline: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('underline'); }, false, true],
   };
   const INKED = new Set(['figure', 'person', 'seated', 'animal', 'prop', 'crab', 'ant']);
+  const PEOPLE = new Set(['figure', 'person', 'seated']);   // a person the scene draws itself (lint crowd-row), not a place's or a bubble's
   for (const [name, [asThing, asWord, ownText, isMark]] of Object.entries(SPEC)) {
     const f = G[name]; if (typeof f !== 'function') continue;
     G[name] = function (...args) {
-      const o = optsOf(args), ok = live(o);
+      const o = optsOf(args), ok = live(o), top = PEOPLE.has(name) && DOCENT.depth === 0;
       if (ok && asThing && DOCENT.depth === 0) asThing(args, o);
       if (ok && asWord) asWord(args, o);
-      DOCENT.depth++;
+      DOCENT.depth++; if (top) DOCENT.topFig++;
       if (ownText || INKED.has(name)) DOCENT.noWord++;   // a drawing's own lettering is part of the drawing
       if (isMark) DOCENT.inMark++;
       try { return INKED.has(name) ? inkMode(o, () => f.apply(this, args)) : f.apply(this, args); }
-      finally { DOCENT.depth--; if (ownText || INKED.has(name)) DOCENT.noWord--; if (isMark) DOCENT.inMark--; }
+      finally { DOCENT.depth--; if (top) DOCENT.topFig--; if (ownText || INKED.has(name)) DOCENT.noWord--; if (isMark) DOCENT.inMark--; }
     };
   }
 })();

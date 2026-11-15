@@ -9,8 +9,9 @@ Every recipe stays inside the emphasis budget (REFERENCE §0): one subject plus 
 one written word, at most one red mark, ink only. When a sentence seems to need more, it needs two shots.
 
 Map: S script.json · T1 cast block · T2 dialogue · T3 three people · T4 inner voice · T5 named idea · T6 picture
-equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd · T12 a poem on the wall · T13 a chart
-with a break · A adding an asset · C one-scene clip · P letter places · Cover the YouTube thumbnail
+equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 many people · T12 a poem on the wall · T13 a
+chart with a break · A adding an asset · B the book shot · C one-scene clip · P letter places · Cover the YouTube
+thumbnail
 
 ## S. script.json fields that drive pictures and music
 ```json
@@ -28,6 +29,19 @@ word when the same stem appears twice
 Put the names the voice must say in `project.json` `"names": ["이스마엘", "퀴퀘그"]`: audio_check hints whisper with them.
 
 ## T1. Cast block (top of scenes.js, once per book)
+Letter (the default): `me` and `oppa` are cast in every letter video, drawn or not, so their looks stay reserved
+(p08: Schrödinger with side hair + round glasses read as 오빠, and with no `oppa` cast no lint could see it; lint
+`letter-cast`). `new_video.py` writes the `TITLE_CARD` line and these two casts into a new docent project's scenes.js
+(only when it has none) and `"concept": "letter"` into its project.json; for the lint, an ink-mode project
+(`"colour": false`) with no `concept` counts as letter. The book's people go below them, each look taken from a photo
+(REFERENCE §2).
+```js
+TITLE_CARD = signCard;
+cast('me',       { name: '나', hair: 'long', h: 0.94 });                        // the narrator: never tagged
+cast('oppa',     { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the listener
+cast('socrates', { name: '소크라테스', hair: 'bald', beard: true, h: 1.0 });     // busts: bald, a full beard (REFERENCE §2)
+```
+Lecture:
 ```js
 TITLE_CARD = signCard;
 cast('musk',  { name: '머스크', hair: 'short', tie: true, h: 1.08 });          // silhouettes: height, hair/hat, one prop
@@ -121,10 +135,26 @@ One verdict: the X on the wrong one; the right one stands plain beside it (an X 
 [q.s(2), (t, lt) => scrollList(660, 150, 600, '네 가지 규칙', ['하나', '둘', '셋', '넷'], { p: dp(lt, 0, 1.4) })],   // mark: [k] only when that item is the verdict
 ```
 
-## T11. Crowd (people who are not characters)
+## T11. Many people ("여덟 명", "낯선 사람들", a crowd)
+Never a row of 5+ small figures: that is the "rows of figures" the owner rejected, and run 4 still lined up the
+trolley's five + one, five strangers and the eight in hiding (lint `crowd-row`, P1: 5+ people in one rest frame, each
+under 35 % of the height). At most three big figures in front, the number written once when it is the one to
+remember; or, when the point is how many, heads behind one line.
 ```js
-for (let i = 0; i < 6; i++) figure(300 + i * 230, 860, { s: 0.7, crowd: true, face: 'neutral', p: dp(lt, i * 0.08, 0.6) });
+[q.s(1), (t, lt) => {   // "여덟 명이 한집에 살았어요": three of the eight, big; the narration carries the rest
+  [[620, 1.0], [960, 0.86], [1300, 1.08]].forEach(([x, h], i) =>
+    figure(x, 870, { s: 1.15, h, crowd: true, face: 'worried', p: dp(lt, i * 0.1, 0.5) }));
+  hand('8명', 1640, 420, { size: 110, p: dp(lt, 0.6, 0.4) });                    // the one number
+}],
+[q.s(2), (t, lt) => {   // "낯선 사람 수천 명이 같은 이야기를 믿었어요": one big teller, the many as heads behind a hill
+  figure(560, 870, { s: 1.4, pose: 'present', face: 'happy', crowd: true, p: dp(lt, 0, 0.5) });
+  inkLine(860, 700, 1760, 700, { w: 5, p: dp(lt, 0.2, 0.3) });                   // the one line: bodies behind it
+  for (let i = 0; i < 9; i++) {
+    const r = i % 2 ? 26 : 32; inkCircle(910 + i * 100, 700 - r, r, { p: dp(lt, 0.3 + i * 0.03, 0.3) });
+  }
+}],
 ```
+`crowd: true` on every extra (lint `twins`), and a head no cast look has (lint `cast-lookalike`).
 
 ## T12. A poem on the wall (poetry, essays: the docent's gallery tour)
 ```js
@@ -156,9 +186,10 @@ Axes first, then the line that "feels safe", then the break on the word that nam
 The kit is read-only during a run; register what is missing at the top of scenes.js, after the cast block. It then
 shows on `gallery.py` sheets, `say()` and the lint see it, and the retro moves generic ones into docent.js.
 ```js
-// animal: T(px, py) maps local units (x forward, y up negative, s = 1 ≈ 300 px long) to the screen; o = { s, dir, p,
-// a, w, color, fill }; q(k) is the staged draw-on, k = 0..4 (all 1 at p = 1). Scale radii by o.s yourself. Return the
-// anchors; add half: <half-length in local units> when the animal is longer than ±270 (a whale).
+// animal: T(px, py) maps local units (x forward, y up negative, s = 1 ≈ 300 px long) to the screen; o = every option
+// of the animal() call (s, dir, p, a, w, color, fill and your own, e.g. run: 1, mood: 'sad'); q(k) is the staged
+// draw-on, k = 0..4 (all 1 at p = 1). Scale radii by o.s yourself. Return the anchors; add half: <half-length in
+// local units> when the animal is longer than ±270 (a whale).
 ANIMALS.deer = (T, o, q) => {
   inkPath([T(-90, -60), T(-60, -120), T(60, -120), T(90, -60), T(60, -40), T(-60, -40)], { ...o, closed: true, round: 2, p: q(1), fill: o.fill || mix(C.grey, 0.5) });
   // … legs q(0), head q(2), antlers q(3), eye q(4)
@@ -170,6 +201,12 @@ PROPS.anvil = (x, y, s, o) => { inkPath([[x - 80 * s, y - 60 * s], [x + 80 * s, 
 // pose: [elbow, hand] for the left and right arm, relative to the shoulder (y down)
 POSES.pray = { la: [[-30, 46], [-6, 10]], ra: [[30, 46], [6, 10]] };
 ```
+Look at the gallery first: run 4 moved ANIMALS `fox` `lion` `wolf` `monkey`, PROPS `plane` `dna` `diary` and POSES
+`reachDown` `linked` `showBook` into docent.js. Two people hand in hand: draw both figures with `holdHand` on their
+inner side (the left one `holdHand: 'right'`, the right one `holdHand: 'left'`; that arm is left off), then
+`holdHands(a, b, { p })` draws those two arms to one grip point between them and returns that point (a figure without
+`holdHand` on that side is reported, lint P0). Use it instead of `POSES.linked` when their heights differ (r09:
+`linked` hands at h 1.04 and 0.92 missed by 26 px).
 Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel' | 'morion'`. A new kind of look (a toga, armour)
 is a helper drawn after `person()` at its anchors, shown once on a still at Gate A.
 
@@ -202,11 +239,63 @@ draws nothing for a hat it does not know. Check it on the cast sheet at Gate A b
 moves it into `figure()`, and a project that refreshes its engine drops its own wrapper then (총균쇠's `person()`
 wrapper would draw a second morion over the kit's).
 
+## B. The book shot (letter: the real covers on a plain page, REFERENCE §4)
+Draw the sentence's verb with the book: 다 읽었어요 → she holds it up while 오빠 looks; 읽어 봐요 → she hands it to
+him; 빌려준 → he hands it to her. Never the `present` pose pointing at a pair in the air (all 10 run-4 probes opened
+that way). One cover in a hand is `holdCover(fig, name)`: at the front hand, upright beside the body, clear of the
+face; it returns the cover's box.
+- **The original is shown at least once in the video**: the pair on a desk line, in the shot whose line names the
+  book or the next one. The Korean edition in a hand alone is not enough. A Korean original (윤동주) is the exception:
+  its Korean edition alone.
+- **오빠 is in the shot when the line is about him** (오빠가 맨날 읽으라던, 오빠 책장의, 오빠가 빌려준). "오빠," used only
+  to call him (오빠, 드디어 다 읽었어요) does not need him drawn.
+- **A line about him that also brings in both editions: two shots.** Her, him, a desk and the pair are four things
+  (lint `busy`): all five verification authors hit this and broke one rule or the other. First the hand-over of the
+  Korean edition between her and him, then her with the pair on a desk line. Draw that desk in plain `inkLine`s: lines
+  are support, not a thing, so the shot is her + the pair. Each shot holds 3 s or more: split one sentence (at the
+  book's name, `q.w`) only when it runs about 6 s; otherwise the hand-over takes this sentence and the pair the next.
+```js
+[q.s(0), (t, lt) => {   // "오빠가 권한 책, 드디어 다 읽었어요": she holds the Korean edition up, he looks
+  const me = person('me', 700, 870, { s: 1.3, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
+  holdCover(me, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
+  person('oppa', 1300, 870, { s: 1.3, flip: true, face: 'surprised', p: dp(lt, 0.1, 0.5) });
+}],
+[q.s(2), (t, lt) => {   // "오빠도 꼭 읽어 봐요": she hands it over; his hand meets the cover's far edge
+  const me = person('me', 720, 870, { s: 1.3, pose: 'reach', face: 'smile', p: dp(lt, 0, 0.5) });
+  const b = holdCover(me, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
+  const x = b.x + b.w + 118 * 1.3 * CAST.oppa.h;                                 // his reach hand lands at b.x + b.w
+  person('oppa', x, 870, { s: 1.3, pose: 'reach', flip: true, face: 'happy', p: dp(lt, 0.1, 0.5) });
+}],
+```
+A line about him, then both editions (two shots): he hands her the Korean edition; she rests a hand on the pair.
+```js
+[q.s(0), (t, lt) => {   // "오빠가 맨날 읽으라던 그 책, 드디어 다 읽었어요": he hands it to her
+  const o = person('oppa', 720, 870, { s: 1.3, pose: 'reach', face: 'happy', p: dp(lt, 0, 0.5) });
+  const b = holdCover(o, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
+  const x = b.x + b.w + 118 * 1.3 * CAST.me.h;                                    // her reach hand lands at b.x + b.w
+  person('me', x, 870, { s: 1.3, pose: 'reach', flip: true, face: 'smile', p: dp(lt, 0.1, 0.5) });
+}],
+[q.s(1), (t, lt) => {   // "원서는 영어로 나왔고, 한국어판도 있어요": her and the pair on a desk drawn in lines
+  const top = 870 - 190;                                                           // lines are support, not a thing
+  inkLine(880, top, 1400, top, { w: 6, p: dp(lt, 0, 0.3) });
+  for (const x of [920, 1360]) inkLine(x, top, x, 870, { w: 4.4, p: dp(lt, 0.05, 0.3) });
+  const pr = realCoverPair('cover_lab_en', 'cover_lab_ko', 1140, top, 360, { p: dp(lt, 0.1, 0.6) });
+  person('me', pr.x - 118 * 1.4 * CAST.me.h, 870, { s: 1.4, pose: 'reach', face: 'happy', p: dp(lt, 0, 0.5) });   // her hand at the near cover
+}],
+```
+She may sit at that desk instead (T15) when the line is 읽었어요 or 덮고도 앉아 있었어요.
+The original first (left), the Korean edition second. Every cover is fully in by the shot's start + 0.8 s (lint
+`cover-late`): start it by `lt` 0.2 and give it ≤ 0.6 s. A cover or a pair is one thing and no word; with two people
+it is the shot's third thing, so nothing else goes in.
+
 ## C. A one-scene clip (a 10 to 20 s probe, a trailer, a short)
 Keep the chapter shape's first, middle and last beat and drop the rest (biography: turning point → decision → cost;
 history: scene → consequence; philosophy: question → answer; fiction: premise → the character's want → the question,
-never the ending — no picture that gives the ending away). Two or three sentences, 70 to 80 characters of text;
-one mood and no `"music"` change; the scene's `title` is the book's title (it is the title card); 2 to 4 shots.
+never the ending — no picture that gives the ending away). Two or three sentences; one mood and no `"music"` change;
+the scene's `title` is the book's title (it is the title card); 2 to 4 shots. The length counts the 2.6 s title card:
+≈ 85 characters of text make ≈ 17 s (run 4: 75–95 characters ran 17–19 s against a 12 s brief). A letter clip keeps
+one line of her own reaction ("나도 처음엔…") or of 오빠, not only the book reported in ~대요, and varies its opening
+line and its `dir`: all ten run-4 clips opened "오빠, [author]의 [book]을 (다) 읽었어요", seven "a little proud".
 
 ## T14. An idea inside a head (philosophy, psychology: "the judgment", "the story we tell")
 Two shots: the thing outside is crossed out ("it is not the work"), then the thing inside is the answer, the named idea.
@@ -247,17 +336,43 @@ const m = person('musk', 700, 870, { pose: 'akimbo', p: dp(lt, 0, 0.5) }); armor
 Scale from the anchors, not from a guessed `s` (the first armour, sized for r = 34, covered the arms of a tall figure).
 Show it once on a still at Gate A, on a tall adult and on a child.
 
-## T15. Seated figure (chair, armchair, bench)
-`figure({ sit: true })` puts the hip at y - 100 s, lays the thighs flat and bends the knees at x + 64 s (feet at
-x + 64 to 74 s). A seat as deep as the thighs hides them on its top edge and turns the shins into a third chair leg:
-the seat stops at x + 34 s. The kit `chair` at 1.4 s puts its front leg at x + 56 s, so draw this one instead:
+## T15. Seated figure (chair, stump, step, a desk in front)
+`figure({ sit: true })` puts the hip at y − 100 k (k = `s` × the cast's `h`), lays the thighs flat to the knees at
+x + 64 and x + 74 k and drops the shins straight down there; it draws no feet. The old recipe put the seat on the
+thigh line with its front leg at x + 34 k: the seat hid the thighs, and the leg and the two shins made three
+verticals, so the sitter read as standing behind a box (verification v2, r10). Any seat follows three numbers: its
+top just under the thigh (y − 96 k), its front edge by x + 20 k (the knee sticks out), and nothing upright between
+x + 24 k and x + 140 k but the shins. Checked at phone size (360 px) on stills.
 ```js
-const sideChair = (x, y, s, o) => inkPoly([[x - 38 * s, y - 232 * s], [x - 38 * s, y], [x - 38 * s, y - 100 * s],
-                                          [x + 34 * s, y - 100 * s], [x + 34 * s, y]], o);   // sitter faces right
-sideChair(x, y, s, { p: dp(lt, 0, 0.4) });                          // the chair first, so the thighs lie on top
-person('viewer', x, y, { s, sit: true, pose: 'hold', p: dp(lt, 0.1, 0.5) });
+POSES.lap = { la: [[8, 58], [40, 112]], ra: [[20, 56], [58, 110]] };                 // both hands resting on the thighs
+// A side chair under a sitter at (x, y): k = s × the cast's h, d = 1 faces right, −1 faces left. Draw it first.
+const sideChair = (x, y, k, d = 1, o = {}) => {
+  const X = (u) => x + d * u * k, Y = (v) => y - v * k, w = 4.4;
+  inkLine(X(-40), Y(88), X(-56), Y(214), { w, ...o });                                   // the back, leaning away
+  inkRect(Math.min(X(-44), X(20)), Y(96), 64 * k, 10 * k, { w, fill: PAPER(), ...o });   // the seat, under the thigh
+  inkLine(X(-38), Y(86), X(-50), Y(0), { w, ...o });                                      // the back leg
+  inkLine(X(14), Y(86), X(24), Y(0), { w, ...o });                                        // the front leg, clear of the shins
+  inkLine(X(62), Y(2), X(96), Y(2), { w, ...o });                                         // the sitter's feet (the kit draws none)
+};
+[q.s(0), (t, lt) => {   // "덮고도 한참 앉아 있었어요": she sits at her desk, chin in her hand
+  const s = 1.5, x = 640, y = 870, k = s * CAST.me.h, T = y - 155 * k;
+  sideChair(x, y, k, 1, { p: dp(lt, 0, 0.4) });
+  person('me', x, y, { s, sit: true, pose: 'deskChin', face: 'sad', p: dp(lt, 0.1, 0.5) });
+  inkLine(x + 50 * k, T, x + 470 * k, T, { w: 6, p: dp(lt, 0, 0.4) });                    // the desk top at her elbow
+  for (const u of [150, 450]) inkLine(x + u * k, T, x + u * k, y, { w: 4.4, p: dp(lt, 0.1, 0.3) });   // legs past her feet
+}],
 ```
-Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118 s).
+- The desk is drawn as lines: the kit `desk` overhangs its legs by only 20 s, so with its top at her elbow its near leg
+  stands on her shins. Its top is at y − 155 k (the elbow in `deskChin`, `deskWrite`), the near leg at x + 150 k or
+  further.
+- Pose: `lap`, `deskRead`, `deskChin`, `deskWrite` or `deskType`; not `hold` (the arms spread like a shrug).
+- A stump or a doorstep is a seat with the same numbers: its top at y − 96 k, its front by x + 20 k, no upright line
+  near the shins.
+- Facing left: `d = −1` and `flip: true`. A thing on the lap goes at (x + 70 k, y − 118 k).
+- At a desk on this chair is the narrator's composition: a girl or a woman from the book is staged another way
+  (REFERENCE §2; r10's Anne read as the narrator).
+- `letterNight` still draws the old chair (seat on the thigh line, front leg at x + 34 k): a place shot shows this
+  defect until the kit takes these numbers.
 
 ## Placement notes
 - Draw people in any order, bubbles last: name tags are placed when the shot is complete (`docentTags()`), clear of
@@ -271,8 +386,8 @@ Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118
 
 ## P. Letter places (concept letter: her night desk, his room, the letter page, the real covers)
 Optional (owner 2026-11-14): a whole video in these places read as slop; the letter's default is the Stoic level
-(CONCEPTS "Pictures"). Use a place for one shot or an opening at most. The real covers (`realCover`, `realCoverPair`)
-are the part every docent book uses.
+(CONCEPTS "Pictures"). Use a place for one shot or an opening at most. The real covers (`realCover`, `realCoverPair`,
+`holdCover`) are the part every docent book uses; on a plain page they are shot B.
 A letter video has two kinds of shots (CONCEPTS letter, "Pictures"): room shots, with the narrator or the listener big
 in one place that stays for the chapter, and letter-page shots, with the idea sketched on a sheet of letter paper. The
 kit draws the places, so every chapter starts in the same rich room instead of a bare desk:
@@ -282,7 +397,8 @@ kit draws the places, so every chapter starts in the same rich room instead of a
   s 2.05 facing left. Returns him.
 - `letterSheet(o)`: a cream letter page filling the frame. Returns the box `{ x, y, w, h }` for the idea.
 - `letterCard`: the chapter card, a fresh letter sheet with the chapter's title written on it in 0.6 s.
-- `realCoverPair(en, ko, x, y, h, o)` and `realCover(name, x, y, h, o)`: the book's real covers, from images.
+- `realCoverPair(original, ko, x, y, h, o)`, `realCover(name, x, y, h, o)` and `holdCover(fig, name, o)`: the book's
+  real covers, from images.
 
 The cast keys default to `'me'` and `'oppa'`; pass `who:` for others. The pieces are kit functions too: `nightWindow`,
 `deskLamp` with `lampGlow`, and `bookcase`. The seated poses are `deskWrite`, `deskChin`, `deskRead`, `deskShow`,
@@ -323,7 +439,7 @@ SCENES.letter = (t, q) => shots(t, [
   fill with the blue page, so heads and clock faces on the cream letter come out blue.
 - A docent book always shows its real covers, the original and the Korean edition (owner, 2026-11-14). Put the cover
   images in `img/<name>.jpg`, list the names in project.json `"images"`, and show the pair on the letter or one cover
-  in a hand (`realCover(name, hx, hy + 40, 300, { rot: 0.05 })`). A missing image is a lint P0. The drawn `bookCover()`
+  in a hand (`holdCover(fig, name)`; on a plain page: B). A missing image is a lint P0. The drawn `bookCover()`
   is for a book without a cover image.
 - For the budget, a room counts as two things, the setting and its person, however many pieces it draws. Add one
   more at most (a prop in a hand or a bubble): a fourth thing is lint `busy`. The letter page counts nothing; what is

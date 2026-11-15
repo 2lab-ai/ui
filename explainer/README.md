@@ -19,9 +19,10 @@ explainer/
 │   │                    props, quick cuts, and a per-frame defect registry for the lint
 │   └── video.html       preview player (play, scrub, chapters) and export page (?export=1)
 ├── tools/
-│   ├── new_video.py     scaffold or refresh a project: engine, theme.json, fonts, public-domain images (--format short)
+│   ├── new_video.py     scaffold or refresh a project: engine, theme.json, fonts, public-domain images (--format short);
+│   │                    a docent project without scenes.js gets a starter one (title card, the letter cast me + oppa)
 │   ├── frame.py         the frame size from project.json "format" / "size" (default 1920x1080)
-│   ├── narrate_soma.py  narration with the soma-voice API on blade-4090 (voice cwon), filler padding, timing
+│   ├── narrate_soma.py  narration with the soma-voice API on blade-4090 (voice cwon), filler padding, timing (--help: usage)
 │   ├── padcut.py        cuts the filler ("아아. [pause] … [pause] 아아.") off each take
 │   ├── ko_say.py        Korean spoken form: digits, symbols and Latin letters -> Hangul before the TTS
 │   ├── cwon_say.py      one-off voice clip (no video): text -> padded, cut, ear-checked cwon wav/mp3
@@ -35,8 +36,10 @@ explainer/
 │   ├── gallery.py       asset sheets (cast, animals, props) to review before scenes use them
 │   ├── lint_scenes.py   renders every shot at rest; fails on half-drawn, ghosts, bad bubbles, look-alike people
 │   ├── parts.py         many authors at once: parts/<id>.js -> scenes.js, and a private preview (lint + Gate C sheets) per author
-│   ├── mix_check.py     how far the music sits under the voice and how much it swells (target 20-22 dB, <= 5 dB)
-│   ├── export.py        mix (voice ducks the music) · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
+│   ├── mix_check.py     how far the music sits under the voice and how much it swells (target 20-22 dB, ok 19.5-22.5; <= 5 dB)
+│   ├── export.py        mix (voice ducks the music; a docent bed is measured and trimmed once to ~21 dB under the voice,
+│   │                    quiet title cards lifted toward -27 dBFS, mix_check's verdict printed: `mix: WARNING:` when it will fail)
+│   │                    · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
 │   │                    · audiobook (M4A with one chapter per scene + chapters.txt for the YouTube description)
 │   │                    · cover (the YouTube thumbnail from scenes.js COVER / COVER_B / COVER_C, checked at 168 px)
 │   ├── title_check.py   a YouTube title's form + the search demand of its keywords (yt-dlp; median, small-channel hits)
@@ -154,21 +157,23 @@ for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue
 
 | Function | What it draws |
 |---|---|
-| `figure(x, y, {pose, face, s, t, walk, flip, look, tie, glasses, hair, hat, beard, mustache, outfit, accent, h, tag, crowd, p})` | stick figure; (x, y) between the feet, `s: 1` is about 340 px. Poses: stand wave point present think shrug cheer hold akimbo reach slump facepalm carry lift stop. Faces: smile happy neutral sad surprised worried angry think cool (= sunglasses, not 'calm') wink sleepy. Hats: top cap beanie bowler crown laurel morion (the conquistador helmet) |
+| `figure(x, y, {pose, face, s, t, walk, flip, look, tie, glasses, hair, hat, beard, mustache, outfit, accent, h, tag, crowd, holdHand, p})` | stick figure; (x, y) between the feet, `s: 1` is about 340 px. Poses: stand wave point present think shrug cheer hold akimbo reach slump facepalm carry lift stop showBook reachDown linked (`Object.keys(POSES)`). Faces: smile happy neutral sad surprised worried angry think cool (= sunglasses, not 'calm') wink sleepy. Hats: top cap beanie bowler crown laurel morion (the conquistador helmet) |
 | `achilles`, `tortoise`, `crab`, `ant` | ready characters (helmet with a red crest, shell, crab, ant) |
 | `cast(id, look)`, `person(id, x, y, o)` | one fixed look per person (hair, hat, outfit, accent colour, height, name); `person` draws it and returns anchors `{head, r, mouth, top, hands, box, dir}`. `tag: true` writes the name beside the chest |
+| `holdHands(a, b, {p})` | two people holding hands: draw both figures first with `holdHand` on their inner side (the left one `'right'`, the right one `'left'`), then `holdHands` draws those two arms to one grip point between them, for any two heights, and returns it. Space them about 150-180 × s apart (`POSES.linked` places each hand from its own height: h 1.04 and 0.92 missed by ~26 px) |
 | `say(who, text, o)`, `think(who, text, o)` | a speech / thought bubble placed beside the figure where it covers no face, figure, bubble or name tag, tail aimed at the mouth. Draw the figures first, then the bubbles |
-| `animal(kind, x, y, {s, dir, p, tag})` | anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse hen swan blackswan octopus bat bee turtle tick cow sheep goat llama zebra squirrel duck, each built from the features people name it by; returns anchors like `person` |
+| `animal(kind, x, y, {s, dir, p, tag, …})` (every option reaches the kind's drawing: a fox's `run`, a lion's `mood`) | anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse hen swan blackswan octopus bat bee turtle tick cow sheep goat llama zebra squirrel duck fox (`run: 1`) lion (`mood: 'sad' | 'roar'`) wolf monkey (`banana: true`: a banana held up in its front hand beside the head, drawn to read in ink alone; `mood: 'stern'`), each built from the features people name it by; returns anchors like `person` |
 | `seated(id, x, y, o)` | a cast person in a wheelchair (chair, seated figure, wheel in front); returns the person's anchors |
-| `docentGallery(kind)` | every cast look / animal / prop / hair style on one labelled sheet (`tools/gallery.py`) |
+| `docentGallery(kind)` | every cast look / animal / prop / hair style / pose on one labelled sheet (`tools/gallery.py cast animals props figures poses`) |
 | `bubble(x, y, w, h, {kind: 'speech' \| 'thought', tail, text, body, p})` | speech or thought bubble; `body(x, y, w, h)` draws a small picture inside |
 | `board`, `students`, `teach(term, {x, y, p})` | the named-idea classroom: presenter, board with the term, students from behind |
 | `sign`, `signCard` | a figure holding the chapter sign. Set `TITLE_CARD = signCard` in scenes.js to use it as every scene's title card (engine.js calls `TITLE_CARD(sc, a, isFirst, lt)`) |
 | `hand(str, x, y, {size, color, p})`, `handBlock` | handwritten text, written on left to right |
 | `cross(x, y, w, h)`, `crossAt(cx, cy, w, h)`, `ring(cx, cy, rx, ry)`, `underline`, `eqSign`, `plusSign` | red X (`cross` from the top-left corner, `crossAt` from the centre), red circle (centre), underline, picture-equation signs |
 | `scrollList(x, y, w, title, items, {mark, strike, p})` | a handwritten list on paper, items ringed or struck through |
+| `realCover(name, x, y, h, {p, rot})`, `realCoverPair(nameA, nameB, x, y, h, {p})`, `holdCover(fig, name, {h, p, side})` | a book's real cover (an image in `img/`, REFERENCE §4); the pair: the original left, the Korean edition in front, both whole by p 0.6; `holdCover`: the cover held up in a figure's front (or `side: 'back'`) hand, upright beside the body and never over the face, returns its box (pose `showBook`) |
 | `bookCover`, `quote`, `chapterMap` | a drawn cover for a book without a cover image (a docent book shows its real covers, REFERENCE §4), a short quote, a progress map for long videos |
-| `prop(name, x, y, s, {p, fill, t, time})` | (`time: [h, m]` fixes a clock's hands, default 10:10) 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium ship whaleboat harpoon flask testtubes medal moon wind frame trolley lever bowl garage pcb fire barn crate rocket car mars factory moneybag satellite wheelchair barbell card seesaw notebook sword musket steelaxe stoneaxe spear wheat corn germ junk caravel canoe hut jar basket claytablet (`note` is a music note) … (`Object.keys(PROPS)`) |
+| `prop(name, x, y, s, {p, fill, t, time})` | (`time: [h, m]` fixes a clock's hands, default 10:10) 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium ship whaleboat harpoon flask testtubes medal moon wind frame trolley lever bowl garage pcb fire barn crate rocket car mars factory moneybag satellite wheelchair barbell card seesaw notebook sword musket steelaxe stoneaxe spear wheat corn germ junk caravel canoe hut jar basket claytablet plane (`crash: true`) dna diary (`lines: n`, default 3) (`note` is a music note) … (`Object.keys(PROPS)`) |
 | `shots(t, [[t0, draw], …])` | quick cuts: the last shot that has started is drawn, fading in over 0.22 s; `draw(t, lt)` gets the time since it started |
 | `pop(t, t0)`, `dp(t, t0, d)` | pop-in scale with a small overshoot; draw-on progress |
 
@@ -200,7 +205,8 @@ letter is ink unless it is page-pale (a white blaze, an ivory highlight: then th
 ink-dark (hair, a dark mane: then ink), so cast accents, outfits, animal coats and prop fills come out as unfilled line
 art (`tools/test_budget_engine.py` draws every animal, prop and hat and checks it). Pass `colour: true` on a call when the colour is the meaning (a red heart). A project without the key (an
 older video, a make-3b1b project) keeps its colours when its engine is refreshed. New docent projects also get
-`"subtitles": "off"` and `"chip": false`; `export.py srt` writes the narration as `out/<slug>.srt` for the YouTube
+`"subtitles": "off"`, `"chip": false` and `"concept": "letter"` (the default concept; the lint treats an ink-mode
+project without a concept as a letter, so `letter-cast` fires); `export.py srt` writes the narration as `out/<slug>.srt` for the YouTube
 caption track.
 
 The craft rules, the shot recipes and the defect history live in `docent/`: [REFERENCE.md](docent/REFERENCE.md) (what
@@ -211,15 +217,17 @@ voice, animal, timeline, …), [LESSONS.md](docent/LESSONS.md) (every defect fou
 Every primitive reports what it drew in the current frame (`DOCENT`, `docentReport()`): half-drawn parts, faded
 ghosts, ink under the subtitles or off the frame, empty bubbles, tails that point at no head, bubbles over faces or
 name tags, people sharing a look, unnamed figures with a cast member's silhouette (`cast-lookalike`: a crowd with
-Yali's curly hair, a king with Diamond's bald head and beard), animals on the stick-figure rig — and the emphasis budget: the things on screen (each
+Yali's curly hair, a king with Diamond's bald head and beard), animals on the stick-figure rig, real covers a shot shows
+that are absent or still fading in 0.8 s after its cut (`cover-late`, once per shot; not in the title card), five or more people each under 35 % of the frame height
+(`crowd-row`) — and the emphasis budget: the things on screen (each
 top-level call; a crowd or a row of the same prop counts once), the written words (name tags included), the red marks
 and any colour besides ink, purple and red. Three tools use it:
 
 | Tool | Gate |
 |---|---|
-| `tools/timeline_draft.py` | a draft timeline from script.json (7.8 chars/s) so scenes, gallery and lint run before the voice is done |
-| `tools/gallery.py cast animals props` | asset sheets: look at every one before any scene uses the asset |
-| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md`, a still per bad frame and `out/lint_sheet*.jpg` (every rest frame, 60 per page) |
+| `tools/timeline_draft.py` | a draft timeline from script.json (7.8 chars/s) so scenes, gallery and lint run before the voice is done; `--out timeline_draft.json` writes it beside the voice's timeline (for `lint_scenes.py --timeline timeline_draft.json`) |
+| `tools/gallery.py cast animals props` | asset sheets: look at every one before any scene uses the asset (`poses`: every pose); after the plain kinds come option cells (`DOCENT_GALLERY_MORE`: the monkey's banana) |
+| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md`, a still per bad frame and `out/lint_sheet*.jpg` (every rest frame, 60 per page); `--timeline <file>` lints against another timeline (the draft after the voice's exists), `--help` prints the checks; a project whose engine copy predates the checks fails `engine-too-old` (P0: run `new_video.py <project>` to refresh engine.js/docent.js) |
 | `tools/title_check.py "<title>" --keyword <kw> --strict` | the title's form (hook first, ≤ 55, no format label) and one measured keyword in the title, on topic and over the demand bar (REFERENCE §10) |
 | `tools/export.py cover` | `out/cover.jpg` (+ `cover_b`, `cover_c`) and `out/cover_check.jpg` at 1280 / 320 / 168 px; `WARNING cover:` lines for small text, more than 8 characters, a small subject, an edge cut or the time-stamp corner |
 
@@ -237,7 +245,7 @@ cross-fade at a sentence gap, a sentence with `"music": "<mood>"` changes track 
 that the track played least and longest ago comes back, away from its last play, with a warning); tracks used by the last 10 videos cost more
 (`~/.cache/2lab-explainer-music/history.json`). Each track is normalised to -20 LUFS and the bed gets a 3 dB dip
 around 2.5 kHz. Output: `score.wav`, `score.json` (`kind: library`, so `export.py mix` ducks gently and lifts open
-stretches +10.5 dB), `out/cue_sheet.md` and `out/music_credits.txt` — paste the credits into the YouTube description
+stretches +10.5 dB, up to 8 dB more when they sit under -29 dBFS: a one-scene clip's title card hangs on the track's first seconds), `out/cue_sheet.md` and `out/music_credits.txt` — paste the credits into the YouTube description
 and the audiobook notes; CC BY requires them. The audio (~540 MB) is downloaded from archive.org into
 `~/.cache/2lab-explainer-music/library/` on first use (`--fetch` gets all of it; `--plan` writes only
 `out/cue_plan.md`). The cue sheet and the credits are written after the render, so they always name the tracks in
