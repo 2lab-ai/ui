@@ -9,7 +9,8 @@ chapter breaks and the end (music_open_dbfs; before 2026-11-10 it sat near -33, 
 
 The open stretches skip the video's first 1.5 s: the bed's own fade-in from silence (library_score.py FADE_IN) under
 the first title card (run 4: two one-scene clips failed "flat" on the fade-in alone, depending on the track).
-export.py mix measures music_under_voice_db the same way (measure()) and trims the bed once toward 21 dB.
+export.py mix measures music_under_voice_db the same way (measure()) and trims the bed once toward 21 dB, then lifts
+open stretches under -29 dBFS toward -27 (at most +8 dB), and prints this verdict (a WARNING line when it is not ok).
 """
 import json, os, re, subprocess, sys, wave
 import numpy as np

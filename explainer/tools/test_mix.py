@@ -111,5 +111,50 @@ class Trim(unittest.TestCase):
         self.assertTrue(20.5 <= mix_check.measure(d, loudness=False)['music_under_voice_db'] <= 21.5)
 
 
+def quiet_head(head_db, body_db=-26.0):
+    """a bed whose first seconds (the title card) sit at head_db and the rest at body_db, fading in over 1.5 s: a track
+    that starts quietly (verify v1: warm -30.1, nostalgic -34.9 dBFS on the title card after the trim)"""
+    rng = np.random.default_rng(3); n = int(TOTAL * SR); t = np.arange(n) / SR
+    lvl = np.full(n, db(body_db), np.float32); lvl[t < 2.6] = db(head_db)
+    return (rng.standard_normal(n) * lvl * np.clip(t / 1.5, 0, 1)).astype(np.float32)
+
+
+@unittest.skipUnless(shutil.which('ffmpeg'), 'ffmpeg missing')
+class OpenStretch(unittest.TestCase):   # fix round F6: one-scene clips failed "flat" on the track's first seconds
+    def mix(self, sc):
+        import export, score
+        d = project(score=sc)
+        with open(os.path.join(d, 'score.json'), 'w') as f:
+            json.dump({'kind': 'library', 'score_wav': score.wav_sig(os.path.join(d, 'score.wav'))}, f)
+        export.HERE = d; export.OUT = os.path.join(d, 'out'); os.makedirs(export.OUT, exist_ok=True)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf): export.mix()
+        out = mix_check.measure(d, loudness=False); out['verdict'] = mix_check.verdict(out)
+        return buf.getvalue(), out
+
+    def test_a_quiet_start_is_lifted_toward_minus_27(self):
+        for head in (-30.0, -34.0):   # about -32 and -36 dBFS on the title card after the trim: "flat" before
+            log, out = self.mix(quiet_head(head))
+            self.assertIn('mix: open stretch -3', log, log)   # printed: before -> extra lift -> after
+            self.assertTrue(-29.0 <= out['music_open_dbfs'] <= -26.0, (head, out, log))
+            self.assertAlmostEqual(out['music_under_voice_db'], 21.0, delta=0.6)   # the lift leaves the voice's bed alone
+            self.assertEqual(out['verdict'], 'ok', log); self.assertIn('mix: mix_check ok', log); self.assertNotIn('WARNING', log)
+
+    def test_a_bed_at_level_is_not_lifted(self):
+        log, out = self.mix(bed(under=-22.9, open_=-22.9))
+        self.assertNotIn('open stretch', log); self.assertIn('mix: mix_check ok', log)
+
+    def test_still_flat_is_a_visible_warning(self):   # +8 dB at most: a near-silent head stays flat, and says so
+        log, out = self.mix(quiet_head(-40.0))
+        self.assertTrue(out['verdict'].startswith('flat'), out)
+        self.assertIn('mix: WARNING: mix_check will fail: flat', log); self.assertIn('lift hit its +8 dB bound', log)
+        self.assertIn('lift +8.0 dB', log)
+
+    def test_the_clamp_is_a_visible_warning(self):   # a bed ~43 dB under the voice: the trim stops at +12
+        log, out = self.mix(bed(under=-45.0, open_=-45.0))
+        self.assertIn('bed +12.0 dB', log); self.assertIn('hit the ±12 dB clamp', log)
+        self.assertIn('mix: WARNING: mix_check will fail: too quiet', log)
+
+
 if __name__ == '__main__':
     unittest.main()

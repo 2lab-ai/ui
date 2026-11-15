@@ -1,4 +1,6 @@
-"""Export: mix (music ducked under voice; a docent bed is measured and trimmed once to ~21 dB under it), stills, the
+"""Export: mix (music ducked under voice; a docent bed is measured and trimmed once to ~21 dB under it, its open
+stretches lifted toward -27 dBFS when they sit under -29, and mix_check's verdict printed: a WARNING line when it will
+fail), stills, the
 MP4 (Playwright frames -> ffmpeg, parallel slices) and the audiobook (the mix as an M4A with one chapter marker per
 scene, plus out/chapters.txt for the YouTube description).
 usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]
@@ -57,8 +59,10 @@ def mix():
     # fades over 1.5 s (2026-11-10 review: the bed was flat, near-silent on title cards and gone in the last seconds).
     # library_score.py beds (recorded music, denser than the MIDI cues) sit lower under the voice, so their open
     # stretches lift +10.5 dB to reach the same ~-30 dBFS on title cards (2026-11-10: +6 dB left them at -33.5, +9 at -30.8)
-    env, fade = (open_envelope(T, 10.5 if library else 6.0), 1.5) if gentle else ('1', 4.0)
-    def render(bed_db=0.0):   # bed_db: the bed's gain correction (the sidechain ducks by the voice, so it shifts linearly)
+    lift, fade = (10.5 if library else 6.0, 1.5) if gentle else (None, 4.0)
+    def render(bed_db=0.0, extra=0.0):   # bed_db: the bed's gain correction (the sidechain ducks by the voice, so it shifts
+        # linearly); extra: dB added to the open-stretch lift
+        env = open_envelope(T, lift + extra) if gentle else '1'
         flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol * 10 ** (bed_db / 20):.5f},volume='{env}':eval=frame,afade=t=out:st={T-fade:.2f}:d={fade}[m];"
                f"[0:a]aformat=channel_layouts=stereo,asplit=2[v][sc];"
                f"[m][sc]sidechaincompress={duck}[md];"
@@ -71,16 +75,42 @@ def mix():
     # the bed moved by the difference, so it sits at ~21 dB.
     if gentle:
         import mix_check
-        u = mix_check.measure(HERE, loudness=False)['music_under_voice_db']
+        m = mix_check.measure(HERE, loudness=False); u = m['music_under_voice_db']; bed = extra = 0.0; want = None
         if u is not None and not (MIX_TRIM[0] <= u <= MIX_TRIM[1]):
-            bed = max(-12.0, min(12.0, u - MIX_TARGET))
-            render(bed)
-            u2 = mix_check.measure(HERE, loudness=False)['music_under_voice_db']
-            print(f'mix: music {u:.1f} dB under the voice -> bed {bed:+.1f} dB -> {u2:.1f} dB (target {MIX_TARGET:.0f})')
+            want = u - MIX_TARGET; bed = max(-BED_CLAMP, min(BED_CLAMP, want))
+            render(bed); m = mix_check.measure(HERE, loudness=False)
+            print(f'mix: music {u:.1f} dB under the voice -> bed {bed:+.1f} dB -> {m["music_under_voice_db"]:.1f} dB (target {MIX_TARGET:.0f})')
         elif u is not None: print(f'mix: music {u:.1f} dB under the voice (target {MIX_TARGET:.0f}, kept)')
+        # The open stretches (title cards, chapter breaks): after the trim their level is the track's own there. A one-scene
+        # clip has one, the title card, so it hangs on the track's first seconds (verify v1: warm -30.1 and nostalgic -34.9
+        # dBFS failed "flat"). Below -29 dBFS, raise their lift toward -27, at most OPEN_EXTRA dB more; a second pass
+        # corrects by the measured response (the lift ramps in and out, so the level moves a little less than the lift).
+        L0 = L = m.get('music_open_dbfs')
+        if L0 is not None and L0 < OPEN_LOW:
+            for _ in range(2):
+                r = (L - L0) / extra if extra else 1.0
+                step = (OPEN_TARGET - L) / max(r, 0.3)
+                nxt = max(0.0, min(OPEN_EXTRA, extra + step))
+                if abs(nxt - extra) < 0.3: break   # at the bound, or close enough
+                extra = nxt; render(bed, extra); m = mix_check.measure(HERE, loudness=False); L = m['music_open_dbfs']
+                if L is None or abs(L - OPEN_TARGET) <= 0.75: break
+            print(f'mix: open stretch {L0:.1f} dBFS (title cards, breaks) -> lift {extra:+.1f} dB -> {L:.1f} dBFS (target {OPEN_TARGET:.0f})')
+        # the verdict mix_check.py will give, here: a mix that still fails it must not pass unseen
+        v = mix_check.verdict(m); u2, L2 = m.get('music_under_voice_db'), m.get('music_open_dbfs')
+        nums = f"music {u2} dB under the voice, open {L2} dBFS, swell {m.get('swell_db')} dB"
+        if v != 'ok': print(f'mix: WARNING: mix_check will fail: {v} ({nums})')
+        if want is not None and abs(want) > BED_CLAMP:
+            print(f'mix: WARNING: the bed correction hit the ±{BED_CLAMP:.0f} dB clamp (wanted {want:+.1f} dB): this track sits far from'
+                  ' the voice; check score.wav or pick another mood')
+        if extra >= OPEN_EXTRA and L2 is not None and L2 < OPEN_LOW:
+            print(f'mix: WARNING: the open-stretch lift hit its +{OPEN_EXTRA:.0f} dB bound at {L2} dBFS: the track is very quiet there'
+                  ' (a one-scene clip: its first seconds); pick another mood')
+        if v == 'ok': print(f'mix: mix_check ok ({nums})')
     print('mix.wav', T)
 
 MIX_TARGET, MIX_TRIM = 21.0, (20.5, 21.5)   # export.py mix trims a docent bed outside MIX_TRIM to MIX_TARGET dB under the voice
+BED_CLAMP = 12.0   # the trim moves the bed at most this many dB
+OPEN_LOW, OPEN_TARGET, OPEN_EXTRA = -29.0, -27.0, 8.0   # open stretches below OPEN_LOW dBFS are lifted toward OPEN_TARGET, at most OPEN_EXTRA dB more
 
 def _meta_escape(v):
     """ffmetadata values: escape = ; # \\ and newlines with a backslash."""

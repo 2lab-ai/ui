@@ -37,7 +37,8 @@ explainer/
 │   ├── lint_scenes.py   renders every shot at rest; fails on half-drawn, ghosts, bad bubbles, look-alike people
 │   ├── parts.py         many authors at once: parts/<id>.js -> scenes.js, and a private preview (lint + Gate C sheets) per author
 │   ├── mix_check.py     how far the music sits under the voice and how much it swells (target 20-22 dB, ok 19.5-22.5; <= 5 dB)
-│   ├── export.py        mix (voice ducks the music; a docent bed is measured and trimmed once to ~21 dB under the voice)
+│   ├── export.py        mix (voice ducks the music; a docent bed is measured and trimmed once to ~21 dB under the voice,
+│   │                    quiet title cards lifted toward -27 dBFS, mix_check's verdict printed: `mix: WARNING:` when it will fail)
 │   │                    · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
 │   │                    · audiobook (M4A with one chapter per scene + chapters.txt for the YouTube description)
 │   │                    · cover (the YouTube thumbnail from scenes.js COVER / COVER_B / COVER_C, checked at 168 px)
@@ -243,7 +244,7 @@ cross-fade at a sentence gap, a sentence with `"music": "<mood>"` changes track 
 that the track played least and longest ago comes back, away from its last play, with a warning); tracks used by the last 10 videos cost more
 (`~/.cache/2lab-explainer-music/history.json`). Each track is normalised to -20 LUFS and the bed gets a 3 dB dip
 around 2.5 kHz. Output: `score.wav`, `score.json` (`kind: library`, so `export.py mix` ducks gently and lifts open
-stretches +10.5 dB), `out/cue_sheet.md` and `out/music_credits.txt` — paste the credits into the YouTube description
+stretches +10.5 dB, up to 8 dB more when they sit under -29 dBFS: a one-scene clip's title card hangs on the track's first seconds), `out/cue_sheet.md` and `out/music_credits.txt` — paste the credits into the YouTube description
 and the audiobook notes; CC BY requires them. The audio (~540 MB) is downloaded from archive.org into
 `~/.cache/2lab-explainer-music/library/` on first use (`--fetch` gets all of it; `--plan` writes only
 `out/cue_plan.md`). The cue sheet and the credits are written after the render, so they always name the tracks in
