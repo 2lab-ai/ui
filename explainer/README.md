@@ -160,7 +160,7 @@ for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue
 | `achilles`, `tortoise`, `crab`, `ant` | ready characters (helmet with a red crest, shell, crab, ant) |
 | `cast(id, look)`, `person(id, x, y, o)` | one fixed look per person (hair, hat, outfit, accent colour, height, name); `person` draws it and returns anchors `{head, r, mouth, top, hands, box, dir}`. `tag: true` writes the name beside the chest |
 | `say(who, text, o)`, `think(who, text, o)` | a speech / thought bubble placed beside the figure where it covers no face, figure, bubble or name tag, tail aimed at the mouth. Draw the figures first, then the bubbles |
-| `animal(kind, x, y, {s, dir, p, tag})` | anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse hen swan blackswan octopus bat bee turtle tick cow sheep goat llama zebra squirrel duck, each built from the features people name it by; returns anchors like `person` |
+| `animal(kind, x, y, {s, dir, p, tag, …})` (every option reaches the kind's drawing: a fox's `run`, a lion's `mood`) | anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse hen swan blackswan octopus bat bee turtle tick cow sheep goat llama zebra squirrel duck, each built from the features people name it by; returns anchors like `person` |
 | `seated(id, x, y, o)` | a cast person in a wheelchair (chair, seated figure, wheel in front); returns the person's anchors |
 | `docentGallery(kind)` | every cast look / animal / prop / hair style on one labelled sheet (`tools/gallery.py`) |
 | `bubble(x, y, w, h, {kind: 'speech' \| 'thought', tail, text, body, p})` | speech or thought bubble; `body(x, y, w, h)` draws a small picture inside |

@@ -53,6 +53,15 @@ class Kit(unittest.TestCase):
         night = """() => { DOCENT_FRAME(0); letterNight({}); return docentReport().people.map((p) => p.top); }"""
         self.assertEqual(self.run_js(night), [False])   # a letter place's own person
 
+    def test_animal_passes_its_own_options(self):   # run 4: run: 1 and mood: 'sad' never reached the drawing
+        probe = """() => { ANIMALS.__probe = (T, o, q) => { globalThis.__seen = { ...o }; return { head: T(0, -100), r: 20, mouth: T(10, -90), top: T(0, -120) }; };
+          DOCENT_FRAME(0); animal('__probe', 900, 800, { s: 2, dir: -3, run: 1, mood: 'sad', banana: true, t: 1.5, p: 0.5 });
+          const seen = globalThis.__seen; delete ANIMALS.__probe; return seen; }"""
+        o = self.run_js(probe)
+        self.assertEqual((o['run'], o['mood'], o['banana'], o['t']), (1, 'sad', True, 1.5))
+        self.assertEqual((o['s'], o['dir'], o['p']), (2, -1, 0.5))           # the computed ones still win
+        self.assertAlmostEqual(o['w'], 4 * 2 ** 0.5, places=3)
+
     def test_hold_cover_beside_the_body_never_over_the_face(self):
         probe = """([flip, pose, side]) => { DOCENT_FRAME(0); const f = person('me', 960, 870, { s: 1.5, pose, flip });
           const b = holdCover(f, 'cover_a', { h: 280, side }); const r = docentReport();

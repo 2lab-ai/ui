@@ -661,7 +661,7 @@ function ant(x, y, { s = 1, p = 1, a = 1, t = 0, dir = 1, color = null } = {}) {
 
 // ---------- animals ----------
 // animal(kind, x, y, o): (x, y) = the point under the body on the ground; o: { s (1 = about 300 px long), dir (1 faces
-// right), p, a, t, color, fill, tag }. Each animal is built from ovals with the 3 or 4 features people name it by
+// right), p, a, t, color, fill, tag, and any option of the kind's own (fox run, lion mood, monkey banana) }. Each animal is built from ovals with the 3 or 4 features people name it by
 // (anteater: long tube snout, tiny head and eye, bushy tail as big as the body, thick clawed front legs, dark
 // shoulder stripe). Never draw an animal with the stick-figure rig (figure()). Check new kinds on a gallery sheet
 // (docentGallery('animals')) before a scene uses them. Returns { head: [x, y], r, mouth, top, box, dir } like figure().
@@ -784,7 +784,9 @@ function animal(kind, x, y, o = {}) {
   const T = (px, py) => [x + dir * px * s, y + py * s];
   const q = (k) => clamp01((oo.p * 5.6 - k) / 1.4);   // staged draw-on in five steps; every step is complete at p = 1
   const hidden = oo.p <= 0 || oo.a <= 0;
-  const io = { p: hidden ? 0 : oo.p, a: oo.a, color: oo.color, w: oo.w, s, dir, fill: oo.fill };
+  // every option reaches the drawing (a running fox: run, a sad lion: mood); p, a, color, w, s, dir, fill as computed here.
+  // Until run 4 only those seven passed: a fox asked to run stood still, with no error (p05, p07, p09).
+  const io = { ...o, p: hidden ? 0 : oo.p, a: oo.a, color: oo.color, w: oo.w, s, dir, fill: oo.fill };
   let anc = null;
   withAlpha(hidden ? 0 : 1, () => { anc = f(T, io, hidden ? () => 0 : q); });   // p = 0 draws nothing but still yields the anchors
   const half = (anc.half || 270) * s, xs = [x - half, x + half].sort((u, v) => u - v);
