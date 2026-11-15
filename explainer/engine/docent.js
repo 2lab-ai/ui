@@ -2483,13 +2483,15 @@ function realCover(name, x, y, h, { p = 1, rot = 0, ratio = null } = {}) {
   } finally { DOCENT.ghostOk--; }
   return box;
 }
-// The original and its Korean edition side by side, the Korean one in front and slightly overlapping, drawn on one
-// after the other as p goes 0 -> 1; (x, y) = bottom centre, h = height. opts: p, gap (the overlap, a share of h).
+// The original (nameA, left) and its Korean edition (nameB) side by side, the Korean one in front and slightly
+// overlapping; (x, y) = bottom centre, h = height. opts: p, gap (the overlap, a share of h). Both are fully drawn by
+// p 0.6: A over p 0-0.45, B over p 0.15-0.6 (run 4, 2026-11-15: B drew over p 0.375-1, so with the usual
+// dp(lt, 0.2, 0.8) the Korean cover was still a grey ghost at the shot's start + 0.8 s in four probes; lint cover-late).
 // Returns the pair's box.
-function realCoverPair(nameEn, nameKo, x, y, h, { p = 1, gap = 0.04 } = {}) {
-  const re = docentCoverRatio(nameEn), rk = docentCoverRatio(nameKo), we = h * re, wk = h * rk, span = we + wk - gap * h;
-  realCover(nameEn, x - span / 2 + we / 2, y, h, { p: clamp01(p * 1.6), rot: -0.04, ratio: re });
-  realCover(nameKo, x + span / 2 - wk / 2, y, h, { p: clamp01(p * 1.6 - 0.6), rot: 0.03, ratio: rk });
+function realCoverPair(nameA, nameB, x, y, h, { p = 1, gap = 0.04 } = {}) {
+  const ra = docentCoverRatio(nameA), rb = docentCoverRatio(nameB), wa = h * ra, wb = h * rb, span = wa + wb - gap * h;
+  realCover(nameA, x - span / 2 + wa / 2, y, h, { p: clamp01(p / 0.45), rot: -0.04, ratio: ra });
+  realCover(nameB, x + span / 2 - wb / 2, y, h, { p: clamp01((p - 0.15) / 0.45), rot: 0.03, ratio: rb });
   return { x: x - span / 2, y: y - h, w: span, h };
 }
 
