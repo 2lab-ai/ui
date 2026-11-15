@@ -94,3 +94,33 @@ the changes (skill / reference / templates / code) and what is still weak. Run f
   MARK accent on the tension, cream fills; hooks add what the keyword's top 5 lack. The docent-lab COVER was 90 %.
 - Still weak: the kit cannot draw some cover emotions (shame: hands over the face end at the cheeks), whether the cover
   subject reads as a specific person, and the lint does not run on the cover (a held letter over a face passed).
+
+## 2026-11-15 · run 4 — the letter at the Stoic level (`2026-11-15-2325-letter/`)
+- Seed 20261115; 10 books from the 34-book pool minus 총균쇠 (#7, made this session), 8 types: p01 소크라테스의 변명,
+  p02 원씽, p03 어린 왕자, p04 정의란 무엇인가, p05 이기적 유전자, p06 하늘과 바람과 별과 시, p07 군주론, p08 생명이란
+  무엇인가, p09 사피엔스, p10 안네의 일기. Frozen skill + kit 9e4ce16 (the 총균쇠 retro). Probe shape: one letter scene,
+  3 sentences naming the book and one idea, real cwon voice, a CC BY bed, the gates, a 1080p MP4 (~17 s with the title
+  card). Blind review on an 11-criterion rubric (weights sum 15; Stoic level, real covers, voice and overall ×2) from
+  frames of the MP4 and facts (transcript, mix numbers, lint).
+- Baseline: p01 4.40 · p02 4.47 · p03 4.20 · p04 4.47 · p05 4.33 · p06 4.40 · p07 4.47 · p08 4.13 (fail: identity 2)
+  · p09 4.20 · p10 4.07; mean 4.31, 9/10 pass. Every probe had lint 0 P0/P1, audio_check all ok and mix_check ok: most
+  defects were ones no gate sees. Weakest: verb drawn, the Stoic level on lines about many people, the music numbers,
+  the covers.
+- Root causes (`diagnosis.md`, C1–C10): no plain-page book shot (10/10: the narrator pointing at a free-standing pair,
+  the verb not drawn, 오빠 absent, the second cover late); "the original edition" undefined beyond English (6/10);
+  mix_check passing 18–26 against a 20–22 target and judging the bed's fade-in (8/10); lines about many people drawn as
+  rows (3/10); 오빠's look not reserved when he is not drawn (p08, the fail); `animal()` dropping options; missing
+  assets; tool friction; skill text an agent cannot follow ("listen") and missing ear traps; real people given a
+  default look.
+- Changes. Code: `holdCover` + `POSES.showBook`, `realCoverPair` both covers by p 0.6, lint `cover-late` `crowd-row`
+  `letter-cast`, `export.py mix` trims the bed to ~21 dB, `mix_check` 19.5–22.5 with the open stretch past the fade-in,
+  `new_video.py` starter scenes.js, `animal()` passes every option, ANIMALS fox lion wolf monkey, PROPS plane dna
+  diary, POSES reachDown linked, `lint_scenes.py --timeline` / `--help`, `export.py stills` clears its own stills.
+  Docs: REFERENCE §2 (a photo per real person), §4 (the book shot, the edition rule, `cover_<book>_<lang>`, the
+  `book_covers` schema), §7/§8 (the mix band, the trim, the open stretch); TEMPLATES B, T1 letter cast, T11, C;
+  CONCEPTS "Voice" (redo once, then reword; ear traps); the skill's §1, §2, §4 (`improved/SKILL.md`).
+- Verification: (filled after the re-runs)
+- Not fixed (noted): props that misread or float (only an eye sees meaning and support), name-tag ink height, word
+  cues that ignore `[pause]`, animals without expressions or head turns, repeated voice markup (2 of 3 tagged, a
+  [pause] after "오빠,"), the beard's solid crescent that reads as a mask (redrawing it changes every finished video).
+  Reviews: the run folder `review/review-*.md`.

@@ -57,6 +57,18 @@ direction ('amused', 'a small smile', 'wry') tends to open the take with a chuck
 tag in the first two words: put the tag after the first few words, and when such a sentence fails its 3 rounds, run
 `narrate_soma.py --redo scene:k` (a new take seed; in 총균쇠 it passed all three).
 
+**Voice: an agent cannot listen** (run 4). A sentence audio_check marks CHECK is re-rolled once with `narrate_soma.py
+--redo scene:k`; still CHECK, reword it: two takes heard alike mean the word, not the take (p08). Ear traps seen so
+far (그는 and 자기가 pass audio_check at 1.0: only a reading for meaning finds them):
+- `2년` is read 이 년 (also an insult): keep 2년 in `text`, write `"say"` with 두 해.
+- A silent-ㅎ verb (놓아, 쌓아, 낳아) contracts: 수놓아 was heard 순호와 in two takes → 수를 놓아.
+- Written-style 그는 / 그녀는: nobody says it to 오빠, and "그는 모른다는 걸 알았대요" can mean someone else → the name, or
+  자기는.
+- 자기가 in her letter is heard as the pet name 자기 → 자기 모습이, or the name.
+- 꾀 (꾀어내요) is heard 꿰 or 궤, an allowed pronunciation, and comes back CHECK: pick the word up front (p05: 유인해요).
+- A `dir` that slows the end ("slowing on the last words", "trailing off") shortens the tail gap and fails the pad cut
+  three rounds (p08: 0.16 s).
+
 **Pictures: the Stoic video's level** (owner, 2026-11-14, after two remakes: "그전에 최대한 미니멀하게 해달라고 했는데
 넌 중간이 없니? 스토아 학파 영상 정도가 적당한것 같음"). v1 was too empty (heads on sticks, abstract symbols, dot grids,
 half-drawn frames); v2 was slop (ruled letter paper over half the film, the same furnished room again and again, zoom
