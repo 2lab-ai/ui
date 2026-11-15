@@ -22,7 +22,8 @@ P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at
     than 1.2 s; a scene without shots();
     two or more people in one frame and one of them without a cast look; two cast looks with the same silhouette
     (cast-similar: see looks_like), so they differ only by colour; letter-cast: a letter video (project.json "concept":
-    "letter") without cast('me', …) or cast('oppa', …) — cast him even when he is never drawn, so his look stays his
+    "letter", or no "concept" in an ink-mode project) without cast('me', …) or cast('oppa', …) — cast him even when he
+    is never drawn, so his look stays his
 P1  cast-lookalike: a figure drawn without a cast id (figure(), a crowd) that has a cast look's silhouette, so viewers
     read it as that person (P2 in a colour project, where an accent colour may still tell them apart)
 P1  cover-late: a real cover (realCover / realCoverPair / holdCover) the shot shows at rest that is absent or under
@@ -179,10 +180,18 @@ def judge(r, size=(1920, 1080), cast=None):
     if colours: out.append(('P2', 'colour', f"colours besides ink, purple and red: {', '.join(colours[:6])} — paint only what the colour means (`colour: true` on that call), the rest in ink"))
     return out
 
+def concept(pj):
+    """the project's docent concept: project.json "concept", and in an ink-mode project ("colour": false, every docent
+    project new_video.py makes) without one the letter (CONCEPTS: no concept given -> letter). Older colour videos and
+    make-3b1b projects have none."""
+    pj = pj or {}
+    return pj.get('concept') or ('letter' if pj.get('colour') is False else None)
+
+
 def letter_cast(pj, cast):
     """a letter video casts its narrator and 오빠 even when he is never drawn: cast-lookalike can only keep a look that
     is cast (p08, run 4: an uncast 오빠, and Schrödinger's side hair + round glasses read as him)"""
-    if (pj or {}).get('concept') != 'letter': return []
+    if concept(pj) != 'letter': return []
     miss = [k for k in ('me', 'oppa') if k not in (cast or {})]
     return [('P2', 'letter-cast', f"a letter video without cast('{k}', …): cast " + ("the narrator" if k == 'me' else "오빠 even when he is never drawn, so no one else takes his look")
              + " (TEMPLATES T1)") for k in miss]

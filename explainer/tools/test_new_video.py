@@ -58,6 +58,37 @@ class Scaffold(unittest.TestCase):
     def test_docent_flag_on_mono_black(self):
         self.assertTrue(os.path.exists(os.path.join(self.run_new('--theme', 'mono-black', '--docent'), 'scenes.js')))
 
+    def pj(self, d):
+        with open(os.path.join(d, 'project.json'), encoding='utf-8') as f: return json.load(f)
+
+    def test_a_new_docent_project_is_a_letter(self):   # fable F3: letter-cast never fired, no project carried "concept"
+        self.assertEqual(self.pj(self.run_new('--theme', 'sketch'))['concept'], 'letter')
+        self.assertEqual(self.pj(self.run_new('--theme', 'mono-black', '--docent'))['concept'], 'letter')
+        self.assertNotIn('concept', self.pj(self.run_new('--theme', 'mono-black')))   # a math video
+        d = tempfile.mkdtemp()
+        with open(os.path.join(d, 'project.json'), 'w') as f: json.dump({'concept': 'lecture'}, f)
+        subprocess.run([sys.executable, os.path.join(HERE, 'new_video.py'), d, '--theme', 'sketch'], check=True, capture_output=True, timeout=120)
+        self.assertEqual(self.pj(d)['concept'], 'lecture')   # setdefault: a lecture stays a lecture
+
+    def test_new_video_then_lint_sees_letter_cast(self):   # the whole path: scaffold, a draft timeline, the real lint
+        from test_budget_engine import node_ok
+        if not node_ok(): self.skipTest('node or @napi-rs/canvas missing (npm install in explainer/noderender)')
+        env = dict(os.environ, PYTHONPATH=os.path.join(EX, 'noderender', 'shim'), NODE_PATH=os.path.join(EX, 'noderender', 'node_modules'))
+        d = self.run_new('--theme', 'sketch')
+        with open(os.path.join(d, 'script.json'), 'w', encoding='utf-8') as f:
+            json.dump({'title': 'x', 'scenes': [{'id': 's1', 'title': 'x', 'sentences': [{'text': '가' * 30}]}]}, f, ensure_ascii=False)
+        subprocess.run([sys.executable, os.path.join(HERE, 'timeline_draft.py')], cwd=d, check=True, capture_output=True, timeout=60)
+        with open(os.path.join(d, 'scenes.js'), encoding='utf-8') as f: starter = f.read()
+        shot = "\nSCENES.s1 = (t, q) => shots(t, [[q.s(0), (t, lt) => person('me', 760, 870, { s: 1.5, p: dp(lt, 0, 0.5) })]]);\n"
+        codes = {}
+        for name, js in (('full', starter), ('no oppa', '\n'.join(l for l in starter.splitlines() if not l.startswith("cast('oppa'")))):
+            with open(os.path.join(d, 'scenes.js'), 'w', encoding='utf-8') as f: f.write(js + shot)
+            subprocess.run([sys.executable, os.path.join(HERE, 'lint_scenes.py')], cwd=d, env=env, capture_output=True, timeout=300)
+            with open(os.path.join(d, 'out', 'lint.json'), encoding='utf-8') as f: rep = json.load(f)
+            codes[name] = [(s, c, x) for fr in rep['frames'] for s, c, x in fr['issues'] if c == 'letter-cast']
+        self.assertEqual(codes['full'], [])
+        self.assertEqual(len(codes['no oppa']), 1, codes); self.assertIn("cast('oppa'", codes['no oppa'][0][2])
+
 
 if __name__ == '__main__':
     unittest.main()

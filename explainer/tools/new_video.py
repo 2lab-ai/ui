@@ -14,8 +14,9 @@
 - --from copies an example's script.json, scenes.js, formulas.py, project.json and img/ (only files the project lacks)
 - fetches public-domain images listed in project.json "commons" (Wikimedia Commons titles) into <project>/img
 - records the repo commit it was made from in project.json "ui_commit"
-- a new sketch project (or --docent) gets project.json "colour": false (ink mode), "subtitles": "off" and "chip": false:
-  docent videos show the drawing in ink only, the narration goes to YouTube as captions (export.py srt)
+- a new sketch project (or --docent) gets project.json "colour": false (ink mode), "subtitles": "off", "chip": false
+  and "concept": "letter" (the default concept; set "lecture" by hand): docent videos show the drawing in ink only,
+  the narration goes to YouTube as captions (export.py srt)
 - --format short writes project.json "format": "short": a vertical YouTube Short, 1080x1920 (frame.py). Without it a
   project renders at 1920x1080
 - a docent project (sketch, or --docent) without a scenes.js gets a starter one: the sign title card and the letter
@@ -176,8 +177,10 @@ def main():
     # ("colour": false), no burned subtitles (export.py srt -> YouTube captions) and no chapter chip. Only for a new
     # project or an explicit --docent: an older project's project.json has none of these keys, so refreshing its engine
     # keeps its colours, subtitles and chip.
+    # "concept": "letter" too, the default concept (CONCEPTS): the lint's letter-cast needs it to fire (run-4 fix round:
+    # no new project carried it, so the check that keeps 오빠's look never ran); "lecture" is set by hand
     if '--docent' in sys.argv or (th['id'] == 'sketch' and not pj.get('ui_commit')):
-        pj.setdefault('colour', False); pj.setdefault('subtitles', 'off'); pj.setdefault('chip', False)
+        pj.setdefault('colour', False); pj.setdefault('subtitles', 'off'); pj.setdefault('chip', False); pj.setdefault('concept', 'letter')
     if ('--docent' in sys.argv or th['id'] == 'sketch') and write_starter(proj, opt('--title') or pj.get('title') or os.path.basename(proj)):
         print(f'{proj}/scenes.js: the starter (TITLE_CARD = signCard, cast me + oppa: TEMPLATES T1 and B)')
     if opt('--slug'): pj['slug'] = opt('--slug')

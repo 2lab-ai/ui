@@ -75,6 +75,12 @@ class LetterCast(unittest.TestCase):   # p08: 오빠 never cast, so Schrödinger
         self.assertEqual(L.letter_cast({'concept': 'letter'}, {'me': {}, 'oppa': {}}), [])
         self.assertEqual(L.letter_cast({}, {}), []); self.assertEqual(L.letter_cast({'concept': 'docent'}, {}), [])
 
+    def test_no_concept_in_ink_mode_is_a_letter(self):   # fable F3: CONCEPTS, no concept -> letter
+        self.assertEqual(L.concept({'colour': False}), 'letter'); self.assertEqual(L.concept({'colour': False, 'concept': 'lecture'}), 'lecture')
+        self.assertIsNone(L.concept({})); self.assertIsNone(L.concept({'colour': True})); self.assertIsNone(L.concept(None))   # older colour videos
+        self.assertEqual([c for _, c, _ in L.letter_cast({'colour': False}, {'me': {}})], ['letter-cast'])
+        self.assertEqual(L.letter_cast({'colour': False, 'concept': 'lecture'}, {}), [])
+
 
 # ---- the real lint on a fixture project ----
 FIXTURE = r"""

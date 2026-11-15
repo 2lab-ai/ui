@@ -203,7 +203,8 @@ letter is ink unless it is page-pale (a white blaze, an ivory highlight: then th
 ink-dark (hair, a dark mane: then ink), so cast accents, outfits, animal coats and prop fills come out as unfilled line
 art (`tools/test_budget_engine.py` draws every animal, prop and hat and checks it). Pass `colour: true` on a call when the colour is the meaning (a red heart). A project without the key (an
 older video, a make-3b1b project) keeps its colours when its engine is refreshed. New docent projects also get
-`"subtitles": "off"` and `"chip": false`; `export.py srt` writes the narration as `out/<slug>.srt` for the YouTube
+`"subtitles": "off"`, `"chip": false` and `"concept": "letter"` (the default concept; the lint treats an ink-mode
+project without a concept as a letter, so `letter-cast` fires); `export.py srt` writes the narration as `out/<slug>.srt` for the YouTube
 caption track.
 
 The craft rules, the shot recipes and the defect history live in `docent/`: [REFERENCE.md](docent/REFERENCE.md) (what
