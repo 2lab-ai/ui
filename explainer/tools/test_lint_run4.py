@@ -175,6 +175,33 @@ class OnFixture(unittest.TestCase):
         self.assertTrue(s1 + 1.6 <= rows[0] < s1 + 3.3, (rows, s1))   # the rest frame of the five, not of the three
 
 
+def old_docent(rev='9e4ce16'):
+    """docent.js as it was at rev (the kit before run 4), or None outside a git checkout"""
+    try: p = subprocess.run(['git', '-C', EX, 'show', f'{rev}:explainer/engine/docent.js'], capture_output=True, text=True, timeout=30)
+    except OSError: return None
+    return p.stdout if p.returncode == 0 and 'DOCENT_KINDS' in p.stdout else None
+
+
+@unittest.skipUnless(node_ok(), 'node or @napi-rs/canvas missing (npm install in explainer/noderender)')
+class OldEngine(unittest.TestCase):   # astra F2: 9e4ce16's docent.js has the budget, so the lint ran and passed silently
+    def test_fails_loudly(self):
+        js = old_docent()
+        if js is None: self.skipTest('git history with 9e4ce16 not available')
+        d = fixture(project={'concept': 'letter'}); write(os.path.join(d, 'docent.js'), js)
+        os.makedirs(os.path.join(d, 'out')); write(os.path.join(d, 'out', 'lint.json'), {'counts': {}, 'shots': {}, 'frames': []})   # an old pass
+        p, rep = lint(d)
+        self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+        self.assertIn('engine too old: run new_video.py to refresh engine.js/docent.js', p.stdout)
+        self.assertEqual([(s, c) for f in rep['frames'] for s, c, _ in f['issues']], [('P0', 'engine-too-old')])
+        detail = rep['frames'][0]['issues'][0][2]
+        self.assertIn('covers', detail); self.assertIn('hpx', detail)
+        with open(os.path.join(d, 'out', 'lint.md'), encoding='utf-8') as f: self.assertIn('engine-too-old', f.read())
+
+    def test_the_current_engine_passes_the_probe(self):
+        d = fixture(); p, rep = lint(d)
+        self.assertNotIn('engine-too-old', p.stdout)
+
+
 class Args(unittest.TestCase):
     def test_timeline_flag(self):
         self.assertEqual(L.args(['--timeline', 'tl_draft.json', '--scene', 'a', 'b', '--strict']), (['a', 'b'], True, 'tl_draft.json'))

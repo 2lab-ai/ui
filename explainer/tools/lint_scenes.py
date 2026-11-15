@@ -12,7 +12,8 @@ Writes out/lint.json, out/lint.md, out/lint/<scene>_<t>.jpg for every frame with
 (+ lint_sheet_02.jpg … past 60 frames): every rest frame on contact sheets, to look at before the voice is even done (lint cannot see everything).
 Exit code 1 when a P0/P1 defect is found (--strict: also P2).
 
-P0  page errors, missing cues, missing props / animals / cast ids
+P0  page errors, missing cues, missing props / animals / cast ids; engine-too-old: the project's engine.js/docent.js
+    lack what these checks read (covers, people's height): run new_video.py <project> to refresh them (exit 1)
 P1  half-drawn element at rest; faded "ghost" element (a < 0.55); ink under the subtitles (y > 905) or off the frame;
     empty bubble; bubble tail that points at no head; bubble over a face; text overflowing its bubble; two people in
     one frame with the same look; an animal drawn on the stick-figure rig
@@ -193,6 +194,34 @@ def cast_similar(cast):
     return [(a, b) for i, a in enumerate(ids) for b in ids[i + 1:] if same_head(cast[a], cast[b])]
 
 
+# What this lint's checks read from the project's own engine copy. An older docent.js lacks them and those checks would
+# pass silently (run-4 fix round: 9e4ce16's docent.js has the budget, so the old test let it through, but no covers and
+# no people hpx/top, so cover-late and crowd-row saw nothing). One frame with one figure off-screen tells.
+ENGINE_PROBE = """() => {
+  if (typeof docentReport !== 'function' || typeof DOCENT_KINDS === 'undefined' || typeof DOCENT_FRAME !== 'function') return ['docentReport'];
+  const miss = [];
+  if (!DOCENT_KINDS.includes('things')) miss.push('the emphasis budget (DOCENT things)');
+  if (!DOCENT_KINDS.includes('covers') || !Array.isArray(docentReport().covers)) miss.push('docentReport().covers (cover-late)');
+  DOCENT_FRAME(0); ctx.save();
+  try { figure(-900, -900, { s: 0.2 }); const pe = (docentReport().people || [])[0] || {};
+        if (!('hpx' in pe) || !('top' in pe)) miss.push('people hpx / top (crowd-row)'); }
+  catch (e) { miss.push('figure(): ' + e.message); }
+  finally { ctx.restore(); DOCENT_FRAME(0); }
+  return miss; }"""
+TOO_OLD = 'engine too old: run new_video.py to refresh engine.js/docent.js'
+
+
+def engine_too_old(miss, tl_path='timeline.json'):
+    """the missing engine features -> the lint's verdict: a P0 in out/lint.json and out/lint.md (no stale report from an
+    earlier run is left to read as a pass), printed; the caller exits 1"""
+    issue = ('P0', 'engine-too-old', f"{TOO_OLD} (python tools/new_video.py <project> keeps scenes.js); missing: {', '.join(miss)}")
+    json.dump({'counts': {'P0': 1}, 'shots': {}, 'frames': [{'scene': '*', 't': 0, 'issues': [issue]}]},
+              open(os.path.join(OUT, 'lint.json'), 'w'), ensure_ascii=False, indent=1)
+    line = f'- [P0] * @0.00s {issue[1]}: {issue[2]}'
+    open(os.path.join(OUT, 'lint.md'), 'w').write(f"# Scene lint — 1 issues {{'P0': 1}}" + (f' (timeline {tl_path})' if tl_path != 'timeline.json' else '') + '\n\n' + line + '\n')
+    print(line)
+
+
 # the page loads timeline.json; --timeline swaps in another one after it is ready (engine.js TL, SC, ORDER, TOTAL)
 USE_TIMELINE = """(tl) => { TL = tl; for (const k of Object.keys(SC)) delete SC[k]; ORDER.length = 0;
   TL.scenes.forEach((s) => { SC[s.id] = s; ORDER.push(s.id); }); window.TOTAL = TL.total; return ORDER.length; }"""
@@ -208,11 +237,11 @@ async def main(only, strict, tl_path='timeline.json'):
         if os.path.abspath(tl_path) != os.path.abspath('timeline.json'):
             await page.evaluate(USE_TIMELINE, tl)
             print(f'lint: timeline {tl_path} ({tl.get("voice") or "voice"}, {tl["total"]:.1f} s)')
-        # the project's engine copy must match these checks (an older docent.js silently skips the newer ones)
-        stale = await page.evaluate("typeof DOCENT_KINDS === 'undefined' || !DOCENT_KINDS.includes('things') || typeof docentReport !== 'function'")
-        if stale:
+        # the project's engine copy must carry what these checks read (an older docent.js silently skips the newer ones)
+        miss = await page.evaluate(ENGINE_PROBE)
+        if miss:
             await browser.close(); srv.shutdown()
-            print('[P0] the project\'s engine/docent.js is older than this lint: run tools/new_video.py <project> to refresh it, then lint again')
+            engine_too_old(miss, tl_path)
             sys.exit(1)
         cast = await page.evaluate('typeof CAST === "object" ? CAST : {}')   # cast() runs when scenes.js loads
         for sc in tl['scenes']:
