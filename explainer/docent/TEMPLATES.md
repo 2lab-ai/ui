@@ -9,8 +9,9 @@ Every recipe stays inside the emphasis budget (REFERENCE §0): one subject plus 
 one written word, at most one red mark, ink only. When a sentence seems to need more, it needs two shots.
 
 Map: S script.json · T1 cast block · T2 dialogue · T3 three people · T4 inner voice · T5 named idea · T6 picture
-equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 crowd · T12 a poem on the wall · T13 a chart
-with a break · A adding an asset · C one-scene clip · P letter places · Cover the YouTube thumbnail
+equation · T7 animal · T8 timeline · T9 wrong vs right · T10 list · T11 many people · T12 a poem on the wall · T13 a
+chart with a break · A adding an asset · B the book shot · C one-scene clip · P letter places · Cover the YouTube
+thumbnail
 
 ## S. script.json fields that drive pictures and music
 ```json
@@ -28,6 +29,17 @@ word when the same stem appears twice
 Put the names the voice must say in `project.json` `"names": ["이스마엘", "퀴퀘그"]`: audio_check hints whisper with them.
 
 ## T1. Cast block (top of scenes.js, once per book)
+Letter (the default): `me` and `oppa` are cast in every letter video, drawn or not, so their looks stay reserved
+(p08: Schrödinger with side hair + round glasses read as 오빠, and with no `oppa` cast no lint could see it; lint
+`letter-cast`). `new_video.py` writes the `TITLE_CARD` line and these two casts into a new docent project's scenes.js
+(only when it has none); the book's people go below them, each look taken from a photo (REFERENCE §2).
+```js
+TITLE_CARD = signCard;
+cast('me',       { name: '나', hair: 'long', h: 0.94 });                        // the narrator: never tagged
+cast('oppa',     { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the listener
+cast('socrates', { name: '소크라테스', hair: 'bald', beard: true, h: 1.0 });     // busts: bald, a full beard (REFERENCE §2)
+```
+Lecture:
 ```js
 TITLE_CARD = signCard;
 cast('musk',  { name: '머스크', hair: 'short', tie: true, h: 1.08 });          // silhouettes: height, hair/hat, one prop
@@ -121,10 +133,26 @@ One verdict: the X on the wrong one; the right one stands plain beside it (an X 
 [q.s(2), (t, lt) => scrollList(660, 150, 600, '네 가지 규칙', ['하나', '둘', '셋', '넷'], { p: dp(lt, 0, 1.4) })],   // mark: [k] only when that item is the verdict
 ```
 
-## T11. Crowd (people who are not characters)
+## T11. Many people ("여덟 명", "낯선 사람들", a crowd)
+Never a row of 5+ small figures: that is the "rows of figures" the owner rejected, and run 4 still lined up the
+trolley's five + one, five strangers and the eight in hiding (lint `crowd-row`, P1: 5+ people in one rest frame, each
+under 35 % of the height). At most three big figures in front, the number written once when it is the one to
+remember; or, when the point is how many, heads behind one line.
 ```js
-for (let i = 0; i < 6; i++) figure(300 + i * 230, 860, { s: 0.7, crowd: true, face: 'neutral', p: dp(lt, i * 0.08, 0.6) });
+[q.s(1), (t, lt) => {   // "여덟 명이 한집에 살았어요": three of the eight, big; the narration carries the rest
+  [[620, 1.0], [960, 0.86], [1300, 1.08]].forEach(([x, h], i) =>
+    figure(x, 870, { s: 1.15, h, crowd: true, face: 'worried', p: dp(lt, i * 0.1, 0.5) }));
+  hand('8명', 1640, 420, { size: 110, p: dp(lt, 0.6, 0.4) });                    // the one number
+}],
+[q.s(2), (t, lt) => {   // "낯선 사람 수천 명이 같은 이야기를 믿었어요": one big teller, the many as heads behind a hill
+  figure(560, 870, { s: 1.4, pose: 'present', face: 'happy', crowd: true, p: dp(lt, 0, 0.5) });
+  inkLine(860, 700, 1760, 700, { w: 5, p: dp(lt, 0.2, 0.3) });                   // the one line: bodies behind it
+  for (let i = 0; i < 9; i++) {
+    const r = i % 2 ? 26 : 32; inkCircle(910 + i * 100, 700 - r, r, { p: dp(lt, 0.3 + i * 0.03, 0.3) });
+  }
+}],
 ```
+`crowd: true` on every extra (lint `twins`), and a head no cast look has (lint `cast-lookalike`).
 
 ## T12. A poem on the wall (poetry, essays: the docent's gallery tour)
 ```js
@@ -156,9 +184,10 @@ Axes first, then the line that "feels safe", then the break on the word that nam
 The kit is read-only during a run; register what is missing at the top of scenes.js, after the cast block. It then
 shows on `gallery.py` sheets, `say()` and the lint see it, and the retro moves generic ones into docent.js.
 ```js
-// animal: T(px, py) maps local units (x forward, y up negative, s = 1 ≈ 300 px long) to the screen; o = { s, dir, p,
-// a, w, color, fill }; q(k) is the staged draw-on, k = 0..4 (all 1 at p = 1). Scale radii by o.s yourself. Return the
-// anchors; add half: <half-length in local units> when the animal is longer than ±270 (a whale).
+// animal: T(px, py) maps local units (x forward, y up negative, s = 1 ≈ 300 px long) to the screen; o = every option
+// of the animal() call (s, dir, p, a, w, color, fill and your own, e.g. run: 1, mood: 'sad'); q(k) is the staged
+// draw-on, k = 0..4 (all 1 at p = 1). Scale radii by o.s yourself. Return the anchors; add half: <half-length in
+// local units> when the animal is longer than ±270 (a whale).
 ANIMALS.deer = (T, o, q) => {
   inkPath([T(-90, -60), T(-60, -120), T(60, -120), T(90, -60), T(60, -40), T(-60, -40)], { ...o, closed: true, round: 2, p: q(1), fill: o.fill || mix(C.grey, 0.5) });
   // … legs q(0), head q(2), antlers q(3), eye q(4)
@@ -170,6 +199,8 @@ PROPS.anvil = (x, y, s, o) => { inkPath([[x - 80 * s, y - 60 * s], [x + 80 * s, 
 // pose: [elbow, hand] for the left and right arm, relative to the shoulder (y down)
 POSES.pray = { la: [[-30, 46], [-6, 10]], ra: [[30, 46], [6, 10]] };
 ```
+Look at the gallery first: run 4 moved ANIMALS `fox` `lion` `wolf` `monkey`, PROPS `plane` `dna` `diary` and POSES
+`reachDown` `linked` `showBook` into docent.js.
 Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel' | 'morion'`. A new kind of look (a toga, armour)
 is a helper drawn after `person()` at its anchors, shown once on a still at Gate A.
 
@@ -202,11 +233,44 @@ draws nothing for a hat it does not know. Check it on the cast sheet at Gate A b
 moves it into `figure()`, and a project that refreshes its engine drops its own wrapper then (총균쇠's `person()`
 wrapper would draw a second morion over the kit's).
 
+## B. The book shot (letter: the real covers on a plain page, REFERENCE §4)
+Draw the sentence's verb with the book: 다 읽었어요 → she holds it up while 오빠 looks; 읽어 봐요 → she hands it to
+him. 오빠 is in the shot whenever the line speaks to him or about him. Never the `present` pose pointing at a pair in
+the air (all 10 run-4 probes opened that way). One cover in a hand is `holdCover(fig, name)`: at the front hand,
+upright beside the body, clear of the face; it returns the cover's box.
+```js
+[q.s(0), (t, lt) => {   // "오빠, 드디어 다 읽었어요": she holds the Korean edition up, he looks
+  const me = person('me', 700, 870, { s: 1.3, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
+  holdCover(me, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
+  person('oppa', 1300, 870, { s: 1.3, flip: true, face: 'surprised', p: dp(lt, 0.1, 0.5) });
+}],
+[q.s(2), (t, lt) => {   // "오빠도 꼭 읽어 봐요": she hands it over; his hand meets the cover's far edge
+  const me = person('me', 720, 870, { s: 1.3, pose: 'reach', face: 'smile', p: dp(lt, 0, 0.5) });
+  const b = holdCover(me, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
+  const x = b.x + b.w + 118 * 1.3 * CAST.oppa.h;                                 // his reach hand lands at b.x + b.w
+  person('oppa', x, 870, { s: 1.3, pose: 'reach', flip: true, face: 'happy', p: dp(lt, 0.1, 0.5) });
+}],
+```
+Both editions introduced: the pair stands on a desk line, her hand at the near cover.
+```js
+[q.s(1), (t, lt) => {   // "원서는 영어로 나왔고, 한국어판도 있어요"
+  prop('desk', 1180, 870, 2.4, { p: dp(lt, 0, 0.3) });                            // its top is at 870 − 80 × 2.4
+  realCoverPair('cover_lab_en', 'cover_lab_ko', 1180, 870 - 80 * 2.4, 360, { p: dp(lt, 0.1, 0.6) });
+  person('me', 760, 870, { s: 1.4, pose: 'point', face: 'happy', p: dp(lt, 0, 0.5) });
+}],
+```
+The original first (left), the Korean edition second. Every cover is fully in by the shot's start + 0.8 s (lint
+`cover-late`): start it by `lt` 0.2 and give it ≤ 0.6 s. A cover or a pair is one thing and no word; with two people
+it is the shot's third thing, so nothing else goes in.
+
 ## C. A one-scene clip (a 10 to 20 s probe, a trailer, a short)
 Keep the chapter shape's first, middle and last beat and drop the rest (biography: turning point → decision → cost;
 history: scene → consequence; philosophy: question → answer; fiction: premise → the character's want → the question,
-never the ending — no picture that gives the ending away). Two or three sentences, 70 to 80 characters of text;
-one mood and no `"music"` change; the scene's `title` is the book's title (it is the title card); 2 to 4 shots.
+never the ending — no picture that gives the ending away). Two or three sentences; one mood and no `"music"` change;
+the scene's `title` is the book's title (it is the title card); 2 to 4 shots. The length counts the 2.6 s title card:
+≈ 85 characters of text make ≈ 17 s (run 4: 75–95 characters ran 17–19 s against a 12 s brief). A letter clip keeps
+one line of her own reaction ("나도 처음엔…") or of 오빠, not only the book reported in ~대요, and varies its opening
+line and its `dir`: all ten run-4 clips opened "오빠, [author]의 [book]을 (다) 읽었어요", seven "a little proud".
 
 ## T14. An idea inside a head (philosophy, psychology: "the judgment", "the story we tell")
 Two shots: the thing outside is crossed out ("it is not the work"), then the thing inside is the answer, the named idea.
@@ -271,8 +335,8 @@ Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118
 
 ## P. Letter places (concept letter: her night desk, his room, the letter page, the real covers)
 Optional (owner 2026-11-14): a whole video in these places read as slop; the letter's default is the Stoic level
-(CONCEPTS "Pictures"). Use a place for one shot or an opening at most. The real covers (`realCover`, `realCoverPair`)
-are the part every docent book uses.
+(CONCEPTS "Pictures"). Use a place for one shot or an opening at most. The real covers (`realCover`, `realCoverPair`,
+`holdCover`) are the part every docent book uses; on a plain page they are shot B.
 A letter video has two kinds of shots (CONCEPTS letter, "Pictures"): room shots, with the narrator or the listener big
 in one place that stays for the chapter, and letter-page shots, with the idea sketched on a sheet of letter paper. The
 kit draws the places, so every chapter starts in the same rich room instead of a bare desk:
@@ -282,7 +346,8 @@ kit draws the places, so every chapter starts in the same rich room instead of a
   s 2.05 facing left. Returns him.
 - `letterSheet(o)`: a cream letter page filling the frame. Returns the box `{ x, y, w, h }` for the idea.
 - `letterCard`: the chapter card, a fresh letter sheet with the chapter's title written on it in 0.6 s.
-- `realCoverPair(en, ko, x, y, h, o)` and `realCover(name, x, y, h, o)`: the book's real covers, from images.
+- `realCoverPair(original, ko, x, y, h, o)`, `realCover(name, x, y, h, o)` and `holdCover(fig, name, o)`: the book's
+  real covers, from images.
 
 The cast keys default to `'me'` and `'oppa'`; pass `who:` for others. The pieces are kit functions too: `nightWindow`,
 `deskLamp` with `lampGlow`, and `bookcase`. The seated poses are `deskWrite`, `deskChin`, `deskRead`, `deskShow`,
@@ -323,7 +388,7 @@ SCENES.letter = (t, q) => shots(t, [
   fill with the blue page, so heads and clock faces on the cream letter come out blue.
 - A docent book always shows its real covers, the original and the Korean edition (owner, 2026-11-14). Put the cover
   images in `img/<name>.jpg`, list the names in project.json `"images"`, and show the pair on the letter or one cover
-  in a hand (`realCover(name, hx, hy + 40, 300, { rot: 0.05 })`). A missing image is a lint P0. The drawn `bookCover()`
+  in a hand (`holdCover(fig, name)`; on a plain page: B). A missing image is a lint P0. The drawn `bookCover()`
   is for a book without a cover image.
 - For the budget, a room counts as two things, the setting and its person, however many pieces it draws. Add one
   more at most (a prop in a hand or a bubble): a fourth thing is lint `busy`. The letter page counts nothing; what is
