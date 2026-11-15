@@ -53,7 +53,7 @@ def report(proj, t, colour, before=None):
 # Every paint call under docent.js's ink-mode wrapper, recorded with the colour it really paints: recorders go under
 # the wrapper (docent.js wraps whatever ctx.fill/stroke/… are when the next frame starts), then each animal, prop and
 # hat is drawn alone. Returns {label: [colours that are neither ink nor page]} and the number of paints per label.
-TONES = r"""(hats) => {
+TONES = r"""({ hats = [], faint = false }) => {
   if (!ctx.__tones) {
     const proto = Object.getPrototypeOf(ctx);
     for (const [m, prop] of [['fill', 'fillStyle'], ['fillRect', 'fillStyle'], ['fillText', 'fillStyle'],
@@ -64,14 +64,15 @@ TONES = r"""(hats) => {
     ctx.__tones = { on: false, seen: [] }; delete ctx.__docentInk;
   }
   renderAt(0.5);
-  const off = {}, n = {};
+  const off = {}, n = {}, seen = {};
   const check = (label, draw) => {
     ctx.__tones.seen = []; ctx.__tones.on = true;
     try { draw(); } finally { ctx.__tones.on = false; }
-    n[label] = ctx.__tones.seen.length;
+    n[label] = ctx.__tones.seen.length; seen[label] = [...new Set(ctx.__tones.seen)];
     const bad = [...new Set(ctx.__tones.seen)].filter((c) => !docentSame(c, INK()) && !docentSame(c, PAPER()) && !/,\s*0\)$/.test(c));   // see-through paints nothing
     if (bad.length) off[label] = bad;
   };
+  if (faint) { check('faint', () => prop('box', 960, 800, 1, { color: 'rgba(75,90,112,0.3)', fill: 'rgba(78,55,37,0.8)' })); return { off, n, seen }; }
   for (const k of Object.keys(ANIMALS)) check('animal:' + k, () => animal(k, 960, 800, { s: 0.8 }));
   for (const k of Object.keys(PROPS)) check('prop:' + k, () => prop(k, 960, 800, 1));
   for (const hat of hats) check('hat:' + hat, () => figure(960, 860, { hat, hair: 'short', beard: true, glasses: true, tie: true, outfit: 'suit', accent: 'red' }));
@@ -130,10 +131,10 @@ class BudgetOnEngine(unittest.TestCase):
     def test_ink_mode_paints_only_ink_and_page(self):
         # 총균쇠 Gate C (2026-11-15): the kit horse kept a brown mane (a dark fill passed as ink-dark and kept its own
         # colour) and a cream blaze (a pale neutral line was not a 'colour' and kept its cream) in a "colour": false project
-        r = evaluate(self.proj, TONES, HATS, False)
+        r = evaluate(self.proj, TONES, {'hats': HATS}, False)
         self.assertEqual(r['off'], {})
         self.assertTrue(all(r['n'].values()), [k for k, v in r['n'].items() if not v])   # every one painted something
-        old = evaluate(self.proj, TONES, HATS, None)['off']   # without ink mode the colours are there: the recorder sees them
+        old = evaluate(self.proj, TONES, {'hats': HATS}, None)['off']   # without ink mode the colours are there: the recorder sees them
         self.assertIn('animal:horse', old)
 
     def test_two_tones_on_a_dark_page(self):   # mono-black --docent: the ink is light, the page near-black
@@ -141,6 +142,12 @@ class BudgetOnEngine(unittest.TestCase):
           try { return [['#4e3725', false], ['#f4bb20', false], ['#ffffff', false], ['#141416', true], ['#9a99a7', true], ['#f5f5f7', true]]
             .map(([c, line]) => docentToneOf(c, line)); } finally { C.bg = bg; C.ink = ink; } }"""
         self.assertEqual(evaluate(self.proj, probe, None, False), ['page', 'page', 'page', 'page', 'ink', None])
+
+    def test_a_faint_paint_keeps_its_alpha_in_its_tone(self):   # review: a faint grey line must not turn opaque ink
+        r = evaluate(self.proj, TONES, {'faint': True}, False)
+        self.assertEqual(r['off'], {})
+        self.assertIn('rgba(21,21,21,0.3)', r['seen']['faint'])   # the line: ink, still at 0.3
+        self.assertIn('rgba(21,21,21,0.8)', r['seen']['faint'])   # the dark fill: ink, still at 0.8
 
     def test_kit_has_the_ggs_assets(self):   # moved from the 총균쇠 video (2026-11-15); the morion is a figure() hat
         probe = """() => { const f = figure(960, 860, { hat: 'morion' });

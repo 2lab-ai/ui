@@ -67,7 +67,8 @@ function docentIsColour(c) {
 }
 function docentSame(c, role) { const a = docentRGBA(c), b = docentRGBA(role); return !!(a && b) && Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 24; }
 // Ink mode paints two tones only: the ink and the page. Which one a paint becomes ('ink' | 'page'; null: it already is
-// one, or it is see-through, so it keeps its own alpha). A fill is ink when it is ink-dark (hair, a black ball, a dark
+// one, or it is fully see-through, and stays as it is); a half see-through paint keeps its alpha in its new tone
+// (docentPatchCtx), so a faint line stays faint. A fill is ink when it is ink-dark (hair, a black ball, a dark
 // mane: every channel on the ink's side of the page), else the page; a line or a letter is the page when it is
 // page-pale (a white blaze, an ivory highlight: every channel about as light as the page's), else ink. Until
 // 2026-11-15 a dark fill kept its own colour and a pale neutral line kept its cream, so the kit horse kept a brown mane
@@ -89,7 +90,10 @@ function docentPatchCtx() {
     const keep = this[prop]; let swapped = false;
     if (DOCENT_INK > 0) {   // every paint is the ink or the page (docentToneOf)
       const tone = docentToneOf(keep, asInk);
-      if (tone) { this[prop] = tone === 'ink' ? INK() : PAPER(); swapped = true; }
+      if (tone) {
+        const role = tone === 'ink' ? INK() : PAPER(), v = docentRGBA(keep), r = docentRGBA(role);
+        this[prop] = v && r && v[3] < 1 ? `rgba(${r[0]},${r[1]},${r[2]},${v[3]})` : role; swapped = true;
+      }
     } else if (!DOCENT.ghostOk && !DOCENT.measure && this.globalAlpha > 0.05 && !docentColourful()) {
       if (docentSame(keep, MARK()) && !DOCENT.inMark) DOCENT.redInk = true;   // a red line drawn by hand is a mark too
       else if (docentIsColour(keep) && !docentSame(keep, KEY()) && !docentSame(keep, MARK())) {
