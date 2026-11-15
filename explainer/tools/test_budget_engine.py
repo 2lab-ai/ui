@@ -31,18 +31,54 @@ SCENES.s = (t, q) => shots(t, [
 """
 
 
-def report(proj, t, colour, before=None):
+def evaluate(proj, expr, arg, colour, before=None):
+    """run expr(arg) on the engine page of proj (project.json "colour": colour; None = the key left out)."""
     pj = {'slug': 't', 'theme': 'sketch'}
     if colour is not None: pj['colour'] = colour
     json.dump(pj, open(os.path.join(proj, 'project.json'), 'w'))
     env = dict(os.environ, NODE_PATH=os.path.join(EX, 'noderender', 'node_modules'))
-    msg = json.dumps({'id': 1, 'expr': '(t) => { renderAt(t); return docentReport(); }', 'arg': t})
+    msg = json.dumps({'id': 1, 'expr': expr, 'arg': arg})
     if before is not None:   # render another frame first, in the same page: counts must not carry over
         msg = json.dumps({'id': 0, 'expr': '(t) => { renderAt(t); return 0; }', 'arg': before}) + '\n' + msg
-    out = subprocess.run(['node', PAGE, proj], input=msg + '\n', capture_output=True, text=True, env=env, timeout=60).stdout.splitlines()
+    out = subprocess.run(['node', PAGE, proj], input=msg + '\n', capture_output=True, text=True, env=env, timeout=120).stdout.splitlines()
     rep = [json.loads(l) for l in out if l.startswith('{')][-1]
     assert 'value' in rep, rep
     return rep['value']
+
+
+def report(proj, t, colour, before=None):
+    return evaluate(proj, '(t) => { renderAt(t); return docentReport(); }', t, colour, before)
+
+
+# Every paint call under docent.js's ink-mode wrapper, recorded with the colour it really paints: recorders go under
+# the wrapper (docent.js wraps whatever ctx.fill/stroke/… are when the next frame starts), then each animal, prop and
+# hat is drawn alone. Returns {label: [colours that are neither ink nor page]} and the number of paints per label.
+TONES = r"""(hats) => {
+  if (!ctx.__tones) {
+    const proto = Object.getPrototypeOf(ctx);
+    for (const [m, prop] of [['fill', 'fillStyle'], ['fillRect', 'fillStyle'], ['fillText', 'fillStyle'],
+      ['stroke', 'strokeStyle'], ['strokeRect', 'strokeStyle'], ['strokeText', 'strokeStyle']]) {
+      const orig = proto[m];
+      ctx[m] = function (...a) { if (ctx.__tones.on && this.globalAlpha > 0.01) ctx.__tones.seen.push(String(this[prop])); return orig.apply(this, a); };
+    }
+    ctx.__tones = { on: false, seen: [] }; delete ctx.__docentInk;
+  }
+  renderAt(0.5);
+  const off = {}, n = {};
+  const check = (label, draw) => {
+    ctx.__tones.seen = []; ctx.__tones.on = true;
+    try { draw(); } finally { ctx.__tones.on = false; }
+    n[label] = ctx.__tones.seen.length;
+    const bad = [...new Set(ctx.__tones.seen)].filter((c) => !docentSame(c, INK()) && !docentSame(c, PAPER()) && !/,\s*0\)$/.test(c));   // see-through paints nothing
+    if (bad.length) off[label] = bad;
+  };
+  for (const k of Object.keys(ANIMALS)) check('animal:' + k, () => animal(k, 960, 800, { s: 0.8 }));
+  for (const k of Object.keys(PROPS)) check('prop:' + k, () => prop(k, 960, 800, 1));
+  for (const hat of hats) check('hat:' + hat, () => figure(960, 860, { hat, hair: 'short', beard: true, glasses: true, tie: true, outfit: 'suit', accent: 'red' }));
+  check('crab', () => crab(960, 800)); check('ant', () => ant(960, 800));
+  return { off, n };
+}"""
+HATS = ['top', 'cap', 'beanie', 'bowler', 'crown', 'laurel']
 
 
 @unittest.skipUnless(node_ok(), 'node or @napi-rs/canvas missing (npm install in explainer/noderender)')
@@ -90,6 +126,21 @@ class BudgetOnEngine(unittest.TestCase):
 
     def test_three_words(self):
         self.assertEqual(len(report(self.proj, 9.5, False)['words']), 3)
+
+    def test_ink_mode_paints_only_ink_and_page(self):
+        # 총균쇠 Gate C (2026-11-15): the kit horse kept a brown mane (a dark fill passed as ink-dark and kept its own
+        # colour) and a cream blaze (a pale neutral line was not a 'colour' and kept its cream) in a "colour": false project
+        r = evaluate(self.proj, TONES, HATS, False)
+        self.assertEqual(r['off'], {})
+        self.assertTrue(all(r['n'].values()), [k for k, v in r['n'].items() if not v])   # every one painted something
+        old = evaluate(self.proj, TONES, HATS, None)['off']   # without ink mode the colours are there: the recorder sees them
+        self.assertIn('animal:horse', old)
+
+    def test_two_tones_on_a_dark_page(self):   # mono-black --docent: the ink is light, the page near-black
+        probe = """() => { const bg = C.bg, ink = C.ink; C.bg = '#050505'; C.ink = '#f5f5f7';
+          try { return [['#4e3725', false], ['#f4bb20', false], ['#ffffff', false], ['#141416', true], ['#9a99a7', true], ['#f5f5f7', true]]
+            .map(([c, line]) => docentToneOf(c, line)); } finally { C.bg = bg; C.ink = ink; } }"""
+        self.assertEqual(evaluate(self.proj, probe, None, False), ['page', 'page', 'page', 'page', 'ink', None])
 
     def test_ink_mode_only_when_asked(self):
         ink, old = report(self.proj, 1.5, False), report(self.proj, 1.5, None)

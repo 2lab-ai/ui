@@ -65,15 +65,31 @@ function docentIsColour(c) {
   if (bgSpread < 18) return true;
   const dh = Math.abs(docentHue(v) - docentHue(bg)); return Math.min(dh, 360 - dh) > 25;
 }
-function docentDark(c) { const v = docentRGBA(c); return !!v && Math.max(v[0], v[1], v[2]) < 96 && v[3] > 0.5; }   // hair, a black ball, ink
 function docentSame(c, role) { const a = docentRGBA(c), b = docentRGBA(role); return !!(a && b) && Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 24; }
+// Ink mode paints two tones only: the ink and the page. Which one a paint becomes ('ink' | 'page'; null: it already is
+// one, or it is see-through, so it keeps its own alpha). A fill is ink when it is ink-dark (hair, a black ball, a dark
+// mane: every channel on the ink's side of the page), else the page; a line or a letter is the page when it is
+// page-pale (a white blaze, an ivory highlight: every channel about as light as the page's), else ink. Until
+// 2026-11-15 a dark fill kept its own colour and a pale neutral line kept its cream, so the kit horse kept a brown mane
+// and a cream blaze in a "colour": false project (총균쇠 Gate C, zebra:3, 7, 8, 12, 21). On a dark page (mono-black)
+// the ink is light: a fill is ink only when it is the ink itself (white hair), and 'page-pale' means every channel dark.
+function docentToneOf(c, line) {
+  const v = docentRGBA(c);
+  if ((v && v[3] === 0) || docentSame(c, INK()) || docentSame(c, PAPER())) return null;
+  const pg = docentRGBA(PAPER()), ik = docentRGBA(INK());
+  if (!v || !pg || !ik) return line ? 'ink' : 'page';   // a gradient or a pattern
+  const hi = (x) => Math.max(x[0], x[1], x[2]), lo = (x) => Math.min(x[0], x[1], x[2]), light = hi(pg) > hi(ik);
+  if (line) return !docentIsColour(c) && (light ? lo(v) >= lo(pg) - 24 : hi(v) <= hi(pg) + 24) ? 'page' : 'ink';
+  if (v[3] <= 0.5 || !light) return 'page';
+  return hi(v) < hi(pg) - 0.645 * (hi(pg) - hi(ik)) ? 'ink' : 'page';   // ink-dark: every channel under 96 on the sketch page
+}
 function docentPatchCtx() {
   ctx.__docentInk = true;
   const wrap = (fn, prop, asInk) => function (...args) {
     const keep = this[prop]; let swapped = false;
-    if (DOCENT_INK > 0) {
-      // ink fills stay ink (white ink on mono-black); any other light or coloured fill becomes the page
-      if (asInk ? docentIsColour(keep) : !docentDark(keep) && !docentSame(keep, PAPER()) && !docentSame(keep, INK())) { this[prop] = asInk ? INK() : PAPER(); swapped = true; }
+    if (DOCENT_INK > 0) {   // every paint is the ink or the page (docentToneOf)
+      const tone = docentToneOf(keep, asInk);
+      if (tone) { this[prop] = tone === 'ink' ? INK() : PAPER(); swapped = true; }
     } else if (!DOCENT.ghostOk && !DOCENT.measure && this.globalAlpha > 0.05 && !docentColourful()) {
       if (docentSame(keep, MARK()) && !DOCENT.inMark) DOCENT.redInk = true;   // a red line drawn by hand is a mark too
       else if (docentIsColour(keep) && !docentSame(keep, KEY()) && !docentSame(keep, MARK())) {
@@ -722,7 +738,8 @@ const ANIMALS = {
     inkCircle(...T(120, -170), 56 * o.s, { ...o, p: q(2), fill: f });
     inkPath([T(160, -150), T(186, -100), T(188, -40), T(204, -30), T(208, -46), T(198, -110), T(176, -168)], { ...o, closed: true, p: q(2), fill: f, round: 1 });
     inkPath([T(100, -214), T(60, -200), T(48, -150), T(70, -104), T(104, -112), T(112, -160)], { ...o, closed: true, p: q(3), fill: f, round: 2 });
-    inkCurve(T(150, -130), T(180, -112), T(196, -128), { ...o, p: q(3), color: C.paper || '#ffffff', w: o.w * 1.8 });
+    inkCurve(T(150, -130), T(180, -112), T(196, -128), { ...o, p: q(3), w: o.w * 3.2 });   // the tusk: an ink outline round a pale core,
+    inkCurve(T(150, -130), T(180, -112), T(196, -128), { ...o, p: q(3), color: C.paper || '#ffffff', w: o.w * 1.8 });   // so it stays in ink mode
     const e = T(140, -186); disc(e[0], e[1], 5 * o.s, INK(), o.a * clamp01(q(3) * 2));
     return { head: T(120, -170), r: 56 * o.s, mouth: T(150, -136), top: T(110, -226) };
   },

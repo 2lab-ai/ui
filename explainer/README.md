@@ -195,9 +195,10 @@ its captions there); draw everything except the books' own covers: a docent book
 and of the Korean edition (REFERENCE §4); other artwork only when it is public domain.
 
 Ink mode (project.json `"colour": false`, which `new_video.py` writes for every new sketch project or with `--docent`):
-`figure`, `person`, `seated`, `animal`, `prop`, `crab` and `ant` paint every colour inside them as ink (lines, text) and
-every fill that is not ink-dark as the page, so cast accents, outfits, animal coats and prop fills come out as unfilled
-line art. Pass `colour: true` on a call when the colour is the meaning (a red heart). A project without the key (an
+`figure`, `person`, `seated`, `animal`, `prop`, `crab` and `ant` paint two tones only, the ink and the page: a line or a
+letter is ink unless it is page-pale (a white blaze, an ivory highlight: then the page), a fill is the page unless it is
+ink-dark (hair, a dark mane: then ink), so cast accents, outfits, animal coats and prop fills come out as unfilled line
+art (`tools/test_budget_engine.py` draws every animal, prop and hat and checks it). Pass `colour: true` on a call when the colour is the meaning (a red heart). A project without the key (an
 older video, a make-3b1b project) keeps its colours when its engine is refreshed. New docent projects also get
 `"subtitles": "off"` and `"chip": false`; `export.py srt` writes the narration as `out/<slug>.srt` for the YouTube
 caption track.
