@@ -18,6 +18,9 @@
   docent videos show the drawing in ink only, the narration goes to YouTube as captions (export.py srt)
 - --format short writes project.json "format": "short": a vertical YouTube Short, 1080x1920 (frame.py). Without it a
   project renders at 1920x1080
+- a docent project (sketch, or --docent) without a scenes.js gets a starter one: the sign title card and the letter
+  cast block, the narrator ('me') and 오빠 ('oppa'), cast even when he is never drawn so no one else takes his look
+  (TEMPLATES T1 and B; lint letter-cast)
 """
 import json, os, shutil, subprocess, sys, tempfile, urllib.parse, urllib.request
 from frame import frame_size
@@ -88,6 +91,33 @@ def theme(name):
                 'paper': t['surface-raised'], 'paperLine': t['border'], 'paperInk': text, 'paperMath': text}}
 
 
+STARTER = """// scenes.js — {title}. One draw function per scene id of script.json: SCENES.<id> = (t, q) => shots(t, [...]).
+// First the cast block (TEMPLATES T1: one cast() per person, REFERENCE §2), then the assets the kit lacks (TEMPLATES A),
+// then the scenes. A letter video always casts its narrator and 오빠, even when he is never drawn: his look stays his
+// (lint cast-lookalike, letter-cast). The book shot: TEMPLATES B (she holds the Korean edition up: holdCover; both
+// editions: realCoverPair on a desk line).
+TITLE_CARD = signCard;
+cast('me', { name: '나', hair: 'long', h: 0.94 });                          // the narrator: never tagged, never named
+cast('oppa', { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the listener: short hair + square glasses
+
+// SCENES.s1 = (t, q) => shots(t, [
+//   [q.s(0), (t, lt) => {
+//     const me = person('me', 560, 870, { s: 1.5, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
+//     holdCover(me, 'cover_<book>_ko', { h: 300, p: dp(lt, 0.1, 0.5) });
+//     person('oppa', 1380, 870, { s: 1.5, flip: true, face: 'smile', p: dp(lt, 0.2, 0.5) });
+//   }],
+// ]);
+"""
+
+
+def write_starter(proj, title):
+    """a docent project's starter scenes.js (only when it has none): True when written"""
+    path = os.path.join(proj, 'scenes.js')
+    if os.path.exists(path): return False
+    with open(path, 'w', encoding='utf-8') as f: f.write(STARTER.replace('{title}', title))
+    return True
+
+
 def fetch(url, dst):
     """download to a unique temp file beside dst, check the length, then move into place atomically:
     an interrupted or short download never looks finished, and concurrent scaffolds do not collide."""
@@ -148,6 +178,8 @@ def main():
     # keeps its colours, subtitles and chip.
     if '--docent' in sys.argv or (th['id'] == 'sketch' and not pj.get('ui_commit')):
         pj.setdefault('colour', False); pj.setdefault('subtitles', 'off'); pj.setdefault('chip', False)
+    if ('--docent' in sys.argv or th['id'] == 'sketch') and write_starter(proj, opt('--title') or pj.get('title') or os.path.basename(proj)):
+        print(f'{proj}/scenes.js: the starter (TITLE_CARD = signCard, cast me + oppa: TEMPLATES T1 and B)')
     if opt('--slug'): pj['slug'] = opt('--slug')
     pj.setdefault('slug', os.path.basename(proj))
     if opt('--title'): pj['title'] = opt('--title')

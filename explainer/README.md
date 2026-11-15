@@ -19,7 +19,8 @@ explainer/
 │   │                    props, quick cuts, and a per-frame defect registry for the lint
 │   └── video.html       preview player (play, scrub, chapters) and export page (?export=1)
 ├── tools/
-│   ├── new_video.py     scaffold or refresh a project: engine, theme.json, fonts, public-domain images (--format short)
+│   ├── new_video.py     scaffold or refresh a project: engine, theme.json, fonts, public-domain images (--format short);
+│   │                    a docent project without scenes.js gets a starter one (title card, the letter cast me + oppa)
 │   ├── frame.py         the frame size from project.json "format" / "size" (default 1920x1080)
 │   ├── narrate_soma.py  narration with the soma-voice API on blade-4090 (voice cwon), filler padding, timing
 │   ├── padcut.py        cuts the filler ("아아. [pause] … [pause] 아아.") off each take

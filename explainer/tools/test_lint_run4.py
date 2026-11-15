@@ -55,6 +55,17 @@ class CrowdRow(unittest.TestCase):   # p04, p09, p10: six, five and eight small 
         self.assertIn(('P1', 'crowd-row'), {(s, c) for s, c, _ in L.judge(frame(people=crowd(5, 600)), size=(1080, 1920))})
 
 
+class LetterCast(unittest.TestCase):   # p08: 오빠 never cast, so Schrödinger's side hair + round glasses read as him
+    def test_letter_without_oppa(self):
+        got = L.letter_cast({'concept': 'letter'}, {'me': {'hair': 'long'}})
+        self.assertEqual([(s, c) for s, c, _ in got], [('P2', 'letter-cast')]); self.assertIn("'oppa'", got[0][2])
+        self.assertEqual(len(L.letter_cast({'concept': 'letter'}, {})), 2)
+
+    def test_not_a_letter_or_cast(self):
+        self.assertEqual(L.letter_cast({'concept': 'letter'}, {'me': {}, 'oppa': {}}), [])
+        self.assertEqual(L.letter_cast({}, {}), []); self.assertEqual(L.letter_cast({'concept': 'docent'}, {}), [])
+
+
 # ---- the real lint on a fixture project ----
 FIXTURE = r"""
 TITLE_CARD = signCard;
@@ -116,7 +127,7 @@ def issues(rep):
 class OnFixture(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.d = fixture()
+        cls.d = fixture(project={'concept': 'letter'})   # a letter video that casts only 'me'
         cls.p, cls.rep = lint(cls.d)
 
     def test_cover_late_on_the_slow_pair_only(self):
@@ -127,6 +138,10 @@ class OnFixture(unittest.TestCase):
         self.assertTrue(all(s == 'P1' and s0 <= t < s1 for t, s in late), late)   # the first shot only, not the held cover
         self.assertEqual(self.p.returncode, 1)
         self.assertFalse([c for sc, t, s, c in issues(self.rep) if s == 'P0'], issues(self.rep))   # the fixture itself is sound
+
+    def test_letter_cast(self):
+        self.assertIn(('*', 0, 'P2', 'letter-cast'), issues(self.rep))
+        self.assertEqual(sum(c == 'letter-cast' for *_, c in issues(self.rep)), 1)   # 'me' is cast: only 오빠 is missing
 
     def test_crowd_row_on_the_five_small_strangers_only(self):
         tl = read(os.path.join(self.d, 'timeline.json'))

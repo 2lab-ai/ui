@@ -16,7 +16,8 @@ P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at
     a torso (prop-over-body); a picture held longer than 8 s (6.7 s on a draft timeline: hold_limit); a shot shorter
     than 1.2 s; a scene without shots();
     two or more people in one frame and one of them without a cast look; two cast looks with the same silhouette
-    (cast-similar: see looks_like), so they differ only by colour
+    (cast-similar: see looks_like), so they differ only by colour; letter-cast: a letter video (project.json "concept":
+    "letter") without cast('me', …) or cast('oppa', …) — cast him even when he is never drawn, so his look stays his
 P1  cast-lookalike: a figure drawn without a cast id (figure(), a crowd) that has a cast look's silhouette, so viewers
     read it as that person (P2 in a colour project, where an accent colour may still tell them apart)
 P1  cover-late: a real cover (realCover / realCoverPair / holdCover) still under 90 % opacity at its shot's start +
@@ -164,6 +165,15 @@ def judge(r, size=(1920, 1080), cast=None):
     if colours: out.append(('P2', 'colour', f"colours besides ink, purple and red: {', '.join(colours[:6])} — paint only what the colour means (`colour: true` on that call), the rest in ink"))
     return out
 
+def letter_cast(pj, cast):
+    """a letter video casts its narrator and 오빠 even when he is never drawn: cast-lookalike can only keep a look that
+    is cast (p08, run 4: an uncast 오빠, and Schrödinger's side hair + round glasses read as him)"""
+    if (pj or {}).get('concept') != 'letter': return []
+    miss = [k for k in ('me', 'oppa') if k not in (cast or {})]
+    return [('P2', 'letter-cast', f"a letter video without cast('{k}', …): cast " + ("the narrator" if k == 'me' else "오빠 even when he is never drawn, so no one else takes his look")
+             + " (TEMPLATES T1)") for k in miss]
+
+
 def cast_similar(cast):
     """pairs of cast ids with the same head (same_head)"""
     ids = list(cast)
@@ -233,6 +243,9 @@ async def main(only, strict):
     head = []
     if errs: head.append({'scene': '*', 't': 0, 'issues': [('P0', 'page-error', e) for e in errs[:5]]})
     if miss: head.append({'scene': '*', 't': 0, 'issues': [('P0', 'missing', str(m)) for m in miss[:20]]})
+    pj = json.load(open('project.json', encoding='utf-8')) if os.path.exists('project.json') else {}
+    lc = letter_cast(pj, cast)
+    if lc: head.append({'scene': '*', 't': 0, 'issues': lc})
     same = cast_similar(cast)
     if same: head.append({'scene': '*', 't': 0, 'issues': [('P2', 'cast-similar', f"{a} / {b} share a silhouette ({describe(cast[a])} / {describe(cast[b])}): give each a different hair or hat") for a, b in same]})
     report = head + report
