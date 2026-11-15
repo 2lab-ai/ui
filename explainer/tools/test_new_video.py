@@ -18,6 +18,14 @@ class Starter(unittest.TestCase):
         self.assertIn("cast('oppa', { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });", js)
         self.assertIn('TEMPLATES T1', js); self.assertIn('TEMPLATES B', js); self.assertIn('편지', js)
 
+    def test_the_original_cover_appears_once(self):   # fable F4: not only the Korean edition in a hand
+        d = tempfile.mkdtemp(); new_video.write_starter(d, 'x')
+        with open(os.path.join(d, 'scenes.js'), encoding='utf-8') as f: js = f.read()
+        self.assertIn("The original's cover appears at least once in the\n// video", js)
+        self.assertIn('A Korean original is the\n// exception', js)
+        self.assertIn("realCoverPair('cover_<book>_<lang>', 'cover_<book>_ko'", js); self.assertIn("prop('desk'", js)
+        self.assertLess(js.index('realCoverPair('), js.index('holdCover(me'))   # the pair first, where the book is introduced
+
     def test_never_overwrites(self):
         d = tempfile.mkdtemp(); path = os.path.join(d, 'scenes.js')
         with open(path, 'w') as f: f.write('// mine')

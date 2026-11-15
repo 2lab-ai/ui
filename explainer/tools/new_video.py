@@ -95,14 +95,21 @@ def theme(name):
 STARTER = """// scenes.js — {title}. One draw function per scene id of script.json: SCENES.<id> = (t, q) => shots(t, [...]).
 // First the cast block (TEMPLATES T1: one cast() per person, REFERENCE §2), then the assets the kit lacks (TEMPLATES A),
 // then the scenes. A letter video always casts its narrator and 오빠, even when he is never drawn: his look stays his
-// (lint cast-lookalike, letter-cast). The book shot: TEMPLATES B (she holds the Korean edition up: holdCover; both
-// editions: realCoverPair on a desk line).
+// (lint cast-lookalike, letter-cast). The book shot: TEMPLATES B. The original's cover appears at least once in the
+// video: the pair (realCoverPair, the original left, the Korean edition in front) on a desk line, where the line
+// introduces the book; the other book shots may hold up the Korean edition alone (holdCover). A Korean original is the
+// exception: its Korean cover is the original, shown alone (REFERENCE §4).
 TITLE_CARD = signCard;
 cast('me', { name: '나', hair: 'long', h: 0.94 });                          // the narrator: never tagged, never named
 cast('oppa', { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the listener: short hair + square glasses
 
 // SCENES.s1 = (t, q) => shots(t, [
-//   [q.s(0), (t, lt) => {
+//   [q.s(0), (t, lt) => {   // both editions, once in the video: the pair on a desk line, the original first
+//     prop('desk', 1180, 870, 2.4, { p: dp(lt, 0, 0.3) });                     // its top is at 870 − 80 × 2.4
+//     realCoverPair('cover_<book>_<lang>', 'cover_<book>_ko', 1180, 870 - 80 * 2.4, 360, { p: dp(lt, 0.1, 0.6) });
+//     person('me', 760, 870, { s: 1.4, pose: 'point', face: 'happy', p: dp(lt, 0, 0.5) });
+//   }],
+//   [q.s(1), (t, lt) => {   // she holds the Korean edition up while 오빠 looks
 //     const me = person('me', 560, 870, { s: 1.5, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
 //     holdCover(me, 'cover_<book>_ko', { h: 300, p: dp(lt, 0.1, 0.5) });
 //     person('oppa', 1380, 870, { s: 1.5, flip: true, face: 'smile', p: dp(lt, 0.2, 0.5) });
