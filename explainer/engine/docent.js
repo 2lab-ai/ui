@@ -1690,6 +1690,8 @@ Object.assign(PROPS, {
 Object.assign(POSES, {
   lift: { la: [[-50, -55], [-56, -150]], ra: [[50, -55], [56, -150]] },   // both arms straight up
   stop: { la: [[-18, 52], [-28, 108]], ra: [[56, -6], [96, -40]] },     // one hand up, palm out
+  // the front hand up beside the shoulder, holding a book up toward the viewer: holdCover(fig, name) (run 4)
+  showBook: { la: [[-18, 52], [-28, 108]], ra: [[42, 34], [66, -30]] },
 });
 // A spiral notepad (an author's or a reporter's notebook). The kit's `note` is a music note: six authors of the
 // Elon Musk v2 redraw asked for a notebook, got a quaver, and drew their own.
@@ -2494,6 +2496,27 @@ function realCoverPair(nameA, nameB, x, y, h, { p = 1, gap = 0.04 } = {}) {
   realCover(nameB, x + span / 2 - wb / 2, y, h, { p: clamp01((p - 0.15) / 0.45), rot: 0.03, ratio: rb });
   return { x: x - span / 2, y: y - h, w: span, h };
 }
+// A real cover held up in a figure's hand (run 4: in ten probes nobody held the book; the pair stood free on the
+// ground beside her). fig = the anchors person() / figure() return; side 'front' (the hand on the side the figure
+// faces) or 'back'. The cover stands upright beside the body, its inner edge in the hand (gripped a third of the way
+// up), turned a little toward the viewer, and never over the face: when the hand is close to the head the cover moves
+// out until it clears the head and its hair. The fingers are drawn over its edge. Pose: POSES.showBook (the front hand
+// up beside the shoulder). opts: h (its height in px), p. Returns the cover's box { x, y, w, h }.
+function holdCover(fig, name, { h = 260, p = 1, side = 'front' } = {}) {
+  const back = side === 'back', dir = fig.dir || 1, out = back ? -dir : dir;
+  const [hx, hy] = fig.hands[back ? 0 : 1], [fx, fy] = fig.head, R = fig.r || 44;
+  const w = h * docentCoverRatio(name), bottom = Math.min(hy + 0.32 * h, fig.box ? fig.box[3] : Infinity);
+  let inner = hx - out * 0.1 * w;                                 // the edge in the hand
+  const clear = fx + out * R * 1.4;                               // past the head and its hair, when beside the head
+  if (bottom > fy - R * 1.3 && bottom - h < fy + R * 1.3 && (inner - clear) * out < 0) inner = clear;
+  const box = realCover(name, inner + out * w / 2, bottom, h, { p, rot: out * 0.035 });
+  const k = clamp01(p * 2 - 1);                                   // the fingers over its edge, once it is mostly there
+  if (k > 0) {
+    const lw = 4.2 * Math.max(0.7, Math.sqrt(R / 44)), x0 = out > 0 ? Math.max(hx, inner) : Math.min(hx, inner), len = Math.max(lw * 3, w * 0.08);
+    for (const dy of [-1.1, 1.1]) inkLine(hx - out * lw, hy + dy * lw, x0 + out * len, hy + dy * lw + lw * 0.6, { p: k, w: lw, jit: 0.3 });
+  }
+  return box;
+}
 
 // ---------- emphasis budget: what competes for the eye (2026-11-13) ----------
 // Things: every top-level primitive call (not one drawn inside another) is one thing on screen; a crowd, a row of the
@@ -2523,7 +2546,7 @@ function realCoverPair(nameA, nameB, x, y, h, { p = 1, gap = 0.04 } = {}) {
     scrollList: [() => one('list'), (a) => { word(a[3] || 'list'); DOCENT.listItems = (DOCENT.listItems || 0) + (a[4] || []).length; }, true],
     quote: [() => one('quote'), (a) => word(a[3]), true],
     bookCover: [() => one('book'), (a, o) => word((o && o.title) || 'book'), true],
-    realCover: [() => one('book')], realCoverPair: [() => one('book')],
+    realCover: [() => one('book')], realCoverPair: [() => one('book')], holdCover: [() => one('book')],
     chapterMap: [() => one('map'), () => word('map'), true],
     hand: [null, (a) => word(a[0])], handBlock: [null, (a) => word([].concat(a[0]).join(' ')), true],
     cross: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true], crossAt: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('cross'); }, false, true],
