@@ -131,8 +131,12 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   `project.json` `"images"`, and record each in `"book_covers"`:
   `{ "<book>": { "<lang>": { "url": "…", "edition": "publisher, year, translator", "why": "why this edition" } } }`.
 - **Which edition** (run 4: 6 of 10 books had a Greek, Italian, French, Dutch, Hebrew or Korean original and no rule).
-  The original = an edition in the book's original language; a modern printing is fine, an anthology with another
-  title is not (p01 showed *The Last Days of Socrates* for the Apology). A pre-modern book (Plato, Machiavelli): a
+  The original = the edition the Korean translation was made from: the Korean edition's 원제 and translation source
+  (Aladin's 원제 line, the copyright page). So pick the Korean edition first (below), then its source. 사피엔스 was
+  translated from the English *Sapiens*, so its original is the English edition, not the Hebrew (verification r09
+  showed the Hebrew cover, which a Korean viewer does not connect to the book). When the source is not known, or there
+  is no Korean edition: an edition in the book's original language. A modern printing is fine, an anthology with
+  another title is not (p01 showed *The Last Days of Socrates* for the Apology). A pre-modern book (Plato, Machiavelli): a
   standard modern edition in the original language, or the best-known English edition, the reason in `why`. A Korean
   original (윤동주) shows the Korean edition alone; its first edition only as an extra. The Korean edition = the one in
   print with the most readers (Aladin's Sales Point), not the newest or the first. A real cover may carry the author's
