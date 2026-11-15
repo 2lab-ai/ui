@@ -78,7 +78,7 @@ TONES = r"""(hats) => {
   check('crab', () => crab(960, 800)); check('ant', () => ant(960, 800));
   return { off, n };
 }"""
-HATS = ['top', 'cap', 'beanie', 'bowler', 'crown', 'laurel']
+HATS = ['top', 'cap', 'beanie', 'bowler', 'crown', 'laurel', 'morion']
 
 
 @unittest.skipUnless(node_ok(), 'node or @napi-rs/canvas missing (npm install in explainer/noderender)')
@@ -141,6 +141,16 @@ class BudgetOnEngine(unittest.TestCase):
           try { return [['#4e3725', false], ['#f4bb20', false], ['#ffffff', false], ['#141416', true], ['#9a99a7', true], ['#f5f5f7', true]]
             .map(([c, line]) => docentToneOf(c, line)); } finally { C.bg = bg; C.ink = ink; } }"""
         self.assertEqual(evaluate(self.proj, probe, None, False), ['page', 'page', 'page', 'page', 'ink', None])
+
+    def test_kit_has_the_ggs_assets(self):   # moved from the 총균쇠 video (2026-11-15); the morion is a figure() hat
+        probe = """() => { const f = figure(960, 860, { hat: 'morion' });
+          return { a: Object.keys(ANIMALS), p: Object.keys(PROPS), top: (f.head[1] - f.top[1]) / f.r, box: f.box[1] === f.top[1] }; }"""
+        r = evaluate(self.proj, probe, None, False)
+        for a in ('cow', 'sheep', 'goat', 'llama', 'zebra', 'squirrel', 'duck'): self.assertIn(a, r['a'])
+        for p in ('sword', 'musket', 'steelaxe', 'stoneaxe', 'spear', 'wheat', 'corn', 'germ', 'junk', 'caravel', 'canoe', 'hut',
+                  'jar', 'basket', 'claytablet'): self.assertIn(p, r['p'])
+        self.assertNotIn('club', r['p'])   # its first blade read as a light bulb
+        self.assertAlmostEqual(r['top'], 2.62, places=2); self.assertTrue(r['box'])   # bubbles and tags keep clear of the comb
 
     def test_ink_mode_only_when_asked(self):
         ink, old = report(self.proj, 1.5, False), report(self.proj, 1.5, None)
