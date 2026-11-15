@@ -258,3 +258,7 @@ class ToolsOnFixture(unittest.TestCase):
         for t in ('1.0', '2.5'):
             subprocess.run([PY, os.path.join(HERE, 'export.py'), 'stills', t], cwd=d, env=self.env, check=True, capture_output=True, timeout=120)
         self.assertEqual(sorted(f for f in os.listdir(os.path.join(d, 'out')) if f.startswith('still_')), ['still_0002.50.jpg'])
+
+
+if __name__ == '__main__':
+    unittest.main()
