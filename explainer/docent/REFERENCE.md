@@ -86,6 +86,13 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   glasses) and write it in the cast comment (`// photo: full grey hair swept back, a mustache`). A beard only for
   people known by one (Socrates, Darwin): run 4 drew Gary Keller bald + bearded like Socrates and Diamond, and bald +
   beard had become the default "author" head.
+- When the kit lacks their hair (wavy, a bob) or their beard's shape (a fringe beard under the jaw), pick the nearest
+  look the kit has that still differs from 오빠 (short + square glasses) and the narrator (long), and write the swap in
+  the cast comment (`// photo: wavy hair, a fringe beard → curly + beard: no wavy or fringe in the kit`). Verification
+  drew Thoreau with tight curls and a full beard and Anne with a ponytail, and neither comment said so.
+- A girl or a woman from the book never takes the narrator's composition, seated at a desk on a side chair: r10's Anne
+  writing at that desk, one shot after the narrator sat there, read as the narrator. Stage her another way (standing,
+  on the floor, by a window, with her own prop) and tag her the first time she is named.
 - Look-alikes: no unnamed figure (a crowd, an extra, a generic king or scholar) may share a cast member's silhouette —
   the same head top, plus that cast look's beard or glasses — or viewers read it as that person (총균쇠: foragers with
   curly hair read as Yali, a crowd bun as 정화, a scholar with side hair and glasses as 오빠). A crown or a laurel does

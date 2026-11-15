@@ -367,6 +367,8 @@ const sideChair = (x, y, k, d = 1, o = {}) => {
 - A stump or a doorstep is a seat with the same numbers: its top at y − 96 k, its front by x + 20 k, no upright line
   near the shins.
 - Facing left: `d = −1` and `flip: true`. A thing on the lap goes at (x + 70 k, y − 118 k).
+- At a desk on this chair is the narrator's composition: a girl or a woman from the book is staged another way
+  (REFERENCE §2; r10's Anne read as the narrator).
 - `letterNight` still draws the old chair (seat on the thigh line, front leg at x + 34 k): a place shot shows this
   defect until the kit takes these numbers.
 
