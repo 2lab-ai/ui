@@ -95,6 +95,11 @@ class Heard(unittest.TestCase):
         self.assertEqual(as_said('병사 168명을', '병사 백육십팔 명을'), '병사 백육십팔명을')
         self.assertEqual(as_said('168명', '백예순여덟 명'), '백예순여덟명')
 
+    def test_a_reading_must_be_a_word_before_the_same_counter(self):   # review: 이, 구, 십 hide inside other words
+        self.assertEqual(as_said('2명이 왔다', '두 명이 왔다'), '두명이 왔다')
+        self.assertEqual(as_said('10명 중 9명', '인구 백육십만 가운데 열 명 중 아홉 명'), '열명 중 아홉명')
+        self.assertEqual(as_said('3', '사과 세 개, 그리고 삼'), '삼')
+
     def test_a_number_said_otherwise_is_left_for_to_say(self):
         self.assertEqual(as_said('1898년', '천구백 년'), '1898년')
         self.assertEqual(as_said('2.5배, -3, 007', '이 쩜 오 배'), '2.5배, -3, 007')
