@@ -3,7 +3,8 @@
     python audio_check.py [--sentences] [--scene id ...]
 
 - Whisper writes numbers as digits ("1898"); the script's spoken form says 천팔백구십팔. Both sides are put through
-  ko_say before the diff, so a correct reading of a number is no longer a mismatch (research 2026-11-10).
+  ko_say before the diff, so a correct reading of a number is no longer a mismatch (research 2026-11-10). A number
+  the script reads another valid way (열네 종, 백육십팔 명) is read that way first (ko_say.as_said, 2026-11-15).
 - Names: project.json "names" (a list) and the say_lexicon spellings are given to whisper as a hint, so 퀴퀘그 and
   마리 퀴리 are heard as written instead of being "corrected".
 - --sentences also transcribes every sentence on its own (the make-3b1b §3 "number sentences alone" check, for all
@@ -13,7 +14,7 @@ Writes out/qa_words.json; exit 1 when a sentence is CHECK.
 import json, os, re, sys, difflib, subprocess, tempfile
 import mlx_whisper
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ko_say import to_say, load_lexicon
+from ko_say import to_say, load_lexicon, as_said
 HERE = os.getcwd()   # the project folder
 ARGS = sys.argv[1:]
 if not os.path.exists(os.path.join(HERE, 'narration.wav')): sys.exit('no narration.wav yet: run narrate_soma.py first (audio_check compares the voice with the script)')
@@ -42,6 +43,7 @@ for sc in tl['scenes']:
     r = hear(a, b)
     heard = ''.join(s['text'] for s in r['segments'])
     said = ' '.join(s['say'] for s in sc['sentences'])
+    heard = as_said(heard, said)
     ratio = difflib.SequenceMatcher(None, norm(said), norm(heard)).ratio()
     words = [w for s in r['segments'] for w in s.get('words', [])]
     offs = []
@@ -56,7 +58,7 @@ for sc in tl['scenes']:
     if '--sentences' in ARGS:
         rep['sentences'] = []
         for k, s in enumerate(sc['sentences']):
-            h = ''.join(x['text'] for x in hear(s['start'] - 0.15, s['end'] + 0.25)['segments'])
+            h = as_said(''.join(x['text'] for x in hear(s['start'] - 0.15, s['end'] + 0.25)['segments']), s['say'])
             q = difflib.SequenceMatcher(None, norm(s['say']), norm(h)).ratio()
             v = 'ok' if q >= 0.9 else 'CHECK'; bad += v == 'CHECK'
             rep['sentences'].append({'k': k, 'match': round(q, 3), 'verdict': v, 'heard': h.strip()[:80]})

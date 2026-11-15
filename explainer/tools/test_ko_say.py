@@ -2,7 +2,7 @@
 import os, sys, unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ko_say import check_say, check_script, leftovers, native, sino, spoken, strip_tags, to_say  # noqa: E402
+from ko_say import as_said, check_say, check_script, leftovers, native, readings, sino, spoken, strip_tags, to_say  # noqa: E402
 
 LEX = {'e': '이', 'i': '아이', 'Euler': '오일러'}
 
@@ -86,6 +86,21 @@ class Numbers(unittest.TestCase):
         for raw in ['3:00', '2=2', '1~2개', 'x^2']:
             with self.assertRaises(ValueError): check_say(to_say(raw, {'x': '엑스'}))
         with self.assertRaises(ValueError): to_say('10000000000000000')
+
+
+class Heard(unittest.TestCase):
+    """audio_check: whisper's digits read the way the script said them (총균쇠: correct number words flagged CHECK)"""
+    def test_native_and_sino_readings_the_script_used(self):
+        self.assertEqual(as_said('그 14종 가운데 13종이', '그 열네 종 가운데 열세 종이'), '그 열네종 가운데 열세종이')
+        self.assertEqual(as_said('병사 168명을', '병사 백육십팔 명을'), '병사 백육십팔명을')
+        self.assertEqual(as_said('168명', '백예순여덟 명'), '백예순여덟명')
+
+    def test_a_number_said_otherwise_is_left_for_to_say(self):
+        self.assertEqual(as_said('1898년', '천구백 년'), '1898년')
+        self.assertEqual(as_said('2.5배, -3, 007', '이 쩜 오 배'), '2.5배, -3, 007')
+
+    def test_readings(self):
+        self.assertEqual(readings(14), ['십사', '열네']); self.assertEqual(readings(100), ['백']); self.assertEqual(readings(168), ['백육십팔', '백예순여덟'])
 
 
 class Letters(unittest.TestCase):

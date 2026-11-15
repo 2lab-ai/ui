@@ -133,6 +133,27 @@ def to_say(text, lexicon=None):
     return re.sub(r' +([,.?!])', r'\1', s).strip()
 
 
+def readings(n):
+    """the ways a voice may read the whole number n >= 1: Sino-Korean (십사, 백육십팔) and, as before a counter, native
+    for the last two digits (열네, 백예순여덟)."""
+    out = [sino(n)]
+    if n % 100: out.append((sino(n - n % 100) if n > 99 else '') + native(n % 100))
+    return out
+
+
+def as_said(heard, said):
+    """a transcript's digits read the way the spoken form `said` reads them, when it reads them one of the ways a voice
+    may: whisper writes '14종' for 열네 종 and '168명' for 백육십팔 명, and to_say() alone reads them 십사 종 and 백예순여덟 명
+    (총균쇠 audio_check, 2026-11-15: correct sentences flagged CHECK). Other numbers are left for to_say()."""
+    flat = re.sub(r'\s', '', said)
+    def one(m):
+        whole = m.group(2).replace(',', '')
+        if m.group(1) or m.group(3) or m.group(4) or (len(whole) > 1 and whole[0] == '0') or not 0 < int(whole) < 10 ** 16:
+            return m.group(0)
+        return next((r for r in readings(int(whole)) if r in flat), m.group(0))
+    return NUM.sub(one, heard)
+
+
 def leftovers(say):
     """characters the voice model should never see (digits, Latin, math symbols, - ~ : =)."""
     return sorted({c for c in say if not ALLOWED.match(c)})
