@@ -82,5 +82,64 @@ class Kit(unittest.TestCase):
                 self.assertEqual(sorted(t.split('#')[0] for t in r['things']), ['book', 'person'])   # one thing, as realCover
 
 
+    # ---- the assets harvested from the run-4 probes ----
+    INKED = """([draw, box]) => { DOCENT_FRAME(0); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      const r = (new Function('return ' + draw))()(); const b = box || [0, 0, W, H];
+      const d = ctx.getImageData(b[0], b[1], b[2] - b[0], b[3] - b[1]).data; let n = 0, h = 0;
+      for (let i = 0; i < d.length; i += 4) { if (d[i] + d[i + 1] + d[i + 2] < 200) n++; h = (h * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007; }
+      return { n, h, r: r && r.head ? { head: r.head, r: r.r, box: r.box } : null }; }"""
+
+    def inked(self, draw, box=None):
+        """draw (a JS function body returning anchors or nothing) on a clear page: dark pixels and a hash of the box"""
+        return self.run_js(self.INKED, [draw, box])
+
+    def test_kit_has_the_run4_assets(self):
+        r = self.run_js("""() => ({ a: Object.keys(ANIMALS), p: Object.keys(PROPS), q: Object.keys(POSES) })""")
+        for a in ('fox', 'lion', 'wolf', 'monkey'): self.assertIn(a, r['a'])
+        for p in ('plane', 'dna', 'diary'): self.assertIn(p, r['p'])
+        for q in ('reachDown', 'linked', 'showBook'): self.assertIn(q, r['q'])
+
+    def test_animals_draw_body_and_head_first(self):   # the p05 fox was a headless body, the p07 lion two arcs, 0.5 s in
+        for kind in ('fox', 'lion', 'wolf', 'monkey'):
+            whole = self.inked(f"() => animal('{kind}', 960, 800, {{ s: 1.2 }})")
+            hx, hy = whole['r']['head']; R = whole['r']['r']
+            box = [int(hx - R), int(hy - R), int(hx + R), int(hy + R)]
+            head_whole = self.inked(f"() => animal('{kind}', 960, 800, {{ s: 1.2 }})", box)['n']
+            early = self.inked(f"() => animal('{kind}', 960, 800, {{ s: 1.2, p: 0.45 }})", box)['n']   # q(0), q(1) done; legs, tail, details not
+            self.assertGreater(early, 0.6 * head_whole, (kind, early, head_whole))
+            self.assertLess(self.inked(f"() => animal('{kind}', 960, 800, {{ s: 1.2, p: 0.45 }})")['n'], whole['n'], kind)
+
+    def test_animal_options_change_the_drawing(self):
+        same = lambda a, b: self.inked(a)['h'] == self.inked(b)['h']
+        self.assertTrue(same("() => animal('fox', 960, 800, {})", "() => animal('fox', 960, 800, { run: 0 })"))
+        self.assertFalse(same("() => animal('fox', 960, 800, {})", "() => animal('fox', 960, 800, { run: 1 })"))
+        self.assertFalse(same("() => animal('lion', 960, 800, {})", "() => animal('lion', 960, 800, { mood: 'sad' })"))
+        self.assertFalse(same("() => animal('monkey', 960, 800, {})", "() => animal('monkey', 960, 800, { banana: true })"))
+        self.assertFalse(same("() => animal('monkey', 960, 800, {})", "() => animal('monkey', 960, 800, { mood: 'stern' })"))
+        self.assertFalse(same("() => prop('plane', 960, 800, 1)", "() => prop('plane', 960, 800, 1, { crash: true })"))
+        self.assertFalse(same("() => prop('diary', 960, 800, 1)", "() => prop('diary', 960, 800, 1, { lines: 0 })"))
+
+    def test_the_monkey_is_line_art(self):   # p09: its solid ink coat was the heaviest mass in the clip
+        for o in ('{ s: 1.5 }', '{ s: 1.5, banana: true }'):
+            m = self.inked(f"() => animal('monkey', 960, 900, {o})")
+            x0, y0, x1, y1 = m['r']['box']
+            self.assertLess(m['n'] / ((x1 - x0) * (y1 - y0)), 0.12, o)   # ink lines on the page (the p09 coat: ~40 % ink)
+
+    def test_props_draw_on_in_stages(self):
+        for name in ('plane', 'dna', 'diary'):
+            n0, n1, n2 = (self.inked(f"() => prop('{name}', 960, 800, 1.6, {{ p: {p} }})")['n'] for p in (0, 0.35, 1))
+            self.assertEqual(n0, 0, name); self.assertGreater(n1, 0, name); self.assertLess(n1, 0.85 * n2, name)
+
+    def test_props_follow_the_size_contract(self):   # (x, y) = bottom centre, s = 1 ≈ 160 px tall
+        probe = """(name) => { DOCENT_FRAME(0); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+          prop(name, 960, 800, 1); const d = ctx.getImageData(0, 0, W, H).data; let top = H, bot = 0;
+          for (let y = 0; y < H; y++) for (let x = 600; x < 1320; x += 2) { const i = (y * W + x) * 4; if (d[i] + d[i + 1] + d[i + 2] < 200) { top = Math.min(top, y); bot = Math.max(bot, y); } }
+          return [top, bot]; }"""
+        for name, tall in (('plane', 160), ('dna', 160), ('diary', 160)):
+            top, bot = self.run_js(probe, name)
+            self.assertAlmostEqual(bot - top, tall, delta=0.25 * tall, msg=(name, top, bot))
+            self.assertLess(abs(bot - 800), 0.25 * tall, (name, bot))   # it stands on y (a ribbon may hang a little below)
+
+
 if __name__ == '__main__':
     unittest.main()

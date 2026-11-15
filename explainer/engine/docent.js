@@ -802,9 +802,10 @@ function animal(kind, x, y, o = {}) {
   return anc;
 }
 // Asset gallery: every cast look, animal and prop on one labelled sheet, for review before a scene uses them
-// (make-docent-book §4 gate; tools/gallery.py renders it). kind: 'cast' | 'animals' | 'props' | 'figures'.
+// (make-docent-book §4 gate; tools/gallery.py renders it). kind: 'cast' | 'animals' | 'props' | 'figures' | 'poses'.
 function docentGallery(kind, page = 0) {
-  const items = kind === 'cast' ? Object.keys(CAST) : kind === 'animals' ? Object.keys(ANIMALS) : kind === 'props' ? Object.keys(PROPS) : ['short', 'spiky', 'curly', 'long', 'bun', 'ponytail', 'side', 'bald'];
+  const items = kind === 'cast' ? Object.keys(CAST) : kind === 'animals' ? Object.keys(ANIMALS) : kind === 'props' ? Object.keys(PROPS)
+    : kind === 'poses' ? Object.keys(POSES) : ['short', 'spiky', 'curly', 'long', 'bun', 'ponytail', 'side', 'bald'];
   const per = 8, cols = 4, list = items.slice(page * per, page * per + per);   // wide props (ship, stadium) need a 473 px cell
   list.forEach((id, i) => {
     const cy = i < cols ? 460 : 880;
@@ -812,6 +813,7 @@ function docentGallery(kind, page = 0) {
     if (kind === 'cast') person(id, x, cy - 40, { s: 0.85, tag: true });
     else if (kind === 'animals') animal(id, x, cy - 60, { s: 0.62 });
     else if (kind === 'props') prop(id, x, cy - 90, 0.75);
+    else if (kind === 'poses') figure(x, cy - 40, { s: 0.85, pose: id, sit: id.startsWith('desk') });   // the desk poses are seated
     else figure(x, cy - 40, { s: 0.85, hair: id, accent: ['red', 'blue', 'green', 'orange', 'teal', 'magenta', 'yellow', 'grey'][i], outfit: ['suit', 'dress', 'tshirt', 'coat'][i % 4] });
     hand(id, x, cy - 10, { size: 34, color: C.dim });
   });
@@ -2130,6 +2132,203 @@ function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w,
     inkPath(MAP(P, [[-50, -112], [-42, -106], [-47, -96]]), ln(D, 0.45));                 // a crack
   };
 })();
+
+// ---------- library additions: research run 4 (the letter at the Stoic level), 2026-11-15 ----------
+// Drawn by the probe authors of run 4 (p03 어린 왕자, p05 이기적 유전자, p07 군주론, p09 사피엔스, p10 안네의 일기) in
+// their scenes.js, read by a blind reviewer, then moved here with the misreads the reviews named fixed: every animal
+// draws its body and head first (the p05 fox was a headless sausage and the p07 lion two loose arcs 0.5 s after the
+// cut), the monkey is line art (its solid ink coat was the only filled mass in its clip) and takes a banana and a
+// stern face as options, the helix is wider with more rungs (70 px of it did not read on a phone), the diary has a
+// ribbon, a strap and written lines (an open book alone reads as any book). Ink mode as the 총균쇠 block: bodies fill
+// with the page (o.fill, or the page under solid: true), marks are ink. Animals follow the ANIMALS contract (T(), q(k):
+// body q(0), head q(1), legs q(2), tail q(3), details q(4)); props take (x, y) = bottom centre and s = 1 ≈ 160 px tall
+// and draw their body first, their details after.
+(() => {
+  const pv = (o) => (o.p == null ? 1 : o.p);
+  const st = (o, a, b) => ({ ...o, p: clamp01((pv(o) - a) / (b - a)) });   // a staged draw-on window of the prop's p
+  const fl = (o, c) => (o.paperFill ? null : o.fill) || c;
+  const dotA = (o, k) => (o.a ?? 1) * clamp01(k * 2);
+
+  // fox, side view (p05, p07): tall pointed ears with dark insides, a long thin snout with a black nose, a slim body,
+  // dark socks, a bushy tail held low with a pale tip. o.run: 1 flings the legs out (running).
+  ANIMALS.fox = (T, o, q) => {
+    const f = o.fill || opaqueMix(C.orange, 0.5), s = o.s, dark = o.color || INK();
+    inkPath([T(-78, -92), T(-150, -118), T(-226, -96), T(-262, -66), T(-236, -50), T(-170, -54), T(-104, -66)], { ...o, closed: true, round: 2, p: q(3), fill: f });
+    inkCurve(T(-214, -100), T(-226, -76), T(-208, -52), { ...o, p: q(3), w: o.w * 0.8 });   // the pale tip's edge
+    const legs = o.run ? [[-70, -64, 1], [62, 60, 1], [-44, -76, 0], [84, 72, 0]] : [[-60, 0, 1], [56, 0, 1], [-36, 0, 0], [80, 0, 0]];
+    for (const [lx, sw, far] of legs) {   // [hip x, swing, far side]: thin legs with dark socks
+      inkPath([T(lx - 9, -84), T(lx + sw * 0.5 - 8, -34), T(lx + sw - 8, 0), T(lx + sw + 8, 0), T(lx + sw * 0.5 + 8, -34), T(lx + 9, -84)], { ...o, closed: true, p: q(2), fill: far ? opaqueMix(C.dim, 0.35) : f });
+      inkPath([T(lx + sw * 0.5 - 8, -34), T(lx + sw - 8, 0), T(lx + sw + 8, 0), T(lx + sw * 0.5 + 8, -34)], { ...o, closed: true, p: q(2), fill: dark, w: o.w * 0.6 });
+    }
+    inkEllipse(...T(0, -98), 96 * s, 34 * s, { ...o, p: q(0), fill: f });                       // the slim body
+    inkPath([T(70, -112), T(74, -150), T(80, -196), T(102, -156), T(114, -158), T(124, -200), T(134, -150), T(196, -116), T(150, -102), T(98, -96)],
+      { ...o, closed: true, p: q(1), fill: f });                                                   // head, snout and the two tall ears
+    for (const [a, b, c] of [[T(80, -184), T(84, -158), T(96, -160)], [T(122, -188), T(116, -160), T(128, -158)]])
+      inkPath([a, b, c], { ...o, closed: true, p: q(4), fill: dark, w: o.w * 0.5 });             // dark inner ears
+    inkCurve(T(150, -104), T(116, -96), T(96, -70), { ...o, p: q(4), w: o.w * 0.7 });             // the pale cheek and chest
+    const n = T(196, -117); disc(n[0], n[1], 7 * s, dark, dotA(o, q(4)));
+    inkLine(...T(128, -134), ...T(144, -128), { ...o, p: q(4), w: o.w * 0.9 });                   // a narrow slanted eye
+    return { head: T(124, -130), r: 40 * s, mouth: T(180, -108), top: T(124, -200) };
+  };
+  // lion, side view (p07): a jagged mane ring with strands, a broad muzzle, heavy legs, a tail with a dark tuft.
+  // o.mood: 'sad' (a downturned mouth: caught), 'roar' (an open mouth), else a calm smile.
+  ANIMALS.lion = (T, o, q) => {
+    const f = o.fill || opaqueMix(C.yellow, 0.45), s = o.s, dark = o.color || INK();
+    inkCurve(T(-118, -120), T(-200, -70), T(-206, -150), { ...o, p: q(3), w: o.w * 1.1 });      // the tail
+    inkEllipse(...T(-206, -160), 13 * s, 17 * s, { ...o, p: q(3), fill: dark });                 // its dark tuft
+    for (const [k, lx] of [-62, 92, -100, 54].entries())                                         // far legs, then near legs
+      inkPath([T(lx - 17, -96), T(lx - 17, -6), T(lx - 21, 0), T(lx + 21, 0), T(lx + 17, -6), T(lx + 17, -96)], { ...o, closed: true, round: 1, p: q(2), fill: k < 2 ? opaqueMix(C.dim, 0.35) : f });
+    inkEllipse(...T(-8, -122), 126 * s, 54 * s, { ...o, p: q(0), fill: f });                    // the body
+    const [mx, my] = T(118, -176), N = 22, mane = [];                                             // the mane: a jagged ring
+    for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, r = (i % 2 ? 70 : 88) * s; mane.push([mx + Math.cos(a) * r * o.dir, my + Math.sin(a) * r]); }
+    inkPath(mane, { ...o, closed: true, p: q(1), fill: f, jit: 1.2 });
+    for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 + 0.3, r0 = 50 * s, r1 = 66 * s;   // its strands
+      inkLine(mx + Math.cos(a) * r0 * o.dir, my + Math.sin(a) * r0, mx + Math.cos(a) * r1 * o.dir, my + Math.sin(a) * r1, { ...o, p: q(1), w: o.w * 0.6 }); }
+    inkCircle(...T(124, -176), 46 * s, { ...o, p: q(1), fill: f });                               // the face
+    inkEllipse(...T(150, -160), 26 * s, 18 * s, { ...o, p: q(1), fill: f });                      // the muzzle
+    inkPath([T(160, -176), T(176, -176), T(168, -164)], { ...o, closed: true, p: q(4), fill: dark, w: o.w * 0.7 });   // the nose
+    const e = T(134, -192); disc(e[0], e[1], 5.5 * s, dark, dotA(o, q(4)));
+    if (o.mood === 'sad') inkArc(...T(152, -140), 12 * s, 7 * s, Math.PI * 1.15, Math.PI * 1.85, { ...o, p: q(4), w: o.w * 0.7 });
+    else if (o.mood === 'roar') inkEllipse(...T(158, -142), 11 * s, 9 * s, { ...o, p: q(4), fill: dark, w: o.w * 0.7 });
+    else inkArc(...T(156, -150), 10 * s, 6 * s, Math.PI * 0.15, Math.PI * 0.85, { ...o, p: q(4), w: o.w * 0.7 });
+    return { head: T(124, -176), r: 80 * s, mouth: T(170, -150), top: T(118, -266) };
+  };
+  // wolf, side view (p07): bigger than the fox, long legs, upright ears, a deep muzzle with the jaw open and pale fangs,
+  // raised hackles, a jagged neck ruff, a tail hanging low (a closed narrow snout read as a big fox at Gate A).
+  ANIMALS.wolf = (T, o, q) => {
+    const f = o.fill || opaqueMix(C.grey, 0.6), s = o.s, dark = o.color || INK(), pale = C.paper || '#ffffff';
+    inkPath([T(-118, -150), T(-152, -120), T(-168, -60), T(-150, -44), T(-132, -86), T(-110, -128)], { ...o, closed: true, round: 2, p: q(3), fill: f });   // the tail
+    for (const [k, lx] of [-70, 84, -100, 52].entries())
+      inkPath([T(lx - 13, -112), T(lx - 11, -6), T(lx - 16, 0), T(lx + 16, 0), T(lx + 11, -6), T(lx + 13, -112)], { ...o, closed: true, round: 1, p: q(2), fill: k < 2 ? opaqueMix(C.dim, 0.35) : f });
+    inkPath([T(-130, -146), T(-60, -178), T(40, -176), T(100, -160), T(110, -120), T(60, -102), T(-60, -104), T(-124, -116)], { ...o, closed: true, round: 2, p: q(0), fill: f });   // body, high shoulders
+    for (let i = 0; i < 5; i++) inkLine(...T(-70 + i * 26, -176 + Math.abs(i - 2) * 1.5), ...T(-60 + i * 26, -194 + Math.abs(i - 2) * 1.5), { ...o, p: q(3), w: o.w * 0.6 });   // hackles
+    const ruff = []; for (let i = 0; i <= 8; i++) ruff.push(T(i % 2 ? 66 : 50, -186 + i * 12));
+    inkPath(ruff, { ...o, p: q(3), w: o.w * 0.8 });                                                // the jagged neck ruff
+    inkPath([T(62, -204), T(76, -262), T(100, -218), T(116, -264), T(136, -216), T(176, -206), T(228, -194), T(234, -176), T(226, -170),
+      T(176, -164), T(212, -150), T(204, -140), T(150, -136), T(96, -146), T(64, -172)], { ...o, closed: true, p: q(1), fill: f });   // head, deep muzzle, open jaw
+    inkPath([T(226, -170), T(176, -164), T(212, -150)], { ...o, closed: true, p: q(4), fill: dark, w: o.w * 0.6 });   // the open mouth
+    for (const u of [0.2, 0.5, 0.8]) { const [ax, ay] = T(226 - u * 50, -170 + u * 6), [bx, by] = T(222 - u * 50, -160 + u * 6);
+      inkPath([[ax - 5 * s * o.dir, ay], [ax + 5 * s * o.dir, ay], [bx, by]], { ...o, closed: true, p: q(4), fill: pale, color: pale, w: o.w * 0.3 }); }   // fangs
+    const n = T(232, -186); disc(n[0], n[1], 10 * s, dark, dotA(o, q(4)));
+    inkLine(...T(124, -222), ...T(150, -208), { ...o, p: q(4), w: o.w * 1.1 });                   // the angry brow
+    const e = T(140, -202); disc(e[0], e[1], 6 * s, dark, dotA(o, q(4)));
+    return { head: T(140, -190), r: 56 * s, mouth: T(214, -160), top: T(116, -266) };
+  };
+  // a banana (the monkey's): a fat crescent, a stem at the left end, a dark tip, one ridge (a thin crescent read as a
+  // pea pod or a moon at Gate A); s = 1 ≈ 170 px long, (x, y) = bottom centre
+  const banana = (x, y, s, o, dir = 1, rot = 0) => {
+    const c = Math.cos(rot), n = Math.sin(rot), P = (u, v) => { const X = u * s * dir, Y = v * s; return [x + X * c - Y * n, y + X * n + Y * c]; };
+    inkPath([P(-80, -50), P(-52, -20), P(-16, -4), P(22, -4), P(56, -20), P(82, -48), P(76, -56), P(50, -40), P(18, -32), P(-14, -32), P(-46, -42), P(-72, -60)],
+      { ...o, closed: true, round: 2, fill: opaqueMix(C.yellow, 0.6) });
+    inkPath([P(-76, -56), P(-84, -74), P(-94, -78)], { ...o, w: o.w * 1.8 });
+    const tp = P(80, -52); disc(tp[0], tp[1], 5 * s, o.color || INK(), dotA(o, (o.p ?? 1) - 0.5));
+    inkPath([P(-56, -34), P(-16, -18), P(24, -18), P(58, -32)], { ...o, w: o.w * 0.45 });
+  };
+  // a limb as a closed tube round a polyline of screen points, half-width r px (filled with the coat, outlined in ink)
+  const tube = (pts, r) => {
+    const L = [], R = [];
+    pts.forEach(([x, y], i) => {
+      const [ax, ay] = pts[Math.max(0, i - 1)], [bx, by] = pts[Math.min(pts.length - 1, i + 1)], d = Math.hypot(bx - ax, by - ay) || 1;
+      const nx = -(by - ay) / d * r, ny = (bx - ax) / d * r; L.push([x + nx, y + ny]); R.push([x - nx, y - ny]);
+    });
+    return [...L, ...R.reverse()];
+  };
+  // monkey, sitting, three-quarter view (p09): big round ears on both sides of the head, a pale heart-shaped face with a
+  // muzzle, long arms, knees up, a long tail curling at the tip; s = 1 ≈ 300 px tall. Line art: the coat is the page
+  // (p09's solid ink coat was the heaviest mass in its clip). o.banana: true holds a banana to the chest in both arms;
+  // o.mood: 'stern' presses the mouth flat under lowered brows, the eyes turned aside (won't hand it over), else a smile.
+  ANIMALS.monkey = (T, o, q) => {
+    const coat = o.fill || opaqueMix(C.orange, 0.35), pale = C.paper || '#ffffff', dark = o.color || INK(), s = o.s, R = { ...o, round: 2 };
+    const limb = (pts, r, k) => inkPath(tube(pts.map(([u, v]) => T(u, v)), r * s), { ...R, closed: true, p: q(k), fill: coat });
+    inkPath([T(-40, -24), T(-100, -18), T(-150, -40), T(-172, -92), T(-160, -136), T(-126, -146), T(-108, -124), T(-120, -100), T(-138, -106)],
+      { ...o, p: q(3), w: o.w * 1.7 });                                                             // the tail, curling at its tip
+    inkEllipse(...T(6, -100), 66 * s, 86 * s, { ...o, p: q(0), fill: coat });                      // the sitting body
+    inkEllipse(...T(10, -96), 36 * s, 54 * s, { ...o, p: q(0), fill: pale, w: o.w * 0.6 });       // the pale belly
+    for (const ex of [-50, 80]) { inkCircle(...T(ex, -222), 26 * s, { ...o, p: q(1), fill: coat }); inkCircle(...T(ex, -222), 13 * s, { ...o, p: q(1), fill: pale, w: o.w * 0.5 }); }
+    inkCircle(...T(15, -222), 62 * s, { ...o, p: q(1), fill: coat });                              // the head
+    for (const k of [-1, 0, 1]) inkLine(...T(15 + k * 16, -282), ...T(15 + k * 22, -298), { ...o, p: q(1), w: o.w * 0.7 });   // a tuft on top
+    inkPath([T(15, -236), T(0, -262), T(-22, -260), T(-34, -236), T(-30, -206), T(-14, -180), T(15, -170), T(44, -180), T(60, -206), T(64, -236), T(52, -260), T(30, -262)],
+      { ...R, closed: true, p: q(1), fill: pale, w: o.w * 0.8 });                                   // the heart-shaped face
+    for (const [hip, knee, foot] of [[[-24, -46], [-58, -78], [-50, -6]], [[34, -46], [72, -78], [62, -6]]]) {   // knees up, feet in front
+      limb([hip, knee, foot], 15, 2);
+      inkEllipse(...T(foot[0] + 6, -8), 20 * s, 9 * s, { ...o, p: q(2), fill: coat });
+    }
+    const a4 = dotA(o, q(4)), look = o.mood === 'stern' ? 5 * o.dir : 0;
+    for (const ex of [0, 32]) { const e = T(ex, -228); disc(e[0] + look * s, e[1], 6.5 * s, dark, a4); }
+    for (const nx of [10, 22]) { const n = T(nx, -204); disc(n[0], n[1], 2.6 * s, dark, a4); }
+    if (o.mood === 'stern') {
+      inkLine(...T(2, -194), ...T(30, -194), { ...o, p: q(4), w: o.w * 0.8 });                    // the mouth pressed flat
+      inkLine(...T(-12, -246), ...T(10, -240), { ...o, p: q(4), w: o.w * 0.8 }); inkLine(...T(44, -246), ...T(22, -240), { ...o, p: q(4), w: o.w * 0.8 });   // brows down
+    } else inkArc(...T(16, -196), 20 * s, 9 * s, 0.15 * Math.PI, 0.85 * Math.PI, { ...o, p: q(4), w: o.w * 0.6 });
+    if (o.banana) {   // held up across the chest, rising to the front: an arm under its middle, a hand over its tip
+      banana(...T(10, -84), 0.7 * s, { ...o, p: q(2), w: o.w * 0.9 }, o.dir, -0.6 * o.dir);
+      limb([[-44, -150], [-58, -112], [-10, -94]], 12, 2);
+      limb([[60, -152], [80, -128], [42, -136]], 12, 2);
+    } else {          // the long arms down to the knees
+      limb([[-46, -150], [-66, -112], [-60, -84]], 12, 2);
+      limb([[58, -152], [80, -114], [74, -86]], 12, 2);
+    }
+    return { head: T(15, -222), r: 64 * s, mouth: T(16, -192), top: T(15, -298), half: 190 };
+  };
+
+  // a small biplane, side view, nose to the right (p03): fuselage, tail fin, two wings with struts and a bracing wire, a
+  // wheel, a propeller; s = 1 ≈ 160 px tall, 365 px long. o.crash: tilted nose-down, the propeller bent in the sand
+  // (the wheel still on the ground).
+  PROPS.plane = (x, y, s, o) => {
+    const k = s * 0.865, ang = o.crash ? 0.2 : 0, cs = Math.cos(ang), sn = Math.sin(ang), lift = o.crash ? -16 : 0;
+    const M = (u, v) => [x + (u * cs - v * sn) * k, y + (u * sn + v * cs + lift) * k], P = (pts) => pts.map(([u, v]) => M(u, v));
+    const E = (cu, cv, ru, rv) => { const pts = []; for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; pts.push([cu + Math.cos(a) * ru, cv + Math.sin(a) * rv]); } return P(pts); };
+    const fill = fl(o, PAPER()), A = st(o, 0, 0.45), B = st(o, 0.25, 0.7), D = st(o, 0.5, 1);
+    inkPath(P([[-190, -92], [-224, -164], [-182, -164], [-140, -104]]), { ...A, closed: true, fill });   // the tail fin
+    inkPath(P([[-200, -92], [-80, -112], [150, -112], [186, -102], [186, -48], [150, -38], [-80, -40], [-200, -74]]), { ...A, closed: true, fill });   // fuselage
+    inkPath(E(-185, -80, 46, 7), { ...A, closed: true, fill });                                  // tailplane
+    inkPath(E(60, -174, 150, 11), { ...B, closed: true, fill });                                 // the upper wing
+    inkPath(E(50, -40, 128, 10), { ...B, closed: true, fill });                                  // the lower wing
+    inkPath(P([[-30, -112], [-18, -134], [0, -134], [6, -112]]), { ...D, w: o.w * 0.8 });        // windscreen
+    inkLine(...M(-10, -164), ...M(-10, -48), { ...D, w: o.w * 0.8 }); inkLine(...M(120, -164), ...M(120, -48), { ...D, w: o.w * 0.8 });   // struts
+    inkLine(...M(-10, -164), ...M(120, -48), { ...D, w: o.w * 0.45 });                         // the bracing wire
+    inkLine(...M(40, -40), ...M(62, -18), { ...D, w: o.w * 0.8 }); inkLine(...M(84, -40), ...M(62, -18), { ...D, w: o.w * 0.8 });
+    inkPath(E(62, -18, 18, 18), { ...D, closed: true, fill });                                   // the wheel
+    inkPath(E(192, -75, 9, 9), { ...D, closed: true, fill: fl(o, INK()) });                     // the hub
+    inkPath(P(o.crash ? [[196, -150], [194, -75], [186, -24]] : [[197, -150], [197, 0]]), { ...D, w: o.w * 1.5 });   // the propeller
+  };
+  // a DNA double helix standing upright (p05): two strands twisting round each other two full turns, rungs between
+  // them; s = 1 ≈ 160 px tall, 76 px wide (the p05 helix, 52 px wide, did not read at 70 px tall: keep s ≥ 0.8).
+  PROPS.dna = (x, y, s, o) => {
+    const H = 160 * s, R = 38 * s, turns = 2, n = 48, A = [], B = [], w = o.w || 4;
+    for (let i = 0; i <= n; i++) { const u = i / n, a = u * turns * Math.PI * 2, yy = y - u * H; A.push([x + R * Math.sin(a), yy]); B.push([x - R * Math.sin(a), yy]); }
+    inkPath(A, { ...st(o, 0, 0.55), w: w * 1.3, jit: 0.5 }); inkPath(B, { ...st(o, 0.1, 0.65), w: w * 1.3, jit: 0.5 });
+    const S = st(o, 0.45, 1);
+    for (let i = 2; i < n; i += 3) if (Math.abs(A[i][0] - B[i][0]) > 8 * s) inkLine(A[i][0], A[i][1], B[i][0], B[i][1], { ...S, w: w * 0.7, jit: 0.3 });
+  };
+  // a diary, open (p10): two pages in a checked cover (Anne Frank's autograph book), a ribbon bookmark from the spine, a
+  // strap with a small lock hanging off the right edge, and o.lines handwritten lines on each page (default 3; 0 for
+  // blank pages to write a word on); s = 1 ≈ 160 px tall, 230 px wide.
+  PROPS.diary = (x, y, s, o) => {
+    const k = s * 0.66, w = 300 * k, h = 200 * k, L = x - w / 2, T = y - 12 * k - h, c = 12 * k, ow = o.w || 4;
+    const A = st(o, 0, 0.45), B = st(o, 0.3, 0.75), D = st(o, 0.55, 1), fill = fl(o, PAPER());
+    inkRect(L - c, T - c, w + 2 * c, h + 2 * c, { ...A, fill });                                   // the cover
+    inkRect(L, T, w / 2, h, { ...A, fill: fl(o, C.paper || PAPER()) }); inkRect(x, T, w / 2, h, { ...A, fill: fl(o, C.paper || PAPER()) });   // the pages
+    for (let i = 1; i < 12; i++) { const cx = L - c + (i / 12) * (w + 2 * c);                       // its checks
+      inkLine(cx, T - c, cx, T, { ...B, w: ow * 0.5 }); inkLine(cx, T + h, cx, T + h + c, { ...B, w: ow * 0.5 }); }
+    inkPath([[x - 6 * k, T + h], [x - 8 * k, T + h + 52 * k], [x, T + h + 42 * k], [x + 8 * k, T + h + 52 * k], [x + 6 * k, T + h]], { ...B, closed: true, fill: fl(o, INK()) });   // ribbon
+    const sx = L + w + c;                                                                           // the strap and its lock
+    inkPath([[sx, T + h * 0.38], [sx + 34 * k, T + h * 0.38], [sx + 34 * k, T + h * 0.62], [sx, T + h * 0.62]], { ...B, closed: true, fill });
+    inkRect(sx + 26 * k, T + h * 0.42, 18 * k, h * 0.16, { ...B, fill: fl(o, INK()) });
+    const n = o.lines ?? 3;
+    for (let pg = 0; pg < 2; pg++) for (let i = 0; i < n; i++) {                                     // the handwriting: wavy lines
+      const x0 = (pg ? x : L) + 20 * k, x1 = x0 + w / 2 - 40 * k - (i === n - 1 ? 50 * k : 0), yy = T + (40 + i * 44) * k, pts = [];
+      for (let j = 0; j <= 16; j++) { const u = j / 16; pts.push([x0 + (x1 - x0) * u, yy + Math.sin(u * 22 + i + pg * 3) * 3 * k]); }
+      inkPath(pts, { ...st(D, (pg * n + i) / (2 * n), (pg * n + i + 1) / (2 * n)), w: ow * 0.55, jit: 0.3 });
+    }
+  };
+})();
+// Poses from the run-4 probes: a hand down to something at the feet (p03, the box at the prince's feet), and both
+// arms out and down to the sides, hands meeting a neighbour's (p09: figures at s 1 spaced 180 px join hands).
+Object.assign(POSES, {
+  reachDown: { la: [[-18, 52], [-28, 108]], ra: [[48, 44], [96, 98]] },
+  linked: { la: [[-46, 44], [-90, 72]], ra: [[46, 44], [90, 72]] },
+});
 
 // ---------- letter concept places (CONCEPTS 'Pictures', 2026-11-14) ----------
 // The letter concept's places, so every letter video starts in the same room every chapter instead of a bare desk:
