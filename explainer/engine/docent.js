@@ -65,15 +65,36 @@ function docentIsColour(c) {
   if (bgSpread < 18) return true;
   const dh = Math.abs(docentHue(v) - docentHue(bg)); return Math.min(dh, 360 - dh) > 25;
 }
-function docentDark(c) { const v = docentRGBA(c); return !!v && Math.max(v[0], v[1], v[2]) < 96 && v[3] > 0.5; }   // hair, a black ball, ink
 function docentSame(c, role) { const a = docentRGBA(c), b = docentRGBA(role); return !!(a && b) && Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 24; }
+// Ink mode paints two tones only: the ink and the page. Which one a paint becomes ('ink' | 'page'; null: it already is
+// one, or it is fully see-through, and stays as it is); a half see-through line or letter keeps its alpha in its new
+// tone, so a faint line stays faint, while a fill becomes the solid tone, so a paper, a window or a picture still hides
+// what is behind it (docentPatchCtx). A fill is ink when it is ink-dark (hair, a black ball, a dark
+// mane: every channel on the ink's side of the page), else the page; a line or a letter is the page when it is
+// page-pale (a white blaze, an ivory highlight: every channel about as light as the page's), else ink. Until
+// 2026-11-15 a dark fill kept its own colour and a pale neutral line kept its cream, so the kit horse kept a brown mane
+// and a cream blaze in a "colour": false project (총균쇠 Gate C, zebra:3, 7, 8, 12, 21). On a dark page (mono-black)
+// the ink is light: a fill is ink only when it is the ink itself (white hair), and 'page-pale' means every channel dark.
+function docentToneOf(c, line) {
+  const v = docentRGBA(c);
+  if ((v && v[3] === 0) || docentSame(c, INK()) || docentSame(c, PAPER())) return null;
+  const pg = docentRGBA(PAPER()), ik = docentRGBA(INK());
+  if (!v || !pg || !ik) return line ? 'ink' : 'page';   // a gradient or a pattern
+  const hi = (x) => Math.max(x[0], x[1], x[2]), lo = (x) => Math.min(x[0], x[1], x[2]), light = hi(pg) > hi(ik);
+  if (line) return !docentIsColour(c) && (light ? lo(v) >= lo(pg) - 24 : hi(v) <= hi(pg) + 24) ? 'page' : 'ink';
+  if (v[3] <= 0.5 || !light) return 'page';
+  return hi(v) < hi(pg) - 0.645 * (hi(pg) - hi(ik)) ? 'ink' : 'page';   // ink-dark: every channel under 96 on the sketch page
+}
 function docentPatchCtx() {
   ctx.__docentInk = true;
   const wrap = (fn, prop, asInk) => function (...args) {
     const keep = this[prop]; let swapped = false;
-    if (DOCENT_INK > 0) {
-      // ink fills stay ink (white ink on mono-black); any other light or coloured fill becomes the page
-      if (asInk ? docentIsColour(keep) : !docentDark(keep) && !docentSame(keep, PAPER()) && !docentSame(keep, INK())) { this[prop] = asInk ? INK() : PAPER(); swapped = true; }
+    if (DOCENT_INK > 0) {   // every paint is the ink or the page (docentToneOf)
+      const tone = docentToneOf(keep, asInk);
+      if (tone) {
+        const role = tone === 'ink' ? INK() : PAPER(), v = docentRGBA(keep), r = docentRGBA(role);
+        this[prop] = asInk && v && r && v[3] < 1 ? `rgba(${r[0]},${r[1]},${r[2]},${v[3]})` : role; swapped = true;
+      }
     } else if (!DOCENT.ghostOk && !DOCENT.measure && this.globalAlpha > 0.05 && !docentColourful()) {
       if (docentSame(keep, MARK()) && !DOCENT.inMark) DOCENT.redInk = true;   // a red line drawn by hand is a mark too
       else if (docentIsColour(keep) && !docentSame(keep, KEY()) && !docentSame(keep, MARK())) {
@@ -395,7 +416,9 @@ const POSES = {
 };
 // Looks (all optional, combine freely; use cast() to fix one look per person):
 //   hair: 'short' | 'spiky' | 'curly' | 'long' | 'bun' | 'ponytail' | 'side' | 'bald'  (true = 'long', the old look)
-//   beard, mustache: true;  glasses: true | 'round' | 'square';  hat: true | 'top' | 'cap' | 'beanie' | 'bowler'
+//   beard, mustache: true;  glasses: true | 'round' | 'square'
+//   hat: true | 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel' | 'morion' (the conquistador helmet; the hair
+//   under it draws as a short cap)
 //   outfit: 'suit' | 'dress' | 'coat' | 'tshirt';  accent: a colour role ('red', 'blue', 'green', …) for tie/outfit/cap
 //   h: height scale (0.8 short … 1.15 tall);  tag: a name written above the head (first appearance)
 // Returns anchors for bubbles and layout: { head: [x, y], r, mouth: [x, y], top, hands: [[x,y],[x,y]], box, dir }.
@@ -413,7 +436,7 @@ function figure(x, y, o = {}) {
   const hip = sit ? [0, -100] : [0, -122], sh = [0, -228 + slump], neck = [0, -246 + slump];
   const head = [slump * 0.6, -292 + slump * 1.4], hr = 44;
   const hc = F(...head), R = hr * s, dir = flip ? -1 : 1;
-  const hatH = { top: 2.2, true: 2.2, bowler: 1.3, cap: 1.5, beanie: 1.5, crown: 1.75, laurel: 1.2 }, hairH = { bun: 1.6, spiky: 1.45, curly: 1.32, ponytail: 1.25, long: 1.25, short: 1.25, side: 1.25 };
+  const hatH = { top: 2.2, true: 2.2, bowler: 1.3, cap: 1.5, beanie: 1.5, crown: 1.75, laurel: 1.2, morion: 2.62 }, hairH = { bun: 1.6, spiky: 1.45, curly: 1.32, ponytail: 1.25, long: 1.25, short: 1.25, side: 1.25 };
   const topY = hc[1] - R * (hat ? (hatH[hat] || 2.2) : (hair && hair !== 'bald' ? (hairH[hair === true ? 'long' : hair] || 1.25) : 1.05));
   const anchors = { head: hc, r: R, mouth: [hc[0] + dir * R * 0.15, hc[1] + R * 0.4], top: [hc[0], topY], dir,
     brim: hat === 'cap' ? dir : 0,   // a cap's brim reaches 1.7 R on the facing side: say() keeps upper bubbles off that side
@@ -439,7 +462,8 @@ function figure(x, y, o = {}) {
     const n = F(...neck), hp = F(...hip), tb = withM([Math.min(n[0], hp[0]) - 26 * s, n[1], Math.max(n[0], hp[0]) + 26 * s, hp[1]]);
     if (clamp01((p * 6 - 1) / 1.4) > 0.5) DOCENT.torsos.push([...scr(tb), DOCENT.seq]); }
   DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
-  DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|') });
+  DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|'),
+    look: { hair: hair === true ? 'long' : hair || null, hat: hat === true ? 'top' : hat || null, beard: !!beard, glasses: !!glasses, helmet: !!helmet, shell: !!shell } });   // lint cast-lookalike
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
   const ph = (k, n) => clamp01((p * n - k) / 1.4);   // staged draw-on: head, body, arms, legs, face
   const lw = w * Math.max(0.7, Math.sqrt(s));
@@ -491,7 +515,8 @@ function figure(x, y, o = {}) {
     arm(P.la, 0); arm(P.ra, 1);
     // hair behind the head (long, ponytail)
     const hp = ph(0.3, 6);
-    const style = hair === true ? 'long' : hair;
+    const style0 = hair === true ? 'long' : hair;
+    const style = hat === 'morion' && style0 && style0 !== 'bald' ? 'short' : style0;   // spikes or a bun would poke out round the dome
     if (style === 'long') for (const side of [-1, 1]) inkPath([[hc[0] + side * R * 0.2, hc[1] - R * 1.0], [hc[0] + side * R * 1.25, hc[1] - R * 0.5], [hc[0] + side * R * 1.2, hc[1] + R * 1.15], [hc[0] + side * R * 0.7, hc[1] + R * 1.1]], { p: hp, w: lw * 0.8, fill: ink, fillA: 0.85, closed: true, color: ink });
     if (style === 'ponytail') inkCurve([hc[0] - dir * R * 0.7, hc[1] - R * 0.6], [hc[0] - dir * R * 1.9, hc[1] - R * 0.2], [hc[0] - dir * R * 1.4, hc[1] + R * 1.0], { p: hp, w: lw * 2.2, color: ink });
     // head: filled a shade lighter than the page so it reads as a face, not a hole (2026-11-10 review: 'unfilled heads')
@@ -537,6 +562,7 @@ function figure(x, y, o = {}) {
         inkPath(pts, { closed: true, w: lw * 0.7, fill: C.yellow || acc || ink, color: ink }); for (const k of [-1, 0, 1]) inkCircle(hc[0] + k * R * 0.41, b - R * 0.2, R * 0.08, { w: 1, fill: C.red || ink, color: C.red || ink }); }
       if (hatStyle === 'laurel') for (const d of [-1, 1]) for (let i = 0; i < 5; i++) { const ang = Math.PI * (1.5 + d * (0.08 + i * 0.085)), lx = hc[0] + Math.cos(ang) * R * 1.0, ly = hc[1] + Math.sin(ang) * R * 1.0;
         inkEllipse(lx, ly, R * 0.2, R * 0.1, { w: lw * 0.4, fill: C.green || acc || ink, color: ink, start: ang }); }
+      if (hatStyle === 'morion') docentMorion(hc[0], hc[1], R, lw, ink);
       if (hatStyle === 'bowler') { inkArc(hc[0], hc[1] - R * 0.5, R * 0.85, R * 0.75, Math.PI, Math.PI * 2, { w: lw * 0.8, fill: ink, color: ink, closed: true }); inkLine(hc[0] - R * 1.25, hc[1] - R * 0.5, hc[0] + R * 1.25, hc[1] - R * 0.5, { w: lw * 1.2, color: ink }); }
       if (helmet) {   // Greek helmet: cap over the top of the head and a red crest
         inkArc(hc[0], hc[1], (hr + 4) * s, (hr + 4) * s, Math.PI * 1.02, Math.PI * 1.98, { w: lw * 1.1, color: ink });
@@ -549,6 +575,26 @@ function figure(x, y, o = {}) {
   });
   if (o.ghostOk) DOCENT.ghostOk--;
   return anchors;
+}
+// The morion, the Spanish conquistador helmet (hat: 'morion'; 총균쇠, 2026-11-15): a steel dome, a tall solid half-disc
+// comb on top, and a brim seen from the front, rising to a point over the brow and turning up again at both ends. In
+// three blind tests a side-on brim curling up at both ends read as a cowboy hat and a peaked brim with a crest stub as a
+// Roman helmet; this one was named "morion" at first glance. Drawn from the head's centre in head radii R: the comb
+// rises 2.55 R above it (figure() puts the top and the box at 2.62 R), the brim reaches 1.7 R to each side.
+function docentMorion(hx, hy, R, lw, ink) {
+  const P = (dx, dy) => [hx + dx * R, hy + dy * R], o = { w: lw * 0.85, jit: 0.5, color: ink }, steel = opaqueMix(C.grey, 0.45);
+  const domeY = (u) => -0.4 - 1.2 * Math.max(0, 1 - (u / 0.98) ** 2) ** 0.55;   // the dome: foot -0.4 R, top -1.6 R
+  const dome = []; for (let i = 0; i <= 24; i++) { const u = -0.98 + 1.96 * i / 24; dome.push(P(u, domeY(u))); }
+  inkPath(dome, { ...o, closed: true, fill: steel });
+  const cb = domeY(0.55), ch = cb + 2.55, comb = [];   // the comb: a half-disc on the crown, top -2.55 R
+  for (let i = 0; i <= 20; i++) { const t = Math.PI * (1 + i / 20); comb.push(P(Math.cos(t) * 0.55, cb + Math.sin(t) * ch)); }
+  for (let i = 1; i < 10; i++) { const u = 0.55 - 1.1 * i / 10; comb.push(P(u, domeY(u) + 0.04)); }
+  inkPath(comb, { ...o, closed: true, fill: ink });
+  // the brim: its lower edge peaks at -1.03 R over the brow, falls to the sides and flicks up to points at +-1.7 R
+  const low = (u) => -1.03 * (1 - Math.abs(u)) ** 1.3 - 0.3 * Math.max(0, Math.abs(u) - 0.8) / 0.2, high = (u) => low(u) - 0.32 * (1 - u * u), brim = [];
+  for (let i = 0; i <= 24; i++) { const u = -1 + i / 12; brim.push(P(u * 1.7, low(u))); }
+  for (let i = 23; i >= 1; i--) { const u = -1 + i / 12; brim.push(P(u * 1.7, high(u))); }
+  inkPath(brim, { ...o, closed: true, fill: steel });
 }
 // ---------- cast: one fixed look per person ----------
 // cast('musk', { hair: 'short', outfit: 'suit', accent: 'red', name: '머스크' }); person('musk', 600, 880, { pose: 'point' })
@@ -722,7 +768,8 @@ const ANIMALS = {
     inkCircle(...T(120, -170), 56 * o.s, { ...o, p: q(2), fill: f });
     inkPath([T(160, -150), T(186, -100), T(188, -40), T(204, -30), T(208, -46), T(198, -110), T(176, -168)], { ...o, closed: true, p: q(2), fill: f, round: 1 });
     inkPath([T(100, -214), T(60, -200), T(48, -150), T(70, -104), T(104, -112), T(112, -160)], { ...o, closed: true, p: q(3), fill: f, round: 2 });
-    inkCurve(T(150, -130), T(180, -112), T(196, -128), { ...o, p: q(3), color: C.paper || '#ffffff', w: o.w * 1.8 });
+    inkCurve(T(150, -130), T(180, -112), T(196, -128), { ...o, p: q(3), w: o.w * 3.2 });   // the tusk: an ink outline round a pale core,
+    inkCurve(T(150, -130), T(180, -112), T(196, -128), { ...o, p: q(3), color: C.paper || '#ffffff', w: o.w * 1.8 });   // so it stays in ink mode
     const e = T(140, -186); disc(e[0], e[1], 5 * o.s, INK(), o.a * clamp01(q(3) * 2));
     return { head: T(120, -170), r: 56 * o.s, mouth: T(150, -136), top: T(110, -226) };
   },
@@ -1654,6 +1701,428 @@ PROPS.notebook = (x, y, s, o) => {
 // cross() takes the top-left corner (like inkRect) while ring() takes the centre; one author placed every X off its
 // target. crossAt() is the centred one: crossAt(cx, cy, w, h).
 function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w, h, o); }   // a function: a project may redefine it
+
+// ---------- library additions: 총균쇠 (Guns, Germs, and Steel), 2026-11-15 ----------
+// Drawn by the asset authors of the letter video '총균쇠' (40:42, parts/common.js), passed its Gate A gallery and its
+// Gate C reviews, then moved here unchanged (the club is not here: its first blade read as a light bulb). Drawn for ink
+// mode: bodies fill with the page (o.fill, or the page under solid: true), marks are ink, meaning is drawn with lines
+// (hatching, ticks, seeds, wedges). Animals follow the ANIMALS contract (T(), q(k) staged draw-on, anchors { head, r,
+// mouth, top [, half] }); props take (x, y) = bottom centre, s = 1 ≈ 160 px tall unless noted, and draw their body
+// first and their details after (st()). Sizes that differ on purpose: the caravel is small next to the junk at the
+// same s (the junk ≈ 2.4 : 1), the spear is man-high (s = 1 ≈ 330 px), the germ s = 1 ≈ 130 px. The hut is one house
+// type among others, never the only mark of a people (REFERENCE §2). The helpers stay inside this block, so a project
+// that declares its own woolEdge, leaf or qb keeps loading.
+(() => {
+  // wool and fur outlines for the woolly and furry animals
+  function woolEdge(T, cx, cy, rx, ry, n, b) {
+    const pts = [];
+    for (let j = 0; j < n; j++) for (let k = 0; k < 6; k++) {
+      const u = k / 6, t = -Math.PI / 2 + Math.PI * 2 * (j + u) / n, bb = b * Math.sin(Math.PI * u);
+      pts.push(T(cx + Math.cos(t) * (rx + bb), cy + Math.sin(t) * (ry + bb)));
+    }
+    return pts;
+  }
+  function furEdge(pts, amp, step = 14, upto = 1) {   // upto: the share of the outline, from its start, that gets fur
+    const sm = chaikin(pts, true, 2), res = [];
+    let area = 0; for (let i = 0; i < sm.length; i++) { const [x1, y1] = sm[i], [x2, y2] = sm[(i + 1) % sm.length]; area += x1 * y2 - x2 * y1; }
+    for (let i = 0; i < sm.length; i++) { const [ax, ay] = sm[i], [bx, by] = sm[(i + 1) % sm.length], n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / step));
+      for (let j = 0; j < n; j++) res.push([ax + (bx - ax) * j / n, ay + (by - ay) * j / n]); }
+    const sg = area > 0 ? 1 : -1;
+    return res.map(([x, y], i) => { const [ax, ay] = res[(i - 1 + res.length) % res.length], [bx, by] = res[(i + 1) % res.length], l = Math.hypot(bx - ax, by - ay) || 1, k = i % 2 && i < upto * res.length ? amp : 0;
+      return [x + sg * ((by - ay) / l) * k + ((bx - ax) / l) * k * 0.7, y - sg * ((bx - ax) / l) * k + ((by - ay) / l) * k * 0.7]; });   // tufts lean along the outline
+  }
+  // prop helpers: a staged draw-on window, a detail line, a body fill (the kit convention), texture lines
+  const pv = (o) => (o.p == null ? 1 : o.p);
+  const st = (o, a, b) => ({ ...o, p: clamp01((pv(o) - a) / (b - a)) });
+  const ln = (o, k = 1) => ({ ...o, fill: null, w: (o.w || 4) * k });
+  const fl = (o, c) => (o.paperFill ? null : o.fill) || c;
+  const dim = (o) => (o.paperFill ? o.color : o.color || C.dim);                     // the page in the solid pass
+  const PT = (x, y, s) => (px, py) => [x + px * s, y + py * s];
+  const MAP = (P, arr) => arr.map(([a, b]) => P(a, b));
+  const qb = (a, c, b, n = 12) => { const out = []; for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; out.push([u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]]); } return out; };
+  const ellPts = (cx, cy, rx, ry, ang = 0, n = 20) => { const c = Math.cos(ang), sn = Math.sin(ang), out = []; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, u = Math.cos(a) * rx, v = Math.sin(a) * ry; out.push([cx + u * c - v * sn, cy + u * sn + v * c]); } return out; };
+  const spark = (cx, cy, r, o) => { const L = ln(o, 0.6); inkLine(cx, cy - r, cx, cy + r, L); inkLine(cx - r * 0.7, cy, cx + r * 0.7, cy, L); };
+  const leafPts = (b, t, W, bend = 0) => {   // a pointed leaf from base b to tip t, half-width W (screen coords)
+    const dx = t[0] - b[0], dy = t[1] - b[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, m = [(b[0] + t[0]) / 2 + nx * bend, (b[1] + t[1]) / 2 + ny * bend];
+    return [...qb(b, [m[0] + nx * W * 2, m[1] + ny * W * 2], t, 10), ...qb(t, [m[0] - nx * W * 2, m[1] - ny * W * 2], b, 10).slice(1)];
+  };
+  const leaf = (b, t, W, o, bend = 0, fill = null) => {
+    inkPath(leafPts(b, t, W, bend), { ...o, closed: true, fill: fill || fl(o, LEAF()) });
+    const dx = t[0] - b[0], dy = t[1] - b[1], d = Math.hypot(dx, dy) || 1;
+    inkPath(qb(b, [(b[0] + t[0]) / 2 - dy / d * bend, (b[1] + t[1]) / 2 + dx / d * bend], [b[0] + dx * 0.85, b[1] + dy * 0.85], 8), ln(o, 0.45));
+  };
+  const WOOD = () => opaqueMix(C.orange, 0.45), STEEL = () => opaqueMix(C.grey, 0.45), GOLD = () => opaqueMix(C.yellow, 0.55);
+  const LEAF = () => opaqueMix(C.green, 0.45), CLAY = () => opaqueMix(C.orange, 0.3), STRAW = () => opaqueMix(C.yellow, 0.35);
+
+  // cow: a blocky body with black patches, short horns, an ear sticking out, an udder, a tufted tail
+  ANIMALS.cow = (T, o, q) => {
+    const hide = (o.paperFill ? null : o.fill) || PAPER(), dark = INK(), s = o.s, R = { ...o, round: 1 };
+    const leg = (lx, k) => {
+      inkPath([T(lx - 14, -130), T(lx - 13, 0), T(lx + 13, 0), T(lx + 14, -130)], { ...R, closed: true, p: q(k), fill: hide });
+      inkPath([T(lx - 13, -16), T(lx + 13, -16), T(lx + 13, 0), T(lx - 13, 0)], { ...o, closed: true, p: q(k), fill: dark, w: o.w * 0.5 });
+    };
+    leg(-104, 0); leg(64, 0);
+    inkCurve(T(-164, -222), T(-190, -190), T(-186, -100), { ...o, p: q(0), w: o.w * 0.9 });
+    inkPath([T(-184, -112), T(-198, -86), T(-192, -60), T(-178, -60), T(-172, -88)], { ...o, closed: true, round: 1, p: q(0), fill: dark });
+    leg(-134, 1); leg(34, 1);
+    inkPath([T(-172, -222), T(-120, -238), T(-20, -230), T(80, -240), T(120, -222), T(124, -140), T(100, -114), T(-80, -112), T(-160, -118), T(-178, -150)], { ...o, closed: true, round: 2, p: q(1), fill: hide });
+    inkPath([T(-94, -116), T(-92, -92), T(-76, -80), T(-46, -80), T(-34, -96), T(-36, -116)], { ...o, closed: true, round: 1, p: q(2), fill: hide });
+    for (const tx of [-80, -62, -46]) inkLine(...T(tx, -84), ...T(tx, -66), { ...o, p: q(2), w: o.w * 0.9 });
+    for (const sp of [[[-152, -204], [-120, -226], [-82, -214], [-90, -170], [-128, -158], [-154, -174]],
+      [[-30, -208], [10, -226], [54, -212], [46, -166], [6, -150], [-24, -168]],
+      [[78, -152], [102, -176], [116, -152], [108, -124], [84, -124]]]) inkPath(sp.map(([x, y]) => T(x, y)), { ...o, closed: true, round: 2, p: q(2), fill: dark, w: o.w * 0.6 });
+    inkPath([T(96, -234), T(150, -262), T(188, -262), T(226, -200), T(242, -172), T(242, -144), T(222, -130), T(192, -134), T(160, -170), T(118, -150)], { ...o, closed: true, round: 1, p: q(3), fill: hide });
+    inkCurve(T(214, -186), T(196, -158), T(212, -132), { ...o, p: q(3), w: o.w * 0.8 });
+    inkLine(...T(222, -138), ...T(240, -142), { ...o, p: q(4), w: o.w * 0.6 });
+    for (const dx of [-14, 8]) inkPath([T(146 + dx, -256), T(142 + dx, -280), T(150 + dx, -298), T(164 + dx, -309), T(182 + dx, -312), T(166 + dx, -300), T(158 + dx, -286), T(160 + dx, -270), T(165 + dx, -257)], { ...o, closed: true, p: q(3), fill: hide, jit: 0.5 });
+    inkPath([T(150, -246), T(112, -264), T(104, -250), T(140, -232)], { ...o, closed: true, round: 1, p: q(4), fill: dark });
+    const e = T(186, -228); disc(e[0], e[1], 5.5 * s, dark, o.a * clamp01(q(4) * 2));
+    const n = T(232, -164); disc(n[0], n[1], 5.5 * s, dark, o.a * clamp01(q(4) * 2));
+    return { head: T(190, -200), r: 46 * s, mouth: T(228, -140), top: T(160, -314) };
+  };
+  // sheep: a woolly cloud body on thin dark legs, a small dark face with the ears out to the side
+  ANIMALS.sheep = (T, o, q) => {
+    const wool = (o.paperFill ? null : o.fill) || PAPER(), dark = INK(), s = o.s;
+    for (const lx of [-70, 70, -100, 40]) inkPath([T(lx - 7, -100), T(lx - 7, 0), T(lx + 7, 0), T(lx + 7, -100)], { ...o, closed: true, p: q(0), fill: dark, w: o.w * 0.6 });
+    inkPath(woolEdge(T, -158, -168, 16, 18, 5, 5), { ...o, closed: true, p: q(0), fill: wool, jit: 0.4 });
+    inkPath(woolEdge(T, -16, -152, 134, 70, 16, 14), { ...o, closed: true, p: q(1), fill: wool, jit: 0.6 });
+    for (const [cx, cy] of [[-86, -176], [-24, -196], [36, -168], [-56, -126], [6, -130], [-110, -140]]) inkCurve(T(cx - 12, cy + 2), T(cx, cy - 14), T(cx + 12, cy + 2), { ...o, p: q(2), w: o.w * 0.5 });
+    inkPath([T(96, -200), T(122, -218), T(160, -208), T(196, -170), T(198, -150), T(176, -142), T(130, -158), T(100, -178)], { ...o, closed: true, round: 2, p: q(2), fill: dark });
+    inkPath([T(122, -202), T(84, -218), T(76, -206), T(112, -188)], { ...o, closed: true, round: 1, p: q(3), fill: dark });
+    inkPath(woolEdge(T, 110, -212, 24, 14, 6, 6), { ...o, closed: true, p: q(3), fill: wool, jit: 0.4 });
+    const e = T(152, -190); disc(e[0], e[1], 5 * s, PAPER(), o.a * clamp01(q(4) * 2));
+    return { head: T(150, -180), r: 34 * s, mouth: T(192, -152), top: T(40, -238) };
+  };
+  // goat: a lean body, horns sweeping back, a beard under the chin, a short tail held straight up
+  ANIMALS.goat = (T, o, q) => {
+    const coat = (o.paperFill ? null : o.fill) || PAPER(), dark = INK(), s = o.s, R = { ...o, round: 1 };
+    const leg = (lx, k) => {
+      inkPath([T(lx - 9, -120), T(lx - 8, 0), T(lx + 8, 0), T(lx + 9, -120)], { ...R, closed: true, p: q(k), fill: coat });
+      inkPath([T(lx - 8, -12), T(lx + 8, -12), T(lx + 8, 0), T(lx - 8, 0)], { ...o, closed: true, p: q(k), fill: dark, w: o.w * 0.5 });
+    };
+    leg(-80, 0); leg(66, 0);
+    inkPath([T(-126, -194), T(-146, -242), T(-132, -248), T(-112, -204)], { ...o, closed: true, round: 1, p: q(0), fill: dark });
+    leg(-104, 1); leg(42, 1);
+    inkPath([T(-132, -186), T(-100, -208), T(0, -200), T(80, -210), T(108, -186), T(104, -138), T(70, -112), T(-60, -110), T(-120, -128), T(-138, -156)], { ...o, closed: true, round: 2, p: q(1), fill: coat });
+    inkPath([T(70, -204), T(112, -272), T(140, -292), T(162, -286), T(216, -230), T(208, -214), T(176, -222), T(140, -236), T(112, -180), T(100, -140)], { ...o, closed: true, round: 1, p: q(2), fill: coat });
+    inkPath([T(170, -222), T(202, -216), T(188, -170), T(178, -172)], { ...o, closed: true, round: 1, p: q(3), fill: dark });
+    inkPath([T(152, -288), T(144, -324), T(120, -350), T(82, -360), T(108, -338), T(124, -314), T(130, -288)], { ...o, closed: true, round: 1, p: q(3), fill: dark });
+    inkPath([T(126, -274), T(92, -264), T(96, -252), T(128, -260)], { ...o, closed: true, round: 1, p: q(4), fill: coat });
+    const e = T(158, -262); disc(e[0], e[1], 5 * s, dark, o.a * clamp01(q(4) * 2));
+    const n = T(208, -228); disc(n[0], n[1], 3.5 * s, dark, o.a * clamp01(q(4) * 2));
+    return { head: T(170, -250), r: 36 * s, mouth: T(208, -220), top: T(100, -360) };
+  };
+  // llama: a woolly body, a long upright neck, a small head with banana ears curving forward
+  ANIMALS.llama = (T, o, q) => {
+    const wool = (o.paperFill ? null : o.fill) || PAPER(), dark = INK(), s = o.s, R = { ...o, round: 1 };
+    const leg = (lx, k) => {
+      inkPath([T(lx - 9, -140), T(lx - 9, 0), T(lx + 9, 0), T(lx + 9, -140)], { ...R, closed: true, p: q(k), fill: wool });
+      inkPath([T(lx - 10, -8), T(lx + 14, -8), T(lx + 14, 0), T(lx - 10, 0)], { ...o, closed: true, p: q(k), fill: dark, w: o.w * 0.5 });
+    };
+    leg(-80, 0); leg(56, 0);
+    inkPath(woolEdge(T, -150, -204, 16, 20, 5, 5), { ...o, closed: true, p: q(0), fill: wool, jit: 0.4 });
+    leg(-104, 1); leg(32, 1);
+    inkPath(woolEdge(T, -26, -184, 126, 56, 16, 10), { ...o, closed: true, p: q(1), fill: wool, jit: 0.6 });
+    const neck = [];
+    for (let i = 0; i <= 12; i++) { const u = i / 12, b = 9 * Math.abs(Math.sin(Math.PI * u * 6)); neck.push(T(36 + 40 * u - b, -200 - 200 * u)); }
+    neck.push(T(112, -392), T(112, -300), T(104, -170));
+    inkPath(neck, { ...o, closed: true, round: 1, p: q(2), fill: wool, jit: 0.6 });
+    inkPath([T(74, -404), T(92, -428), T(126, -432), T(168, -408), T(180, -392), T(168, -378), T(136, -378), T(112, -372)], { ...o, closed: true, round: 1, p: q(2), fill: wool });
+    for (const dx of [0, 16]) inkPath([T(84 + dx, -420), T(76 + dx, -450), T(82 + dx, -476), T(98 + dx, -492), T(102 + dx, -482), T(96 + dx, -460), T(100 + dx, -426)], { ...o, closed: true, round: 1, p: q(3), fill: wool });
+    inkCurve(T(166, -386), T(172, -382), T(176, -384), { ...o, p: q(4), w: o.w * 0.6 });
+    inkLine(...T(156, -378), ...T(176, -380), { ...o, p: q(4), w: o.w * 0.6 });
+    const e = T(124, -410); disc(e[0], e[1], 5.5 * s, dark, o.a * clamp01(q(4) * 2));
+    return { head: T(126, -404), r: 34 * s, mouth: T(174, -380), top: T(104, -492) };
+  };
+  // zebra: the horse's build in white with bold black stripes on body, legs and neck, a short upright striped mane,
+  // a thin tail with a black tuft, a black muzzle
+  ANIMALS.zebra = (T, o, q) => {
+    const coat = (o.paperFill ? null : o.fill) || PAPER(), dark = INK(), s = o.s, R = { ...o, round: 1 };
+    const st = { ...o, closed: true, fill: dark, w: o.w * 0.4, jit: 0.4 };
+    const leg = (lx, hw, k) => {
+      inkPath([T(lx - hw, -178), T(lx - hw, -2), T(lx + hw, -2), T(lx + hw, -178)], { ...R, closed: true, p: q(k), fill: coat });
+      for (const by of [-148, -120, -92, -64, -38]) inkPath([T(lx - hw, by), T(lx + hw, by - 3), T(lx + hw, by + 9), T(lx - hw, by + 12)], { ...st, p: q(k) });
+      inkPath([T(lx - hw, -18), T(lx + hw, -18), T(lx + hw, 0), T(lx - hw, 0)], { ...o, closed: true, p: q(k), fill: dark, w: o.w * 0.5 });
+    };
+    leg(-92, 11, 0); leg(72, 11, 0);
+    inkCurve(T(-160, -238), T(-196, -216), T(-194, -152), { ...o, p: q(0), w: o.w * 0.9 });
+    inkPath([T(-188, -162), T(-202, -156), T(-210, -112), T(-198, -92), T(-186, -116)], { ...o, closed: true, round: 1, p: q(0), fill: dark });
+    leg(-118, 13, 1); leg(44, 13, 1);
+    const cx = -22, cy = -214, rx = 146, ry = 60;
+    inkEllipse(...T(cx, cy), rx * s, ry * s, { ...o, p: q(1), fill: coat });
+    const half = (x) => ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2)), top = (x) => cy - half(x) + 1;
+    for (const [x0, f, bend, wd] of [[-128, 0.72, -26, 14], [-100, 0.82, -22, 16], [-68, 0.9, -8, 17], [-36, 0.92, 0, 17], [-4, 0.92, 4, 17], [28, 0.9, 6, 16], [60, 0.86, 8, 15], [92, 0.8, 8, 13]]) {
+      const yt = top(x0), yb = cy - half(x0) + 2 * half(x0) * f;
+      inkPath([T(x0 - wd / 2, top(x0 - wd / 2)), T(x0 + wd / 2, top(x0 + wd / 2)), T(x0 + wd * 0.3 + bend * 0.6, (yt + yb) / 2), T(x0 + bend, yb), T(x0 - wd * 0.3 + bend * 0.6, (yt + yb) / 2)], { ...st, round: 1, p: q(2) });
+    }
+    inkPath([T(70, -250), T(150, -350), T(196, -326), T(128, -196)], { ...o, closed: true, p: q(2), fill: coat, round: 2 });
+    const L = (u) => [70 + 80 * u, -250 - 100 * u], Rn = (u) => [128 + 68 * u, -196 - 130 * u], du = 0.085, bands = [0.12, 0.29, 0.46, 0.63, 0.8];
+    for (const u of bands) inkPath([T(...L(u)), T(...L(u + du)), T(...Rn(u + du)), T(...Rn(u))], { ...st, p: q(2) });
+    const cut = [0.04, ...bands.flatMap((u) => [u, u + du]), 0.97], M = cut.map((u, i) => { const [lx, ly] = L(u), h = 18 + (i % 2) * 5; return [[lx + 2, ly + 2], [lx - 0.781 * h, ly - 0.625 * h]]; });
+    for (let i = 0; i < M.length - 1; i++) inkPath([T(...M[i][0]), T(...M[i + 1][0]), T(...M[i + 1][1]), T(...M[i][1])], { ...o, closed: true, p: q(3), fill: i % 2 ? dark : coat, w: o.w * 0.5, jit: 0.3 });
+    inkPath([T(146, -348), T(176, -366), T(258, -302), T(264, -276), T(244, -262), T(206, -270), T(166, -310)], { ...o, closed: true, fill: coat, round: 2, p: q(3) });
+    inkPath([T(228, -322), T(258, -302), T(264, -276), T(244, -262), T(224, -266)], { ...o, closed: true, round: 1, p: q(3), fill: dark, w: o.w * 0.6 });
+    inkPath([T(156, -354), T(158, -404), T(172, -410), T(186, -362)], { ...o, closed: true, round: 1, p: q(3), fill: coat });
+    for (const [x1, y1, x2, y2] of [[200, -344], [214, -334]].map(([a, b], i) => [a, b, a + 8 + i * 2, -284 + i * 10])) inkLine(...T(x1, y1), ...T(x2, y2), { ...o, p: q(4), w: o.w * 1.5, jit: 0.3 });
+    const e = T(184, -332); disc(e[0], e[1], 9 * s, coat, o.a * clamp01(q(4) * 2)); disc(e[0], e[1], 6 * s, dark, o.a * clamp01(q(4) * 2));
+    return { head: T(205, -314), r: 52 * s, mouth: T(248, -266), top: T(168, -410) };
+  };
+  // squirrel: sitting up, a big bushy tail curled over its back, holding an acorn to its mouth
+  ANIMALS.squirrel = (T, o, q) => {
+    const fur = (o.paperFill ? null : o.fill) || PAPER(), dark = INK(), s = o.s, R = { ...o, round: 2 };
+    const tail = furEdge([[-24, -14], [-96, -30], [-150, -96], [-160, -180], [-134, -258], [-80, -308], [-14, -320], [34, -298], [48, -266], [26, -252], [-6, -272], [-50, -264], [-80, -220], [-88, -150], [-66, -84], [-30, -50]], 11, 14, 0.62);
+    inkPath(tail.map(([x, y]) => T(x, y)), { ...o, closed: true, p: q(0), fill: fur, jit: 0.6 });
+    for (const [a, b, c] of [[[-50, -60], [-128, -140], [-104, -262]], [[-70, -90], [-120, -190], [-44, -292]], [[-90, -50], [-150, -150], [-120, -240]]]) inkCurve(T(...a), T(...b), T(...c), { ...o, p: q(1), w: o.w * 0.5, jit: 0.8 });
+    inkPath([T(-44, -2), T(-62, -50), T(-52, -112), T(-18, -160), T(30, -172), T(58, -134), T(60, -70), T(40, -2)], { ...R, closed: true, p: q(1), fill: fur });
+    inkEllipse(...T(-12, -46), 42 * s, 38 * s, { ...o, p: q(1), fill: fur });
+    inkPath([T(-12, -14), T(64, -12), T(72, 0), T(-12, 0)], { ...R, closed: true, p: q(1), fill: fur });
+    inkPath([T(4, -214), T(30, -238), T(66, -232), T(94, -200), T(100, -186), T(80, -172), T(36, -168), T(8, -184)], { ...R, closed: true, p: q(2), fill: fur });
+    inkPath([T(20, -226), T(18, -270), T(30, -278), T(44, -232)], { ...o, closed: true, round: 1, p: q(3), fill: fur });
+    for (const dx of [-6, 4]) inkLine(...T(24, -272), ...T(24 + dx, -292), { ...o, p: q(3), w: o.w * 0.7 });
+    inkPath([T(40, -144), T(70, -148), T(82, -152)], { ...o, p: q(3), w: o.w * 1.1 });
+    inkEllipse(...T(98, -136), 17 * s, 20 * s, { ...o, p: q(3), fill: fur });
+    inkPath([T(78, -150), T(84, -168), T(98, -174), T(112, -168), T(118, -150)], { ...o, closed: true, round: 1, p: q(3), fill: dark, w: o.w * 0.6 });
+    inkLine(...T(98, -172), ...T(102, -184), { ...o, p: q(3), w: o.w * 0.8 });
+    inkEllipse(...T(82, -140), 9 * s, 12 * s, { ...o, p: q(4), fill: fur, w: o.w * 0.7 });
+    const e = T(56, -208); disc(e[0], e[1], 5 * s, dark, o.a * clamp01(q(4) * 2));
+    const n = T(98, -190); disc(n[0], n[1], 4 * s, dark, o.a * clamp01(q(4) * 2));
+    return { head: T(50, -200), r: 40 * s, mouth: T(92, -180), top: T(-14, -320), half: 200 };
+  };
+  // duck: a round low body with the tail turned up, a dark head and neck with a pale ring, a long flat bill, short
+  // legs on webbed feet
+  ANIMALS.duck = (T, o, q) => {
+    const plume = (o.paperFill ? null : o.fill) || PAPER(), dark = INK(), s = o.s;
+    for (const lx of [-22, 6]) {
+      inkLine(...T(lx, -40), ...T(lx + 2, -6), { ...o, p: q(0), w: o.w * 1.1 });
+      inkPath([T(lx - 4, -8), T(lx + 30, -6), T(lx + 34, 2), T(lx - 6, 2)], { ...o, closed: true, p: q(0), fill: dark, w: o.w * 0.5 });
+    }
+    inkPath([T(-160, -134), T(-120, -112), T(-40, -124), T(40, -126), T(94, -110), T(114, -78), T(94, -44), T(10, -30), T(-80, -38), T(-130, -70), T(-168, -118)], { ...o, closed: true, round: 2, p: q(1), fill: plume });
+    inkPath([T(40, -104), T(-20, -114), T(-92, -110), T(-140, -98), T(-80, -78), T(-10, -72), T(32, -84)], { ...o, closed: true, round: 2, p: q(2), fill: plume });
+    for (const k of [0, 1]) inkCurve(T(-122 + k * 30, -100), T(-100 + k * 30, -90), T(-80 + k * 30, -84), { ...o, p: q(2), w: o.w * 0.5 });
+    inkPath([T(44, -114), T(50, -152), T(96, -160), T(94, -112)], { ...o, closed: true, round: 1, p: q(2), fill: dark });
+    inkCircle(...T(74, -170), 33 * s, { ...o, p: q(2), fill: dark });
+    inkLine(...T(46, -124), ...T(95, -122), { ...o, p: q(3), color: plume, w: o.w * 1.4, jit: 0.3 });
+    inkPath([T(100, -178), T(142, -174), T(158, -164), T(150, -152), T(102, -156)], { ...o, closed: true, round: 1, p: q(3), fill: plume });
+    inkLine(...T(106, -165), ...T(152, -160), { ...o, p: q(3), w: o.w * 0.5 });
+    inkCurve(T(-156, -128), T(-158, -156), T(-136, -152), { ...o, p: q(3), w: o.w * 1.3 });
+    const e = T(84, -180); disc(e[0], e[1], 5.5 * s, plume, o.a * clamp01(q(4) * 2));
+    return { head: T(74, -170), r: 33 * s, mouth: T(152, -158), top: T(74, -205) };
+  };
+
+  // weapons and metal
+  PROPS.sword = (x, y, s, o) => {   // straight blade, cross guard, grip: standing point up
+    const P = PT(x, y, s), A = st(o, 0, 0.55), B = st(o, 0.3, 0.85), D = st(o, 0.65, 1), steel = fl(o, STEEL());
+    inkPath(MAP(P, [[-12, -60], [-12, -174], [0, -212], [12, -174], [12, -60]]), { ...A, closed: true, fill: steel });
+    inkLine(...P(0, -66), ...P(0, -178), ln(B, 0.5));                                   // fuller
+    inkPath(MAP(P, [[-52, -66], [52, -66], [52, -52], [-52, -52]]), { ...B, closed: true, round: 1, fill: steel });   // cross guard
+    inkRect(...P(-7, -52), 14 * s, 34 * s, { ...B, fill: fl(o, WOOD()) });             // grip
+    for (let k = 0; k < 3; k++) inkLine(...P(-7, -24 - k * 9), ...P(7, -31 - k * 9), ln(D, 0.5));
+    inkCircle(...P(0, -9), 9 * s, { ...B, fill: steel });                                // pommel
+    spark(...P(28, -190), 13 * s, D);
+  };
+  PROPS.musket = (x, y, s, o) => {   // long barrel, wooden stock, flintlock; lying on the ground (rests on butt and muzzle)
+    const th = Math.atan2(66, 398), c = Math.cos(th), sn = Math.sin(th), R = (u, v) => [u * c - v * sn, u * sn + v * c];
+    const toe = R(-198, 66), muz = R(200, 0), dx = -(toe[0] + muz[0]) / 2, dy = -Math.max(toe[1], muz[1]);
+    const P = (u, v) => { const [a, b] = R(u, v); return [x + (a + dx) * s, y + (b + dy) * s]; };
+    const A = st(o, 0, 0.55), B = st(o, 0.3, 0.85), D = st(o, 0.6, 1), wood = fl(o, WOOD()), steel = fl(o, STEEL());
+    inkPath(MAP(P, [[150, 0], [154, 7], [148, 14], [-54, 15], [-72, 22], [-108, 33], [-198, 68], [-206, 62], [-208, 0], [-116, -10], [-80, -13], [-64, 0]]), { ...A, closed: true, fill: wood });   // stock
+    inkLine(...P(-198, 2), ...P(-192, 63), ln(B, 0.6));                                 // butt plate
+    inkPath(MAP(P, [[-80, -13], [200, -13], [200, 0], [-80, 0]]), { ...A, closed: true, fill: steel });   // barrel
+    inkLine(...P(191, -13), ...P(191, 0), ln(B, 0.6));
+    for (const u of [40, 110]) inkLine(...P(u, -13), ...P(u, 14), ln(B, 0.6));          // barrel bands
+    inkLine(...P(-30, 7), ...P(186, 7), ln(B, 0.4));                                     // ramrod
+    inkPath(MAP(P, [[-104, -8], [-52, -8], [-52, 11], [-104, 11]]), { ...B, closed: true, round: 1, fill: steel });   // lock plate
+    inkPath(MAP(P, qb([-86, -6], [-104, -14], [-98, -32], 8)), ln(B, 1.3));               // the cock (hammer) ...
+    inkPath(MAP(P, [[-104, -32], [-88, -34], [-88, -42], [-104, -40]]), { ...B, closed: true, fill: INK(), w: (o.w || 4) * 0.6 });   // ... with its flint in the jaws
+    inkPath(MAP(P, [[-66, -8], [-66, -28], [-58, -30]]), ln(B, 0.9));                   // frizzen
+    inkPath(qb(P(-56, 15), P(-84, 46), P(-112, 33), 10), ln(D, 0.8));                   // trigger guard
+    inkPath(qb(P(-78, 15), P(-76, 27), P(-86, 33), 6), ln(D, 0.7));                     // trigger
+  };
+  PROPS.steelaxe = (x, y, s, o) => {   // smooth shiny metal head with a curved edge, straight handle
+    const P = PT(x, y, s), A = st(o, 0, 0.5), B = st(o, 0.25, 0.8), D = st(o, 0.6, 1);
+    inkPath(MAP(P, [[-9, 0], [-6, -16], [-6, -200], [6, -200], [6, -16], [9, 0]]), { ...A, closed: true, fill: fl(o, WOOD()) });
+    const edge = qb([70, -210], [92, -170], [70, -128], 12);
+    inkPath(MAP(P, [[-26, -186], [-14, -194], [16, -194], [42, -184], ...edge, [42, -156], [16, -148], [-14, -148], [-26, -156]]), { ...B, closed: true, fill: fl(o, STEEL()) });
+    inkPath(MAP(P, qb([58, -198], [76, -170], [58, -140], 10)), ln(D, 0.5));          // bevel along the edge
+    inkLine(...P(20, -178), ...P(30, -166), ln(D, 0.55)); inkLine(...P(30, -180), ...P(38, -170), ln(D, 0.55));   // shine
+    spark(...P(92, -212), 14 * s, D);
+  };
+  PROPS.stoneaxe = (x, y, s, o) => {   // a rough stone head lashed to a crooked wooden handle with cords
+    const P = PT(x, y, s), A = st(o, 0, 0.5), B = st(o, 0.25, 0.75), D = st(o, 0.55, 1);
+    inkPath(MAP(P, [[-7, 0], [-9, -50], [-5, -110], [-9, -170], [-6, -196], [4, -198], [6, -170], [3, -110], [7, -50], [7, 0]]), { ...A, closed: true, fill: fl(o, WOOD()) });
+    inkLine(...P(0, -14), ...P(-1, -96), { ...ln(A, 0.4), color: dim(o) });             // grain
+    inkPath(MAP(P, [[-22, -166], [-12, -186], [16, -198], [50, -192], [80, -176], [94, -158], [78, -146], [44, -142], [8, -146], [-16, -150]]), { ...B, closed: true, jit: 2.4, fill: fl(o, STEEL()) });
+    for (const [a, b] of [[[34, -192], [42, -170]], [[58, -186], [64, -162]], [[74, -174], [84, -156]], [[20, -190], [24, -176]]]) inkLine(...P(...a), ...P(...b), ln(B, 0.5));   // chipped facets
+    const L = ln(D, 0.55);
+    for (let k = 0; k < 4; k++) { inkLine(...P(-13, -186 + k * 12), ...P(14, -174 + k * 12), L); inkLine(...P(-13, -174 + k * 12), ...P(14, -186 + k * 12), L); }   // criss-cross lashing
+    for (let k = 0; k < 3; k++) inkLine(...P(-11, -134 + k * 7), ...P(11, -132 + k * 7), L);
+    inkPath(MAP(P, [[10, -118], [22, -106], [24, -92], [16, -80]]), { ...L, round: 2 });   // loose cord end
+  };
+  PROPS.spear = (x, y, s, o) => {   // long shaft, leaf-shaped point, binding (s = 1 ≈ 330 px: a man-high spear)
+    const P = PT(x, y, s), A = st(o, 0, 0.55), B = st(o, 0.4, 0.9), D = st(o, 0.7, 1);
+    inkLine(...P(0, 0), ...P(0, -268), { ...ln(A, 1.3) });
+    inkPath(MAP(P, [[-4, -262], [-16, -286], [-13, -308], [0, -334], [13, -308], [16, -286], [4, -262]]), { ...B, closed: true, round: 1, fill: fl(o, STEEL()) });
+    inkLine(...P(0, -268), ...P(0, -324), ln(D, 0.5));
+    for (let k = 0; k < 4; k++) inkLine(...P(-6, -238 - k * 6), ...P(6, -241 - k * 6), ln(D, 0.6));
+  };
+
+  // crops and a germ
+  PROPS.wheat = (x, y, s, o) => {   // three stalks with heavy, nodding ears and long awns
+    const P = PT(x, y, s), A = st(o, 0, 0.45), B = st(o, 0.3, 0.8), D = st(o, 0.55, 1);
+    leaf(P(-2, -28), P(-74, -76), 6 * s, A, -10 * s); leaf(P(2, -46), P(70, -104), 6 * s, A, 10 * s);
+    const stalks = [[[-4, 0], [-18, -80], [-40, -136], -2.2], [[0, 0], [2, -90], [4, -160], -1.62], [[4, 0], [22, -80], [44, -130], -0.95]];
+    stalks.forEach(([b, c, e, ang], si) => {
+      inkPath(MAP(P, qb(b, c, e, 12)), ln(A, 0.8));
+      const n = 7, len = 64, droop = si === 1 ? 0.18 : (ang < -1.6 ? -0.35 : 0.35);   // the ear bends over: heavy grain
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.6) / n, a = ang + droop * t, bx = e[0] + Math.cos(ang) * len * t + Math.cos(ang + Math.PI / 2) * droop * 30 * t * t, by = e[1] + Math.sin(ang) * len * t + Math.sin(ang + Math.PI / 2) * droop * 30 * t * t;
+        for (const side of [-1, 1]) {
+          const ka = a + side * 0.42, cx = bx + Math.cos(a + side * Math.PI / 2) * 5, cy = by + Math.sin(a + side * Math.PI / 2) * 5;
+          inkPath(ellPts(...P(cx, cy), 9 * s, 5 * s, ka, 14), { ...B, closed: true, jit: 0.3, fill: fl(o, STRAW()) });
+          const tx = cx + Math.cos(ka) * 9, ty = cy + Math.sin(ka) * 9, aw = a + side * 0.16;
+          inkLine(...P(tx, ty), ...P(tx + Math.cos(aw) * 40, ty + Math.sin(aw) * 40), ln(D, 0.4));
+        }
+      }
+      const t = 1.05, a = ang + droop, tx = e[0] + Math.cos(ang) * len * t + Math.cos(ang + Math.PI / 2) * droop * 30, ty = e[1] + Math.sin(ang) * len * t + Math.sin(ang + Math.PI / 2) * droop * 30;
+      inkLine(...P(tx, ty), ...P(tx + Math.cos(a) * 44, ty + Math.sin(a) * 44), ln(D, 0.4));
+    });
+  };
+  PROPS.corn = (x, y, s, o) => {   // a big maize cob packed with kernels, husk leaves peeled back
+    const P = PT(x, y, s), A = st(o, 0, 0.45), B = st(o, 0.25, 0.7), D = st(o, 0.45, 1), green = fl(o, LEAF());
+    const husk = (b, c1, tip, c2, e, oo) => { inkPath(MAP(P, [...qb(b, c1, tip, 12), ...qb(tip, c2, e, 12).slice(1)]), { ...oo, closed: true, fill: green }); inkPath(MAP(P, qb([(b[0] + e[0]) / 2, b[1]], [(c1[0] + c2[0]) / 2, (c1[1] + c2[1]) / 2], tip, 10)), ln(oo, 0.45)); };
+    husk([-6, 0], [-66, -46], [-64, -134], [-24, -70], [12, -4], A);
+    husk([6, 0], [70, -40], [66, -126], [26, -70], [-12, -4], A);
+    const hwAt = (yy) => (yy > -90 ? 31 : yy > -130 ? lerp(31, 29, (-90 - yy) / 40) : yy > -172 ? lerp(29, 22, (-130 - yy) / 42) : lerp(22, 0, (-172 - yy) / 32));
+    const cob = []; for (let yy = -40; yy >= -204; yy -= 8) cob.push([hwAt(yy), yy]);
+    inkPath(MAP(P, [...cob, ...cob.slice().reverse().map(([a, b]) => [-a, b])]), { ...B, closed: true, round: 1, fill: fl(o, GOLD()) });
+    for (let yy = -52; yy > -196; yy -= 10.5) {
+      const hw = hwAt(yy) - 3;
+      for (let j = -2; j <= 2; j++) { const a = j * 0.56, kx = Math.sin(a) * hw, rx = 0.17 * hw * Math.cos(a) + 1; if (Math.abs(kx) + rx > hw + 1 || hw < 8) continue;
+        inkPath(ellPts(...P(kx, yy), rx * s, 4.2 * s, 0, 12), { ...ln(D, 0.45), closed: true, jit: 0.2 }); }
+    }
+    husk([-26, 0], [-14, -40], [14, -92], [8, -36], [28, 0], st(o, 0.4, 0.85));             // front husk leaf over the base
+  };
+  PROPS.germ = (x, y, s, o) => {   // a virus: round body crowned with knobbed spikes, blobs inside (s = 1 ≈ 130 px)
+    const P = PT(x, y, s), A = st(o, 0, 0.5), B = st(o, 0.3, 0.8), D = st(o, 0.55, 1), cy = -66, R = 38;
+    const body = []; for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2, r = R * (1 + 0.05 * Math.sin(5 * a) + 0.03 * Math.sin(3 * a + 1)); body.push([Math.cos(a) * r, cy + Math.sin(a) * r]); }
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + 0.13;
+      inkLine(...P(Math.cos(a) * (R - 2), cy + Math.sin(a) * (R - 2)), ...P(Math.cos(a) * (R + 15), cy + Math.sin(a) * (R + 15)), ln(B, 0.8));
+      inkPath(ellPts(...P(Math.cos(a) * (R + 20), cy + Math.sin(a) * (R + 20)), 7.5 * s, 6 * s, a, 12), { ...B, closed: true, jit: 0.3, fill: INK() }); }
+    inkPath(MAP(P, body), { ...A, closed: true, fill: fl(o, opaqueMix(C.green, 0.4)) });
+    for (const [bx, by, r] of [[-14, -10, 7], [12, 8, 9], [10, -16, 5], [-14, 14, 5]]) inkCircle(...P(bx, cy + by), r * s, { ...ln(D, 0.55), jit: 0.4 });
+    inkPath(MAP(P, [[-22, 2], [-14, -2], [-8, 6], [0, 0], [6, 8], [2, 22], [-6, 24]].map(([a, b]) => [a, cy + b])), { ...ln(D, 0.5), round: 2 });   // its genes
+  };
+
+  // ships
+  PROPS.junk = (x, y, s, o) => {   // a Chinese treasure ship: long hull, high stern castle, bow eye, five masts of battened fan sails (≈ 2.4 : 1)
+    const P = PT(x, y, s), A = st(o, 0, 0.4), B = st(o, 0.25, 0.8), D = st(o, 0.6, 1), wood = fl(o, WOOD()), cloth = fl(o, opaqueMix(C.red, 0.35));
+    const masts = [[-205, -236, 80, -168], [-95, -268, 84, -126], [18, -284, 86, -126], [132, -266, 86, -124], [232, -224, 70, -122]];
+    masts.forEach(([mx, top], i) => {
+      const pS = st(o, 0.2 + i * 0.06, 0.62 + i * 0.06); inkLine(...P(mx, -100), ...P(mx, top - 24), ln(pS, 1.15));
+      inkPath(MAP(P, [[mx, top - 24], [mx - 26, top - 18], [mx, top - 12]]), { ...ln(pS, 0.6), closed: true, fill: fl(o, PAPER()) });   // pennant
+    });
+    masts.forEach(([mx, top, wd, bot], i) => {   // battened sails: slanting head, scalloped fan leech, battens
+      const pS = st(o, 0.25 + i * 0.06, 0.7 + i * 0.06), n = 6, luff = mx + 12, yl = (j) => lerp(top + 18, bot, j / n), ye = (j) => lerp(top, bot + 8, j / n), xe = (j) => mx - wd * (0.84 + 0.16 * j / n);
+      const pts = [[luff, bot], [luff, top + 18]];
+      for (let j = 0; j <= n; j++) { if (j > 0) pts.push([(xe(j - 1) + xe(j)) / 2 - 9, (ye(j - 1) + ye(j)) / 2]); pts.push([xe(j), ye(j)]); }
+      inkPath(MAP(P, pts), { ...pS, closed: true, fill: cloth });
+      for (let j = 1; j < n; j++) inkLine(...P(luff, yl(j)), ...P(xe(j), ye(j)), ln(pS, 0.6));
+    });
+    inkPath(MAP(P, [[-322, -72], [-378, -60], [-380, -14], [-326, -24]]), { ...A, closed: true, fill: wood });   // the big hung rudder
+    for (const yy of [-56, -40]) inkLine(...P(-372, yy), ...P(-332, yy - 6), ln(B, 0.5));
+    inkLine(...P(-334, -134), ...P(-332, -22), ln(A, 1.2));                             // rudder post
+    const hull = [[-356, -152], [-290, -150], [-284, -106], [262, -96], [340, -130], [344, -118], [302, -54], [236, -12], [-180, 0], [-290, -36], [-338, -88]];
+    inkPath(MAP(P, hull), { ...A, closed: true, fill: wood });
+    inkLine(...P(-322, -80), ...P(298, -76), ln(B, 0.6)); inkLine(...P(-296, -50), ...P(270, -44), ln(B, 0.6));   // wales
+    for (let xx = -270; xx < 250; xx += 34) inkLine(...P(xx, -104 + (xx + 284) * 0.018), ...P(xx, -118 + (xx + 284) * 0.018), ln(D, 0.5));   // rail posts
+    inkLine(...P(-284, -118), ...P(258, -108), ln(D, 0.6));
+    for (const wx of [-346, -328, -310]) inkRect(...P(wx, -140), 11 * s, 12 * s, ln(D, 0.5));   // stern windows
+    inkCircle(...P(306, -98), 10 * s, { ...ln(D, 0.7), jit: 0.4 }); inkDot(...P(308, -98), 4.5 * s, D);   // bow eye
+  };
+  PROPS.caravel = (x, y, s, o) => {   // a small three-masted Columbus ship: square sails with crosses, lateen mizzen
+    const P = PT(x, y, s), A = st(o, 0, 0.45), B = st(o, 0.25, 0.8), D = st(o, 0.6, 1), cloth = fl(o, PAPER());
+    for (const [mx, dy, top] of [[-62, -70, -172], [2, -60, -222], [62, -60, -180]]) inkLine(...P(mx, dy), ...P(mx, top), ln(A, 1.1));
+    inkLine(...P(100, -70), ...P(150, -94), ln(A, 1));                                    // bowsprit
+    const sq = (mx, ty, hw, h, pS) => {
+      inkLine(...P(mx - hw - 8, ty), ...P(mx + hw + 8, ty), ln(pS, 1));
+      const pts = [[mx - hw, ty], [mx + hw, ty], [mx + hw * 1.08, ty + h]];
+      for (let i = 1; i < 8; i++) { const u = i / 8; pts.push([mx + hw * 1.08 * (1 - 2 * u), ty + h + 10 * Math.sin(Math.PI * u)]); }
+      pts.push([mx - hw * 1.08, ty + h]); inkPath(MAP(P, pts), { ...pS, closed: true, fill: cloth });
+      const cx = mx, cy = ty + h * 0.52, r = hw * 0.48; inkLine(...P(cx, cy - r), ...P(cx, cy + r), ln(st(pS, 0.5, 1), 1.5)); inkLine(...P(cx - r * 0.8, cy - r * 0.1), ...P(cx + r * 0.8, cy - r * 0.1), ln(st(pS, 0.5, 1), 1.5));
+    };
+    inkPath(MAP(P, [[-26, -84], [-116, -180], [-104, -96]]), { ...B, closed: true, fill: cloth }); inkLine(...P(-20, -78), ...P(-120, -184), ln(B, 1));   // lateen mizzen
+    sq(2, -204, 38, 78, B); sq(62, -168, 28, 62, B);
+    inkPath(MAP(P, [[2, -222], [30, -214], [2, -206]]), { ...ln(D, 0.6), closed: true, fill: cloth });   // pennant
+    inkPath(MAP(P, [[-124, -92], [-82, -92], [-80, -70], [80, -62], [100, -78], [114, -78], [104, -38], [74, -8], [-58, 0], [-106, -26], [-126, -64]]), { ...A, closed: true, fill: fl(o, WOOD()) });   // hull
+    inkLine(...P(-114, -50), ...P(100, -46), ln(B, 0.6));
+    for (const wx of [-112, -100]) inkRect(...P(wx, -86), 7 * s, 8 * s, ln(D, 0.5));
+  };
+  PROPS.canoe = (x, y, s, o) => {   // a Pacific outrigger canoe: slender hull, float on two curved booms, crab-claw sail
+    const P = PT(x, y, s), A = st(o, 0, 0.45), B = st(o, 0.25, 0.8), D = st(o, 0.6, 1), wood = fl(o, WOOD());
+    const claw = [...qb([-6, -64], [-36, -144], [-96, -218], 12), ...qb([-96, -218], [-4, -154], [74, -228], 12).slice(1), ...qb([74, -228], [36, -138], [-6, -64], 12).slice(1)];
+    inkPath(MAP(P, claw), { ...B, closed: true, fill: fl(o, STRAW()) });
+    inkPath(MAP(P, qb([-6, -64], [-36, -144], [-96, -218], 12)), ln(B, 1.3)); inkPath(MAP(P, qb([-6, -64], [36, -138], [74, -228], 12)), ln(B, 1.3));   // spars
+    for (const t of [0.35, 0.65]) inkPath(MAP(P, qb([-6, -66], [-10 + t * 20, -154], [lerp(-96, 74, t), lerp(-218, -228, t) + 30 * Math.sin(Math.PI * t) + 26], 8)), ln(D, 0.4));
+    inkPath(MAP(P, [[-162, -86], [-136, -64], [128, -64], [162, -90], [138, -46], [80, -34], [-84, -34], [-134, -46]]), { ...A, closed: true, fill: wood });   // hull
+    inkLine(...P(-130, -56), ...P(130, -56), ln(B, 0.5));
+    inkPath(MAP(P, [[-122, -6], [-94, 0], [86, 0], [116, -8], [88, -14], [-94, -14]]), { ...B, closed: true, fill: wood });   // float
+    for (const bx of [-64, 52]) inkPath(MAP(P, qb([bx + 8, -62], [bx - 2, -92], [bx - 10, -12], 12)), ln(B, 1.3));   // booms arching out to the float
+  };
+
+  // a house and goods
+  PROPS.hut = (x, y, s, o) => {   // a round thatched hut: mud wall, dark doorway, conical thatch with a fringe
+    const P = PT(x, y, s), A = st(o, 0, 0.5), B = st(o, 0.3, 0.8), D = st(o, 0.55, 1);
+    inkPath(MAP(P, [[-78, 0], [-74, -82], [74, -82], [78, 0]]), { ...A, closed: true, fill: fl(o, CLAY()) });
+    for (const xx of [-56, -36, 36, 56]) inkLine(...P(xx, -8), ...P(xx * 0.98, -62), { ...ln(B, 0.4), color: dim(o) });
+    const door = [[-20, 0], [-20, -40], ...Array.from({ length: 9 }, (_, i) => { const a = Math.PI + Math.PI * (i + 1) / 10; return [Math.cos(a) * 20, -40 + Math.sin(a) * 22]; }), [20, -40], [20, 0]];
+    inkPath(MAP(P, door), { ...B, closed: true, fill: INK() });
+    const eave = qb([116, -74], [0, -46], [-116, -74], 16);
+    inkPath(MAP(P, [[0, -200], ...eave]), { ...A, closed: true, fill: fl(o, STRAW()) });
+    for (let i = 1; i < 16; i++) { const [ex, ey] = eave[i]; inkLine(...P(ex, ey - 2), ...P(ex + (i % 2 ? 2 : -2), ey + 9), ln(D, 0.5)); }   // fringe
+    for (let kx = -3; kx <= 3; kx++) { const t = (1 - kx * 30 / 116) / 2, ey = -74 * (1 - t) ** 2 - 92 * (1 - t) * t - 74 * t * t; inkLine(...P(kx * 5, -184), ...P(kx * 30, ey - 6), ln(D, 0.5)); }   // thatch
+    for (const [a, b] of [[-9, -214], [1, -218], [10, -212]]) inkLine(...P(0, -198), ...P(a, b), ln(D, 0.7));   // top knot
+  };
+  PROPS.jar = (x, y, s, o) => {   // a big clay storage jar (pithos): wide body, short neck, rim, shoulder bands, lug handles
+    const P = PT(x, y, s), A = st(o, 0, 0.55), B = st(o, 0.35, 0.85), D = st(o, 0.6, 1);
+    const right = [[26, 0], [46, -16], [60, -46], [66, -82], [62, -112], [50, -134], [32, -148], [25, -156], [28, -164], [36, -168], [36, -174]];
+    inkPath(MAP(P, [...right, ...right.slice().reverse().map(([a, b]) => [-a, b])]), { ...A, closed: true, round: 2, fill: fl(o, CLAY()) });
+    inkEllipse(...P(0, -173), 34 * s, 6 * s, { ...B, fill: fl(o, CLAY()) }); inkEllipse(...P(0, -172), 25 * s, 3.4 * s, { ...B, fill: INK() });   // mouth
+    for (const d of [-1, 1]) inkPath(MAP(P, qb([d * 56, -126], [d * 80, -124], [d * 64, -104], 8)), ln(B, 0.9));   // lug handles
+    const band = (yy, hw) => inkPath(MAP(P, qb([-hw, yy], [0, yy + 10], [hw, yy], 10)), ln(D, 0.55));
+    band(-118, 60); band(-100, 64); band(-40, 58);
+    const wave = []; for (let i = 0; i <= 24; i++) { const u = -58 + i * 116 / 24; wave.push([u, -109 + 4 * (1 - (u / 62) ** 2) * 1.2 + 4 * Math.sin(i * 1.3)]); }
+    inkPath(MAP(P, wave), ln(D, 0.5));
+  };
+  PROPS.basket = (x, y, s, o) => {   // a woven basket with a hoop handle
+    const P = PT(x, y, s), A = st(o, 0, 0.5), B = st(o, 0.3, 0.85), D = st(o, 0.5, 1);
+    inkPath(MAP(P, qb([-86, -100], [0, -250], [86, -100], 16)), ln(A, 1)); inkPath(MAP(P, qb([-72, -100], [0, -222], [72, -100], 16)), ln(A, 1));   // handle
+    const body = [[-92, -96], [92, -96], [80, -40], [66, -10], [40, 0], [-40, 0], [-66, -10], [-80, -40]];
+    inkPath(MAP(P, body), { ...A, closed: true, round: 1, fill: fl(o, STRAW()) });
+    const hw = (yy) => (yy < -40 ? lerp(92, 80, (yy + 96) / 56) : yy < -10 ? lerp(80, 66, (yy + 40) / 30) : lerp(66, 44, (yy + 10) / 10));
+    for (let i = -4; i <= 4; i++) inkLine(...P(i * 19, -92), ...P(i * 12, -4), { ...ln(B, 0.45), color: dim(o) });   // stakes
+    [-80, -62, -44, -26].forEach((yy, r) => {   // weavers going over and under the stakes
+      const w0 = hw(yy) - 4, pts = []; for (let i = 0; i <= 32; i++) { const u = -w0 + i * 2 * w0 / 32; pts.push([u, yy + 7 * (1 - (u / w0) ** 2) + 4 * Math.sin((u / w0) * Math.PI * 4.5 + r * Math.PI)]); }
+      inkPath(MAP(P, pts), ln(D, 0.6));
+    });
+    inkPath(MAP(P, [[-98, -106], [98, -106], [98, -92], [-98, -92]]), { ...B, closed: true, round: 1, fill: fl(o, STRAW()) });   // rim
+    for (let i = 0; i < 12; i++) inkLine(...P(-92 + i * 16, -105), ...P(-84 + i * 16, -93), ln(D, 0.4));
+  };
+  PROPS.claytablet = (x, y, s, o) => {   // a clay tablet with rows of wedge marks (cuneiform: the first writing)
+    const P = PT(x, y, s), A = st(o, 0, 0.45), B = st(o, 0.3, 0.7), D = st(o, 0.5, 1), clay = fl(o, CLAY());
+    inkPath(MAP(P, [[-50, -156], [-38, -166], [66, -160], [56, -150]]), { ...A, closed: true, round: 1, fill: clay });   // top edge
+    inkPath(MAP(P, [[52, 0], [64, -8], [66, -160], [56, -150]]), { ...A, closed: true, round: 1, fill: clay });           // side edge
+    inkPath(MAP(P, [[-54, -4], [-4, -1], [52, 0], [55, -76], [56, -150], [-2, -153], [-50, -156], [-53, -80]]), { ...A, closed: true, round: 1, fill: clay });   // face
+    for (let r = 1; r < 6; r++) inkLine(...P(-46, -4 - r * 25.5), ...P(48, -r * 25.5), { ...ln(B, 0.4), color: dim(o) });
+    const rows = ['hvcvh', 'vvhc', 'chvvh', 'hvhc', 'vcvhv', 'hcv'], L = ln(D, 0.6), F = { ...D, closed: true, jit: 0.2, fill: INK(), w: (o.w || 4) * 0.4 };
+    rows.forEach((row, r) => [...row].forEach((g, i) => {
+      const gx = -38 + i * 17 + (r % 2) * 4, gy = -142 + r * 25.5;
+      if (g === 'h') { inkPath(MAP(P, [[gx - 4, gy - 5], [gx + 3, gy], [gx - 4, gy + 5]]), F); inkLine(...P(gx + 3, gy), ...P(gx + 13, gy), L); }
+      else if (g === 'v') { inkPath(MAP(P, [[gx - 5, gy - 8], [gx + 5, gy - 8], [gx, gy - 1]]), F); inkLine(...P(gx, gy - 1), ...P(gx, gy + 9), L); }
+      else { inkPath(MAP(P, [[gx + 7, gy - 7], [gx - 3, gy], [gx + 7, gy + 7]]), L); }
+    }));
+    inkPath(MAP(P, [[-50, -112], [-42, -106], [-47, -96]]), ln(D, 0.45));                 // a crack
+  };
+})();
 
 // ---------- letter concept places (CONCEPTS 'Pictures', 2026-11-14) ----------
 // The letter concept's places, so every letter video starts in the same room every chapter instead of a bare desk:

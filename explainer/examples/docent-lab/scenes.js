@@ -6,7 +6,7 @@ cast('eng',    { name: '엔지니어', hair: 'curly', glasses: 'round' });
 cast('cfo',    { name: '재무 담당', hair: 'ponytail', h: 0.95 });
 cast('gent',   { name: '신사', hat: 'top', mustache: true, h: 1.1 });
 cast('marcus', { name: '아우렐리우스', hat: 'laurel', hair: 'short', beard: true, h: 1.05 });
-cast('viewer', { name: '나', hair: 'side' });   // the running figure: no tag, ever
+cast('viewer', { name: '나', hair: 'spiky' });   // the running figure: no tag, ever (side hair read as musk's short)
 cast('me',     { name: '나', hair: 'long', h: 0.94 });                      // the letter's narrator: never tagged
 cast('oppa',   { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the letter's listener
 

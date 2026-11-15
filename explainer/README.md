@@ -154,11 +154,11 @@ for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue
 
 | Function | What it draws |
 |---|---|
-| `figure(x, y, {pose, face, s, t, walk, flip, look, tie, glasses, hair, hat, beard, mustache, outfit, accent, h, tag, crowd, p})` | stick figure; (x, y) between the feet, `s: 1` is about 340 px. Poses: stand wave point present think shrug cheer hold akimbo reach slump facepalm carry lift stop. Faces: smile happy neutral sad surprised worried angry think cool (= sunglasses, not 'calm') wink sleepy |
+| `figure(x, y, {pose, face, s, t, walk, flip, look, tie, glasses, hair, hat, beard, mustache, outfit, accent, h, tag, crowd, p})` | stick figure; (x, y) between the feet, `s: 1` is about 340 px. Poses: stand wave point present think shrug cheer hold akimbo reach slump facepalm carry lift stop. Faces: smile happy neutral sad surprised worried angry think cool (= sunglasses, not 'calm') wink sleepy. Hats: top cap beanie bowler crown laurel morion (the conquistador helmet) |
 | `achilles`, `tortoise`, `crab`, `ant` | ready characters (helmet with a red crest, shell, crab, ant) |
 | `cast(id, look)`, `person(id, x, y, o)` | one fixed look per person (hair, hat, outfit, accent colour, height, name); `person` draws it and returns anchors `{head, r, mouth, top, hands, box, dir}`. `tag: true` writes the name beside the chest |
 | `say(who, text, o)`, `think(who, text, o)` | a speech / thought bubble placed beside the figure where it covers no face, figure, bubble or name tag, tail aimed at the mouth. Draw the figures first, then the bubbles |
-| `animal(kind, x, y, {s, dir, p, tag})` | anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse hen swan blackswan octopus bat bee turtle tick, each built from the features people name it by; returns anchors like `person` |
+| `animal(kind, x, y, {s, dir, p, tag})` | anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse hen swan blackswan octopus bat bee turtle tick cow sheep goat llama zebra squirrel duck, each built from the features people name it by; returns anchors like `person` |
 | `seated(id, x, y, o)` | a cast person in a wheelchair (chair, seated figure, wheel in front); returns the person's anchors |
 | `docentGallery(kind)` | every cast look / animal / prop / hair style on one labelled sheet (`tools/gallery.py`) |
 | `bubble(x, y, w, h, {kind: 'speech' \| 'thought', tail, text, body, p})` | speech or thought bubble; `body(x, y, w, h)` draws a small picture inside |
@@ -168,7 +168,7 @@ for cross-outs and circles (on mono-black they fall back to `C.text` and `C.blue
 | `cross(x, y, w, h)`, `crossAt(cx, cy, w, h)`, `ring(cx, cy, rx, ry)`, `underline`, `eqSign`, `plusSign` | red X (`cross` from the top-left corner, `crossAt` from the centre), red circle (centre), underline, picture-equation signs |
 | `scrollList(x, y, w, title, items, {mark, strike, p})` | a handwritten list on paper, items ringed or struck through |
 | `bookCover`, `quote`, `chapterMap` | a drawn cover for a book without a cover image (a docent book shows its real covers, REFERENCE §4), a short quote, a progress map for long videos |
-| `prop(name, x, y, s, {p, fill, t, time})` | (`time: [h, m]` fixes a clock's hands, default 10:10) 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium ship whaleboat harpoon flask testtubes medal moon wind frame trolley lever bowl garage pcb fire barn crate rocket car mars factory moneybag satellite wheelchair barbell card seesaw notebook (`note` is a music note) … (`Object.keys(PROPS)`) |
+| `prop(name, x, y, s, {p, fill, t, time})` | (`time: [h, m]` fixes a clock's hands, default 10:10) 50+ everyday things: book openbook door opendoor ladder stairs mirror loop gear tree balance bulb clock calendar signpost house brain heart key lock box coin phone laptop monitor camera desk chair bench flag mountain sun cloud star eye magnifier puzzle trophy bridge globe note staff record phonograph doll pencil paper window fly rock puddle pawn cap map stadium ship whaleboat harpoon flask testtubes medal moon wind frame trolley lever bowl garage pcb fire barn crate rocket car mars factory moneybag satellite wheelchair barbell card seesaw notebook sword musket steelaxe stoneaxe spear wheat corn germ junk caravel canoe hut jar basket claytablet (`note` is a music note) … (`Object.keys(PROPS)`) |
 | `shots(t, [[t0, draw], …])` | quick cuts: the last shot that has started is drawn, fading in over 0.22 s; `draw(t, lt)` gets the time since it started |
 | `pop(t, t0)`, `dp(t, t0, d)` | pop-in scale with a small overshoot; draw-on progress |
 
@@ -195,9 +195,10 @@ its captions there); draw everything except the books' own covers: a docent book
 and of the Korean edition (REFERENCE §4); other artwork only when it is public domain.
 
 Ink mode (project.json `"colour": false`, which `new_video.py` writes for every new sketch project or with `--docent`):
-`figure`, `person`, `seated`, `animal`, `prop`, `crab` and `ant` paint every colour inside them as ink (lines, text) and
-every fill that is not ink-dark as the page, so cast accents, outfits, animal coats and prop fills come out as unfilled
-line art. Pass `colour: true` on a call when the colour is the meaning (a red heart). A project without the key (an
+`figure`, `person`, `seated`, `animal`, `prop`, `crab` and `ant` paint two tones only, the ink and the page: a line or a
+letter is ink unless it is page-pale (a white blaze, an ivory highlight: then the page), a fill is the page unless it is
+ink-dark (hair, a dark mane: then ink), so cast accents, outfits, animal coats and prop fills come out as unfilled line
+art (`tools/test_budget_engine.py` draws every animal, prop and hat and checks it). Pass `colour: true` on a call when the colour is the meaning (a red heart). A project without the key (an
 older video, a make-3b1b project) keeps its colours when its engine is refreshed. New docent projects also get
 `"subtitles": "off"` and `"chip": false`; `export.py srt` writes the narration as `out/<slug>.srt` for the YouTube
 caption track.
@@ -209,7 +210,8 @@ voice, animal, timeline, …), [LESSONS.md](docent/LESSONS.md) (every defect fou
 
 Every primitive reports what it drew in the current frame (`DOCENT`, `docentReport()`): half-drawn parts, faded
 ghosts, ink under the subtitles or off the frame, empty bubbles, tails that point at no head, bubbles over faces or
-name tags, people sharing a look, animals on the stick-figure rig — and the emphasis budget: the things on screen (each
+name tags, people sharing a look, unnamed figures with a cast member's silhouette (`cast-lookalike`: a crowd with
+Yali's curly hair, a king with Diamond's bald head and beard), animals on the stick-figure rig — and the emphasis budget: the things on screen (each
 top-level call; a crowd or a row of the same prop counts once), the written words (name tags included), the red marks
 and any colour besides ink, purple and red. Three tools use it:
 
@@ -232,7 +234,7 @@ bed — it would stop dead under the voice. Each chapter gets one
 track in its mood family (`"mood"` in script.json); a chapter longer than its track chains a second one with a 4 s
 cross-fade at a sentence gap, a sentence with `"music": "<mood>"` changes track exactly there, and a chapter break is a
 3 s cross-fade centred on the title card. No track twice in a video while the 23 beds last (about 20 chapters; past
-that one comes back, with a warning); tracks used by the last 10 videos cost more
+that the track played least and longest ago comes back, away from its last play, with a warning); tracks used by the last 10 videos cost more
 (`~/.cache/2lab-explainer-music/history.json`). Each track is normalised to -20 LUFS and the bed gets a 3 dB dip
 around 2.5 kHz. Output: `score.wav`, `score.json` (`kind: library`, so `export.py mix` ducks gently and lifts open
 stretches +10.5 dB), `out/cue_sheet.md` and `out/music_credits.txt` — paste the credits into the YouTube description

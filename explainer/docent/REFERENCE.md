@@ -45,7 +45,8 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
 `"chip": false`. Name tags are ink.
 
 ## 1. Picture rhythm
-- A new picture every 3 to 5 s (Productive Peter reference: 3.7 s). Never hold one longer than 8 s (lint: `long-hold`).
+- A new picture every 3 to 5 s (Productive Peter reference: 3.7 s). Never hold one longer than 8 s (lint: `long-hold`;
+  on a draft timeline it fires at 6.7 s: the voice runs up to 20 % longer than the draft).
 - Inside a shot things draw on (`p: dp(lt, 0, 0.8)`) and are **finished** before the shot ends: nothing half-drawn at
   rest (lint: `half-drawn`). A label reveal takes at most 0.8 s.
 - Picture before name: draw the thing, then write its name.
@@ -65,11 +66,12 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   tie — never a colour or a coloured outfit (ink mode paints `accent` and outfit fills as ink and page anyway).
 - Every person in a book gets one fixed look, set once with `cast(id, look)` and drawn with `person(id, x, y, o)`. Two
   different people in one frame must never share a look (lint: `twins`; the same person twice, e.g. before/after, is
-  fine); every crowd member that is not a person sets `crowd: true`. Two cast looks may not share hair and hat
-  (lint: `cast-similar`). Two people in a shot is common; three is a crowd scene and rare.
+  fine); every crowd member that is not a person sets `crowd: true`. Two cast looks may not share a head (lint:
+  `cast-similar`, below). Two people in a shot is common; three is a crowd scene and rare.
 - Silhouette test: fill each figure black; you must still tell who is who. Vary in this order: height (`h` 0.85 to
-  1.15), hair or hat (`short spiky curly long bun ponytail side bald`, `top cap beanie bowler crown laurel`), then one
-  prop (glasses, beard, tie). No outfits or accent colours unless the outfit is the role (a toga, a lab coat) — then in
+  1.15), hair or hat (`short spiky curly long bun ponytail side bald`, `top cap beanie bowler crown laurel morion`),
+  then one prop (glasses, beard, tie). At phone size in ink some are one shape: `short` = `side` (a dark cap), `bun` =
+  `beanie` (a round cap with a knob), `bald` = no hair; round and square glasses are both glasses. No outfits or accent colours unless the outfit is the role (a toga, a lab coat) — then in
   ink. `hair: 'long'` reads as a woman on the sheet; for a long-haired man add a beard.
 - Name tag (`tag: true`) only the first time the narration names a person in the whole video, and only in a shot with
   no other written word (a tag is a word: lint `words`); then the look carries the identity. The running figure never
@@ -79,6 +81,23 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   `name tag over name tag`, `name tag over another figure or animal`). Clothes are opaque; the body line is under them.
 - A quote is acted by the person who said it, in their look; the running figure only asks and reacts.
 - A real person is a stand-in figure with their look, never a photo or caricature of the face.
+- Look-alikes: no unnamed figure (a crowd, an extra, a generic king or scholar) may share a cast member's silhouette —
+  the same head top, plus that cast look's beard or glasses — or viewers read it as that person (총균쇠: foragers with
+  curly hair read as Yali, a crowd bun as 정화, a scholar with side hair and glasses as 오빠). A crown or a laurel does
+  not hide the head under it: a ruler drawn bald + beard + crown read as Diamond (bald + beard). Rulers get a crown +
+  short or side hair + a mustache, never a Diamond-like bald head and beard unless that ruler is the cast look — and
+  the ruler's head must differ from every crowned cast member too. Give extras a plain head or a hair or hat no cast
+  look uses (lint: `cast-lookalike`, P1); a cast member that appears once still reserves its head for the whole video.
+  A cast look with a plain head (no hair, hat, beard or glasses) makes every plain extra a look-alike: give every cast
+  member a head of their own.
+- Respect: Indigenous and non-European people are the same plain figures as everyone else, told apart by one prop
+  (a headband, a canoe paddle, a digging stick) — never caricature, feathers as costume, or skin colour. A people is
+  never marked only by a weapon or an angry face: a weapon only when the sentence is a fight, a neutral or determined
+  face when the line describes them (총균쇠: five scowling club-holders read as 'warlike natives'). Places and buildings
+  belong to their culture (Hawaii is not a Mesoamerican pyramid; the thatched `hut` is one house type, not the sign of
+  a people) or are neutral. A hat is a culture: no Western top hat or bowler on a non-Western official (a plain head,
+  a bun and a long beard, or the culture's own hat drawn as a look helper). Violence and death with restraint: a
+  fallen crown, sick beds, an empty hut, figures leaving — no bodies, no blood, no weapon aimed at a person.
 - One figure is the viewer's stand-in through the whole video ("the running figure"): keep its look.
 
 ## 3. Bubbles
@@ -167,8 +186,13 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
   card; a chapter longer than its track chains a second track in the same mood family with a 4 s cross-fade at a
   sentence gap. A sentence that turns the story carries `"music": "<mood>"`: the track changes exactly there.
 - Only a track's audible body is placed (no quiet intro, no fade-out tail under the voice), so the bed never goes
-  silent mid-chapter. No track twice in one video (23 beds; more than ~20 chapters warns). Tracks are normalised to
-  -20 LUFS; the bed dips 3 dB at 2.5 kHz.
+  silent mid-chapter. No track twice in one video while the 23 beds last. Tracks are normalised to -20 LUFS; the bed
+  dips 3 dB at 2.5 kHz.
+- A video over ~30 minutes repeats beds: chapters longer than their track chain a second one, so 19 chapters made 29
+  sections in the 40-minute 총균쇠. The planner first plays every bed once (out of the mood family if it must, the
+  family ranks first), then brings back the track played least and longest ago, avoiding one heard in the last 8
+  sections and never the one right before (`every bed is used: … plays 2 times` on stderr). Fewer, longer chapters and mood turns
+  only where the story turns keep the count of sections down; a repeat 10+ minutes later is not noticed.
 - Credits: CC BY needs the title, artist, licence and source of every track — `out/music_credits.txt` goes into the
   YouTube description and the audiobook notes.
 - Moods: wonder curious tension triumph melancholy playful reflective urgent warm mystery epic-calm nostalgic. Give each

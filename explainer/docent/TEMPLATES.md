@@ -33,7 +33,7 @@ TITLE_CARD = signCard;
 cast('musk',  { name: '머스크', hair: 'short', tie: true, h: 1.08 });          // silhouettes: height, hair/hat, one prop
 cast('mom',   { name: '메이', hair: 'bun', h: 0.95 });
 cast('eng',   { name: '엔지니어', hair: 'curly', glasses: 'round' });
-cast('viewer',{ name: '나', hair: 'side' });   // the running figure: never tagged
+cast('viewer',{ name: '나', hair: 'spiky' });   // the running figure: never tagged (side hair reads as short)
 ```
 No `accent` and no `outfit` (ink mode paints them as ink anyway): people differ by silhouette, as in the reference.
 Then `python tools/gallery.py cast` and look at the sheet before writing any scene.
@@ -159,9 +159,9 @@ shows on `gallery.py` sheets, `say()` and the lint see it, and the retro moves g
 // animal: T(px, py) maps local units (x forward, y up negative, s = 1 ≈ 300 px long) to the screen; o = { s, dir, p,
 // a, w, color, fill }; q(k) is the staged draw-on, k = 0..4 (all 1 at p = 1). Scale radii by o.s yourself. Return the
 // anchors; add half: <half-length in local units> when the animal is longer than ±270 (a whale).
-ANIMALS.goat = (T, o, q) => {
+ANIMALS.deer = (T, o, q) => {
   inkPath([T(-90, -60), T(-60, -120), T(60, -120), T(90, -60), T(60, -40), T(-60, -40)], { ...o, closed: true, round: 2, p: q(1), fill: o.fill || mix(C.grey, 0.5) });
-  // … legs q(0), head q(2), horns and beard q(3), eye q(4)
+  // … legs q(0), head q(2), antlers q(3), eye q(4)
   return { head: T(110, -140), r: 28 * o.s, mouth: T(140, -120), top: T(110, -190) };
 };
 // prop: (x, y) = bottom centre, s = 1 ≈ 160 px tall; o = { p, a, w, color, fill, t, paperFill }.
@@ -170,8 +170,37 @@ PROPS.anvil = (x, y, s, o) => { inkPath([[x - 80 * s, y - 60 * s], [x + 80 * s, 
 // pose: [elbow, hand] for the left and right arm, relative to the shoulder (y down)
 POSES.pray = { la: [[-30, 46], [-6, 10]], ra: [[30, 46], [6, 10]] };
 ```
-Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel'`. A new kind of look (a toga, armour) is a helper
-drawn after `person()` at its anchors, shown once on a still at Gate A.
+Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel' | 'morion'`. A new kind of look (a toga, armour)
+is a helper drawn after `person()` at its anchors, shown once on a still at Gate A.
+
+**A hat of your own** (the morion pattern, 총균쇠: the conquistador helmet began as a project helper and is now
+`hat: 'morion'`). When no kit hat fits the culture (a Ming official's winged cap, an Inca mascaypacha), draw it at the
+head anchors in head radii, raise the figure's box to its top, and wrap `person()` so every cast look that names it
+gets it:
+```js
+function wusha(fig, { p = 1, a = 1 } = {}) {          // a Ming official's cap: a low black crown, a wing to each side
+  if (!fig || !(fig.r > 0)) return fig;
+  const [hx, hy] = fig.head, R = fig.r, P = (dx, dy) => [hx + dx * R, hy + dy * R];
+  if (fig.box) { fig.box[1] = Math.min(fig.box[1], hy - 1.6 * R); fig.top = [hx, fig.box[1]]; }   // before p: bubbles keep clear
+  if (p <= 0 || a <= 0) return fig;
+  const o = { p, a, w: 4.2 * Math.max(0.7, Math.sqrt(R / 44)), jit: 0.5 };   // the figure's line width at this size
+  inkPath([P(-0.9, -0.5), P(-0.85, -1.1), P(0.85, -1.1), P(0.9, -0.5)], { ...o, closed: true, fill: INK() });   // the band
+  inkArc(...P(0, -1.1), 0.6 * R, 0.48 * R, Math.PI, Math.PI * 2, { ...o, closed: true, fill: INK() });          // the raised back
+  for (const d of [-1, 1]) inkEllipse(...P(d * 1.45, -1.12), 0.62 * R, 0.16 * R, { ...o, fill: INK() });      // the wings
+  return fig;
+}
+const personBeforeWusha = person;                     // a name of its own: a second hat wraps again under another
+person = function (id, x, y, o = {}) {                 // cast('official', { name: '관리', hat: 'wusha', beard: true })
+  const look = CAST[id], mine = !!look && look.hat === 'wusha';
+  const f = personBeforeWusha(id, x, y, mine ? { ...o, hair: 'short' } : o);   // under the hat the hair is a short cap
+  if (mine) wusha(f, o);
+  return f;
+};
+```
+The look keeps `hat: 'wusha'`, so the lint compares heads correctly (`cast-similar`, `cast-lookalike`); figure()
+draws nothing for a hat it does not know. Check it on the cast sheet at Gate A beside the cast's other hats; the retro
+moves it into `figure()`, and a project that refreshes its engine drops its own wrapper then (총균쇠's `person()`
+wrapper would draw a second morion over the kit's).
 
 ## C. A one-scene clip (a 10 to 20 s probe, a trailer, a short)
 Keep the chapter shape's first, middle and last beat and drop the rest (biography: turning point → decision → cost;

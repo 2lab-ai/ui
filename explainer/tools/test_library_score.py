@@ -112,6 +112,17 @@ class Plan(unittest.TestCase):
             self.assertTrue(all(p['mood'] in LS.FAMILY for p in pl))
             self.fits(pl)
 
+    def test_a_long_video_spreads_its_repeats(self):   # 총균쇠: 29 sections, Cloudloop three times while beds played once
+        script, tl = timeline(n=34, sents=10, sd=6.0)
+        with contextlib.redirect_stderr(io.StringIO()) as err: pl = LS.plan(LS.chapters(script, tl), 'test', None)
+        plays = {}
+        for i, p in enumerate(pl): plays.setdefault(p['cue'], []).append(i)
+        self.assertEqual(len(plays), len(LS.catalogue()))                       # every bed before any repeat
+        self.assertLessEqual(max(map(len, plays.values())), 2, plays)           # no third play while a bed has one
+        self.assertTrue(all(b - a >= 8 for v in plays.values() for a, b in zip(v, v[1:])), plays)   # repeats far apart
+        self.assertIn('every bed is used', err.getvalue())
+        self.assertTrue(all(a['cue'] != b['cue'] for a, b in zip(pl, pl[1:])))   # never the track that just played
+
     def test_turn_in_the_first_seconds_sets_the_chapter_mood(self):
         script, tl = timeline(n=2, sents=8)
         script['scenes'][1]['sentences'][0]['music'] = 'triumph'   # 2.6 s into the chapter
