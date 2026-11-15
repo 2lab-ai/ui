@@ -79,7 +79,8 @@ crops, rows of figures). The letter uses the same picture grammar as the lecture
    subject by 0.5 s; never a blank or half-drawn frame.
 3. Every picture reads for a stranger in 2 s on a phone: a person doing something with a recognisable object, never
    an arrangement of symbols.
-4. The narrator is the running figure; 오빠 appears when she addresses him; the books are their real covers.
+4. The narrator is the running figure; 오빠 appears when the line is about him (a bare "오빠," calling him does not
+   draw him); the books are their real covers, the original shown at least once (TEMPLATES B).
 5. Written words: only a term the viewer must remember (시간 근시, 자기 조절) or a number; never a purple caption that
    repeats the picture in every chapter (Gate C v3 counted 19 and cut 14).
 The letter places, camera and letter-sheet card (TEMPLATES "P") are an option for a single shot or an opening, not the
@@ -88,7 +89,7 @@ grammar of a whole video. Reference frames: `~/2lab.ai/ARTIFACTS/docent/referenc
 **How it maps to the kit**
 - A part is a scene in `script.json`. A part's text is split into sentences of up to ~120 characters for cwon.
 - Cast: the narrator is the running figure (one fixed look, never tagged, e.g. `hair: 'long'`). The listener gets a
-  plain look of their own and appears when the narrator addresses him ("오빠도 이런 적 있잖아요" → draw him doing it).
+  plain look of their own and appears when a line is about him ("오빠도 이런 적 있잖아요" → draw him doing it).
   Authors and people in the books follow REFERENCE §2.
 - Health topics: the listener is never drawn as the person who has the condition, nor labelled with a symptom. "ADHD가
   있는 어른은 …" is a plain crowd figure (`figure(…, { crowd: true })`), not the listener: the narrator says "오빠가

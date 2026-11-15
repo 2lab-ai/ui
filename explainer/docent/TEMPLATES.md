@@ -32,7 +32,9 @@ Put the names the voice must say in `project.json` `"names": ["이스마엘", "�
 Letter (the default): `me` and `oppa` are cast in every letter video, drawn or not, so their looks stay reserved
 (p08: Schrödinger with side hair + round glasses read as 오빠, and with no `oppa` cast no lint could see it; lint
 `letter-cast`). `new_video.py` writes the `TITLE_CARD` line and these two casts into a new docent project's scenes.js
-(only when it has none); the book's people go below them, each look taken from a photo (REFERENCE §2).
+(only when it has none) and `"concept": "letter"` into its project.json; for the lint, an ink-mode project
+(`"colour": false`) with no `concept` counts as letter. The book's people go below them, each look taken from a photo
+(REFERENCE §2).
 ```js
 TITLE_CARD = signCard;
 cast('me',       { name: '나', hair: 'long', h: 0.94 });                        // the narrator: never tagged
@@ -200,7 +202,9 @@ PROPS.anvil = (x, y, s, o) => { inkPath([[x - 80 * s, y - 60 * s], [x + 80 * s, 
 POSES.pray = { la: [[-30, 46], [-6, 10]], ra: [[30, 46], [6, 10]] };
 ```
 Look at the gallery first: run 4 moved ANIMALS `fox` `lion` `wolf` `monkey`, PROPS `plane` `dna` `diary` and POSES
-`reachDown` `linked` `showBook` into docent.js.
+`reachDown` `linked` `showBook` into docent.js. Two people hand in hand: draw both figures, then
+`holdHands(a, b, { p })` draws their inner arms to one grip point between them and returns that point. Use it instead
+of `POSES.linked` when their heights differ (r09: `linked` hands at h 1.04 and 0.92 missed by 26 px).
 Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel' | 'morion'`. A new kind of look (a toga, armour)
 is a helper drawn after `person()` at its anchors, shown once on a still at Gate A.
 
@@ -235,11 +239,21 @@ wrapper would draw a second morion over the kit's).
 
 ## B. The book shot (letter: the real covers on a plain page, REFERENCE §4)
 Draw the sentence's verb with the book: 다 읽었어요 → she holds it up while 오빠 looks; 읽어 봐요 → she hands it to
-him. 오빠 is in the shot whenever the line speaks to him or about him. Never the `present` pose pointing at a pair in
-the air (all 10 run-4 probes opened that way). One cover in a hand is `holdCover(fig, name)`: at the front hand,
-upright beside the body, clear of the face; it returns the cover's box.
+him; 빌려준 → he hands it to her. Never the `present` pose pointing at a pair in the air (all 10 run-4 probes opened
+that way). One cover in a hand is `holdCover(fig, name)`: at the front hand, upright beside the body, clear of the
+face; it returns the cover's box.
+- **The original is shown at least once in the video**: the pair on a desk line, in the shot whose line names the
+  book or the next one. The Korean edition in a hand alone is not enough. A Korean original (윤동주) is the exception:
+  its Korean edition alone.
+- **오빠 is in the shot when the line is about him** (오빠가 맨날 읽으라던, 오빠 책장의, 오빠가 빌려준). "오빠," used only
+  to call him (오빠, 드디어 다 읽었어요) does not need him drawn.
+- **A line about him that also brings in both editions: two shots.** Her, him, a desk and the pair are four things
+  (lint `busy`): all four verification authors hit this and broke one rule or the other. First the hand-over of the
+  Korean edition between her and him, then her with the pair on a desk line. Draw that desk in plain `inkLine`s: lines
+  are support, not a thing, so the shot is her + the pair. Each shot holds 3 s or more: split one sentence (at the
+  book's name, `q.w`) only when it runs about 6 s; otherwise the hand-over takes this sentence and the pair the next.
 ```js
-[q.s(0), (t, lt) => {   // "오빠, 드디어 다 읽었어요": she holds the Korean edition up, he looks
+[q.s(0), (t, lt) => {   // "오빠가 권한 책, 드디어 다 읽었어요": she holds the Korean edition up, he looks
   const me = person('me', 700, 870, { s: 1.3, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
   holdCover(me, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
   person('oppa', 1300, 870, { s: 1.3, flip: true, face: 'surprised', p: dp(lt, 0.1, 0.5) });
@@ -251,14 +265,23 @@ upright beside the body, clear of the face; it returns the cover's box.
   person('oppa', x, 870, { s: 1.3, pose: 'reach', flip: true, face: 'happy', p: dp(lt, 0.1, 0.5) });
 }],
 ```
-Both editions introduced: the pair stands on a desk line, her hand at the near cover.
+A line about him, then both editions (two shots): he hands her the Korean edition; she rests a hand on the pair.
 ```js
-[q.s(1), (t, lt) => {   // "원서는 영어로 나왔고, 한국어판도 있어요"
-  prop('desk', 1180, 870, 2.4, { p: dp(lt, 0, 0.3) });                            // its top is at 870 − 80 × 2.4
-  realCoverPair('cover_lab_en', 'cover_lab_ko', 1180, 870 - 80 * 2.4, 360, { p: dp(lt, 0.1, 0.6) });
-  person('me', 760, 870, { s: 1.4, pose: 'point', face: 'happy', p: dp(lt, 0, 0.5) });
+[q.s(0), (t, lt) => {   // "오빠가 맨날 읽으라던 그 책, 드디어 다 읽었어요": he hands it to her
+  const o = person('oppa', 720, 870, { s: 1.3, pose: 'reach', face: 'happy', p: dp(lt, 0, 0.5) });
+  const b = holdCover(o, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
+  const x = b.x + b.w + 118 * 1.3 * CAST.me.h;                                    // her reach hand lands at b.x + b.w
+  person('me', x, 870, { s: 1.3, pose: 'reach', flip: true, face: 'smile', p: dp(lt, 0.1, 0.5) });
+}],
+[q.s(1), (t, lt) => {   // "원서는 영어로 나왔고, 한국어판도 있어요": her and the pair on a desk drawn in lines
+  const top = 870 - 190;                                                           // lines are support, not a thing
+  inkLine(880, top, 1400, top, { w: 6, p: dp(lt, 0, 0.3) });
+  for (const x of [920, 1360]) inkLine(x, top, x, 870, { w: 4.4, p: dp(lt, 0.05, 0.3) });
+  const pr = realCoverPair('cover_lab_en', 'cover_lab_ko', 1140, top, 360, { p: dp(lt, 0.1, 0.6) });
+  person('me', pr.x - 118 * 1.4 * CAST.me.h, 870, { s: 1.4, pose: 'reach', face: 'happy', p: dp(lt, 0, 0.5) });   // her hand at the near cover
 }],
 ```
+She may sit at that desk instead (T15) when the line is 읽었어요 or 덮고도 앉아 있었어요.
 The original first (left), the Korean edition second. Every cover is fully in by the shot's start + 0.8 s (lint
 `cover-late`): start it by `lt` 0.2 and give it ≤ 0.6 s. A cover or a pair is one thing and no word; with two people
 it is the shot's third thing, so nothing else goes in.
