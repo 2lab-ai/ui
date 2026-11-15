@@ -240,11 +240,16 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
   render and, outside 20.5–21.5 dB, renders once more with the bed gain corrected to ~21 dB (it prints both numbers).
   `mix_check.py` passes 19.5–22.5 dB (the target with 0.5 dB tolerance; it passed 18–26 until run 4, where six of ten
   clips sat at 19.3–24.3). The open-stretch level skips the video's first 1.5 s, the bed's own fade-in: a one-scene
-  clip's only open stretch is its title card, and p03 and p06 failed "flat" there until the author raised `--lufs`.
+  clip's only open stretch is its title card, and p03 and p06 failed "flat" there. After the trim, `export.py mix` also
+  measures that open stretch and, below −29 dBFS, lifts it toward −27 dBFS (at most +8 dB; it prints
+  `open stretch X -> lift +Y dB -> Z dBFS`), then prints the mix_check verdict or a WARNING. A track whose first
+  seconds are near-silent still fails: pick another track for the mood, do not raise `--lufs` by hand.
 - In a clip under ~20 s, do not force a `"music"` change: one track is enough.
 
 ## 8. Gates (in order, each one blocks the next)
-Every tool prints its usage with `--help` and does nothing else (`narrate_soma.py --help` used to start a narration).
+`lint_scenes.py`, `narrate_soma.py` and `timeline_draft.py` print their usage with `--help` and do nothing else
+(`narrate_soma.py --help` used to start a narration). The other tools do not parse `--help`: read the docstring at the
+top of the file instead of running them with it.
 1. **Asset gallery** — `tools/gallery.py cast animals [props]`; look at every sheet. Fix looks before writing scenes.
    The gallery tests identity ("a wolf"); whether a drawing reads as the action ("nursing", "lifting") is checked at
    gate 3 by a fresh reviewer.

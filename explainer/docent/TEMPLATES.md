@@ -202,9 +202,11 @@ PROPS.anvil = (x, y, s, o) => { inkPath([[x - 80 * s, y - 60 * s], [x + 80 * s, 
 POSES.pray = { la: [[-30, 46], [-6, 10]], ra: [[30, 46], [6, 10]] };
 ```
 Look at the gallery first: run 4 moved ANIMALS `fox` `lion` `wolf` `monkey`, PROPS `plane` `dna` `diary` and POSES
-`reachDown` `linked` `showBook` into docent.js. Two people hand in hand: draw both figures, then
-`holdHands(a, b, { p })` draws their inner arms to one grip point between them and returns that point. Use it instead
-of `POSES.linked` when their heights differ (r09: `linked` hands at h 1.04 and 0.92 missed by 26 px).
+`reachDown` `linked` `showBook` into docent.js. Two people hand in hand: draw both figures with `holdHand` on their
+inner side (the left one `holdHand: 'right'`, the right one `holdHand: 'left'`; that arm is left off), then
+`holdHands(a, b, { p })` draws those two arms to one grip point between them and returns that point (a figure without
+`holdHand` on that side is reported, lint P0). Use it instead of `POSES.linked` when their heights differ (r09:
+`linked` hands at h 1.04 and 0.92 missed by 26 px).
 Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel' | 'morion'`. A new kind of look (a toga, armour)
 is a helper drawn after `person()` at its anchors, shown once on a still at Gate A.
 

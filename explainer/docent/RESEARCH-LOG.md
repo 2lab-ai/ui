@@ -119,7 +119,18 @@ the changes (skill / reference / templates / code) and what is still weak. Run f
   Docs: REFERENCE §2 (a photo per real person), §4 (the book shot, the edition rule, `cover_<book>_<lang>`, the
   `book_covers` schema), §7/§8 (the mix band, the trim, the open stretch); TEMPLATES B, T1 letter cast, T11, C;
   CONCEPTS "Voice" (redo once, then reword; ear traps); the skill's §1, §2, §4 (`improved/SKILL.md`).
-- Verification: (filled after the re-runs)
+- Verification (blind, same rubric, kit adb6f04): paired re-runs 생명이란 무엇인가 4.13 (fail) → 4.53, 사피엔스
+  4.20 → 4.53, 안네의 일기 4.07 → 4.67 (paired mean 4.13 → 4.58, 3/3 pass); new books (seed 20261116) 로마인 이야기 1
+  4.40, 월든 4.53; all 5 mean 4.53, 5/5 pass. Up most: music 3.67 → 5.00 (every clip 21.0 dB under the voice), identity
+  3.33 → 4.33, letter script 4.33 → 5.00, covers 4.67 → 5.00. Still weak: the book shot over budget (narrator + 오빠 +
+  two covers), a Hebrew cover for 사피엔스, the ink-mode banana erased, `linked` hands missing for different heights,
+  the title card "flat" after the trim, the seated figure, `narrate_soma.py --help` starting a narration. Fix round
+  (trinity R1: astra REJECT, fable conditional, grok APPROVE): cover-late judges each shot once and a cover not yet
+  started is late; lint fails loudly (P0 `engine-too-old`) on an old engine copy; new docent projects get
+  `"concept": "letter"` and an ink-mode project without one counts as a letter; the starter and TEMPLATES B show the
+  original at least once; `export.py mix` lifts a quiet title card toward −27 dBFS; the banana reads in ink;
+  `holdHands`; `narrate_soma.py --help`, `timeline_draft.py --out`; REFERENCE §4 the original = the Korean translation's
+  source; T15 seated figure redrawn; ear trap 1권. Scorecard: `scorecard.md`.
 - Not fixed (noted): props that misread or float (only an eye sees meaning and support), name-tag ink height, word
   cues that ignore `[pause]`, animals without expressions or head turns, repeated voice markup (2 of 3 tagged, a
   [pause] after "오빠,"), the beard's solid crescent that reads as a mask (redrawing it changes every finished video).
