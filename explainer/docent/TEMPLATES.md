@@ -248,7 +248,7 @@ face; it returns the cover's box.
 - **오빠 is in the shot when the line is about him** (오빠가 맨날 읽으라던, 오빠 책장의, 오빠가 빌려준). "오빠," used only
   to call him (오빠, 드디어 다 읽었어요) does not need him drawn.
 - **A line about him that also brings in both editions: two shots.** Her, him, a desk and the pair are four things
-  (lint `busy`): all four verification authors hit this and broke one rule or the other. First the hand-over of the
+  (lint `busy`): all five verification authors hit this and broke one rule or the other. First the hand-over of the
   Korean edition between her and him, then her with the pair on a desk line. Draw that desk in plain `inkLine`s: lines
   are support, not a thing, so the shot is her + the pair. Each shot holds 3 s or more: split one sentence (at the
   book's name, `q.w`) only when it runs about 6 s; otherwise the hand-over takes this sentence and the pair the next.

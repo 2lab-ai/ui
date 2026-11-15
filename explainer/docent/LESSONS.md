@@ -37,6 +37,12 @@ that comes back means the fix was not structural: replace it with a check.
 - Gary Keller was drawn bald + bearded (photos: full grey hair, a mustache), the look of Socrates and Diamond ·
   REFERENCE §2 said "their look" and no step looked it up · one photo per real person, a beard only for people known
   by one (REFERENCE §2).
+- Verification (v1 v2 r08 r09 r10): all five authors met her + him + desk + pair = 4 (`busy`) and dropped 오빠,
+  split the line or took the P2; r09 showed the Hebrew *Sapiens* nobody here knows, and seated figures read as
+  standing behind a box (v2, r10) · TEMPLATES B had no rule for a bare "오빠," or a desk; "the original" meant the
+  original language; T15 put the seat on the thighs and a chair leg beside the shins · a bare "오빠," does not draw
+  him, a line about him is two shots (the hand-over, then her + the pair on a desk in lines); the original = the
+  Korean translation's source (REFERENCE §4); T15 redrawn and checked at 360 px.
 
 ## 2026-11-15 · 총균쇠 (Guns, Germs, and Steel, letter, 40:42, five authors + four fixers)
 - The Maori club (patu: a round flat blade on a lashed grip) read as a light bulb at chatham:4–14, and two chapters
