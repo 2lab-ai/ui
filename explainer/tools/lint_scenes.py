@@ -13,7 +13,8 @@ P1  half-drawn element at rest; faded "ghost" element (a < 0.55); ink under the 
     empty bubble; bubble tail that points at no head; bubble over a face; text overflowing its bubble; two people in
     one frame with the same look; an animal drawn on the stick-figure rig
 P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at the frame); a prop drawn over most of
-    a torso (prop-over-body); a picture held longer than 8 s; a shot shorter than 1.2 s; a scene without shots();
+    a torso (prop-over-body); a picture held longer than 8 s (6.7 s on a draft timeline: hold_limit); a shot shorter
+    than 1.2 s; a scene without shots();
     two or more people in one frame and one of them without a cast look; two cast looks with the same silhouette
     (cast-similar: see looks_like), so they differ only by colour
 P1  cast-lookalike: a figure drawn without a cast id (figure(), a crowd) that has a cast look's silhouette, so viewers
@@ -81,6 +82,14 @@ def lookalikes(people, cast):
     return out
 
 FADE = 0.22    # shots() cross-fade: a frame inside it shows two shots at once
+LONG = 8.0     # a picture held longer than this is a long hold (P2)
+DRAFT_SLOW = 1.2   # the voice against timeline_draft.py: 1 sentence in 10 ran >= 20 % longer (총균쇠, 2026-11-15)
+
+
+def hold_limit(tl):
+    """the long-hold limit for this timeline: on a draft one, 8 s / 1.2, so a shot written against the draft is still
+    under 8 s when the voice is slower (총균쇠: five shots of 7.0-7.8 s on the draft held 8.1-8.4 s on the voice)."""
+    return LONG / DRAFT_SLOW if tl.get('voice') == 'draft' else LONG
 
 def judge(r, size=(1920, 1080), cast=None):
     """docentReport() of one rest frame -> list of (severity, code, detail). size: the frame (export.project_frame());
@@ -136,7 +145,7 @@ def cast_similar(cast):
 async def main(only, strict):
     from playwright.async_api import async_playwright
     tl = json.load(open('timeline.json'))
-    srv, port = serve(); report = []; shots_out = {}; thumbs = []; size = project_frame()
+    srv, port = serve(); report = []; shots_out = {}; thumbs = []; size = project_frame(); limit = hold_limit(tl)
     os.makedirs(os.path.join(OUT, 'lint'), exist_ok=True)
     async with async_playwright() as pw:
         browser, page, errs = await open_page(pw, port)
@@ -165,7 +174,7 @@ async def main(only, strict):
                     t1 = ts[k + 1] if k + 1 < len(ts) else end
                     rest.append(min(max(t0 + FADE + 0.03, min(t1, end) - 0.3), min(t1, end) - 0.02))   # inside this shot, after its fade
                     held = min(t1, end) - max(t0, body0)
-                    if held > 8.0: report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'long-hold', f'picture held {held:.1f}s (> 8 s)')]})
+                    if held > limit: report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'long-hold', f'picture held {held:.1f}s (> {limit:.1f} s' + (', draft timeline: the voice may run 20 % longer)' if limit < LONG else ')'))]})
                     if 0 < held < 1.2 and k + 1 < len(ts): report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'short-shot', f'shot only {held:.1f}s')]})
                 shots_out[sc['id']] = ts
             # 2. judge each rest frame

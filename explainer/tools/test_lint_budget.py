@@ -92,6 +92,12 @@ class Lookalike(unittest.TestCase):
                                          'cortes': {'hair': 'spiky', 'mustache': True, 'hat': 'morion'}}), [])
 
 
+class LongHold(unittest.TestCase):
+    def test_draft_timeline_holds_are_judged_shorter(self):   # five 8.1-8.4 s holds appeared only on the voice
+        self.assertAlmostEqual(L.hold_limit({'voice': 'draft'}), 8 / 1.2)
+        self.assertEqual(L.hold_limit({'voice': 'cwon'}), 8.0); self.assertEqual(L.hold_limit({}), 8.0)
+
+
 class EngineSource(unittest.TestCase):
     """A statement written after a trailing // comment is dead code: twice an edit appended a comment to a line and
     swallowed the registrations after it (docent.js 2026-11-13: a SyntaxError, then figs/mouths silently gone)."""
