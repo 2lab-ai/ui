@@ -167,7 +167,7 @@ def chapters(script, tl):
 
 
 def plan(chs, project, history):
-    cues = catalogue(); used = set(); out = []
+    cues = catalogue(); used = {}; played_at = {}; out = []   # plays of each track in this video, the section it last played
     recent = {}
     for v in (history or {}).get('videos', [])[-10:]:
         if v.get('project') != project:
@@ -178,11 +178,14 @@ def plan(chs, project, history):
         def cost(t):
             rank = min([fam.index(m) for m in t['moods'] if m in fam], default=9)
             short = max(0.0, need - t['use']) / 60            # minutes the track falls short of the section
-            return (rank * 3 + short * 2 + recent.get(t['id'], 0) * 4 + (t['id'] in used) * 100
+            # past the beds (~20 chapters) a track comes back: the one played least, then the one played longest ago
+            # (총균쇠, 40 min, 29 sections: Cloudloop played three times, twice within 3 minutes, while 19 beds played once)
+            near = max(0, 8 - (len(out) - played_at.get(t['id'], -99)))   # it played in the last 8 sections
+            return (rank * 3 + short * 2 + recent.get(t['id'], 0) * 4 + used.get(t['id'], 0) * 100 + near * 4
                     + (t['id'] == avoid_last) * 1000, t['id'])
         t = min(cues, key=cost)
-        if t['id'] in used: print(f"every bed is used: {t['id']} plays twice in this video", file=sys.stderr)
-        used.add(t['id']); return t
+        if t['id'] in used: print(f"every bed is used: {t['id']} plays {used[t['id']] + 1} times in this video", file=sys.stderr)
+        used[t['id']] = used.get(t['id'], 0) + 1; played_at[t['id']] = len(out); return t
 
     for ch in chs:
         # sections: the chapter, cut at forced turns; a section longer than its track chains another at a gap
