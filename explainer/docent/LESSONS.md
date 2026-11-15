@@ -3,6 +3,49 @@
 Newest first. One line per defect: video · what the viewer saw · root cause · the fix and where it lives. A defect
 that comes back means the fix was not structural: replace it with a check.
 
+## 2026-11-15 · 총균쇠 (Guns, Germs, and Steel, letter, 40:42, five authors + four fixers)
+- The Maori club (patu: a round flat blade on a lashed grip) read as a light bulb at chatham:4–14, and two chapters
+  later the kit bulb meant "idea" · its outline is the bulb's (a round glass on a narrow neck), and Gate A judged the
+  prop alone, not beside the kit props · redrawn as a long narrow wooden blade (project common.js); the kit takes the
+  other 15 Gate-A props, not the club (docent.js "library additions: 총균쇠"). At Gate A, put a new prop next to the
+  kit prop it could be mistaken for.
+- The Maori were five scowling club-holders standing for "늘 싸움에 대비하는" (the 'warlike native' picture), and
+  Hawaii's "왕과 신전" was the Mesoamerican step pyramid used for Mexico · a people marked only by a weapon and an
+  angry face; one stock temple for every culture · REFERENCE §2 respect rule: the same plain figures as everyone, one
+  identifying prop that is not a weapon unless the sentence is a fight, neutral faces when the line describes; each
+  culture's own building or a neutral one.
+- Unnamed figures read as cast members: foragers with only curly hair as Yali, rulers drawn bald + beard + crown as
+  Diamond (bald + beard), a scholar with side hair + glasses as 오빠 (short + square glasses), crowds with a bun as 정화;
+  Columbus's beanie read as 정화's bun (the run's most common Gate C P1) · lint `cast-similar` compared only cast
+  with cast, and treated short/side and bun/beanie as different heads · lint `cast-lookalike` (P1): a figure without
+  a cast id with a cast look's head top (short = side, bun = beanie, bald = no hair) and its beard and glasses, a crown
+  or a laurel on top still counting; `cast-similar` uses the same shapes; REFERENCE §2 look-alike rule. Re-linting
+  five chapters after the Gate C fixes still found 38 (extras in beanies and caps, bearded men = 톨스토이).
+- A Ming court official wore a black top hat ("a Westerner halts the fleet"), Atahualpa a European crown · the kit's
+  hats are Western plus crown and laurel, and the author picked the nearest · REFERENCE §2: a hat is a culture; no
+  Western hat on a non-Western official — a plain head, a bun and a long beard, or the culture's own hat as a look
+  helper (TEMPLATES A "a hat of your own").
+- The kit horse kept a brown mane and tail and a cream blaze in a "colour": false project, the only colour in the
+  zebra chapter (zebra:3, 7, 8, 12, 21) · ink mode kept a dark fill as it was (#4e3725 passed as "ink-dark") and a pale
+  neutral line too (cream is "not a colour") · `docentToneOf()`: every paint is exactly ink or page (docent.js);
+  `test_budget_engine` draws every animal, prop and hat and checks the painted colours.
+- Five long holds (> 8 s: cajamarca, crescent, china, answer twice) appeared only on the real timeline, after every
+  author had linted clean on the draft · the voice ran 7 % longer than the draft's 7.8 chars/s, ≥ 20 % for 1 sentence
+  in 10 · lint `long-hold` on a draft timeline fires at 6.7 s (`hold_limit`, lint_scenes.py).
+- Three sentences failed the pad cut 3 rounds (open:20 'a small smile', almond:4 'amused', state:9 'wry, amused',
+  two with `[laughs softly]` two words in) · amused directions open with an audible chuckle in the head gap; the three
+  automatic retries change the seed and still failed · `narrate_soma.py --redo scene:k` (a new take seed) fixed all
+  three; CONCEPTS "Voice": a laugh tag goes mid-sentence, after the first few words.
+- Whisper heard 사납대요 as 산업돼요 (zebra:13, CHECK) · a mishearing, the take was right · listen, then `--redo
+  zebra:13`; the redo matched.
+- audio_check flagged correct number words as CHECK (zebra:9 "열네 종 … 열세 종" 0.882, cajamarca:2 "백육십팔 명" 0.881) ·
+  whisper writes digits and to_say() read them another valid way (십사 종, 백예순여덟 명) · `ko_say.as_said()` reads a
+  heard number the way the script said it (audio_check.py); both now match 1.0.
+- A 40-minute video used all 23 music beds (29 sections): Cloudloop and "Waiting For the Moment That Never Comes"
+  played three times, twice within 3 minutes, while 19 beds played once · the planner priced a used track +100 however
+  often it had played · `library_score.plan()` counts plays and avoids a track heard in the last 8 sections
+  (REFERENCE §7).
+
 ## 2026-11-14 · same video, third pictures pass — owner: "음성 좋은데 영상은 … 개 slop임 … 넌 중간이 없니? 스토아 학파 영상 정도가 적당"
 - v2 swung from empty to cluttered: ruled letter paper on about half the frames, the same furnished room (bookcase,
   curtains, lamp cone, drawers) in every desk shot, 1.4x zoom crops, rows of figures · a whole-watch review asked for

@@ -52,7 +52,10 @@ emotional arc (no two in a row the same). A third or more of the sentences also 
 tags — `[sighs]`, `[laughs softly]`, `[pause]`, `[breath]`, or a paired `<soft>`, `<emphasis>`, `<slow>`, `<whisper>`
 around the one word that matters. The words of `tts` equal `text`; the directions go to the voice only (never into
 the subtitles, the timeline or the hearing check). Directions are English, never Korean inside brackets. A sound tag
-(a laugh, a breath) goes inside the sentence, never last: a closing laugh runs into the cut and fails it.
+(a laugh, a breath) goes inside the sentence, never last: a closing laugh runs into the cut and fails it. An amused
+direction ('amused', 'a small smile', 'wry') tends to open the take with a chuckle in the head pad, more so with a laugh
+tag in the first two words: put the tag after the first few words, and when such a sentence fails its 3 rounds, run
+`narrate_soma.py --redo scene:k` (a new take seed; in 총균쇠 it passed all three).
 
 **Pictures: the Stoic video's level** (owner, 2026-11-14, after two remakes: "그전에 최대한 미니멀하게 해달라고 했는데
 넌 중간이 없니? 스토아 학파 영상 정도가 적당한것 같음"). v1 was too empty (heads on sticks, abstract symbols, dot grids,
