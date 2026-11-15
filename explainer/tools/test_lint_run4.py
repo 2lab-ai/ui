@@ -167,6 +167,17 @@ class Args(unittest.TestCase):
         self.assertEqual(os.listdir(d), [])   # no out/, no lint.json
 
 
+class ClearStills(unittest.TestCase):
+    def test_only_its_own_stills_go(self):   # p06: sheets.py tiled stills left from an earlier call
+        import export
+        d = tempfile.mkdtemp(); out = os.path.join(d, 'out'); os.makedirs(out)
+        for f in ('still_0001.00.jpg', 'still_0002.50.jpg', 'still_notes.txt', 'lint_sheet.jpg', 'cover.jpg', 'shot_still_1.jpg'): open(os.path.join(out, f), 'w').close()
+        old = export.OUT; export.OUT = out
+        try: export.clear_stills()
+        finally: export.OUT = old
+        self.assertEqual(sorted(os.listdir(out)), ['cover.jpg', 'lint_sheet.jpg', 'shot_still_1.jpg', 'still_notes.txt'])
+
+
 @unittest.skipUnless(node_ok(), 'node or @napi-rs/canvas missing (npm install in explainer/noderender)')
 class ToolsOnFixture(unittest.TestCase):
     env = dict(os.environ, PYTHONPATH=os.path.join(EX, 'noderender', 'shim'), NODE_PATH=os.path.join(EX, 'noderender', 'node_modules'))
@@ -184,3 +195,9 @@ class ToolsOnFixture(unittest.TestCase):
         self.assertEqual(len(rows), 1, issues(rep)); self.assertTrue(s1 + 1.6 <= rows[0] < s1 + 3.3, (rows, s1))
         with open(tl_path, 'rb') as f: self.assertEqual(f.read(), before)   # timeline.json untouched
         self.assertIn('timeline_slow.json', p.stdout)
+
+    def test_stills_clear_their_old_stills(self):
+        d = fixture()
+        for t in ('1.0', '2.5'):
+            subprocess.run([PY, os.path.join(HERE, 'export.py'), 'stills', t], cwd=d, env=self.env, check=True, capture_output=True, timeout=120)
+        self.assertEqual(sorted(f for f in os.listdir(os.path.join(d, 'out')) if f.startswith('still_')), ['still_0002.50.jpg'])

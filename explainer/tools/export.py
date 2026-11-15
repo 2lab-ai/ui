@@ -3,6 +3,7 @@ MP4 (Playwright frames -> ffmpeg, parallel slices) and the audiobook (the mix as
 scene, plus out/chapters.txt for the YouTube description).
 usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]
                         | audiobook [--cover still.jpg] [--out name] | srt [--out name] | cover [--at T] [--out name]
+stills: out/still_<t>.jpg at each time; the previous out/still_*.jpg are removed first (sheets.py tiles them all).
 cover: the YouTube thumbnail as out/cover.jpg (1280x720, under 2 MB) from scenes.js COVER (REFERENCE §10), plus
 out/cover_b.jpg / cover_c.jpg from COVER_B / COVER_C for Test & Compare; without COVER,
 the still at --at T. out/cover_check.jpg shows it at 1280, 320 and 168 px wide: the cover must read at 168 px (the size
@@ -172,8 +173,16 @@ async def frame_jpeg(page, t, q=0.93):
     b64 = await page.evaluate("([t, q]) => { renderAt(t); return document.getElementById('c').toDataURL('image/jpeg', q).slice(23); }", [t, q])
     return base64.b64decode(b64)
 
+def clear_stills(prefix='still'):
+    """remove this command's own earlier out/<prefix>_*.jpg: sheets.py tiles every still in out/, so a still from an
+    earlier call (another timeline, another cut) used to land on the new contact sheet (run 4, p06)"""
+    for f in os.listdir(OUT):
+        if f.startswith(prefix + '_') and f.endswith('.jpg'): os.remove(os.path.join(OUT, f))
+
+
 async def stills(times, prefix='still'):
     from playwright.async_api import async_playwright
+    clear_stills(prefix)
     srv, port = serve()
     async with async_playwright() as pw:
         browser, page, errs = await open_page(pw, port)
