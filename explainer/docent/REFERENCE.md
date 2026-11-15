@@ -45,7 +45,8 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
 `"chip": false`. Name tags are ink.
 
 ## 1. Picture rhythm
-- A new picture every 3 to 5 s (Productive Peter reference: 3.7 s). Never hold one longer than 8 s (lint: `long-hold`).
+- A new picture every 3 to 5 s (Productive Peter reference: 3.7 s). Never hold one longer than 8 s (lint: `long-hold`;
+  on a draft timeline it fires at 6.7 s: the voice runs up to 20 % longer than the draft).
 - Inside a shot things draw on (`p: dp(lt, 0, 0.8)`) and are **finished** before the shot ends: nothing half-drawn at
   rest (lint: `half-drawn`). A label reveal takes at most 0.8 s.
 - Picture before name: draw the thing, then write its name.
@@ -87,6 +88,8 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   short or side hair + a mustache, never a Diamond-like bald head and beard unless that ruler is the cast look — and
   the ruler's head must differ from every crowned cast member too. Give extras a plain head or a hair or hat no cast
   look uses (lint: `cast-lookalike`, P1); a cast member that appears once still reserves its head for the whole video.
+  A cast look with a plain head (no hair, hat, beard or glasses) makes every plain extra a look-alike: give every cast
+  member a head of their own.
 - Respect: Indigenous and non-European people are the same plain figures as everyone else, told apart by one prop
   (a headband, a canoe paddle, a digging stick) — never caricature, feathers as costume, or skin colour. A people is
   never marked only by a weapon or an angry face: a weapon only when the sentence is a fight, a neutral or determined

@@ -45,7 +45,8 @@ def silhouette(look):
     hat = 'top' if look.get('hat') is True else (look.get('hat') or None)
     hat = SHAPE.get(hat, hat) or ('helmet' if look.get('helmet') else None) or ('shell' if look.get('shell') else None)
     hair = SHAPE.get(hair, hair)
-    return {'top': hat or hair, 'hair': hair, 'hat': hat, 'beard': bool(look.get('beard')), 'glasses': bool(look.get('glasses'))}
+    top = f'{hat}:{hair}' if hat in OPEN else hat or hair   # under a crown or a laurel the hair still shows
+    return {'top': top, 'hair': hair, 'hat': hat, 'beard': bool(look.get('beard')), 'glasses': bool(look.get('glasses'))}
 
 
 def looks_like(fig, look):

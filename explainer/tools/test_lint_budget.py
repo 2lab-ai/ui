@@ -50,7 +50,8 @@ class Budget(unittest.TestCase):
 # the 총균쇠 cast (2026-11-15), as the Gate C reviewers saw it
 CAST = {'yali': {'name': '얄리', 'hair': 'curly'}, 'diamond': {'name': '다이아몬드', 'hair': 'bald', 'beard': True},
         'oppa': {'name': '오빠', 'hair': 'short', 'glasses': 'square'}, 'zhenghe': {'name': '정화', 'hair': 'bun', 'mustache': True},
-        'pizarro': {'name': '피사로', 'hair': 'short', 'beard': True, 'hat': 'morion'}}
+        'pizarro': {'name': '피사로', 'hair': 'short', 'beard': True, 'hat': 'morion'},
+        'atahuallpa': {'name': '아타우알파', 'hair': 'short', 'hat': 'crown'}}
 
 
 def fig(cid=None, crowd=False, **look):
@@ -70,13 +71,14 @@ class Lookalike(unittest.TestCase):
                        (fig(beard=True, hat='crown'), '다이아몬드'),                              # no hair is bald
                        (fig(hair='side', glasses=True), '오빠'),                                 # the scholar read as 오빠
                        (fig(crowd=True, hair='bun'), '정화'),                                    # a crowd bun read as 정화
-                       (fig(hair='side', hat='beanie'), '정화')]:                                # Columbus's beanie
+                       (fig(hair='side', hat='beanie'), '정화'),                                 # Columbus's beanie
+                       (fig(hair='side', hat='crown', mustache=True), '아타우알파')]:              # a crowned extra with his hair
             got = lookalike(f)
             self.assertEqual(len(got), 1, (f, got)); self.assertEqual(got[0][0], 'P1'); self.assertIn(who, got[0][1])
 
     def test_a_different_head_is_fine(self):
         for f in [fig(crowd=True), fig(hair='curly', hat='cap'),             # plain; a cap hides the curls (a beanie is 정화's knob)
-                  fig(hair='short', hat='crown', mustache=True),             # the ruler look REFERENCE §2 asks for
+                  fig(hat='crown', mustache=True), fig(hair='spiky', hat='crown'),   # crowned, unlike 아타우알파 and Diamond
                   fig(hair='short'), fig(hair='short', beard=True),          # no glasses: not 오빠; no morion: not 피사로
                   fig('yali', hair='curly')]:                                # the cast member himself
             self.assertEqual(lookalike(f), [], f)
@@ -88,6 +90,7 @@ class Lookalike(unittest.TestCase):
         self.assertEqual(L.cast_similar({'col': {'hair': 'side', 'hat': 'beanie'}, 'zh': {'hair': 'bun', 'mustache': True}}), [('col', 'zh')])
         self.assertEqual(L.cast_similar({'musk': {'hair': 'short'}, 'viewer': {'hair': 'side'}}), [('musk', 'viewer')])
         self.assertEqual(L.cast_similar({'king': {'hair': 'bald', 'beard': True, 'hat': 'crown'}, 'd': {'hair': 'bald', 'beard': True}}), [('king', 'd')])
+        self.assertEqual(L.cast_similar({'k1': {'hair': 'bald', 'hat': 'crown'}, 'k2': {'hair': 'curly', 'hat': 'crown'}}), [])   # the hair shows
         self.assertEqual(L.cast_similar({'oppa': CAST['oppa'], 'musk': {'hair': 'short'}, 'piz': CAST['pizarro'],
                                          'cortes': {'hair': 'spiky', 'mustache': True, 'hat': 'morion'}}), [])
 
