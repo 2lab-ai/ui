@@ -35,8 +35,9 @@ explainer/
 │   ├── gallery.py       asset sheets (cast, animals, props) to review before scenes use them
 │   ├── lint_scenes.py   renders every shot at rest; fails on half-drawn, ghosts, bad bubbles, look-alike people
 │   ├── parts.py         many authors at once: parts/<id>.js -> scenes.js, and a private preview (lint + Gate C sheets) per author
-│   ├── mix_check.py     how far the music sits under the voice and how much it swells (target 20-22 dB, <= 5 dB)
-│   ├── export.py        mix (voice ducks the music) · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
+│   ├── mix_check.py     how far the music sits under the voice and how much it swells (target 20-22 dB, ok 19.5-22.5; <= 5 dB)
+│   ├── export.py        mix (voice ducks the music; a docent bed is measured and trimmed once to ~21 dB under the voice)
+│   │                    · stills · MP4 (Playwright frames -> ffmpeg, parallel slices)
 │   │                    · audiobook (M4A with one chapter per scene + chapters.txt for the YouTube description)
 │   │                    · cover (the YouTube thumbnail from scenes.js COVER / COVER_B / COVER_C, checked at 168 px)
 │   ├── title_check.py   a YouTube title's form + the search demand of its keywords (yt-dlp; median, small-channel hits)

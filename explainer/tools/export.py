@@ -1,5 +1,6 @@
-"""Export: mix (music ducked under voice), stills, the MP4 (Playwright frames -> ffmpeg, parallel slices) and the
-audiobook (the mix as an M4A with one chapter marker per scene, plus out/chapters.txt for the YouTube description).
+"""Export: mix (music ducked under voice; a docent bed is measured and trimmed once to ~21 dB under it), stills, the
+MP4 (Playwright frames -> ffmpeg, parallel slices) and the audiobook (the mix as an M4A with one chapter marker per
+scene, plus out/chapters.txt for the YouTube description).
 usage: python export.py mix | stills [t1 t2 ...] | video [--slices N] [--from T --to T --out name]
                         | audiobook [--cover still.jpg] [--out name] | srt [--out name] | cover [--at T] [--out name]
 cover: the YouTube thumbnail as out/cover.jpg (1280x720, under 2 MB) from scenes.js COVER (REFERENCE §10), plus
@@ -56,13 +57,29 @@ def mix():
     # library_score.py beds (recorded music, denser than the MIDI cues) sit lower under the voice, so their open
     # stretches lift +10.5 dB to reach the same ~-30 dBFS on title cards (2026-11-10: +6 dB left them at -33.5, +9 at -30.8)
     env, fade = (open_envelope(T, 10.5 if library else 6.0), 1.5) if gentle else ('1', 4.0)
-    flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol},volume='{env}':eval=frame,afade=t=out:st={T-fade:.2f}:d={fade}[m];"
-           f"[0:a]aformat=channel_layouts=stereo,asplit=2[v][sc];"
-           f"[m][sc]sidechaincompress={duck}[md];"
-           f"[v][md]amix=inputs=2:normalize=0,volume=1.41,alimiter=limit=0.95[out]")
-    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(HERE, 'narration.wav'), '-i', os.path.join(HERE, 'score.wav'),
-                    '-filter_complex', flt, '-map', '[out]', '-t', f'{T:.3f}', '-ar', '48000', os.path.join(HERE, 'mix.wav')], check=True)
+    def render(bed_db=0.0):   # bed_db: the bed's gain correction (the sidechain ducks by the voice, so it shifts linearly)
+        flt = (f"[1:a]aformat=channel_layouts=stereo,volume={vol * 10 ** (bed_db / 20):.5f},volume='{env}':eval=frame,afade=t=out:st={T-fade:.2f}:d={fade}[m];"
+               f"[0:a]aformat=channel_layouts=stereo,asplit=2[v][sc];"
+               f"[m][sc]sidechaincompress={duck}[md];"
+               f"[v][md]amix=inputs=2:normalize=0,volume=1.41,alimiter=limit=0.95[out]")
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(HERE, 'narration.wav'), '-i', os.path.join(HERE, 'score.wav'),
+                        '-filter_complex', flt, '-map', '[out]', '-t', f'{T:.3f}', '-ar', '48000', os.path.join(HERE, 'mix.wav')], check=True)
+    render()
+    # Docent scores: the bed lands where the track's own loudness puts it (run 4: 19.3-24.3 dB under the voice on ten
+    # probes, REFERENCE §7 wants 20-22). Measure it (mix_check.measure) and, outside 20.5-21.5 dB, render once more with
+    # the bed moved by the difference, so it sits at ~21 dB.
+    if gentle:
+        import mix_check
+        u = mix_check.measure(HERE, loudness=False)['music_under_voice_db']
+        if u is not None and not (MIX_TRIM[0] <= u <= MIX_TRIM[1]):
+            bed = max(-12.0, min(12.0, u - MIX_TARGET))
+            render(bed)
+            u2 = mix_check.measure(HERE, loudness=False)['music_under_voice_db']
+            print(f'mix: music {u:.1f} dB under the voice -> bed {bed:+.1f} dB -> {u2:.1f} dB (target {MIX_TARGET:.0f})')
+        elif u is not None: print(f'mix: music {u:.1f} dB under the voice (target {MIX_TARGET:.0f}, kept)')
     print('mix.wav', T)
+
+MIX_TARGET, MIX_TRIM = 21.0, (20.5, 21.5)   # export.py mix trims a docent bed outside MIX_TRIM to MIX_TARGET dB under the voice
 
 def _meta_escape(v):
     """ffmetadata values: escape = ; # \\ and newlines with a backslash."""
