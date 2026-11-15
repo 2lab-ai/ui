@@ -129,6 +129,23 @@ class Kit(unittest.TestCase):
             x0, y0, x1, y1 = m['r']['box']
             self.assertLess(m['n'] / ((x1 - x0) * (y1 - y0)), 0.12, o)   # ink lines on the page (the p09 coat: ~40 % ink)
 
+    BESIDE = """(o) => { DOCENT_FRAME(0); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      const a = animal('monkey', 960, 900, o), R = a.r, [hx, hy] = a.head, dir = o.dir || 1;
+      const x0 = Math.round(dir > 0 ? hx + R + 10 : hx - R - 10 - 190), y0 = Math.round(hy - 160);   // beside the head, its front
+      const d = ctx.getImageData(x0, y0, 190, 300).data; let dark = 0, yellow = 0;
+      for (let i = 0; i < d.length; i += 4) { if (d[i] + d[i + 1] + d[i + 2] < 200) dark++; if (d[i] - d[i + 2] > 50 && d[i + 1] - d[i + 2] > 30) yellow++; }
+      return { dark, yellow }; }"""
+
+    def test_the_banana_reads_in_ink(self):   # fix round F7, r09: in ink mode the yellow fill was page and the banana vanished
+        for d in (1, -1):
+            plain = self.run_js(self.BESIDE, {'s': 1.5, 'dir': d})
+            held = self.run_js(self.BESIDE, {'s': 1.5, 'dir': d, 'banana': True, 'mood': 'stern'})
+            self.assertLess(plain['dark'], 1000, plain)   # beside the head at the front: the ear's edge, little else
+            self.assertGreater(held['dark'] - plain['dark'], 2500, (plain, held))   # the banana out of the body's outline: outline, ridges, tip
+            self.assertEqual(held['yellow'], 0)   # ink alone, no colour needed
+        coloured = evaluate(self.proj, self.BESIDE, {'s': 1.5, 'banana': True}, True)   # a colour project keeps it yellow
+        self.assertGreater(coloured['yellow'], 1000, coloured)
+
     def test_props_draw_on_in_stages(self):
         for name in ('plane', 'dna', 'diary'):
             n0, n1, n2 = (self.inked(f"() => prop('{name}', 960, 800, 1.6, {{ p: {p} }})")['n'] for p in (0, 0.35, 1))

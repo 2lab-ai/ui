@@ -803,14 +803,21 @@ function animal(kind, x, y, o = {}) {
 }
 // Asset gallery: every cast look, animal and prop on one labelled sheet, for review before a scene uses them
 // (make-docent-book §4 gate; tools/gallery.py renders it). kind: 'cast' | 'animals' | 'props' | 'figures' | 'poses'.
+// DOCENT_GALLERY_MORE: cells drawn after the plain kinds, { kind: [[label, draw(x, y)], …] } (fix round 2026-11-16, r09:
+// Gate A never showed the monkey's banana option, so a banana that vanished in ink mode was first seen at Gate C).
+const DOCENT_GALLERY_MORE = {
+  animals: [['monkey banana', (x, y) => animal('monkey', x, y, { s: 0.62, banana: true, mood: 'stern' })]],
+};
 function docentGallery(kind, page = 0) {
-  const items = kind === 'cast' ? Object.keys(CAST) : kind === 'animals' ? Object.keys(ANIMALS) : kind === 'props' ? Object.keys(PROPS)
-    : kind === 'poses' ? Object.keys(POSES) : ['short', 'spiky', 'curly', 'long', 'bun', 'ponytail', 'side', 'bald'];
+  const more = DOCENT_GALLERY_MORE[kind] || [], extra = Object.fromEntries(more);
+  const items = (kind === 'cast' ? Object.keys(CAST) : kind === 'animals' ? Object.keys(ANIMALS) : kind === 'props' ? Object.keys(PROPS)
+    : kind === 'poses' ? Object.keys(POSES) : ['short', 'spiky', 'curly', 'long', 'bun', 'ponytail', 'side', 'bald']).concat(more.map(([k]) => k));
   const per = 8, cols = 4, list = items.slice(page * per, page * per + per);   // wide props (ship, stadium) need a 473 px cell
   list.forEach((id, i) => {
     const cy = i < cols ? 460 : 880;
     const x = 250 + (i % cols) * 473;
-    if (kind === 'cast') person(id, x, cy - 40, { s: 0.85, tag: true });
+    if (extra[id]) extra[id](x, kind === 'poses' ? cy - 40 : cy - 60);
+    else if (kind === 'cast') person(id, x, cy - 40, { s: 0.85, tag: true });
     else if (kind === 'animals') animal(id, x, cy - 60, { s: 0.62 });
     else if (kind === 'props') prop(id, x, cy - 90, 0.75);
     else if (kind === 'poses') figure(x, cy - 40, { s: 0.85, pose: id, sit: id.startsWith('desk') });   // the desk poses are seated
@@ -2214,15 +2221,27 @@ function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w,
     const e = T(140, -202); disc(e[0], e[1], 6 * s, dark, dotA(o, q(4)));
     return { head: T(140, -190), r: 56 * s, mouth: T(214, -160), top: T(116, -266) };
   };
-  // a banana (the monkey's): a fat crescent, a stem at the left end, a dark tip, one ridge (a thin crescent read as a
-  // pea pod or a moon at Gate A); s = 1 ≈ 170 px long, (x, y) = bottom centre
+  // a banana (the monkey's), drawn to read in ink alone: a fat crescent curving up at both ends, a bold outline, two
+  // ridges along it, a dark stalk with a squared end and a dark tip. Its yellow fill paints only in colour mode (fix
+  // round 2026-11-16, r09: in ink mode the fill is the page, and the old thin crescent with one ridge vanished into the
+  // monkey's pale belly, so the author turned colour on for the one object of the sentence). s = 1 ≈ 170 px long,
+  // (x, y) = bottom centre, the stalk at the back (dir), rot turns it.
   const banana = (x, y, s, o, dir = 1, rot = 0) => {
-    const c = Math.cos(rot), n = Math.sin(rot), P = (u, v) => { const X = u * s * dir, Y = v * s; return [x + X * c - Y * n, y + X * n + Y * c]; };
-    inkPath([P(-80, -50), P(-52, -20), P(-16, -4), P(22, -4), P(56, -20), P(82, -48), P(76, -56), P(50, -40), P(18, -32), P(-14, -32), P(-46, -42), P(-72, -60)],
-      { ...o, closed: true, round: 2, fill: opaqueMix(C.yellow, 0.6) });
-    inkPath([P(-76, -56), P(-84, -74), P(-94, -78)], { ...o, w: o.w * 1.8 });
-    const tp = P(80, -52); disc(tp[0], tp[1], 5 * s, o.color || INK(), dotA(o, (o.p ?? 1) - 0.5));
-    inkPath([P(-56, -34), P(-16, -18), P(24, -18), P(58, -32)], { ...o, w: o.w * 0.45 });
+    const c = Math.cos(rot), n = Math.sin(rot), L = 136, W = 22, sag = 30, p = o.p ?? 1, w = o.w || 4;
+    const P = (u, v) => { const X = u * s * dir, Y = v * s; return [x + X * c - Y * n, y + X * n + Y * c]; };
+    const mid = (u) => [u, -W - sag * (2 * u / L) ** 2];                      // the centre line: both ends raised
+    const nrm = (u) => { const d = -8 * sag * u / (L * L), k = Math.hypot(1, d); return [-d / k, 1 / k]; };   // toward the belly side
+    const half = (t) => W * (0.32 + 0.68 * Math.sin(Math.PI * t) ** 0.7);    // fat in the middle, narrow at the ends
+    const at = (t, side) => { const u = -L / 2 + t * L, [mu, mv] = mid(u), [nu, nv] = nrm(u), h = half(t) * side; return P(mu + nu * h, mv + nv * h); };
+    const ts = Array.from({ length: 17 }, (_, i) => i / 16);
+    inkPath([...ts.map((t) => at(t, -1)), ...ts.slice().reverse().map((t) => at(t, 1))], { ...o, closed: true, round: 2, w, jit: 0.5, fill: opaqueMix(C.yellow, 0.6) });
+    for (const k of [-0.36, 0.36]) inkPath(ts.slice(2, 15).map((t) => at(t, k)), { ...o, w: w * 0.5, jit: 0.4 });   // its ridges
+    const pk = clamp01(p * 2 - 1), dark = { ...o, p: pk, closed: true, w: w * 0.6, fill: o.color || INK() };
+    const end = (u, out, len, h0, h1) => {   // a dark cap past one end, along the centre line: the stalk or the tip
+      const [mu, mv] = mid(u), [nu, nv] = nrm(u), tu = -nv * out, tv = nu * out;   // the tangent, pointing out of the banana
+      return [P(mu + nu * h0, mv + nv * h0), P(mu + tu * len + nu * h1, mv + tv * len + nv * h1), P(mu + tu * len - nu * h1, mv + tv * len - nv * h1), P(mu - nu * h0, mv - nv * h0)];
+    };
+    if (pk > 0) { inkPath(end(-L / 2, -1, 24, 6, 5), dark); inkPath(end(L / 2, 1, 8, 5, 3), dark); }   // the stalk, the tip
   };
   // a limb as a closed tube round a polyline of screen points, half-width r px (filled with the coat, outlined in ink)
   const tube = (pts, r) => {
@@ -2260,10 +2279,12 @@ function crossAt(cx, cy, w, h, o = {}) { return cross(cx - w / 2, cy - h / 2, w,
       inkLine(...T(2, -194), ...T(30, -194), { ...o, p: q(4), w: o.w * 0.8 });                    // the mouth pressed flat
       inkLine(...T(-12, -246), ...T(10, -240), { ...o, p: q(4), w: o.w * 0.8 }); inkLine(...T(44, -246), ...T(22, -240), { ...o, p: q(4), w: o.w * 0.8 });   // brows down
     } else inkArc(...T(16, -196), 20 * s, 9 * s, 0.15 * Math.PI, 0.85 * Math.PI, { ...o, p: q(4), w: o.w * 0.6 });
-    if (o.banana) {   // held up across the chest, rising to the front: an arm under its middle, a hand over its tip
-      banana(...T(10, -84), 0.7 * s, { ...o, p: q(2), w: o.w * 0.9 }, o.dir, -0.6 * o.dir);
-      limb([[-44, -150], [-58, -112], [-10, -94]], 12, 2);
-      limb([[60, -152], [80, -128], [42, -136]], 12, 2);
+    if (o.banana) {   // held up in the front hand beside the head, out of the body's outline: the whole banana on the page
+      const S = s, rot = -1.05 * o.dir, c = Math.cos(rot), n = Math.sin(rot), [hx, hy] = T(118, -168);
+      const X0 = -20 * S * o.dir, Y0 = -30 * S;   // the grip, a little above the stalk (in the banana's own frame): the stalk shows
+      banana(hx - (X0 * c - Y0 * n), hy - (X0 * n + Y0 * c), S, { ...o, p: q(2) }, o.dir, rot);
+      limb([[-46, -150], [-66, -112], [-60, -84]], 12, 2);    // the back arm down to the knee
+      limb([[60, -152], [122, -112], [118, -168]], 12, 2);    // the front arm: elbow out and low, the hand up round the banana
     } else {          // the long arms down to the knees
       limb([[-46, -150], [-66, -112], [-60, -84]], 12, 2);
       limb([[58, -152], [80, -114], [74, -86]], 12, 2);
