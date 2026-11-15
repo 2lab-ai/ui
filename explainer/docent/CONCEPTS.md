@@ -47,8 +47,11 @@ the question (why → how → what to try). Introduce each book where it first a
 
 **Voice: emotion directions on every sentence (Drama 3).** The voice server's default model is Fish Audio Drama 3
 (2026-11-14), which follows performance directions. In `script.json` each sentence gets `"dir"`: a short English
-direction for the whole sentence ("softly, a little shy", "quietly moved", "teasing, playful"), varied along the
-emotional arc (no two in a row the same). A third or more of the sentences also get `"tts"`: the same text with inline
+direction written for that sentence. Its shape is a feeling and a manner: the feeling comes from the line itself
+(밤새 다 읽었어요 → tired and pleased; 처음엔 웃었는데 → laughing at herself), the manner is one of pace, loudness or
+closeness. Vary it along the emotional arc: no two in a row alike, and no phrase twice in a video. Write each one new,
+never a phrase copied from these docs: this file's old examples ("softly, a little shy") and "like telling a small
+secret" came back in two verification clips (v2, r10). A third or more of the sentences also get `"tts"`: the same text with inline
 tags — `[sighs]`, `[laughs softly]`, `[pause]`, `[breath]`, or a paired `<soft>`, `<emphasis>`, `<slow>`, `<whisper>`
 around the one word that matters. The words of `tts` equal `text`; the directions go to the voice only (never into
 the subtitles, the timeline or the hearing check). Directions are English, never Korean inside brackets. A sound tag
@@ -61,6 +64,9 @@ tag in the first two words: put the tag after the first few words, and when such
 --redo scene:k`; still CHECK, reword it: two takes heard alike mean the word, not the take (p08). Ear traps seen so
 far (그는 and 자기가 pass audio_check at 1.0: only a reading for meaning finds them):
 - `2년` is read 이 년 (also an insult): keep 2년 in `text`, write `"say"` with 두 해.
+- `1권` after a title (a volume) is read as a count, 한 권 (토지 3권 → 세 권), and `제1권` comes out 제한 권: keep the
+  text and write `"say"` with 일 권 (제일 권 for 제1권). Only the draft's `say` shows it (v1): read the `say` of every
+  number with a counter.
 - A silent-ㅎ verb (놓아, 쌓아, 낳아) contracts: 수놓아 was heard 순호와 in two takes → 수를 놓아.
 - Written-style 그는 / 그녀는: nobody says it to 오빠, and "그는 모른다는 걸 알았대요" can mean someone else → the name, or
   자기는.
