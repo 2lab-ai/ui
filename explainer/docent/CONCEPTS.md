@@ -139,5 +139,8 @@ Chapters per 10/20/30 min: about 5/9/12 (fiction and science 4/7/10).
 
 - No `concept` given → letter, for every kind of book. A math or science book keeps the letter: its chapters follow
   the lecture-style shape in the matrix above, told by the narrator.
-- Lecture only when the owner asks for it ("강의형", "concept=lecture", "예전 스타일").
+- Lecture only when the owner asks for it ("강의형", "concept=lecture", "예전 스타일"). Then set `"concept": "lecture"`
+  in project.json by hand: `new_video.py` writes `"letter"` for every new docent or sketch project, and the lint treats
+  an ink-mode project with no concept as a letter (lint `letter-cast` asks for the `me` and `oppa` cast). Delete the
+  starter's two `cast()` lines in a lecture.
 - Never mix the two in one video. The narrator either writes to someone or lectures to everyone.

@@ -23,7 +23,7 @@ class Starter(unittest.TestCase):
         with open(os.path.join(d, 'scenes.js'), encoding='utf-8') as f: js = f.read()
         self.assertIn("The original's cover appears at least once in the\n// video", js)
         self.assertIn('A Korean original is the\n// exception', js)
-        self.assertIn("realCoverPair('cover_<book>_<lang>', 'cover_<book>_ko'", js); self.assertIn("prop('desk'", js)
+        self.assertIn("realCoverPair('cover_<book>_<lang>', 'cover_<book>_ko'", js); self.assertIn('inkLine(880, top, 1400, top', js)   # the desk in plain lines, as TEMPLATES B
         self.assertLess(js.index('realCoverPair('), js.index('holdCover(me'))   # the pair first, where the book is introduced
 
     def test_never_overwrites(self):

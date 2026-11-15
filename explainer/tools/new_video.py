@@ -104,10 +104,12 @@ cast('me', { name: '나', hair: 'long', h: 0.94 });                          // 
 cast('oppa', { name: '오빠', hair: 'short', glasses: 'square', h: 1.08 });   // the listener: short hair + square glasses
 
 // SCENES.s1 = (t, q) => shots(t, [
-//   [q.s(0), (t, lt) => {   // both editions, once in the video: the pair on a desk line, the original first
-//     prop('desk', 1180, 870, 2.4, { p: dp(lt, 0, 0.3) });                     // its top is at 870 − 80 × 2.4
-//     realCoverPair('cover_<book>_<lang>', 'cover_<book>_ko', 1180, 870 - 80 * 2.4, 360, { p: dp(lt, 0.1, 0.6) });
-//     person('me', 760, 870, { s: 1.4, pose: 'point', face: 'happy', p: dp(lt, 0, 0.5) });
+//   [q.s(0), (t, lt) => {   // both editions, once in the video: the pair on a desk drawn in lines, the original first
+//     const top = 870 - 190;                                                    // lines are support, not a thing
+//     inkLine(880, top, 1400, top, { w: 6, p: dp(lt, 0, 0.3) });
+//     for (const x of [920, 1360]) inkLine(x, top, x, 870, { w: 4.4, p: dp(lt, 0.05, 0.3) });
+//     const pr = realCoverPair('cover_<book>_<lang>', 'cover_<book>_ko', 1140, top, 360, { p: dp(lt, 0.1, 0.6) });
+//     person('me', pr.x - 118 * 1.4 * CAST.me.h, 870, { s: 1.4, pose: 'reach', face: 'happy', p: dp(lt, 0, 0.5) });
 //   }],
 //   [q.s(1), (t, lt) => {   // she holds the Korean edition up while 오빠 looks
 //     const me = person('me', 560, 870, { s: 1.5, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
