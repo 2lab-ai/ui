@@ -37,6 +37,12 @@ class Kit(unittest.TestCase):
         self.assertEqual(self.run_js(probe, 0.45), ['cover:cover_b'])   # A is whole, B still drawing
         self.assertEqual(sorted(self.run_js(probe, 0.3)), ['cover:cover_a', 'cover:cover_b'])
 
+    def test_covers_report_their_opacity(self):   # lint cover-late reads docentReport().covers
+        probe = """(p) => { DOCENT_FRAME(0); realCoverPair('cover_a', 'cover_b', 960, 800, 400, { p }); return docentReport().covers; }"""
+        self.assertEqual(self.run_js(probe, 0.6), [['cover_a', 1], ['cover_b', 1]])
+        a, b = self.run_js(probe, 0.3)
+        self.assertLess(b[1], 0.9); self.assertEqual(self.run_js(probe, 0.1)[1:], [])   # B not started: not drawn, not listed
+
     def test_hold_cover_beside_the_body_never_over_the_face(self):
         probe = """([flip, pose, side]) => { DOCENT_FRAME(0); const f = person('me', 960, 870, { s: 1.5, pose, flip });
           const b = holdCover(f, 'cover_a', { h: 280, side }); const r = docentReport();

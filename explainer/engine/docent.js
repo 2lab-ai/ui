@@ -20,7 +20,8 @@ const HAND = () => (THEME.fonts && THEME.fonts.hand) || SERIF;
 // start of every renderAt, so the registry always describes exactly one frame.
 let SUB_Y = 905;   // ink below this line sits under the subtitle box (engine.js FRAME.subTop: 905 at 1080p; set each frame)
 const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cover', 'overflow', 'rig', 'tails', 'heads', 'mouths', 'figs', 'bubbles', 'tags', 'animals', 'people', 'props', 'faces',
-  'things', 'words', 'marks', 'colours', 'torsos'];   // emphasis budget (2026-11-13): what competes for the eye in this frame
+  'things', 'words', 'marks', 'colours', 'torsos',   // emphasis budget (2026-11-13): what competes for the eye in this frame
+  'covers'];   // real covers drawn: [name, opacity] (lint cover-late, 2026-11-15)
 const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null, depth: 0 };
 function DOCENT_FRAME(t) { if (typeof FRAME === 'object') SUB_Y = FRAME.subTop; if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [], things: [] }; }   // slots: where things are or will be (placement)
@@ -212,7 +213,7 @@ function docentReport() {
     empty: DOCENT.empty, wordy: DOCENT.wordy, cover: [...new Set(cover)], overflow: DOCENT.overflow, tailFar: far, tailHigh: high.map(([x, y]) => [Math.round(x), Math.round(y)]),
     rig: DOCENT.rig, people: DOCENT.people, figures: DOCENT.figs.length, bubbles: DOCENT.bubbles.length, animals: DOCENT.animals,
     things: DOCENT.things, words: DOCENT.words, marks: DOCENT.redInk ? DOCENT.marks.concat('red line') : DOCENT.marks, colours: DOCENT.colours,
-    listItems: DOCENT.listItems || 0, budget: !docentColourful() };   // the budget checks apply to ink-mode (docent) projects
+    listItems: DOCENT.listItems || 0, budget: !docentColourful(), covers: DOCENT.covers };   // the budget checks apply to ink-mode (docent) projects
 }
 
 // ---------- small maths ----------
@@ -2463,6 +2464,7 @@ function realCover(name, x, y, h, { p = 1, rot = 0, ratio = null } = {}) {
   const w = h * (ratio || docentCoverRatio(name)), k = smooth(clamp01(p)), dy = (1 - k) * 30, box = { x: x - w / 2, y: y - h, w, h };
   if (k <= 0) return box;
   if (k < 0.98) docentNote('partial', 'cover:' + name);
+  if (!DOCENT.ghostOk && !DOCENT.measure) DOCENT.covers.push([name, Math.round(k * ctx.globalAlpha * 1000) / 1000]);   // lint cover-late
   // its box on screen, rotation and camera included: the lint's subtitle-line, frame-edge and extent checks
   const m = ctx.getTransform(), cs = Math.cos(rot), sn = Math.sin(rot), xs = [], ys = [];
   for (const [u, v] of [[-w / 2, -h], [w / 2, -h], [w / 2, 0], [-w / 2, 0]]) {
