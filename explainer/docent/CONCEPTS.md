@@ -47,8 +47,11 @@ the question (why → how → what to try). Introduce each book where it first a
 
 **Voice: emotion directions on every sentence (Drama 3).** The voice server's default model is Fish Audio Drama 3
 (2026-11-14), which follows performance directions. In `script.json` each sentence gets `"dir"`: a short English
-direction for the whole sentence ("softly, a little shy", "quietly moved", "teasing, playful"), varied along the
-emotional arc (no two in a row the same). A third or more of the sentences also get `"tts"`: the same text with inline
+direction written for that sentence. Its shape is a feeling and a manner: the feeling comes from the line itself
+(밤새 다 읽었어요 → tired and pleased; 처음엔 웃었는데 → laughing at herself), the manner is one of pace, loudness or
+closeness. Vary it along the emotional arc: no two in a row alike, and no phrase twice in a video. Write each one new,
+never a phrase copied from these docs: this file's old examples ("softly, a little shy") and "like telling a small
+secret" came back in two verification clips (v2, r10). A third or more of the sentences also get `"tts"`: the same text with inline
 tags — `[sighs]`, `[laughs softly]`, `[pause]`, `[breath]`, or a paired `<soft>`, `<emphasis>`, `<slow>`, `<whisper>`
 around the one word that matters. The words of `tts` equal `text`; the directions go to the voice only (never into
 the subtitles, the timeline or the hearing check). Directions are English, never Korean inside brackets. A sound tag
@@ -61,6 +64,9 @@ tag in the first two words: put the tag after the first few words, and when such
 --redo scene:k`; still CHECK, reword it: two takes heard alike mean the word, not the take (p08). Ear traps seen so
 far (그는 and 자기가 pass audio_check at 1.0: only a reading for meaning finds them):
 - `2년` is read 이 년 (also an insult): keep 2년 in `text`, write `"say"` with 두 해.
+- `1권` after a title (a volume) is read as a count, 한 권 (토지 3권 → 세 권), and `제1권` comes out 제한 권: keep the
+  text and write `"say"` with 일 권 (제일 권 for 제1권). Only the draft's `say` shows it (v1): read the `say` of every
+  number with a counter.
 - A silent-ㅎ verb (놓아, 쌓아, 낳아) contracts: 수놓아 was heard 순호와 in two takes → 수를 놓아.
 - Written-style 그는 / 그녀는: nobody says it to 오빠, and "그는 모른다는 걸 알았대요" can mean someone else → the name, or
   자기는.
@@ -79,7 +85,8 @@ crops, rows of figures). The letter uses the same picture grammar as the lecture
    subject by 0.5 s; never a blank or half-drawn frame.
 3. Every picture reads for a stranger in 2 s on a phone: a person doing something with a recognisable object, never
    an arrangement of symbols.
-4. The narrator is the running figure; 오빠 appears when she addresses him; the books are their real covers.
+4. The narrator is the running figure; 오빠 appears when the line is about him (a bare "오빠," calling him does not
+   draw him); the books are their real covers, the original shown at least once (TEMPLATES B).
 5. Written words: only a term the viewer must remember (시간 근시, 자기 조절) or a number; never a purple caption that
    repeats the picture in every chapter (Gate C v3 counted 19 and cut 14).
 The letter places, camera and letter-sheet card (TEMPLATES "P") are an option for a single shot or an opening, not the
@@ -88,7 +95,7 @@ grammar of a whole video. Reference frames: `~/2lab.ai/ARTIFACTS/docent/referenc
 **How it maps to the kit**
 - A part is a scene in `script.json`. A part's text is split into sentences of up to ~120 characters for cwon.
 - Cast: the narrator is the running figure (one fixed look, never tagged, e.g. `hair: 'long'`). The listener gets a
-  plain look of their own and appears when the narrator addresses him ("오빠도 이런 적 있잖아요" → draw him doing it).
+  plain look of their own and appears when a line is about him ("오빠도 이런 적 있잖아요" → draw him doing it).
   Authors and people in the books follow REFERENCE §2.
 - Health topics: the listener is never drawn as the person who has the condition, nor labelled with a symptom. "ADHD가
   있는 어른은 …" is a plain crowd figure (`figure(…, { crowd: true })`), not the listener: the narrator says "오빠가

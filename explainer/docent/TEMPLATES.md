@@ -32,7 +32,9 @@ Put the names the voice must say in `project.json` `"names": ["이스마엘", "�
 Letter (the default): `me` and `oppa` are cast in every letter video, drawn or not, so their looks stay reserved
 (p08: Schrödinger with side hair + round glasses read as 오빠, and with no `oppa` cast no lint could see it; lint
 `letter-cast`). `new_video.py` writes the `TITLE_CARD` line and these two casts into a new docent project's scenes.js
-(only when it has none); the book's people go below them, each look taken from a photo (REFERENCE §2).
+(only when it has none) and `"concept": "letter"` into its project.json; for the lint, an ink-mode project
+(`"colour": false`) with no `concept` counts as letter. The book's people go below them, each look taken from a photo
+(REFERENCE §2).
 ```js
 TITLE_CARD = signCard;
 cast('me',       { name: '나', hair: 'long', h: 0.94 });                        // the narrator: never tagged
@@ -200,7 +202,9 @@ PROPS.anvil = (x, y, s, o) => { inkPath([[x - 80 * s, y - 60 * s], [x + 80 * s, 
 POSES.pray = { la: [[-30, 46], [-6, 10]], ra: [[30, 46], [6, 10]] };
 ```
 Look at the gallery first: run 4 moved ANIMALS `fox` `lion` `wolf` `monkey`, PROPS `plane` `dna` `diary` and POSES
-`reachDown` `linked` `showBook` into docent.js.
+`reachDown` `linked` `showBook` into docent.js. Two people hand in hand: draw both figures, then
+`holdHands(a, b, { p })` draws their inner arms to one grip point between them and returns that point. Use it instead
+of `POSES.linked` when their heights differ (r09: `linked` hands at h 1.04 and 0.92 missed by 26 px).
 Hats: `hat: 'top' | 'cap' | 'beanie' | 'bowler' | 'crown' | 'laurel' | 'morion'`. A new kind of look (a toga, armour)
 is a helper drawn after `person()` at its anchors, shown once on a still at Gate A.
 
@@ -235,11 +239,21 @@ wrapper would draw a second morion over the kit's).
 
 ## B. The book shot (letter: the real covers on a plain page, REFERENCE §4)
 Draw the sentence's verb with the book: 다 읽었어요 → she holds it up while 오빠 looks; 읽어 봐요 → she hands it to
-him. 오빠 is in the shot whenever the line speaks to him or about him. Never the `present` pose pointing at a pair in
-the air (all 10 run-4 probes opened that way). One cover in a hand is `holdCover(fig, name)`: at the front hand,
-upright beside the body, clear of the face; it returns the cover's box.
+him; 빌려준 → he hands it to her. Never the `present` pose pointing at a pair in the air (all 10 run-4 probes opened
+that way). One cover in a hand is `holdCover(fig, name)`: at the front hand, upright beside the body, clear of the
+face; it returns the cover's box.
+- **The original is shown at least once in the video**: the pair on a desk line, in the shot whose line names the
+  book or the next one. The Korean edition in a hand alone is not enough. A Korean original (윤동주) is the exception:
+  its Korean edition alone.
+- **오빠 is in the shot when the line is about him** (오빠가 맨날 읽으라던, 오빠 책장의, 오빠가 빌려준). "오빠," used only
+  to call him (오빠, 드디어 다 읽었어요) does not need him drawn.
+- **A line about him that also brings in both editions: two shots.** Her, him, a desk and the pair are four things
+  (lint `busy`): all five verification authors hit this and broke one rule or the other. First the hand-over of the
+  Korean edition between her and him, then her with the pair on a desk line. Draw that desk in plain `inkLine`s: lines
+  are support, not a thing, so the shot is her + the pair. Each shot holds 3 s or more: split one sentence (at the
+  book's name, `q.w`) only when it runs about 6 s; otherwise the hand-over takes this sentence and the pair the next.
 ```js
-[q.s(0), (t, lt) => {   // "오빠, 드디어 다 읽었어요": she holds the Korean edition up, he looks
+[q.s(0), (t, lt) => {   // "오빠가 권한 책, 드디어 다 읽었어요": she holds the Korean edition up, he looks
   const me = person('me', 700, 870, { s: 1.3, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
   holdCover(me, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
   person('oppa', 1300, 870, { s: 1.3, flip: true, face: 'surprised', p: dp(lt, 0.1, 0.5) });
@@ -251,14 +265,23 @@ upright beside the body, clear of the face; it returns the cover's box.
   person('oppa', x, 870, { s: 1.3, pose: 'reach', flip: true, face: 'happy', p: dp(lt, 0.1, 0.5) });
 }],
 ```
-Both editions introduced: the pair stands on a desk line, her hand at the near cover.
+A line about him, then both editions (two shots): he hands her the Korean edition; she rests a hand on the pair.
 ```js
-[q.s(1), (t, lt) => {   // "원서는 영어로 나왔고, 한국어판도 있어요"
-  prop('desk', 1180, 870, 2.4, { p: dp(lt, 0, 0.3) });                            // its top is at 870 − 80 × 2.4
-  realCoverPair('cover_lab_en', 'cover_lab_ko', 1180, 870 - 80 * 2.4, 360, { p: dp(lt, 0.1, 0.6) });
-  person('me', 760, 870, { s: 1.4, pose: 'point', face: 'happy', p: dp(lt, 0, 0.5) });
+[q.s(0), (t, lt) => {   // "오빠가 맨날 읽으라던 그 책, 드디어 다 읽었어요": he hands it to her
+  const o = person('oppa', 720, 870, { s: 1.3, pose: 'reach', face: 'happy', p: dp(lt, 0, 0.5) });
+  const b = holdCover(o, 'cover_lab_ko', { p: dp(lt, 0.15, 0.5) });
+  const x = b.x + b.w + 118 * 1.3 * CAST.me.h;                                    // her reach hand lands at b.x + b.w
+  person('me', x, 870, { s: 1.3, pose: 'reach', flip: true, face: 'smile', p: dp(lt, 0.1, 0.5) });
+}],
+[q.s(1), (t, lt) => {   // "원서는 영어로 나왔고, 한국어판도 있어요": her and the pair on a desk drawn in lines
+  const top = 870 - 190;                                                           // lines are support, not a thing
+  inkLine(880, top, 1400, top, { w: 6, p: dp(lt, 0, 0.3) });
+  for (const x of [920, 1360]) inkLine(x, top, x, 870, { w: 4.4, p: dp(lt, 0.05, 0.3) });
+  const pr = realCoverPair('cover_lab_en', 'cover_lab_ko', 1140, top, 360, { p: dp(lt, 0.1, 0.6) });
+  person('me', pr.x - 118 * 1.4 * CAST.me.h, 870, { s: 1.4, pose: 'reach', face: 'happy', p: dp(lt, 0, 0.5) });   // her hand at the near cover
 }],
 ```
+She may sit at that desk instead (T15) when the line is 읽었어요 or 덮고도 앉아 있었어요.
 The original first (left), the Korean edition second. Every cover is fully in by the shot's start + 0.8 s (lint
 `cover-late`): start it by `lt` 0.2 and give it ≤ 0.6 s. A cover or a pair is one thing and no word; with two people
 it is the shot's third thing, so nothing else goes in.
@@ -311,17 +334,43 @@ const m = person('musk', 700, 870, { pose: 'akimbo', p: dp(lt, 0, 0.5) }); armor
 Scale from the anchors, not from a guessed `s` (the first armour, sized for r = 34, covered the arms of a tall figure).
 Show it once on a still at Gate A, on a tall adult and on a child.
 
-## T15. Seated figure (chair, armchair, bench)
-`figure({ sit: true })` puts the hip at y - 100 s, lays the thighs flat and bends the knees at x + 64 s (feet at
-x + 64 to 74 s). A seat as deep as the thighs hides them on its top edge and turns the shins into a third chair leg:
-the seat stops at x + 34 s. The kit `chair` at 1.4 s puts its front leg at x + 56 s, so draw this one instead:
+## T15. Seated figure (chair, stump, step, a desk in front)
+`figure({ sit: true })` puts the hip at y − 100 k (k = `s` × the cast's `h`), lays the thighs flat to the knees at
+x + 64 and x + 74 k and drops the shins straight down there; it draws no feet. The old recipe put the seat on the
+thigh line with its front leg at x + 34 k: the seat hid the thighs, and the leg and the two shins made three
+verticals, so the sitter read as standing behind a box (verification v2, r10). Any seat follows three numbers: its
+top just under the thigh (y − 96 k), its front edge by x + 20 k (the knee sticks out), and nothing upright between
+x + 24 k and x + 140 k but the shins. Checked at phone size (360 px) on stills.
 ```js
-const sideChair = (x, y, s, o) => inkPoly([[x - 38 * s, y - 232 * s], [x - 38 * s, y], [x - 38 * s, y - 100 * s],
-                                          [x + 34 * s, y - 100 * s], [x + 34 * s, y]], o);   // sitter faces right
-sideChair(x, y, s, { p: dp(lt, 0, 0.4) });                          // the chair first, so the thighs lie on top
-person('viewer', x, y, { s, sit: true, pose: 'hold', p: dp(lt, 0.1, 0.5) });
+POSES.lap = { la: [[8, 58], [40, 112]], ra: [[20, 56], [58, 110]] };                 // both hands resting on the thighs
+// A side chair under a sitter at (x, y): k = s × the cast's h, d = 1 faces right, −1 faces left. Draw it first.
+const sideChair = (x, y, k, d = 1, o = {}) => {
+  const X = (u) => x + d * u * k, Y = (v) => y - v * k, w = 4.4;
+  inkLine(X(-40), Y(88), X(-56), Y(214), { w, ...o });                                   // the back, leaning away
+  inkRect(Math.min(X(-44), X(20)), Y(96), 64 * k, 10 * k, { w, fill: PAPER(), ...o });   // the seat, under the thigh
+  inkLine(X(-38), Y(86), X(-50), Y(0), { w, ...o });                                      // the back leg
+  inkLine(X(14), Y(86), X(24), Y(0), { w, ...o });                                        // the front leg, clear of the shins
+  inkLine(X(62), Y(2), X(96), Y(2), { w, ...o });                                         // the sitter's feet (the kit draws none)
+};
+[q.s(0), (t, lt) => {   // "덮고도 한참 앉아 있었어요": she sits at her desk, chin in her hand
+  const s = 1.5, x = 640, y = 870, k = s * CAST.me.h, T = y - 155 * k;
+  sideChair(x, y, k, 1, { p: dp(lt, 0, 0.4) });
+  person('me', x, y, { s, sit: true, pose: 'deskChin', face: 'sad', p: dp(lt, 0.1, 0.5) });
+  inkLine(x + 50 * k, T, x + 470 * k, T, { w: 6, p: dp(lt, 0, 0.4) });                    // the desk top at her elbow
+  for (const u of [150, 450]) inkLine(x + u * k, T, x + u * k, y, { w: 4.4, p: dp(lt, 0.1, 0.3) });   // legs past her feet
+}],
 ```
-Facing left: mirror the x offsets. A thing on the lap goes at (x + 70 s, y - 118 s).
+- The desk is drawn as lines: the kit `desk` overhangs its legs by only 20 s, so with its top at her elbow its near leg
+  stands on her shins. Its top is at y − 155 k (the elbow in `deskChin`, `deskWrite`), the near leg at x + 150 k or
+  further.
+- Pose: `lap`, `deskRead`, `deskChin`, `deskWrite` or `deskType`; not `hold` (the arms spread like a shrug).
+- A stump or a doorstep is a seat with the same numbers: its top at y − 96 k, its front by x + 20 k, no upright line
+  near the shins.
+- Facing left: `d = −1` and `flip: true`. A thing on the lap goes at (x + 70 k, y − 118 k).
+- At a desk on this chair is the narrator's composition: a girl or a woman from the book is staged another way
+  (REFERENCE §2; r10's Anne read as the narrator).
+- `letterNight` still draws the old chair (seat on the thigh line, front leg at x + 34 k): a place shot shows this
+  defect until the kit takes these numbers.
 
 ## Placement notes
 - Draw people in any order, bubbles last: name tags are placed when the shot is complete (`docentTags()`), clear of

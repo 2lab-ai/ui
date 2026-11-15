@@ -86,6 +86,13 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   glasses) and write it in the cast comment (`// photo: full grey hair swept back, a mustache`). A beard only for
   people known by one (Socrates, Darwin): run 4 drew Gary Keller bald + bearded like Socrates and Diamond, and bald +
   beard had become the default "author" head.
+- When the kit lacks their hair (wavy, a bob) or their beard's shape (a fringe beard under the jaw), pick the nearest
+  look the kit has that still differs from 오빠 (short + square glasses) and the narrator (long), and write the swap in
+  the cast comment (`// photo: wavy hair, a fringe beard → curly + beard: no wavy or fringe in the kit`). Verification
+  drew Thoreau with tight curls and a full beard and Anne with a ponytail, and neither comment said so.
+- A girl or a woman from the book never takes the narrator's composition, seated at a desk on a side chair: r10's Anne
+  writing at that desk, one shot after the narrator sat there, read as the narrator. Stage her another way (standing,
+  on the floor, by a window, with her own prop) and tag her the first time she is named.
 - Look-alikes: no unnamed figure (a crowd, an extra, a generic king or scholar) may share a cast member's silhouette —
   the same head top, plus that cast look's beard or glasses — or viewers read it as that person (총균쇠: foragers with
   curly hair read as Yali, a crowd bun as 정화, a scholar with side hair and glasses as 오빠). A crown or a laurel does
@@ -131,17 +138,23 @@ paints as ink or page (`colour: true` on the call keeps it), in every project wh
   `project.json` `"images"`, and record each in `"book_covers"`:
   `{ "<book>": { "<lang>": { "url": "…", "edition": "publisher, year, translator", "why": "why this edition" } } }`.
 - **Which edition** (run 4: 6 of 10 books had a Greek, Italian, French, Dutch, Hebrew or Korean original and no rule).
-  The original = an edition in the book's original language; a modern printing is fine, an anthology with another
-  title is not (p01 showed *The Last Days of Socrates* for the Apology). A pre-modern book (Plato, Machiavelli): a
+  The original = the edition the Korean translation was made from: the Korean edition's 원제 and translation source
+  (Aladin's 원제 line, the copyright page). So pick the Korean edition first (below), then its source. 사피엔스 was
+  translated from the English *Sapiens*, so its original is the English edition, not the Hebrew (verification r09
+  showed the Hebrew cover, which a Korean viewer does not connect to the book). When the source is not known, or there
+  is no Korean edition: an edition in the book's original language. A modern printing is fine, an anthology with
+  another title is not (p01 showed *The Last Days of Socrates* for the Apology). A pre-modern book (Plato, Machiavelli): a
   standard modern edition in the original language, or the best-known English edition, the reason in `why`. A Korean
   original (윤동주) shows the Korean edition alone; its first edition only as an extra. The Korean edition = the one in
   print with the most readers (Aladin's Sales Point), not the newest or the first. A real cover may carry the author's
   photo: the photo rule in §2 is about drawing people.
 - **The book shot draws the sentence's verb**: she reads it, holds it up (`holdCover(fig, name)`, pose `showBook`) or
-  hands it to 오빠, and 오빠 is in the shot when the line speaks to him or about him. When both editions are introduced
-  the pair stands on a desk line (`realCoverPair` on the top of `prop('desk')`), never on nothing. Run 4: all 10 probes
-  opened on the narrator pointing at a free-standing pair, 다 읽었어요 not drawn, 오빠 absent in four though the line was
-  about him. Recipes: TEMPLATES B. A cover is fully in by its shot's start + 0.8 s (lint `cover-late`), never redrawn
+  hands it to 오빠 (or he to her), and 오빠 is in the shot when the line is about him; "오빠," only calling him does not
+  draw him. The original is shown at least once in the video: the pair stands on a desk line (`realCoverPair` on a
+  desk drawn in plain lines, which are support and not a thing), never on nothing; a Korean original shows its Korean
+  edition alone. A line about him that also brings in both editions is two shots: the hand-over, then her with the
+  pair. Run 4: all 10 probes opened on the narrator pointing at a free-standing pair, 다 읽었어요 not drawn, 오빠 absent
+  in four though the line was about him. Recipes: TEMPLATES B. A cover is fully in by its shot's start + 0.8 s (lint `cover-late`), never redrawn
   in ink; the cover carries the title, so no written word beside it. Other artwork is still drawn.
 - Animals come from `animal(kind, …)`: anteater cat dog bird fish mouse rabbit elephant whale turkey mammoth pig horse
   hen swan blackswan octopus bat bee turtle tick cow sheep goat llama zebra squirrel duck fox lion wolf monkey. Never
@@ -231,11 +244,14 @@ Generated MIDI cues (`score.py`) are the offline fallback only — under a docum
 - In a clip under ~20 s, do not force a `"music"` change: one track is enough.
 
 ## 8. Gates (in order, each one blocks the next)
+Every tool prints its usage with `--help` and does nothing else (`narrate_soma.py --help` used to start a narration).
 1. **Asset gallery** — `tools/gallery.py cast animals [props]`; look at every sheet. Fix looks before writing scenes.
    The gallery tests identity ("a wolf"); whether a drawing reads as the action ("nursing", "lifting") is checked at
    gate 3 by a fresh reviewer.
 2. **Scene lint** — `tools/lint_scenes.py` must exit 0 (no P0/P1) on the draft timeline and again on the real one
-   (`--timeline <file>` lints against another timeline file without swapping them), and
+   (`--timeline <file>` lints against another timeline file without swapping them). Narration writes `timeline.json`
+   over the draft, so keep the draft in its own file: `timeline_draft.py --out timeline_draft.json`, then
+   `lint_scenes.py --timeline timeline_draft.json`. And
    someone looks at every `out/lint_sheet*.jpg` page (every rest frame): lint cannot see a wrong metaphor, a roof that does not
    meet its wall, or an arm through a prop.
 3. **Contact sheets** — stills at every sentence start + 0.8 s and end − 0.3 s; a fresh reviewer looks at every sheet
