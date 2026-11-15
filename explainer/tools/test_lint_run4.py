@@ -287,7 +287,7 @@ class TitleCardShot(unittest.TestCase):
         b = read(os.path.join(d, 'timeline.json'))['scenes'][1]
         late = [(sc, t) for sc, t, s, c in issues(rep) if c == 'cover-late']
         self.assertEqual([sc for sc, t in late], ['b'], issues(rep))   # scene a's held cover is on time
-        self.assertAlmostEqual(late[0][1], b['sentences'][0]['start'] + 0.8, delta=0.45)
+        self.assertAlmostEqual(late[0][1], b['sentences'][0]['start'] + 0.8, delta=0.05)
         self.assertEqual(p.returncode, 1)
 
 
