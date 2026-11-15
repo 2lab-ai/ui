@@ -6,7 +6,7 @@ easy to miss. Run inside a project folder (timeline.json may be a draft).
     python lint_scenes.py --help
 
 --timeline <file>: lint against that timeline instead of timeline.json (the draft after the voice's timeline exists:
-timeline_draft.py's output saved under another name), without touching timeline.json.
+timeline_draft.py --out timeline_draft.json), without touching timeline.json.
 
 Writes out/lint.json, out/lint.md, out/lint/<scene>_<t>.jpg for every frame with a P1 or worse, and out/lint_sheet.jpg
 (+ lint_sheet_02.jpg … past 60 frames): every rest frame on contact sheets, to look at before the voice is even done (lint cannot see everything).

@@ -26,7 +26,11 @@ The API is reached through an SSH tunnel to the Windows host (WSL uses mirrored 
 The takes are copied from blade-4090 by tools/blade/fetchjob.sh; with SOMA_VOICE_FETCH=http they come from the job's
 result URL instead (one job per scene cut at the merge's digital silence, no access to blade-4090 needed beyond the
 tunnel). Jobs run one at a time on one worker thread; the next scene synthesises while this one is cut and checked.
+--help, -h: this text; nothing is created or sent.
 """
+import sys
+if __name__ == '__main__' and ('--help' in sys.argv[1:] or '-h' in sys.argv[1:]):   # before cache_voice/ or any request
+    print(__doc__.strip()); sys.exit(0)   # verify v2, r10: --help started a narration against the default URL and crashed
 import concurrent.futures, hashlib, json, os, re, subprocess, sys, tempfile, time, urllib.error, urllib.request, wave
 import numpy as np
 

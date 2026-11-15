@@ -22,7 +22,7 @@ explainer/
 │   ├── new_video.py     scaffold or refresh a project: engine, theme.json, fonts, public-domain images (--format short);
 │   │                    a docent project without scenes.js gets a starter one (title card, the letter cast me + oppa)
 │   ├── frame.py         the frame size from project.json "format" / "size" (default 1920x1080)
-│   ├── narrate_soma.py  narration with the soma-voice API on blade-4090 (voice cwon), filler padding, timing
+│   ├── narrate_soma.py  narration with the soma-voice API on blade-4090 (voice cwon), filler padding, timing (--help: usage)
 │   ├── padcut.py        cuts the filler ("아아. [pause] … [pause] 아아.") off each take
 │   ├── ko_say.py        Korean spoken form: digits, symbols and Latin letters -> Hangul before the TTS
 │   ├── cwon_say.py      one-off voice clip (no video): text -> padded, cut, ear-checked cwon wav/mp3
@@ -224,7 +224,7 @@ and any colour besides ink, purple and red. Three tools use it:
 
 | Tool | Gate |
 |---|---|
-| `tools/timeline_draft.py` | a draft timeline from script.json (7.8 chars/s) so scenes, gallery and lint run before the voice is done |
+| `tools/timeline_draft.py` | a draft timeline from script.json (7.8 chars/s) so scenes, gallery and lint run before the voice is done; `--out timeline_draft.json` writes it beside the voice's timeline (for `lint_scenes.py --timeline timeline_draft.json`) |
 | `tools/gallery.py cast animals props` | asset sheets: look at every one before any scene uses the asset (`poses`: every pose) |
 | `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md`, a still per bad frame and `out/lint_sheet*.jpg` (every rest frame, 60 per page); `--timeline <file>` lints against another timeline (the draft after the voice's exists), `--help` prints the checks; a project whose engine copy predates the checks fails `engine-too-old` (P0: run `new_video.py <project>` to refresh engine.js/docent.js) |
 | `tools/title_check.py "<title>" --keyword <kw> --strict` | the title's form (hook first, ≤ 55, no format label) and one measured keyword in the title, on topic and over the demand bar (REFERENCE §10) |
