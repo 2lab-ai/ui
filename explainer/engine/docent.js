@@ -23,7 +23,7 @@ const DOCENT_KINDS = ['partial', 'ghost', 'zone', 'off', 'empty', 'wordy', 'cove
   'things', 'words', 'marks', 'colours', 'torsos',   // emphasis budget (2026-11-13): what competes for the eye in this frame
   'covers'];   // real covers drawn: [name, opacity] (lint cover-late, 2026-11-15)
 const DOCENT = { t: 0, shot: null, slots: null, ghostOk: 0, seq: 0, ink: null, track: null, depth: 0 };
-function DOCENT_FRAME(t) { if (typeof FRAME === 'object') SUB_Y = FRAME.subTop; if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; for (const k of DOCENT_KINDS) DOCENT[k] = [];
+function DOCENT_FRAME(t) { if (typeof FRAME === 'object') SUB_Y = FRAME.subTop; if (typeof ctx !== 'undefined' && ctx && !ctx.__docentInk) docentPatchCtx(); DOCENT.t = t; DOCENT.depth = 0; DOCENT.noWord = 0; DOCENT.inMark = 0; DOCENT.redInk = false; DOCENT.listItems = 0; DOCENT.shot = null; DOCENT.seq = 0; DOCENT.ink = null; DOCENT.track = null; DOCENT.textBig = false; DOCENT.pendingTags = []; DOCENT.topFig = 0; for (const k of DOCENT_KINDS) DOCENT[k] = [];
   DOCENT.slots = { figs: [], heads: [], tags: [], bubbles: [], things: [] }; }   // slots: where things are or will be (placement)
 DOCENT_FRAME(0);
 
@@ -463,8 +463,10 @@ function figure(x, y, o = {}) {
     const n = F(...neck), hp = F(...hip), tb = withM([Math.min(n[0], hp[0]) - 26 * s, n[1], Math.max(n[0], hp[0]) + 26 * s, hp[1]]);
     if (clamp01((p * 6 - 1) / 1.4) > 0.5) DOCENT.torsos.push([...scr(tb), DOCENT.seq]); }
   DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
+  const sb = scr(withM([...anchors.box]));   // its height on screen (lint crowd-row); top: a scene's own call, not a composite's part
   DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|'),
-    look: { hair: hair === true ? 'long' : hair || null, hat: hat === true ? 'top' : hat || null, beard: !!beard, glasses: !!glasses, helmet: !!helmet, shell: !!shell } });   // lint cast-lookalike
+    look: { hair: hair === true ? 'long' : hair || null, hat: hat === true ? 'top' : hat || null, beard: !!beard, glasses: !!glasses, helmet: !!helmet, shell: !!shell },   // lint cast-lookalike
+    hpx: Math.round(sb[3] - sb[1]), top: DOCENT.topFig > 0 });
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
   const ph = (k, n) => clamp01((p * n - k) / 1.4);   // staged draw-on: head, body, arms, legs, face
   const lw = w * Math.max(0.7, Math.sqrt(s));
@@ -2555,17 +2557,18 @@ function holdCover(fig, name, { h = 260, p = 1, side = 'front' } = {}) {
     ring: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('ring'); }, false, true], underline: [null, () => { if (!DOCENT.inMark) DOCENT.marks.push('underline'); }, false, true],
   };
   const INKED = new Set(['figure', 'person', 'seated', 'animal', 'prop', 'crab', 'ant']);
+  const PEOPLE = new Set(['figure', 'person', 'seated']);   // a person the scene draws itself (lint crowd-row), not a place's or a bubble's
   for (const [name, [asThing, asWord, ownText, isMark]] of Object.entries(SPEC)) {
     const f = G[name]; if (typeof f !== 'function') continue;
     G[name] = function (...args) {
-      const o = optsOf(args), ok = live(o);
+      const o = optsOf(args), ok = live(o), top = PEOPLE.has(name) && DOCENT.depth === 0;
       if (ok && asThing && DOCENT.depth === 0) asThing(args, o);
       if (ok && asWord) asWord(args, o);
-      DOCENT.depth++;
+      DOCENT.depth++; if (top) DOCENT.topFig++;
       if (ownText || INKED.has(name)) DOCENT.noWord++;   // a drawing's own lettering is part of the drawing
       if (isMark) DOCENT.inMark++;
       try { return INKED.has(name) ? inkMode(o, () => f.apply(this, args)) : f.apply(this, args); }
-      finally { DOCENT.depth--; if (ownText || INKED.has(name)) DOCENT.noWord--; if (isMark) DOCENT.inMark--; }
+      finally { DOCENT.depth--; if (top) DOCENT.topFig--; if (ownText || INKED.has(name)) DOCENT.noWord--; if (isMark) DOCENT.inMark--; }
     };
   }
 })();

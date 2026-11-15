@@ -43,6 +43,16 @@ class Kit(unittest.TestCase):
         a, b = self.run_js(probe, 0.3)
         self.assertLess(b[1], 0.9); self.assertEqual(self.run_js(probe, 0.1)[1:], [])   # B not started: not drawn, not listed
 
+    def test_people_carry_their_height_and_whether_the_scene_drew_them(self):   # lint crowd-row
+        probe = """() => { DOCENT_FRAME(0); figure(300, 870, { s: 1, crowd: true }); person('me', 700, 870, { s: 1.5 });
+          bubble(1100, 200, 400, 300, { tail: [700, 400], body: (x, y, w, h) => figure(x + w / 2, y + h - 20, { s: 0.4 }) });
+          return docentReport().people.map((p) => [p.top, p.hpx]); }"""
+        (t1, h1), (t2, h2), (t3, h3) = self.run_js(probe)
+        self.assertEqual((t1, t2, t3), (True, True, False))   # the figure inside a bubble's picture is not the scene's
+        self.assertAlmostEqual(h1, 338, delta=12); self.assertAlmostEqual(h2, 1.5 * 0.94 * 360, delta=25)
+        night = """() => { DOCENT_FRAME(0); letterNight({}); return docentReport().people.map((p) => p.top); }"""
+        self.assertEqual(self.run_js(night), [False])   # a letter place's own person
+
     def test_hold_cover_beside_the_body_never_over_the_face(self):
         probe = """([flip, pose, side]) => { DOCENT_FRAME(0); const f = person('me', 960, 870, { s: 1.5, pose, flip });
           const b = holdCover(f, 'cover_a', { h: 280, side }); const r = docentReport();

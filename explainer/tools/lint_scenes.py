@@ -24,6 +24,8 @@ P1  cover-late: a real cover (realCover / realCoverPair / holdCover) still under
     names the book)
 Emphasis budget (docent.js counts what each top-level call drew; REFERENCE.md §0):
 P1  busy: 5+ things in one frame · words: 3+ written words or labels · marks: 2+ red marks
+    crowd-row: 5+ people (figure(), person(), seated()) in one frame, each under 35 % of the frame height: a row of
+    small figures (run 4; TEMPLATES T11: at most 3 big figures and the number written once, or heads behind one line)
 P2  busy: 4 things · words: 2 · list: a written list of 3+ lines · colour: any colour besides ink, purple and red
     (ink-mode projects) · mark-budget: red in more shots than about one per 45 s of a scene
 Words and marks count wherever they are drawn (a word inside a thought bubble's picture too; a hand-drawn red line is a
@@ -87,6 +89,7 @@ def lookalikes(people, cast):
 
 FADE = 0.22    # shots() cross-fade: a frame inside it shows two shots at once
 COVER_BY, COVER_MIN = 0.8, 0.9   # a real cover is (almost) whole 0.8 s into its shot or its sentence
+CROWD_N, CROWD_H = 5, 0.35       # crowd-row: this many people, each under this share of the frame height
 
 
 def cover_times(t0, t1, starts):
@@ -148,6 +151,10 @@ def judge(r, size=(1920, 1080), cast=None):
     # (bottom-heavy, which asked to fill the top of every frame, is gone: empty page is the reference's default.)
     if not r.get('budget'): return out   # older and make-3b1b projects (no project.json "colour": false) are not held to it
     things, words, marks, colours = r.get('things') or [], r.get('words') or [], r.get('marks') or [], r.get('colours') or []
+    small = [p for p in r.get('people') or [] if p.get('top') and p.get('hpx', fh) < CROWD_H * fh]
+    if len(small) >= CROWD_N: out.append(('P1', 'crowd-row', f"{len(small)} people each under {100 * CROWD_H:.0f} % of the frame height "
+                                          f"(tallest {max(p['hpx'] for p in small)} px): a row of small figures — at most 3 big figures and the "
+                                          "number written once, or heads behind one line (TEMPLATES T11)"))
     if len(things) >= 5: out.append(('P1', 'busy', f"{len(things)} things compete for the eye ({', '.join(things[:7])}): one subject, at most two around it — cut what the sentence can do without"))
     elif len(things) == 4: out.append(('P2', 'busy', f"4 things on screen ({', '.join(things)}): can one go?"))
     if r.get('listItems', 0) >= 3: out.append(('P2', 'list', f"a written list of {r['listItems']} lines: the reference shows a list twice in 17 minutes — keep it only if the list itself is the point, else one item per shot"))

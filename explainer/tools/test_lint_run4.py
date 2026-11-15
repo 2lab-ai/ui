@@ -27,6 +27,34 @@ class CoverLate(unittest.TestCase):
         self.assertEqual(L.cover_late(None), [])
 
 
+def frame(**kw):
+    r = {'partial': [], 'ghost': [], 'zone': [], 'off': [], 'empty': [], 'tailFar': [], 'tailHigh': [], 'cover': [],
+         'overflow': [], 'rig': [], 'people': [], 'wordy': [], 'propFace': [], 'ink': [200, 300, 1700, 880],
+         'textBig': False, 'figures': 0, 'things': ['crowd'], 'words': [], 'marks': [], 'colours': [], 'budget': True}
+    r.update(kw); return r
+
+
+def crowd(n, hpx, top=True):
+    return [{'id': None, 'crowd': True, 'sig': '', 'look': {}, 'hpx': hpx, 'top': top} for _ in range(n)]
+
+
+class CrowdRow(unittest.TestCase):   # p04, p09, p10: six, five and eight small figures in a row
+    def codes(self, r): return {(s, c) for s, c, _ in L.judge(r)}
+
+    def test_five_small_people(self):
+        self.assertIn(('P1', 'crowd-row'), self.codes(frame(people=crowd(5, 340))))   # s 1: about 32 % of 1080
+        self.assertIn(('P1', 'crowd-row'), self.codes(frame(people=crowd(5, 340) + crowd(2, 600))))
+
+    def test_not_a_crowd_row(self):
+        self.assertNotIn(('P1', 'crowd-row'), self.codes(frame(people=crowd(4, 200))))            # four
+        self.assertNotIn(('P1', 'crowd-row'), self.codes(frame(people=crowd(5, 400))))            # big: 37 %
+        self.assertNotIn(('P1', 'crowd-row'), self.codes(frame(people=crowd(6, 200, top=False))))  # drawn inside a composite or bubble
+        self.assertNotIn(('P1', 'crowd-row'), self.codes(frame(people=crowd(6, 200), budget=False)))   # colour projects: no budget
+
+    def test_upright_frame(self):   # a Short: 35 % of 1920
+        self.assertIn(('P1', 'crowd-row'), {(s, c) for s, c, _ in L.judge(frame(people=crowd(5, 600)), size=(1080, 1920))})
+
+
 # ---- the real lint on a fixture project ----
 FIXTURE = r"""
 TITLE_CARD = signCard;
@@ -38,6 +66,9 @@ SCENES.a = (t, q) => shots(t, [
   // on time: whole by p 0.6
   [q.s(1), (t, lt) => { const f = person('me', 560, 870, { s: 1.5, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
                         holdCover(f, 'cover_x_ko', { h: 280, p: dp(lt, 0, 0.5) }); }],
+  // a row of five small strangers (crowd-row), then three big ones (fine)
+  [q.s(1) + 2.0, (t, lt) => { for (let i = 0; i < 5; i++) figure(400 + i * 280, 870, { s: 1.0, crowd: true, face: 'neutral' }); }],
+  [q.s(1) + 3.5, (t, lt) => { for (let i = 0; i < 3; i++) figure(560 + i * 400, 870, { s: 1.3, crowd: true, face: 'neutral' }); }],
 ]);
 """
 
@@ -96,3 +127,10 @@ class OnFixture(unittest.TestCase):
         self.assertTrue(all(s == 'P1' and s0 <= t < s1 for t, s in late), late)   # the first shot only, not the held cover
         self.assertEqual(self.p.returncode, 1)
         self.assertFalse([c for sc, t, s, c in issues(self.rep) if s == 'P0'], issues(self.rep))   # the fixture itself is sound
+
+    def test_crowd_row_on_the_five_small_strangers_only(self):
+        tl = read(os.path.join(self.d, 'timeline.json'))
+        s1 = tl['scenes'][0]['sentences'][1]['start']
+        rows = [t for sc, t, s, c in issues(self.rep) if c == 'crowd-row' and s == 'P1']
+        self.assertEqual(len(rows), 1, issues(self.rep))
+        self.assertTrue(s1 + 1.6 <= rows[0] < s1 + 3.3, (rows, s1))   # the rest frame of the five, not of the three

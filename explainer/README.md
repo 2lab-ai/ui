@@ -214,7 +214,8 @@ Every primitive reports what it drew in the current frame (`DOCENT`, `docentRepo
 ghosts, ink under the subtitles or off the frame, empty bubbles, tails that point at no head, bubbles over faces or
 name tags, people sharing a look, unnamed figures with a cast member's silhouette (`cast-lookalike`: a crowd with
 Yali's curly hair, a king with Diamond's bald head and beard), animals on the stick-figure rig, real covers still fading
-in 0.8 s after their shot or sentence started (`cover-late`) — and the emphasis budget: the things on screen (each
+in 0.8 s after their shot or sentence started (`cover-late`), five or more people each under 35 % of the frame height
+(`crowd-row`) — and the emphasis budget: the things on screen (each
 top-level call; a crowd or a row of the same prop counts once), the written words (name tags included), the red marks
 and any colour besides ink, purple and red. Three tools use it:
 
