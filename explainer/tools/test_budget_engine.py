@@ -72,7 +72,8 @@ TONES = r"""({ hats = [], faint = false }) => {
     const bad = [...new Set(ctx.__tones.seen)].filter((c) => !docentSame(c, INK()) && !docentSame(c, PAPER()) && !/,\s*0\)$/.test(c));   // see-through paints nothing
     if (bad.length) off[label] = bad;
   };
-  if (faint) { check('faint', () => prop('box', 960, 800, 1, { color: 'rgba(75,90,112,0.3)', fill: 'rgba(78,55,37,0.8)' })); return { off, n, seen }; }
+  if (faint) { check('faint', () => prop('box', 960, 800, 1, { color: 'rgba(75,90,112,0.3)', fill: 'rgba(78,55,37,0.8)' }));
+    check('paper', () => prop('paper', 960, 800, 1)); return { off, n, seen, page: PAPER(), ink: INK() }; }
   for (const k of Object.keys(ANIMALS)) check('animal:' + k, () => animal(k, 960, 800, { s: 0.8 }));
   for (const k of Object.keys(PROPS)) check('prop:' + k, () => prop(k, 960, 800, 1));
   for (const hat of hats) check('hat:' + hat, () => figure(960, 860, { hat, hair: 'short', beard: true, glasses: true, tie: true, outfit: 'suit', accent: 'red' }));
@@ -143,11 +144,13 @@ class BudgetOnEngine(unittest.TestCase):
             .map(([c, line]) => docentToneOf(c, line)); } finally { C.bg = bg; C.ink = ink; } }"""
         self.assertEqual(evaluate(self.proj, probe, None, False), ['page', 'page', 'page', 'page', 'ink', None])
 
-    def test_a_faint_paint_keeps_its_alpha_in_its_tone(self):   # review: a faint grey line must not turn opaque ink
+    def test_a_faint_line_keeps_its_alpha_a_fill_is_solid(self):   # review, twice
         r = evaluate(self.proj, TONES, {'faint': True}, False)
         self.assertEqual(r['off'], {})
-        self.assertIn('rgba(21,21,21,0.3)', r['seen']['faint'])   # the line: ink, still at 0.3
-        self.assertIn('rgba(21,21,21,0.8)', r['seen']['faint'])   # the dark fill: ink, still at 0.8
+        self.assertIn('rgba(21,21,21,0.3)', r['seen']['faint'])   # a faint grey line: ink, still at 0.3
+        self.assertIn(r['ink'], r['seen']['faint'])               # a see-through dark fill: solid ink
+        self.assertIn(r['page'], r['seen']['paper'])              # paper's see-through cream fill: the solid page,
+        self.assertFalse([c for c in r['seen']['paper'] if c.startswith('rgba(188,208,232')])   # so it hides what is behind
 
     def test_kit_has_the_ggs_assets(self):   # moved from the 총균쇠 video (2026-11-15); the morion is a figure() hat
         probe = """() => { const f = figure(960, 860, { hat: 'morion' });
