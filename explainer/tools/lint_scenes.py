@@ -103,8 +103,8 @@ CROWD_N, CROWD_H = 5, 0.35       # crowd-row: this many people, each under this 
 
 def cover_time(t0, t1, body0):
     """when the covers of the shot [t0, t1) are judged: once, 0.8 s after the shot is first on screen. A shot cut
-    inside the title card (before body0 - 0.4, the first sentence: engine.js fades the scene body in from lead - 0.15
-    and it is whole by then) is first seen there, so it is judged at that moment + 0.8 s, not skipped (fable,
+    inside the title card (before body0 - 0.4, the first sentence: engine.js fades the scene body in over lead - 0.15
+    .. lead + 0.35, whole before the check at lead + 0.8) is first seen there, so it is judged at that moment + 0.8 s, not skipped (fable,
     trinity round 2: a shot declared at sc.start went unjudged). None when the shot ends before that. Only the shot's
     start: a sentence start inside a shot is not a cut, and a cover keyed to a word in it is judged by its shot."""
     t = round(max(t0, body0 - 0.4) + COVER_BY, 3)
