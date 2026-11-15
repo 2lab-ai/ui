@@ -427,7 +427,7 @@ function figure(x, y, o = {}) {
   const { s: s0 = 1, pose = 'stand', face = 'smile', p = 1, a = 1, flip = false, t = 0, walk = 0, sit = false,
     tie = false, glasses = false, hair = false, helmet = false, shell = false, snout = false, hat = false,
     beard = false, mustache = false, outfit = null, accent = null, h = 1, tag = null,
-    blindfold = false, look = 0, color = null, w = 4.2 } = o;
+    blindfold = false, look = 0, color = null, w = 4.2, holdHand = null } = o;
   const s = s0 * h;
   const P = POSES[pose] || POSES.stand;
   const ink = color || INK();
@@ -443,6 +443,11 @@ function figure(x, y, o = {}) {
     brim: hat === 'cap' ? dir : 0,   // a cap's brim reaches 1.7 R on the facing side: say() keeps upper bubbles off that side
     hands: [F(sh[0] + P.la[1][0] - (outfit ? 21 : 0), sh[1] + P.la[1][1]), F(sh[0] + P.ra[1][0] + (outfit ? 21 : 0), sh[1] + P.ra[1][1])],
     box: [x - 70 * s, topY, x + 70 * s, y] };
+  // holdHand: 'left' | 'right' leaves the arm on that side of the screen to holdHands(), which draws it to a grip shared
+  // with the other person. anchors.arms: each arm's shoulder (la, ra), the arm left off, and the line holdHands draws with.
+  const offArm = holdHand ? ((holdHand === 'right') === (dir > 0) ? 1 : 0) : -1;
+  anchors.arms = { off: offArm, s, a, p, lw: w * Math.max(0.7, Math.sqrt(s)), ink,
+    sh: [0, 1].map((k) => F(sh[0] + (outfit === 'dress' ? 16 : outfit ? 26 : 0) * (k ? 1 : -1), sh[1] + (outfit ? 6 : 0))) };
   // the name tag sits beside the waist on the free side (not between two people), clear of every bubble above.
   // This spot is provisional (bubbles keep clear of it); docentTags() places the tag when the shot is complete, so
   // people, animals, props and bubbles drawn AFTER this figure count too (2026-11-10: a tag landed on a later figure).
@@ -515,7 +520,8 @@ function figure(x, y, o = {}) {
       const ox = (outfit === 'dress' ? 16 : outfit ? 26 : 0) * (k ? 1 : -1), oy = outfit ? 6 : 0;   // arms hang outside the jacket
       inkPoly([F(sh[0] + ox, sh[1] + oy), F(sh[0] + el[0] + ox, sh[1] + el[1] + oy), F(sh[0] + hd[0] + ox * 0.8, sh[1] + hd[1] + oy)], { p: ph(2, 6), w: lw, color: ink });
     };
-    arm(P.la, 0); arm(P.ra, 1);
+    if (offArm !== 0) arm(P.la, 0);
+    if (offArm !== 1) arm(P.ra, 1);
     // hair behind the head (long, ponytail)
     const hp = ph(0.3, 6);
     const style0 = hair === true ? 'long' : hair;
@@ -807,6 +813,10 @@ function animal(kind, x, y, o = {}) {
 // Gate A never showed the monkey's banana option, so a banana that vanished in ink mode was first seen at Gate C).
 const DOCENT_GALLERY_MORE = {
   animals: [['monkey banana', (x, y) => animal('monkey', x, y, { s: 0.62, banana: true, mood: 'stern' })]],
+  poses: [['holdHands', (x, y) => {   // two heights (r09: h 1.04 and 0.92), one grip
+    const a = figure(x - 70, y, { s: 0.85, h: 1.04, hair: 'curly', holdHand: 'right' });
+    const b = figure(x + 70, y, { s: 0.85, h: 0.92, hair: 'bun', flip: true, holdHand: 'left' });
+    holdHands(a, b); }]],
 };
 function docentGallery(kind, page = 0) {
   const more = DOCENT_GALLERY_MORE[kind] || [], extra = Object.fromEntries(more);
@@ -2350,6 +2360,43 @@ Object.assign(POSES, {
   reachDown: { la: [[-18, 52], [-28, 108]], ra: [[48, 44], [96, 98]] },
   linked: { la: [[-46, 44], [-90, 72]], ra: [[46, 44], [90, 72]] },
 });
+// Two people holding hands (fix round 2026-11-16, r09: POSES.linked places each hand from its own figure's height, so
+// the hands of two figures with different h missed by ~26 px). Draw both figures first, each with holdHand on its
+// inner side (toward the other: the left one's 'right', the right one's 'left'), any pose for the other arm; then
+// holdHands(a, b) draws those two arms from the shoulders to one grip point between the figures, a little bent at the
+// elbows, and returns the grip [x, y] (also each figure's hands[] entry). Space the figures about 150-180 × s apart
+// (head to head): the hands hang low; up to ~210 × s the arms rise toward level; farther, they go straight. opts: p (the arms draw on). A figure drawn
+// without holdHand on that side would show three arms: it is reported (MISS, lint P0).
+function holdHands(a, b, { p = 1 } = {}) {
+  if (!a || !b || !a.arms || !b.arms) { MISS.add('holdHands: two figure() / person() anchors'); return null; }
+  const [A, B] = a.head[0] <= b.head[0] ? [a, b] : [b, a];
+  const inner = (f, side) => {   // f's arm on that side of the screen
+    const k = (side === 'right') === (f.dir > 0) ? 1 : 0;
+    if (f.arms.off !== k) MISS.add(`holdHands: draw the ${side === 'right' ? 'left' : 'right'} figure with holdHand: '${side}'`);
+    return { f, k, r: f.arms, S: f.arms.sh[k] };
+  };
+  const L = inner(A, 'right'), R = inner(B, 'left'), l1 = (e) => 55 * e.r.s, l2 = (e) => 57 * e.r.s;   // upper arm, forearm (POSES.stand)
+  // the grip: halfway between the shoulders, where a relaxed arm hangs (0.72 of its length below the shoulder), raised
+  // when the other person stands far enough that it would not reach (0.95 of its length). Each figure has its own; the
+  // higher one is in reach of both (the shorter person reaches up a little, as a child holding a grown-up's hand)
+  const gx = (L.S[0] + R.S[0]) / 2, G = [gx, Math.min(...[L, R].map((e) => {
+    const n = l1(e) + l2(e), d = 0.95 * n, dx = Math.abs(gx - e.S[0]);
+    return e.S[1] + Math.min(0.72 * n, Math.sqrt(Math.max(0, d * d - dx * dx))); }))];
+  for (const [e, out] of [[L, -1], [R, 1]]) {   // out: away from the other person, where the elbow bends
+    const [sx, sy] = e.S, u1 = l1(e), u2 = l2(e), vx = G[0] - sx, vy = G[1] - sy, d = Math.hypot(vx, vy) || 1;
+    let el;
+    if (d >= u1 + u2) el = [sx + vx * u1 / (u1 + u2), sy + vy * u1 / (u1 + u2)];   // out of reach: a straight arm
+    else {
+      const t = (u1 * u1 - u2 * u2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, u1 * u1 - t * t));
+      const sg = (-vy / d) * out >= 0 ? 1 : -1;
+      el = [sx + vx * t / d - sg * vy / d * h, sy + vy * t / d + sg * vx / d * h];
+    }
+    const arm = () => withAlpha(e.r.a, () => inkPoly([e.S, el, G], { p: clamp01(p) * (e.r.p > 0 ? 1 : 0), w: e.r.lw, color: e.r.ink }));
+    inkMode(null, arm);   // in ink like the figure's own arms
+    e.f.hands[e.k] = G;
+  }
+  return G;
+}
 
 // ---------- letter concept places (CONCEPTS 'Pictures', 2026-11-14) ----------
 // The letter concept's places, so every letter video starts in the same room every chapter instead of a bare desk:

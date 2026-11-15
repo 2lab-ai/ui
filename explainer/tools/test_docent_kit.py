@@ -146,6 +146,48 @@ class Kit(unittest.TestCase):
         coloured = evaluate(self.proj, self.BESIDE, {'s': 1.5, 'banana': True}, True)   # a colour project keeps it yellow
         self.assertGreater(coloured['yellow'], 1000, coloured)
 
+    HOLD = """([d, ha, hb, flip, hold, p]) => { DOCENT_FRAME(0); MISS.clear(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      const a = figure(700, 870, { s: 1.3, h: ha, holdHand: hold ? 'right' : null });
+      const b = figure(700 + d, 870, { s: 1.3, h: hb, flip, holdHand: hold ? 'left' : null });
+      const g = holdHands(b, a, { p });   // either order
+      const ink = (x, y, r) => { const q = ctx.getImageData(Math.round(x - r), Math.round(y - r), 2 * r, 2 * r).data; let n = 0;
+        for (let i = 0; i < q.length; i += 4) if (q[i] + q[i + 1] + q[i + 2] < 200) n++; return n; };
+      const all = ctx.getImageData(0, 0, W, H).data; let n = 0; for (let i = 0; i < all.length; i += 4) if (all[i] + all[i + 1] + all[i + 2] < 200) n++;
+      return { g, ha: a.hands, hb: b.hands, sa: a.arms.sh, sb: b.arms.sh, offA: a.arms.off, offB: b.arms.off, near: g ? ink(g[0], g[1], 5) : 0, n,
+               miss: [...MISS].filter((m) => m.startsWith('holdHands')) }; }"""
+
+    def test_hold_hands_meet_at_one_grip(self):   # fix round F12, r09: linked hands of h 1.04 / 0.92 missed by ~26 px
+        for d, ha, hb, flip in ((208, 1.04, 0.92, True), (240, 0.94, 1.08, False), (190, 0.92, 1.04, True)):
+            r = self.run_js(self.HOLD, [d, ha, hb, flip, True, 1])
+            gx, gy = r['g']
+            inner_a, inner_b = r['ha'][1], r['hb'][1 if flip else 0]   # a faces right: its right arm; b's left-side arm
+            self.assertEqual(inner_a, r['g']); self.assertEqual(inner_b, r['g'])   # both hands at the same point
+            sa, sb = r['sa'][1], r['sb'][1 if flip else 0]
+            self.assertTrue(sa[0] < gx < sb[0], (sa, r['g'], sb))                   # between the two people
+            self.assertGreater(gy, max(sa[1], sb[1]) + 20)                          # below both shoulders
+            for (sx, sy), h in ((sa, ha), (sb, hb)):
+                self.assertLessEqual(((gx - sx) ** 2 + (gy - sy) ** 2) ** 0.5, 112 * 1.3 * h * 0.96)   # in reach: a bent arm
+            self.assertGreater(r['near'], 15, r)                                     # ink at the grip: the arms end there
+            self.assertEqual(r['miss'], [])
+        # the old way: the linked pose places each hand from its own height
+        lk = self.run_js("""() => { DOCENT_FRAME(0); const a = figure(700, 870, { s: 1.3, h: 1.04, pose: 'linked' });
+          const b = figure(700 + 90 * 1.3 * 2, 870, { s: 1.3, h: 0.92, pose: 'linked', flip: true }); return [a.hands[1], b.hands[1]]; }""")
+        self.assertGreater(abs(lk[0][1] - lk[1][1]), 15)
+
+    def test_hold_hand_leaves_that_arm_to_hold_hands(self):
+        r = self.run_js(self.HOLD, [208, 1.04, 0.92, True, True, 1])
+        self.assertEqual((r['offA'], r['offB']), (1, 1))   # a faces right: right arm (ra); b flipped: its screen-left arm is ra
+        self.assertEqual(self.run_js(self.HOLD, [208, 1.04, 0.92, False, True, 1])['offB'], 0)
+        off = self.run_js(self.HOLD, [208, 1.04, 0.92, True, True, 0])   # p 0: the two inner arms not drawn yet
+        whole = self.run_js(self.HOLD, [208, 1.04, 0.92, True, True, 1])
+        self.assertEqual(off['near'], 0); self.assertGreater(whole['n'], off['n'] + 300)
+        plain = self.run_js(self.HOLD, [208, 1.04, 0.92, True, False, 0])   # without holdHand the figures draw both arms
+        self.assertGreater(plain['n'], off['n'] + 300)
+
+    def test_hold_hands_without_hold_hand_is_reported(self):   # a third arm would show
+        r = self.run_js(self.HOLD, [208, 1.04, 0.92, True, False, 1])
+        self.assertEqual(len(r['miss']), 2, r['miss']); self.assertIn("holdHand: 'right'", ' '.join(r['miss']))
+
     def test_props_draw_on_in_stages(self):
         for name in ('plane', 'dna', 'diary'):
             n0, n1, n2 = (self.inked(f"() => prop('{name}', 960, 800, 1.6, {{ p: {p} }})")['n'] for p in (0, 0.35, 1))
