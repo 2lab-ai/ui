@@ -2665,9 +2665,11 @@ function docentCoverRatio(name) { const im = typeof IMG === 'object' ? IMG[name]
 function realCover(name, x, y, h, { p = 1, rot = 0, ratio = null } = {}) {
   if (!(typeof IMG === 'object' && IMG[name])) MISS.add('img:' + name);
   const w = h * (ratio || docentCoverRatio(name)), k = smooth(clamp01(p)), dy = (1 - k) * 30, box = { x: x - w / 2, y: y - h, w, h };
+  // lint cover-late: [name, opacity on screen]; a cover not started yet is listed at 0 (run 4 fix round: one drawn from
+  // 1.2 s into its shot was absent at the check and went unreported)
+  if (!DOCENT.ghostOk && !DOCENT.measure) DOCENT.covers.push([name, Math.round(k * ctx.globalAlpha * 1000) / 1000]);
   if (k <= 0) return box;
   if (k < 0.98) docentNote('partial', 'cover:' + name);
-  if (!DOCENT.ghostOk && !DOCENT.measure) DOCENT.covers.push([name, Math.round(k * ctx.globalAlpha * 1000) / 1000]);   // lint cover-late
   // its box on screen, rotation and camera included: the lint's subtitle-line, frame-edge and extent checks
   const m = ctx.getTransform(), cs = Math.cos(rot), sn = Math.sin(rot), xs = [], ys = [];
   for (const [u, v] of [[-w / 2, -h], [w / 2, -h], [w / 2, 0], [-w / 2, 0]]) {

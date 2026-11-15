@@ -24,9 +24,9 @@ P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at
     "letter") without cast('me', …) or cast('oppa', …) — cast him even when he is never drawn, so his look stays his
 P1  cast-lookalike: a figure drawn without a cast id (figure(), a crowd) that has a cast look's silhouette, so viewers
     read it as that person (P2 in a colour project, where an accent colour may still tell them apart)
-P1  cover-late: a real cover (realCover / realCoverPair / holdCover) still under 90 % opacity at its shot's start +
-    0.8 s, or at the start + 0.8 s of a sentence inside the shot (run 4: the Korean cover a grey ghost on the line that
-    names the book)
+P1  cover-late: a real cover (realCover / realCoverPair / holdCover) the shot shows at rest that is absent or under
+    90 % opacity at the shot's start + 0.8 s, judged once per shot (run 4: the Korean cover a grey ghost on the line
+    that names the book; a shot that starts inside the title card is not judged)
 Emphasis budget (docent.js counts what each top-level call drew; REFERENCE.md §0):
 P1  busy: 5+ things in one frame · words: 3+ written words or labels · marks: 2+ red marks
     crowd-row: 5+ people (figure(), person(), seated()) in one frame, each under 35 % of the frame height: a row of
@@ -95,24 +95,31 @@ def lookalikes(people, cast):
     return out
 
 FADE = 0.22    # shots() cross-fade: a frame inside it shows two shots at once
-COVER_BY, COVER_MIN = 0.8, 0.9   # a real cover is (almost) whole 0.8 s into its shot or its sentence
+COVER_BY, COVER_MIN = 0.8, 0.9   # a real cover is (almost) whole 0.8 s into its shot
 CROWD_N, CROWD_H = 5, 0.35       # crowd-row: this many people, each under this share of the frame height
 
 
-def cover_times(t0, t1, starts):
-    """when the covers of the shot [t0, t1) are judged: its start + 0.8 s and every sentence start in it + 0.8 s (only
-    times inside the shot)."""
-    ts = [t0 + COVER_BY] + [s + COVER_BY for s in starts if s >= t0 - 0.05]
-    return sorted({round(t, 3) for t in ts if t < t1 - 0.02})
+def cover_time(t0, t1, body0):
+    """when the covers of the shot [t0, t1) are judged: once, at its start + 0.8 s. None when the shot is shorter than
+    that, or when that moment is still in the title card (before body0, the scene body faded in: engine.js renderAt
+    draws no scene there, so every cover would read as absent). Only the shot's start: a sentence start inside a shot
+    is not a cut, and a cover keyed to a word in it is judged by the shot it belongs to."""
+    t = round(t0 + COVER_BY, 3)
+    return t if body0 <= t < t1 - 0.02 else None
 
 
-def cover_late(covers):
-    """[name, opacity] pairs (docentReport().covers) at a judged moment -> lint issues for covers still fading in."""
-    late = [(n, a) for n, a in covers or [] if a < COVER_MIN]
+def cover_late(at, rest):
+    """the covers ([name, opacity], docentReport().covers) at the shot's start + 0.8 s and in its rest frame -> lint
+    issues: every real cover the rest frame shows that was absent, or under 90 % opacity, 0.8 s after the cut (a cover
+    drawn from 1.2 s into its shot was absent at the check, and went unreported until the run-4 fix round)."""
+    now = {}
+    for n, a in at or []: now[n] = max(a, now.get(n, 0.0))
+    shown = list(dict.fromkeys(n for n, a in rest or [] if a > 0))
+    late = [(n, now.get(n)) for n in shown if (now.get(n) or 0.0) < COVER_MIN]
     if not late: return []
-    return [('P1', 'cover-late', '; '.join(f"real cover '{n}' at {100 * a:.0f} % opacity" for n, a in late[:3])
-             + f" {COVER_BY} s after its shot or sentence started: the book must be there when it is named"
-             " (realCoverPair is whole by p 0.6: start its p at the cut, over ≤ 0.6 s)")]
+    return [('P1', 'cover-late', '; '.join(f"real cover '{n}' " + ('not drawn yet' if not a else f'at {100 * a:.0f} % opacity') for n, a in late[:3])
+             + f" {COVER_BY} s after its shot's cut: the book must be there when the shot opens (start its p at the cut,"
+             " over ≤ 0.6 s: realCoverPair is whole by p 0.6; a cover that comes in later gets its own shot)")]
 LONG = 8.0     # a picture held longer than this is a long hold (P2)
 DRAFT_SLOW = 1.2   # the voice against timeline_draft.py: 1 sentence in 10 ran >= 20 % longer (총균쇠, 2026-11-15)
 
@@ -217,28 +224,23 @@ async def main(only, strict, tl_path='timeline.json'):
                 sh = await page.evaluate('(t) => { renderAt(t); return DOCENT.shot; }', t)
                 if sh: starts[round(sh['t0'], 3)] = sh['t1']
                 t += STEP
+            checks = []   # per rest frame: when its shot's covers are judged (cover_time), or None
             if not starts:
                 report.append({'scene': sc['id'], 't': round(body0, 2), 'issues': [('P2', 'no-shots', 'scene does not use shots(): no cuts to check')]})
-                rest = [end - 0.2]
+                rest = [end - 0.2]; checks = [None]
             else:
                 ts = sorted(starts); rest = []
                 for k, t0 in enumerate(ts):
                     t1 = ts[k + 1] if k + 1 < len(ts) else end
                     rest.append(min(max(t0 + FADE + 0.03, min(t1, end) - 0.3), min(t1, end) - 0.02))   # inside this shot, after its fade
+                    checks.append(cover_time(t0, min(t1, end), body0))
                     held = min(t1, end) - max(t0, body0)
                     if held > limit: report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'long-hold', f'picture held {held:.1f}s (> {limit:.1f} s' + (', draft timeline: the voice may run 20 % longer)' if limit < LONG else ')'))]})
                     if 0 < held < 1.2 and k + 1 < len(ts): report.append({'scene': sc['id'], 't': round(t0, 2), 'issues': [('P2', 'short-shot', f'shot only {held:.1f}s')]})
-                    for tc in cover_times(t0, min(t1, end), [x['start'] for x in sc['sentences']]):   # 1b. real covers on time
-                        r = await page.evaluate('(t) => { renderAt(t); return docentReport(); }', tc)
-                        late = cover_late(r.get('covers'))
-                        if late:
-                            report.append({'scene': sc['id'], 't': round(tc, 2), 'issues': late})
-                            b64 = await page.evaluate("() => document.getElementById('c').toDataURL('image/jpeg', 0.85).slice(23)")
-                            open(os.path.join(OUT, 'lint', f"{sc['id']}_{tc:07.2f}.jpg"), 'wb').write(base64.b64decode(b64))
                 shots_out[sc['id']] = ts
-            # 2. judge each rest frame
+            # 2. judge each rest frame, and its shot's real covers 0.8 s after the cut
             marked = []
-            for t in rest:
+            for t, tc in zip(rest, checks):
                 r = await page.evaluate('(t) => { renderAt(t); return docentReport(); }', t)
                 if r.get('budget') and r.get('marks'): marked.append(round(t, 2))   # only ink-mode projects carry the budget
                 thumbs.append((sc['id'], t, await page.evaluate("() => document.getElementById('c').toDataURL('image/jpeg', 0.7).slice(23)")))
@@ -248,6 +250,12 @@ async def main(only, strict, tl_path='timeline.json'):
                     if any(s in ('P0', 'P1') for s, _, _ in iss):
                         b64 = await page.evaluate("(t) => { renderAt(t); return document.getElementById('c').toDataURL('image/jpeg', 0.85).slice(23); }", t)
                         open(os.path.join(OUT, 'lint', f"{sc['id']}_{t:07.2f}.jpg"), 'wb').write(base64.b64decode(b64))
+                if tc is not None and r.get('covers'):   # 2b. the covers this shot shows at rest, there by its start + 0.8 s
+                    late = cover_late((await page.evaluate('(t) => { renderAt(t); return docentReport(); }', tc)).get('covers'), r['covers'])
+                    if late:
+                        report.append({'scene': sc['id'], 't': round(tc, 2), 'issues': late})
+                        b64 = await page.evaluate("() => document.getElementById('c').toDataURL('image/jpeg', 0.85).slice(23)")
+                        open(os.path.join(OUT, 'lint', f"{sc['id']}_{tc:07.2f}.jpg"), 'wb').write(base64.b64decode(b64))
             budget = max(1, round((end - body0) / 45))   # about one red verdict per chapter, more only in a long one
             if len(marked) > budget:
                 report.append({'scene': sc['id'], 't': marked[0], 'issues': [('P2', 'mark-budget', f"red marks in {len(marked)} shots ({marked[:6]}), budget {budget}: keep red for the chapter's one verdict")]})

@@ -41,7 +41,11 @@ class Kit(unittest.TestCase):
         probe = """(p) => { DOCENT_FRAME(0); realCoverPair('cover_a', 'cover_b', 960, 800, 400, { p }); return docentReport().covers; }"""
         self.assertEqual(self.run_js(probe, 0.6), [['cover_a', 1], ['cover_b', 1]])
         a, b = self.run_js(probe, 0.3)
-        self.assertLess(b[1], 0.9); self.assertEqual(self.run_js(probe, 0.1)[1:], [])   # B not started: not drawn, not listed
+        self.assertLess(b[1], 0.9)
+        # B not started yet: listed at 0, so the lint sees the cover the shot will show is not there (fix round, F1)
+        self.assertEqual(self.run_js(probe, 0.1)[1], ['cover_b', 0])
+        self.assertEqual(self.run_js("""() => { DOCENT_FRAME(0); realCover('cover_a', 960, 800, 400, { p: 0 }); return [docentReport().covers, DOCENT.partial]; }"""),
+                         [[['cover_a', 0]], []])   # listed, but not half-drawn: nothing is on screen
 
     def test_people_carry_their_height_and_whether_the_scene_drew_them(self):   # lint crowd-row
         probe = """() => { DOCENT_FRAME(0); figure(300, 870, { s: 1, crowd: true }); person('me', 700, 870, { s: 1.5 });

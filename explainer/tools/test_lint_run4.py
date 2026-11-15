@@ -15,16 +15,26 @@ PY = sys.executable
 
 
 class CoverLate(unittest.TestCase):
-    def test_times(self):   # the shot's start + 0.8 s and each sentence start inside it + 0.8 s, inside the shot only
-        self.assertEqual(L.cover_times(10.0, 20.0, [5.0, 10.3, 14.0, 19.5]), [10.8, 11.1, 14.8])
-        self.assertEqual(L.cover_times(10.0, 10.5, [10.0]), [])   # a shot shorter than 0.8 s is not judged
+    def test_time(self):   # once per shot, at its cut + 0.8 s (fix round F1: no per-sentence checks inside a shot)
+        self.assertEqual(L.cover_time(10.0, 20.0, 3.0), 10.8)
+        self.assertIsNone(L.cover_time(10.0, 10.5, 3.0))   # a shot shorter than 0.8 s is not judged
+        self.assertIsNone(L.cover_time(0.0, 9.0, 3.0))     # 0.8 s is still the title card: no scene is drawn there
+        self.assertEqual(L.cover_time(2.4, 9.0, 3.0), 3.2)
 
     def test_late(self):
-        self.assertEqual(L.cover_late([['cover_a_en', 1.0], ['cover_a_ko', 0.95]]), [])
-        got = L.cover_late([['cover_a_en', 1.0], ['cover_a_ko', 0.5]])
+        rest = [['cover_a_en', 1.0], ['cover_a_ko', 1.0]]
+        self.assertEqual(L.cover_late([['cover_a_en', 1.0], ['cover_a_ko', 0.95]], rest), [])
+        got = L.cover_late([['cover_a_en', 1.0], ['cover_a_ko', 0.5]], rest)
         self.assertEqual([(s, c) for s, c, _ in got], [('P1', 'cover-late')])
         self.assertIn('cover_a_ko', got[0][2]); self.assertNotIn('cover_a_en', got[0][2])
-        self.assertEqual(L.cover_late(None), [])
+        self.assertEqual(L.cover_late(None, None), []); self.assertEqual(L.cover_late([], []), [])
+
+    def test_not_started_at_the_check_is_late(self):   # astra F1: a cover drawn from 1.2 s into its shot went unreported
+        for at in ([], [['cover_a_ko', 0]]):   # not called yet, or called at p 0 (docent.js lists it at 0)
+            got = L.cover_late(at, [['cover_a_ko', 1.0]])
+            self.assertEqual([(s, c) for s, c, _ in got], [('P1', 'cover-late')]); self.assertIn('not drawn yet', got[0][2])
+        self.assertEqual(L.cover_late([['cover_a_ko', 0.4]], []), [])   # gone by the rest frame: not this shot's cover
+        self.assertEqual(L.cover_late([], [['cover_a_ko', 0]]), [])     # still at p 0 at rest: never shown
 
 
 def frame(**kw):
@@ -80,6 +90,15 @@ SCENES.a = (t, q) => shots(t, [
   // a row of five small strangers (crowd-row), then three big ones (fine)
   [q.s(1) + 2.0, (t, lt) => { for (let i = 0; i < 5; i++) figure(400 + i * 280, 870, { s: 1.0, crowd: true, face: 'neutral' }); }],
   [q.s(1) + 3.5, (t, lt) => { for (let i = 0; i < 3; i++) figure(560 + i * 400, 870, { s: 1.3, crowd: true, face: 'neutral' }); }],
+  // late start (fix round F1): the cover is drawn from 1.2 s into its shot, so it is absent 0.8 s after the cut
+  [q.s(2), (t, lt) => { person('me', 560, 870, { s: 1.5, pose: 'present', face: 'happy', p: dp(lt, 0, 0.5) });
+                        realCover('cover_x_ko', 1300, 860, 420, { p: dp(lt, 1.2, 0.6) }); }],
+]);
+// a chapter with a 2.6 s title card whose one shot starts at the scene start: its cover is whole long before the scene
+// body shows, and 0.8 s after the cut is still the title card (no scene drawn): not judged, not a false cover-late
+SCENES.b = (t, q, sc) => shots(t, [
+  [sc.start, (t, lt) => { const f = person('me', 560, 870, { s: 1.5, pose: 'showBook', face: 'happy', p: dp(lt, 0, 0.5) });
+                          holdCover(f, 'cover_x_ko', { h: 280, p: dp(lt, 0, 0.5) }); }],
 ]);
 """
 
@@ -94,7 +113,7 @@ def read(path):
     with open(path, encoding='utf-8') as f: return json.load(f)
 
 
-def fixture(scenes=FIXTURE, project=None, sentences=('가' * 40, '나' * 40)):
+def fixture(scenes=FIXTURE, project=None, sentences=('가' * 40, '나' * 40, '다' * 30)):
     """a sketch project in ink mode with a draft timeline and two cover images: (dir)"""
     import new_video, timeline_draft
     from PIL import Image
@@ -105,7 +124,8 @@ def fixture(scenes=FIXTURE, project=None, sentences=('가' * 40, '나' * 40)):
     for n in ('cover_x_en', 'cover_x_ko'): Image.new('RGB', (68, 100), (120, 40, 40)).save(os.path.join(d, 'img', n + '.jpg'))
     write(os.path.join(d, 'project.json'), {'slug': 'fx', 'theme': 'sketch', 'colour': False, 'subtitles': 'off', 'chip': False,
                                             'images': ['cover_x_en', 'cover_x_ko'], **(project or {})})
-    script = {'title': 'fx', 'scenes': [{'id': 'a', 'title': 'a', 'sentences': [{'text': s} for s in sentences]}]}
+    script = {'title': 'fx', 'scenes': [{'id': 'a', 'title': 'a', 'sentences': [{'text': s} for s in sentences]},
+                                        {'id': 'b', 'title': 'b', 'subtitle': '둘째', 'sentences': [{'text': '라' * 30}]}]}
     write(os.path.join(d, 'script.json'), script)
     write(os.path.join(d, 'timeline.json'), timeline_draft.draft(script))
     write(os.path.join(d, 'scenes.js'), scenes)
@@ -130,12 +150,16 @@ class OnFixture(unittest.TestCase):
         cls.d = fixture(project={'concept': 'letter'})   # a letter video that casts only 'me'
         cls.p, cls.rep = lint(cls.d)
 
-    def test_cover_late_on_the_slow_pair_only(self):
+    def test_cover_late_on_the_slow_pair_and_the_late_start_only(self):
         tl = read(os.path.join(self.d, 'timeline.json'))
-        s0, s1 = [x['start'] for x in tl['scenes'][0]['sentences']]
-        late = [(t, s) for sc, t, s, c in issues(self.rep) if c == 'cover-late']
-        self.assertTrue(late, issues(self.rep))
-        self.assertTrue(all(s == 'P1' and s0 <= t < s1 for t, s in late), late)   # the first shot only, not the held cover
+        s0, s1, s2 = [x['start'] for x in tl['scenes'][0]['sentences']]
+        late = [(sc, t, s) for sc, t, s, c in issues(self.rep) if c == 'cover-late']
+        self.assertTrue(all(s == 'P1' and sc == 'a' for sc, t, s in late), late)   # not the held cover, not scene b's title card
+        # once per shot at its cut + 0.8 s: the slow pair's (cut at s0) and the late start's (cut 0.3 s before s2)
+        self.assertEqual(len(late), 2, late)
+        self.assertAlmostEqual(late[0][1], s0 + 0.8, delta=0.02); self.assertAlmostEqual(late[1][1], s2 - 0.3 + 0.8, delta=0.02)
+        detail = [d for f in self.rep['frames'] for s, c, d in f['issues'] if c == 'cover-late']
+        self.assertIn('not drawn yet', detail[1])
         self.assertEqual(self.p.returncode, 1)
         self.assertFalse([c for sc, t, s, c in issues(self.rep) if s == 'P0'], issues(self.rep))   # the fixture itself is sound
 
