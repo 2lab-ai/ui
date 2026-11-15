@@ -210,7 +210,8 @@ voice, animal, timeline, …), [LESSONS.md](docent/LESSONS.md) (every defect fou
 
 Every primitive reports what it drew in the current frame (`DOCENT`, `docentReport()`): half-drawn parts, faded
 ghosts, ink under the subtitles or off the frame, empty bubbles, tails that point at no head, bubbles over faces or
-name tags, people sharing a look, animals on the stick-figure rig — and the emphasis budget: the things on screen (each
+name tags, people sharing a look, unnamed figures with a cast member's silhouette (`cast-lookalike`: a crowd with
+Yali's curly hair, a king with Diamond's bald head and beard), animals on the stick-figure rig — and the emphasis budget: the things on screen (each
 top-level call; a crowd or a row of the same prop counts once), the written words (name tags included), the red marks
 and any colour besides ink, purple and red. Three tools use it:
 

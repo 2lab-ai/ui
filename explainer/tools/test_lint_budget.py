@@ -47,6 +47,51 @@ class Budget(unittest.TestCase):
         self.assertEqual(codes(frame(ink=[700, 480, 1200, 880], figures=1, things=['person#0'])), set())
 
 
+# the 총균쇠 cast (2026-11-15), as the Gate C reviewers saw it
+CAST = {'yali': {'name': '얄리', 'hair': 'curly'}, 'diamond': {'name': '다이아몬드', 'hair': 'bald', 'beard': True},
+        'oppa': {'name': '오빠', 'hair': 'short', 'glasses': 'square'}, 'zhenghe': {'name': '정화', 'hair': 'bun', 'mustache': True},
+        'pizarro': {'name': '피사로', 'hair': 'short', 'beard': True, 'hat': 'morion'}}
+
+
+def fig(cid=None, crowd=False, **look):
+    return {'id': cid, 'crowd': crowd, 'sig': '', 'look': {'hair': None, 'hat': None, 'beard': False, 'glasses': False, **look}}
+
+
+def lookalike(*people, budget=True):
+    return [(s, d) for s, c, d in L.judge(frame(people=list(people), budget=budget), cast=CAST) if c == 'cast-lookalike']
+
+
+class Lookalike(unittest.TestCase):
+    """an unnamed figure with a cast look's silhouette reads as that person: the run's most common Gate C P1"""
+    def test_gate_c_cases(self):
+        for f, who in [(fig(crowd=True, hair='curly'), '얄리'),                                  # foragers read as Yali
+                       (fig(hair='curly', beard=True), '얄리'),                                  # a beard added does not help
+                       (fig(hair='bald', beard=True, hat='crown'), '다이아몬드'),                 # the ruler read as Diamond
+                       (fig(beard=True, hat='crown'), '다이아몬드'),                              # no hair is bald
+                       (fig(hair='side', glasses=True), '오빠'),                                 # the scholar read as 오빠
+                       (fig(crowd=True, hair='bun'), '정화'),                                    # a crowd bun read as 정화
+                       (fig(hair='side', hat='beanie'), '정화')]:                                # Columbus's beanie
+            got = lookalike(f)
+            self.assertEqual(len(got), 1, (f, got)); self.assertEqual(got[0][0], 'P1'); self.assertIn(who, got[0][1])
+
+    def test_a_different_head_is_fine(self):
+        for f in [fig(crowd=True), fig(hair='curly', hat='cap'),             # plain; a cap hides the curls (a beanie is 정화's knob)
+                  fig(hair='short', hat='crown', mustache=True),             # the ruler look REFERENCE §2 asks for
+                  fig(hair='short'), fig(hair='short', beard=True),          # no glasses: not 오빠; no morion: not 피사로
+                  fig('yali', hair='curly')]:                                # the cast member himself
+            self.assertEqual(lookalike(f), [], f)
+
+    def test_colour_projects_get_a_p2(self):   # an accent colour may still tell them apart
+        self.assertEqual(lookalike(fig(hair='curly'), budget=False)[0][0], 'P2')
+
+    def test_cast_similar(self):
+        self.assertEqual(L.cast_similar({'col': {'hair': 'side', 'hat': 'beanie'}, 'zh': {'hair': 'bun', 'mustache': True}}), [('col', 'zh')])
+        self.assertEqual(L.cast_similar({'musk': {'hair': 'short'}, 'viewer': {'hair': 'side'}}), [('musk', 'viewer')])
+        self.assertEqual(L.cast_similar({'king': {'hair': 'bald', 'beard': True, 'hat': 'crown'}, 'd': {'hair': 'bald', 'beard': True}}), [('king', 'd')])
+        self.assertEqual(L.cast_similar({'oppa': CAST['oppa'], 'musk': {'hair': 'short'}, 'piz': CAST['pizarro'],
+                                         'cortes': {'hair': 'spiky', 'mustache': True, 'hat': 'morion'}}), [])
+
+
 class EngineSource(unittest.TestCase):
     """A statement written after a trailing // comment is dead code: twice an edit appended a comment to a line and
     swallowed the registrations after it (docent.js 2026-11-13: a SyntaxError, then figs/mouths silently gone)."""

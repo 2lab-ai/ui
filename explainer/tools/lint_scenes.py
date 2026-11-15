@@ -15,7 +15,9 @@ P1  half-drawn element at rest; faded "ghost" element (a < 0.55); ink under the 
 P2  bubble over 8 words; a prop whose box covers a face drawn before it (look at the frame); a prop drawn over most of
     a torso (prop-over-body); a picture held longer than 8 s; a shot shorter than 1.2 s; a scene without shots();
     two or more people in one frame and one of them without a cast look; two cast looks with the same silhouette
-    (hair and hat), so they differ only by colour
+    (cast-similar: see looks_like), so they differ only by colour
+P1  cast-lookalike: a figure drawn without a cast id (figure(), a crowd) that has a cast look's silhouette, so viewers
+    read it as that person (P2 in a colour project, where an accent colour may still tell them apart)
 Emphasis budget (docent.js counts what each top-level call drew; REFERENCE.md §0):
 P1  busy: 5+ things in one frame · words: 3+ written words or labels · marks: 2+ red marks
 P2  busy: 4 things · words: 2 · list: a written list of 3+ lines · colour: any colour besides ink, purple and red
@@ -29,10 +31,60 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from export import serve, open_page, project_frame, OUT
 
 STEP = 0.1     # finer than the shortest shot worth judging
+
+# The silhouette a viewer tells people apart by, at phone size in ink (총균쇠 Gate C, 2026-11-15): the top of the head
+# (a hat hides the hair; short and side hair draw as one dark cap, a bun and a beanie as one round cap with a knob,
+# bald is no hair at all), a beard, glasses (round or square alike). A crown or a laurel sits on the head and shows it.
+SHAPE = {'side': 'short', 'bald': None, 'bun': 'knob', 'beanie': 'knob'}
+OPEN = {'crown', 'laurel'}
+
+
+def silhouette(look):
+    hair = 'long' if look.get('hair') is True else (look.get('hair') or None)
+    hat = 'top' if look.get('hat') is True else (look.get('hat') or None)
+    hat = SHAPE.get(hat, hat) or ('helmet' if look.get('helmet') else None) or ('shell' if look.get('shell') else None)
+    hair = SHAPE.get(hair, hair)
+    return {'top': hat or hair, 'hair': hair, 'hat': hat, 'beard': bool(look.get('beard')), 'glasses': bool(look.get('glasses'))}
+
+
+def looks_like(fig, look):
+    """an unnamed figure reads as the person with this cast look: the same head top, and the look's beard and glasses
+    when it has them (what the figure adds does not help: a forager with curly hair and a beard is still Yali). A crown
+    or a laurel on a hatless look still matches: a ruler drawn bald + beard + crown read as Diamond (bald + beard)."""
+    f, c = silhouette(fig), silhouette(look)
+    if (c['beard'] and not f['beard']) or (c['glasses'] and not f['glasses']): return False
+    return f['top'] == c['top'] or (c['hat'] is None and f['hat'] in OPEN and f['hair'] == c['hair'])
+
+
+def same_head(a, b):
+    """two cast looks that tell each other apart only by colour: the same head top, beard and glasses (or one is the
+    other plus a crown or a laurel). Columbus in a beanie read as 정화 with her bun."""
+    A, B = silhouette(a), silhouette(b)
+    if (A['beard'], A['glasses']) != (B['beard'], B['glasses']): return False
+    return A['top'] == B['top'] or any(x['hat'] is None and y['hat'] in OPEN and y['hair'] == x['hair'] for x, y in ((A, B), (B, A)))
+
+
+def describe(look):
+    s = silhouette(look)
+    return ', '.join(x for x in (s['hair'] or 'no hair', s['hat'], 'beard' if s['beard'] else '', 'glasses' if s['glasses'] else '') if x)
+
+
+def lookalikes(people, cast):
+    """unnamed figures in a frame that read as a cast member: ['a crowd figure (curly) reads as 얄리 (curly)', …]"""
+    out = []
+    for p in people:
+        if p.get('id') is not None or not p.get('look'): continue
+        for cid, look in cast.items():
+            if looks_like(p['look'], look):
+                m = f"an unnamed {'crowd ' if p.get('crowd') else ''}figure ({describe(p['look'])}) reads as {look.get('name') or cid} ({describe(look)})"
+                if m not in out: out.append(m)
+    return out
+
 FADE = 0.22    # shots() cross-fade: a frame inside it shows two shots at once
 
-def judge(r, size=(1920, 1080)):
-    """docentReport() of one rest frame -> list of (severity, code, detail). size: the frame (export.project_frame())."""
+def judge(r, size=(1920, 1080), cast=None):
+    """docentReport() of one rest frame -> list of (severity, code, detail). size: the frame (export.project_frame());
+    cast: the project's CAST looks ({id: look})."""
     fw, fh = size
     out = []
     if r['partial']: out.append(('P1', 'half-drawn', f"{len(r['partial'])} parts still drawing at rest: {sorted(set(r['partial']))[:4]}"))
@@ -51,6 +103,8 @@ def judge(r, size=(1920, 1080)):
     # the same cast id twice is one person shown twice (before/after, a memory): fine; two ids or anonymous copies are not
     dup = [ids for ids in groups.values() if len(ids) > 1 and (None in ids or len(set(ids)) > 1)]
     if dup: out.append(('P1', 'twins', f"{sum(len(g) for g in groups.values())} people, {len(dup)} look(s) shared by different people — give each person a cast() look"))
+    like = lookalikes(r['people'], cast or {})
+    if like: out.append(('P1' if r.get('budget') else 'P2', 'cast-lookalike', '; '.join(like[:3]) + " — give an extra a head no cast look has (REFERENCE §2), or draw that person with person()"))
     if len(r['people']) >= 2 and any(p['id'] is None and not p['crowd'] for p in r['people']):
         out.append(('P2', 'no-cast', f"{len(r['people'])} people and some without a cast look"))
     if r['wordy']: out.append(('P2', 'wordy-bubble', str(r['wordy'][:3])))
@@ -73,6 +127,12 @@ def judge(r, size=(1920, 1080)):
     if colours: out.append(('P2', 'colour', f"colours besides ink, purple and red: {', '.join(colours[:6])} — paint only what the colour means (`colour: true` on that call), the rest in ink"))
     return out
 
+def cast_similar(cast):
+    """pairs of cast ids with the same head (same_head)"""
+    ids = list(cast)
+    return [(a, b) for i, a in enumerate(ids) for b in ids[i + 1:] if same_head(cast[a], cast[b])]
+
+
 async def main(only, strict):
     from playwright.async_api import async_playwright
     tl = json.load(open('timeline.json'))
@@ -86,6 +146,7 @@ async def main(only, strict):
             await browser.close(); srv.shutdown()
             print('[P0] the project\'s engine/docent.js is older than this lint: run tools/new_video.py <project> to refresh it, then lint again')
             sys.exit(1)
+        cast = await page.evaluate('typeof CAST === "object" ? CAST : {}')   # cast() runs when scenes.js loads
         for sc in tl['scenes']:
             if only and sc['id'] not in only: continue
             body0, end = sc['start'] + sc['lead'] + 0.4, sc['start'] + sc['dur'] - 0.6
@@ -113,7 +174,7 @@ async def main(only, strict):
                 r = await page.evaluate('(t) => { renderAt(t); return docentReport(); }', t)
                 if r.get('budget') and r.get('marks'): marked.append(round(t, 2))   # only ink-mode projects carry the budget
                 thumbs.append((sc['id'], t, await page.evaluate("() => document.getElementById('c').toDataURL('image/jpeg', 0.7).slice(23)")))
-                iss = judge(r, size)
+                iss = judge(r, size, cast)
                 if iss:
                     report.append({'scene': sc['id'], 't': round(t, 2), 'issues': iss})
                     if any(s in ('P0', 'P1') for s, _, _ in iss):
@@ -123,18 +184,13 @@ async def main(only, strict):
             if len(marked) > budget:
                 report.append({'scene': sc['id'], 't': marked[0], 'issues': [('P2', 'mark-budget', f"red marks in {len(marked)} shots ({marked[:6]}), budget {budget}: keep red for the chapter's one verdict")]})
         miss = await page.evaluate('[...MISS].concat(window.missingCues ? window.missingCues() : [])')
-        cast = await page.evaluate('typeof CAST === "object" ? CAST : {}')
         await browser.close()
     srv.shutdown()
     head = []
     if errs: head.append({'scene': '*', 't': 0, 'issues': [('P0', 'page-error', e) for e in errs[:5]]})
     if miss: head.append({'scene': '*', 't': 0, 'issues': [('P0', 'missing', str(m)) for m in miss[:20]]})
-    sil = {}
-    for cid, look in cast.items():
-        hair = look.get('hair'); hair = 'long' if hair is True else (hair or 'none'); hat = look.get('hat'); hat = 'top' if hat is True else (hat or 'none')
-        sil.setdefault((hair, hat, bool(look.get('beard')), bool(look.get('glasses'))), []).append(cid)
-    same = [ids for ids in sil.values() if len(ids) > 1]
-    if same: head.append({'scene': '*', 't': 0, 'issues': [('P2', 'cast-similar', f"{' / '.join(ids)} share a silhouette (hair, hat): give each a different hair or hat") for ids in same]})
+    same = cast_similar(cast)
+    if same: head.append({'scene': '*', 't': 0, 'issues': [('P2', 'cast-similar', f"{a} / {b} share a silhouette ({describe(cast[a])} / {describe(cast[b])}): give each a different hair or hat") for a, b in same]})
     report = head + report
     counts = {}
     for r in report:

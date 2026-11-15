@@ -33,7 +33,7 @@ TITLE_CARD = signCard;
 cast('musk',  { name: '머스크', hair: 'short', tie: true, h: 1.08 });          // silhouettes: height, hair/hat, one prop
 cast('mom',   { name: '메이', hair: 'bun', h: 0.95 });
 cast('eng',   { name: '엔지니어', hair: 'curly', glasses: 'round' });
-cast('viewer',{ name: '나', hair: 'side' });   // the running figure: never tagged
+cast('viewer',{ name: '나', hair: 'spiky' });   // the running figure: never tagged (side hair reads as short)
 ```
 No `accent` and no `outfit` (ink mode paints them as ink anyway): people differ by silhouette, as in the reference.
 Then `python tools/gallery.py cast` and look at the sheet before writing any scene.

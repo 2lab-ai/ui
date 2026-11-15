@@ -457,7 +457,8 @@ function figure(x, y, o = {}) {
     const n = F(...neck), hp = F(...hip), tb = withM([Math.min(n[0], hp[0]) - 26 * s, n[1], Math.max(n[0], hp[0]) + 26 * s, hp[1]]);
     if (clamp01((p * 6 - 1) / 1.4) > 0.5) DOCENT.torsos.push([...scr(tb), DOCENT.seq]); }
   DOCENT.mouths.push(anchors.mouth); DOCENT.figs.push(anchors.box);
-  DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|') });
+  DOCENT.people.push({ id: o._cast || null, crowd: !!o.crowd, sig: [hair, hat, outfit, accent, glasses, beard, mustache, helmet, shell, h, color].join('|'),
+    look: { hair: hair === true ? 'long' : hair || null, hat: hat === true ? 'top' : hat || null, beard: !!beard, glasses: !!glasses, helmet: !!helmet, shell: !!shell } });   // lint cast-lookalike
   if (snout) docentNote('rig', 'figure(snout): an animal on the stick-figure rig — use animal()');
   const ph = (k, n) => clamp01((p * n - k) / 1.4);   // staged draw-on: head, body, arms, legs, face
   const lw = w * Math.max(0.7, Math.sqrt(s));

@@ -152,6 +152,18 @@ class BudgetOnEngine(unittest.TestCase):
         self.assertNotIn('club', r['p'])   # its first blade read as a light bulb
         self.assertAlmostEqual(r['top'], 2.62, places=2); self.assertTrue(r['box'])   # bubbles and tags keep clear of the comb
 
+    def test_people_carry_their_look_for_the_lookalike_lint(self):
+        probe = """() => { DOCENT_FRAME(0); person('a', 400, 880, {}); figure(900, 880, { crowd: true, hair: 'short' });
+          figure(1400, 880, { hat: 'morion', hair: 'spiky', beard: true }); return docentReport(); }"""
+        r = evaluate(self.proj, probe, None, False)
+        self.assertEqual([p['id'] for p in r['people']], ['a', None, None])
+        self.assertEqual(r['people'][2]['look'], {'hair': 'spiky', 'hat': 'morion', 'beard': True, 'glasses': False, 'helmet': False, 'shell': False})
+        cwd = os.getcwd(); os.chdir(tempfile.mkdtemp())   # export.py makes ./out on import
+        try: import lint_scenes
+        finally: os.chdir(cwd)
+        got = [(s, c) for s, c, _ in lint_scenes.judge(r, cast={'a': {'name': '갑', 'hair': 'short', 'outfit': 'suit', 'accent': 'red'}})]
+        self.assertIn(('P1', 'cast-lookalike'), got)   # the crowd figure has 갑's head; ink mode paints the suit as ink
+
     def test_ink_mode_only_when_asked(self):
         ink, old = report(self.proj, 1.5, False), report(self.proj, 1.5, None)
         self.assertEqual(ink['colours'], [])        # the red suit paints as ink and page
