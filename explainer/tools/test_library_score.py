@@ -121,6 +121,7 @@ class Plan(unittest.TestCase):
         self.assertLessEqual(max(map(len, plays.values())), 2, plays)           # no third play while a bed has one
         self.assertTrue(all(b - a >= 8 for v in plays.values() for a, b in zip(v, v[1:])), plays)   # repeats far apart
         self.assertIn('every bed is used', err.getvalue())
+        self.assertTrue(all(a['cue'] != b['cue'] for a, b in zip(pl, pl[1:])))   # never the track that just played
 
     def test_turn_in_the_first_seconds_sets_the_chapter_mood(self):
         script, tl = timeline(n=2, sents=8)

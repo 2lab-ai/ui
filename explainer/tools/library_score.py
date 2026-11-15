@@ -197,7 +197,7 @@ def plan(chs, project, history):
             else: bounds.append([t, m])
         for j, (s0, mood) in enumerate(bounds):
             s1 = bounds[j + 1][0] if j + 1 < len(bounds) else ch['end']
-            t0 = s0; last = None
+            t0 = s0; last = out[-1]['cue'] if out else None   # never the track that just played, across chapters too
             while t0 < s1 - 1:
                 tr = pick(mood, s1 - t0, last)
                 # the section plus its cross-fades (up to H before a chapter start, up to XF after) must fit the body

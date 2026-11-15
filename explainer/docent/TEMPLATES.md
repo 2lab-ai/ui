@@ -189,17 +189,18 @@ function wusha(fig, { p = 1, a = 1 } = {}) {          // a Ming official's cap: 
   for (const d of [-1, 1]) inkEllipse(...P(d * 1.45, -1.12), 0.62 * R, 0.16 * R, { ...o, fill: INK() });      // the wings
   return fig;
 }
-const _person = person;
+const personBeforeWusha = person;                     // a name of its own: a second hat wraps again under another
 person = function (id, x, y, o = {}) {                 // cast('official', { name: '관리', hat: 'wusha', beard: true })
   const look = CAST[id], mine = !!look && look.hat === 'wusha';
-  const f = _person(id, x, y, mine ? { ...o, hair: 'short' } : o);   // under the hat the hair is a short cap
+  const f = personBeforeWusha(id, x, y, mine ? { ...o, hair: 'short' } : o);   // under the hat the hair is a short cap
   if (mine) wusha(f, o);
   return f;
 };
 ```
 The look keeps `hat: 'wusha'`, so the lint compares heads correctly (`cast-similar`, `cast-lookalike`); figure()
 draws nothing for a hat it does not know. Check it on the cast sheet at Gate A beside the cast's other hats; the retro
-moves it into `figure()`.
+moves it into `figure()`, and a project that refreshes its engine drops its own wrapper then (총균쇠's `person()`
+wrapper would draw a second morion over the kit's).
 
 ## C. A one-scene clip (a 10 to 20 s probe, a trailer, a short)
 Keep the chapter shape's first, middle and last beat and drop the rest (biography: turning point → decision → cost;
