@@ -2,7 +2,11 @@
 that frame. These are the defects that made earlier docent videos look like AI slop and that a contact sheet makes
 easy to miss. Run inside a project folder (timeline.json may be a draft).
 
-    python lint_scenes.py [--scene id ...] [--strict]
+    python lint_scenes.py [--scene id ...] [--strict] [--timeline <file>]
+    python lint_scenes.py --help
+
+--timeline <file>: lint against that timeline instead of timeline.json (the draft after the voice's timeline exists:
+timeline_draft.py's output saved under another name), without touching timeline.json.
 
 Writes out/lint.json, out/lint.md, out/lint/<scene>_<t>.jpg for every frame with a P1 or worse, and out/lint_sheet.jpg
 (+ lint_sheet_02.jpg … past 60 frames): every rest frame on contact sheets, to look at before the voice is even done (lint cannot see everything).
@@ -34,6 +38,8 @@ mark); a bubble's speech counts as a word; a prop's own lettering and a list's i
 (project.json "colour": false, every new docent project) are held to the budget.
 """
 import asyncio, base64, json, os, sys
+if __name__ == '__main__' and ('--help' in sys.argv[1:] or '-h' in sys.argv[1:]):   # before export.py makes ./out
+    print(__doc__.strip()); sys.exit(0)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from export import serve, open_page, project_frame, OUT
 
@@ -180,13 +186,21 @@ def cast_similar(cast):
     return [(a, b) for i, a in enumerate(ids) for b in ids[i + 1:] if same_head(cast[a], cast[b])]
 
 
-async def main(only, strict):
+# the page loads timeline.json; --timeline swaps in another one after it is ready (engine.js TL, SC, ORDER, TOTAL)
+USE_TIMELINE = """(tl) => { TL = tl; for (const k of Object.keys(SC)) delete SC[k]; ORDER.length = 0;
+  TL.scenes.forEach((s) => { SC[s.id] = s; ORDER.push(s.id); }); window.TOTAL = TL.total; return ORDER.length; }"""
+
+
+async def main(only, strict, tl_path='timeline.json'):
     from playwright.async_api import async_playwright
-    tl = json.load(open('timeline.json'))
+    with open(tl_path, encoding='utf-8') as f: tl = json.load(f)
     srv, port = serve(); report = []; shots_out = {}; thumbs = []; size = project_frame(); limit = hold_limit(tl)
     os.makedirs(os.path.join(OUT, 'lint'), exist_ok=True)
     async with async_playwright() as pw:
         browser, page, errs = await open_page(pw, port)
+        if os.path.abspath(tl_path) != os.path.abspath('timeline.json'):
+            await page.evaluate(USE_TIMELINE, tl)
+            print(f'lint: timeline {tl_path} ({tl.get("voice") or "voice"}, {tl["total"]:.1f} s)')
         # the project's engine copy must match these checks (an older docent.js silently skips the newer ones)
         stale = await page.evaluate("typeof DOCENT_KINDS === 'undefined' || !DOCENT_KINDS.includes('things') || typeof docentReport !== 'function'")
         if stale:
@@ -253,7 +267,7 @@ async def main(only, strict):
     for r in report:
         for s, c, _ in r['issues']: counts[s] = counts.get(s, 0) + 1
     json.dump({'counts': counts, 'shots': shots_out, 'frames': report}, open(os.path.join(OUT, 'lint.json'), 'w'), ensure_ascii=False, indent=1)
-    lines = [f"# Scene lint — {sum(counts.values())} issues {counts}", '']
+    lines = [f"# Scene lint — {sum(counts.values())} issues {counts}" + (f' (timeline {tl_path})' if tl_path != 'timeline.json' else ''), '']
     for r in report:
         for s, c, d in r['issues']: lines.append(f"- [{s}] {r['scene']} @{r['t']:.2f}s {c}: {d}")
     open(os.path.join(OUT, 'lint.md'), 'w').write('\n'.join(lines) + '\n')
@@ -277,11 +291,21 @@ async def main(only, strict):
     bad = counts.get('P0', 0) + counts.get('P1', 0) + (counts.get('P2', 0) if strict else 0)
     sys.exit(1 if bad else 0)
 
-if __name__ == '__main__':
-    a = sys.argv[1:]
+def args(a):
+    """argv -> (scene ids, strict, timeline path)"""
+    tl = 'timeline.json'
+    if '--timeline' in a:
+        i = a.index('--timeline')
+        if i + 1 >= len(a) or a[i + 1].startswith('--'): sys.exit('--timeline needs a file: lint_scenes.py --timeline timeline_draft.json')
+        tl = a[i + 1]; a = a[:i] + a[i + 2:]
     only = a[a.index('--scene') + 1:] if '--scene' in a else []
-    only = [x for x in only if not x.startswith('--')]
-    known = [sc['id'] for sc in json.load(open('timeline.json'))['scenes']] if os.path.exists('timeline.json') else []
+    return [x for x in only if not x.startswith('--')], '--strict' in a, tl
+
+
+if __name__ == '__main__':
+    only, strict, tl_path = args(sys.argv[1:])
+    if not os.path.exists(tl_path): sys.exit(f'no timeline: {tl_path} (timeline_draft.py writes a draft one)')
+    with open(tl_path, encoding='utf-8') as f: known = [sc['id'] for sc in json.load(f)['scenes']]
     bad = [x for x in only if known and x not in known]
-    if bad: sys.exit(f"unknown scene id: {' '.join(bad)} (timeline.json has: {' '.join(known)})")   # exit 1, not a false '0 issues'
-    asyncio.run(main(only, '--strict' in a))
+    if bad: sys.exit(f"unknown scene id: {' '.join(bad)} ({tl_path} has: {' '.join(known)})")   # exit 1, not a false '0 issues'
+    asyncio.run(main(only, strict, tl_path))

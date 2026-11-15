@@ -149,3 +149,38 @@ class OnFixture(unittest.TestCase):
         rows = [t for sc, t, s, c in issues(self.rep) if c == 'crowd-row' and s == 'P1']
         self.assertEqual(len(rows), 1, issues(self.rep))
         self.assertTrue(s1 + 1.6 <= rows[0] < s1 + 3.3, (rows, s1))   # the rest frame of the five, not of the three
+
+
+class Args(unittest.TestCase):
+    def test_timeline_flag(self):
+        self.assertEqual(L.args(['--timeline', 'tl_draft.json', '--scene', 'a', 'b', '--strict']), (['a', 'b'], True, 'tl_draft.json'))
+        self.assertEqual(L.args(['--scene', 'a', '--timeline', 'x.json']), (['a'], False, 'x.json'))
+        self.assertEqual(L.args([]), ([], False, 'timeline.json'))
+        with self.assertRaises(SystemExit): L.args(['--timeline'])
+
+    def test_help_prints_usage_and_runs_nothing(self):   # p03: --help ran the whole lint
+        d = tempfile.mkdtemp()
+        for flag in ('--help', '-h'):
+            p = subprocess.run([PY, os.path.join(HERE, 'lint_scenes.py'), flag], cwd=d, capture_output=True, text=True, timeout=60)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertIn('--timeline <file>', p.stdout); self.assertIn('cover-late', p.stdout)
+        self.assertEqual(os.listdir(d), [])   # no out/, no lint.json
+
+
+@unittest.skipUnless(node_ok(), 'node or @napi-rs/canvas missing (npm install in explainer/noderender)')
+class ToolsOnFixture(unittest.TestCase):
+    env = dict(os.environ, PYTHONPATH=os.path.join(EX, 'noderender', 'shim'), NODE_PATH=os.path.join(EX, 'noderender', 'node_modules'))
+
+    def test_lint_against_another_timeline(self):   # p02, p06: the draft re-linted only by swapping timeline.json by hand
+        import timeline_draft
+        d = fixture()
+        tl_path = os.path.join(d, 'timeline.json')
+        with open(tl_path, 'rb') as f: before = f.read()
+        slow = timeline_draft.draft(read(os.path.join(d, 'script.json')), cps=4.0)   # sentence 1 starts ~5 s later
+        write(os.path.join(d, 'timeline_slow.json'), slow)
+        p, rep = lint(d, '--timeline', 'timeline_slow.json')
+        s1 = slow['scenes'][0]['sentences'][1]['start']
+        rows = [t for sc, t, s, c in issues(rep) if c == 'crowd-row']
+        self.assertEqual(len(rows), 1, issues(rep)); self.assertTrue(s1 + 1.6 <= rows[0] < s1 + 3.3, (rows, s1))
+        with open(tl_path, 'rb') as f: self.assertEqual(f.read(), before)   # timeline.json untouched
+        self.assertIn('timeline_slow.json', p.stdout)

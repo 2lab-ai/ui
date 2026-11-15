@@ -224,7 +224,7 @@ and any colour besides ink, purple and red. Three tools use it:
 |---|---|
 | `tools/timeline_draft.py` | a draft timeline from script.json (7.8 chars/s) so scenes, gallery and lint run before the voice is done |
 | `tools/gallery.py cast animals props` | asset sheets: look at every one before any scene uses the asset (`poses`: every pose) |
-| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md`, a still per bad frame and `out/lint_sheet*.jpg` (every rest frame, 60 per page) |
+| `tools/lint_scenes.py` | renders every shot at rest and fails (exit 1) on P0/P1 defects; writes `out/lint.md`, a still per bad frame and `out/lint_sheet*.jpg` (every rest frame, 60 per page); `--timeline <file>` lints against another timeline (the draft after the voice's exists), `--help` prints the checks |
 | `tools/title_check.py "<title>" --keyword <kw> --strict` | the title's form (hook first, ≤ 55, no format label) and one measured keyword in the title, on topic and over the demand bar (REFERENCE §10) |
 | `tools/export.py cover` | `out/cover.jpg` (+ `cover_b`, `cover_c`) and `out/cover_check.jpg` at 1280 / 320 / 168 px; `WARNING cover:` lines for small text, more than 8 characters, a small subject, an edge cut or the time-stamp corner |
 
