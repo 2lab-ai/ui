@@ -273,6 +273,25 @@ def test_edit_reference_marks_chat_punch_in_pan_and_head_mapping():
     for h in (cut.html_state('긴장'), cut.html_corner('코너'), cut.html_live('생방송'), cut.html_photo_card('file:///x.jpg', '실제'),
               cut.html_end_over({'next': 'n', 'next_title': 't', 'next_sub': 's', 'full': 'f'}, 'file:///x.jpg')): assert '<body' in h
 
+
+def test_jingle_candidates_write_valid_midi_and_render_when_the_soundfont_is_there():
+    """edit/jingles.py: every candidate builds a format-1 MIDI file with notes inside its 5 s; with fluidsynth and the
+    SoundFont present, one renders to 5.0 s of 48 kHz stereo at the shared level"""
+    sys.path.insert(0, os.path.join(HERE, 'edit'))
+    import jingles, shutil
+    assert len(jingles.CANDIDATES) >= 10
+    assert jingles.nm('C5') == 72 and jingles.nm('Bb3') == 58 and jingles.nm('F#4') == 66
+    with tempfile.TemporaryDirectory() as d:
+        for name, fn in jingles.CANDIDATES.items():
+            s = fn(); p = os.path.join(d, name + '.mid'); s.midi(p)
+            b = open(p, 'rb').read(); assert b[:4] == b'MThd' and b'MTrk' in b, name
+            beats = jingles.DUR * s.bpm / 60
+            ons = [at for at, st, _, v in s.ev if st & 0xF0 == 0x90]
+            assert ons and min(ons) >= 0 and max(ons) < beats, (name, max(ons), beats)
+        if shutil.which('fluidsynth') and os.path.exists(jingles.SF2):
+            w = jingles.render('lofi_keys', os.path.join(d, 'j.wav'))
+            r = wave.open(w); assert r.getframerate() == 48000 and r.getnchannels() == 2 and abs(r.getnframes() / 48000 - 5.0) < 1e-3
+
 if __name__ == '__main__':
     for name, fn in list(globals().items()):
         if name.startswith('test_'): fn(); print('ok', name)

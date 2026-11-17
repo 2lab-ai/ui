@@ -234,7 +234,7 @@ box-shadow:0 8px 20px rgba(0,0,0,.3);white-space:nowrap">{esc(text)}</div></body
 <div style="transform:rotate(-2deg)">{stacked(text, 'PEN', 106, 'linear-gradient(180deg,#fff27a 10%,#ffb000 90%)', '#2a1300', 7)}</div></body>"""
     if style == 'result':   # its own card: the frame dims so the tally is the only thing to read
         a, b = (text.split('\n', 1) + [''])[:2]
-        return HEAD + f"""<body style="width:1920px;height:1080px;background:rgba(20,8,40,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+        return HEAD + f"""<body style="width:1920px;height:1080px;background:#140824;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
 {stacked(a, 'JU', 62, '#ffffff', '#1d0b3a', 5)}{stacked(b, 'BH', 92, 'linear-gradient(180deg,#fff27a 10%,#ffb000 90%)', '#1d0b3a', 7)}</body>"""
     if style == 'thesis':   # 'label|line' puts a small label over the line (default: 오늘의 한 줄)
         lab, text = text.split('|', 1) if '|' in text else ('오늘의 한 줄', text)
@@ -267,12 +267,14 @@ def html_live(text):
 <div style="font-weight:800;font-size:40px;color:#ffe14d;text-shadow:{ring(4, '#111')}">{esc(text)}</div></body>"""
 
 
-def html_photo_card(src, label, w=640, h=480, tilt=3):
-    """a real photo as a tilted card with a label (reference A's meme inserts; reference B's 'show the real thing')"""
+def html_photo_card(src, label, w=640, h=480, tilt=3, crop=(0.5, 0.5)):
+    """a real photo as a tilted card with a label (reference A's meme inserts; reference B's 'show the real thing');
+    crop = which part of the photo the card keeps (x, y fractions, like CSS object-position)"""
+    cx, cy = crop
     return HEAD + f"""<body style="width:{w + 120}px;height:{h + 190}px;display:flex;align-items:center;justify-content:center">
 <div style="transform:rotate({tilt}deg);background:#fff;padding:16px 16px 70px;border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.45);position:relative">
-<img src="{src}" style="display:block;width:{w}px;height:{h}px;object-fit:cover;border-radius:4px">
-<div style="position:absolute;left:0;right:0;bottom:12px;text-align:center;font-family:JU;font-size:44px;color:#2a1650">{esc(label)}</div></div></body>"""
+<img src="{src}" style="display:block;width:{w}px;height:{h}px;object-fit:cover;object-position:{cx * 100:.0f}% {cy * 100:.0f}%;border-radius:4px">
+<div style="position:absolute;left:0;right:0;bottom:12px;text-align:center;font-family:JU;font-size:{min(44, int(w / max(1, len(label)) * 1.15))}px;color:#2a1650;white-space:nowrap">{esc(label)}</div></div></body>"""
 
 
 def html_chat(text):
@@ -448,7 +450,7 @@ def main():
         if not os.path.exists(img): print('MISSING image, insert skipped:', ins['image']); continue
         if ins.get('layout') == 'card':   # a tilted photo card beside the drawing
             w_, h_ = ins.get('size', (640, 480))
-            it = png(f'card_{k}', html_photo_card('file://' + img, ins.get('label', ''), w_, h_, ins.get('tilt', 3)), w_ + 120, h_ + 190)
+            it = png(f'card_{k}', html_photo_card('file://' + img, ins.get('label', ''), w_, h_, ins.get('tilt', 3), ins.get('crop', (0.5, 0.5))), w_ + 120, h_ + 190)
             cx, cy = ins.get('pos', (1400, 500))
             OV.append({'png': it['out'], 'x': int(cx - it['w'] / 2), 'y': int(cy - it['h'] / 2), 't0': o, 't1': o + ins['dur'], 'anim': 'pop', 'kind': kind})
             if ins.get('sfx', 'pop'): SND.append((o, ins.get('sfx', 'pop'), 0.4))
@@ -665,7 +667,10 @@ def main():
         if j > i and i >= 0: buf[i:j] += clip[:j - i] * g
     for t, name, g in SND:
         if name: put(fx, SFXW[name], t, g * rms * 3.2)
-    jing = read_wav(os.path.join(snd_dir, 'jingle.wav')); put(mus, jing, parts[len(cold)]['o0'], rms * 2.6)
+    jw = os.path.join(snd_dir, 'jingle.wav')
+    if getattr(P, 'JINGLE', None):   # the channel's chosen signature tune on real instruments (edit/jingles.py) replaces sound.py's
+        sys.path.insert(0, HERE); import jingles; jingles.render(P.JINGLE, jw)
+    jing = read_wav(jw); put(mus, jing, parts[len(cold)]['o0'], rms * 2.6)
     bgm = read_wav_any(os.path.join(CACHE, 'bgm', 'tokyo_sunset.mp3'))
     m0, m1 = int(max(0, t_main - 0.25) * SR), N
     loop = np.concatenate([bgm] * (int((m1 - m0) / len(bgm)) + 2))[:m1 - m0]
@@ -708,7 +713,7 @@ def main():
     edl = {'total': total, 't_main': t_main, 'title': [parts[len(cold)]['o0'], parts[len(cold)]['o1']], 'end': [parts[-1]['o0'], parts[-1]['o1']],
            'cold': [{'o0': p['o0'], 'o1': p['o1'], 'lines': p['lines'], 'zoom': p.get('zoom'), 'hold': p.get('hold', 0)} for p in cold],
            'main': [{'o0': p['o0'], 'o1': p['o1'], 's0': p['s0'], 's1': p['s1'], 'speed': p['speed'], 'zoom': p.get('zoom'), 'fill': p.get('fill'), 'lines': p['lines']} for p in main_],
-           'subs': subs, 'sub_text': {k: v[0] for k, v in SUBTXT.items()}, 'overlays': [{k: v for k, v in o.items() if k != 'html'} for o in OV], 'sounds': SND, 'jingle_at': parts[len(cold)]['o0'],
+           'subs': subs, 'sub_text': {k: v[0] for k, v in SUBTXT.items()}, 'overlays': [{k: v for k, v in o.items() if k != 'html'} for o in OV], 'sounds': SND, 'jingle_at': parts[len(cold)]['o0'], 'jingle': getattr(P, 'JINGLE', None),
            'stats': {'source_min': C.ev['T'] / 60, 'lines_kept': len(kept), 'lines_total': len(C.V), 'speech_min': speech / 60, 'cuts': cuts, 'fills': fills,
                      'zooms': sum(1 for p in srcs if p.get('zoom') and not p.get('cold')), 'emph': sum(1 for o in OV if o.get('kind') == 'emph'),
                      'chat': sum(1 for o in OV if 'chat_' in o.get('png', '')), 'inserts': len(INS), 'broll': len(BRL),

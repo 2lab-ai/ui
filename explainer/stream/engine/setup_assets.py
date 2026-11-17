@@ -21,6 +21,8 @@ GF = 'https://raw.githubusercontent.com/google/fonts/main/ofl/'
 EDIT_FONTS = {'BlackHanSans-Regular.ttf': GF + 'blackhansans/BlackHanSans-Regular.ttf', 'Jua-Regular.ttf': GF + 'jua/Jua-Regular.ttf',
               'NanumPenScript-Regular.ttf': GF + 'nanumpenscript/NanumPenScript-Regular.ttf',
               'NanumMyeongjo-ExtraBold.ttf': GF + 'nanummyeongjo/NanumMyeongjo-ExtraBold.ttf'}
+# the SoundFont edit/jingles.py plays the signature-jingle candidates on (MuseScore General, MIT, ~215 MB); fluidsynth renders it
+SF2 = 'https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2'
 UA = {'User-Agent': 'Mozilla/5.0 (2lab stream kit setup)'}
 
 
@@ -76,6 +78,7 @@ def setup():
         subprocess.run(['npx', 'playwright', 'install', 'chromium'], cwd=nd, check=True)
     for w in WEIGHTS: get(FONT.format(w=w), os.path.join(C, 'fonts', 'pretendard', f'Pretendard-{w}.woff2'))
     for name, url in EDIT_FONTS.items(): get(url, os.path.join(C, 'fonts', 'edit', name))
+    get(SF2, os.path.join(C, 'soundfonts', 'MuseScore_General.sf2'))
     for f in glob.glob(os.path.join(TH.THEMES, 'streamer', '*', 'theme.json')):
         for rel, src in json.load(open(f)).get('sources', {}).items():
             dst = os.path.join(C, rel)
@@ -87,7 +90,7 @@ def check():
     need = [os.path.join(C, 'live2dcubismcore.min.js'), os.path.join(C, 'node', 'node_modules', 'pixi-live2d-display'), os.path.join(C, 'node', 'node_modules', 'playwright')]
     need += [os.path.join(C, 'cubism', 'Samples', 'Resources', m) for m in models_needed()]
     need += [os.path.join(C, 'fonts', 'pretendard', f'Pretendard-{w}.woff2') for w in WEIGHTS]
-    need += [os.path.join(C, 'fonts', 'edit', name) for name in EDIT_FONTS]
+    need += [os.path.join(C, 'fonts', 'edit', name) for name in EDIT_FONTS] + [os.path.join(C, 'soundfonts', 'MuseScore_General.sf2')]
     for f in glob.glob(os.path.join(TH.THEMES, 'streamer', '*', 'theme.json')):
         need += [os.path.join(C, rel) for rel in json.load(open(f)).get('sources', {})]
     miss = [p for p in need if not os.path.exists(p)]

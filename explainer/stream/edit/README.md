@@ -53,7 +53,7 @@ About 6 minutes on an M-series Mac for a 14-minute edit (189 parts encoded 8 at 
 | The editor's aside | `EMPH[line] = (text, 'narr', sfx)` | handwritten yellow-orange, third person, bottom left | a fact the viewer cannot hear ("정확히 2분 지킴"); about one a minute at most |
 | Chat punch-in | `CHATZOOM = [line, …]` + `Z['chat']` | the frame cuts into the live chat; her line becomes a chat box | where the real chat erupts (2 per episode) |
 | Follow the drawing | `ZOOM[line] = ('box_a', 'box_b')` | an eased pan from one box to the next (same size) | a diagram built line by line: each line shows the piece just drawn |
-| Real photo | `BROLL = [{at, image, dur, label}]`, `layout: 'card'` | full screen with a dissolve and a small "📷" label; or a tilted photo card beside the drawing | each concrete example the stream only names or doodles; credits in `props/broll/CREDITS.md` |
+| Real photo | `BROLL = [{at, image, dur, label}]`, `layout: 'card'` | full screen with a dissolve and a small "📷" label; or a tilted photo card beside the drawing | **every real thing she names**: a person, a product, a company's object, an animal, an artwork, a place, an invention, a book. The actual one, not a stand-in (owner, 2026-11-18). Placed on the word (`at` = the word's start ÷ the line's length, from `audio/<id>.words.json`). Credits in `props/broll/CREDITS.md` |
 | Thesis card | `EMPH[line] = ('label\|line', 'thesis', None)` | the frame darkens, the line in a serif, no sound; the card replaces the caption | the book's line to keep (1–2 per episode) |
 | Result card | `EMPH[line] = ('top\nbottom', 'result', 'ding')` | a two-line tally above the captions | before the goodbye |
 | Live-date label | `LIVE = '2026. 11. 17(화) 생방송 내용입니다'` | yellow text top left, 3.6 s | where the stream part starts |
@@ -61,7 +61,18 @@ About 6 minutes on an M-series Mac for a 14-minute edit (189 parts encoded 8 at 
 Punch-ins cut straight without a whoosh (set `ZOOM_SFX = True` to bring it back). One mark per beat still holds: a line
 with a state label or a photo gets no aside.
 
-Do not caption the streamer theme's lore (Kate's old-knowledge slips stay as said, unmarked). The owner wants it implied.
+Do not caption the streamer theme's lore (Kate's old-knowledge slips stay as said, unmarked): no aside, state label or joke points
+at what she should not know. The thing she talks about still gets its real photo with a plain factual label (the aurochs, the
+cave painting, the murex shells): that shows the subject, not her.
+
+**The reference sweep (owner, 2026-11-18: "편집본은 말하고 실제 레퍼런스 찾아서 해당 내용 붙여줘야지").** Before writing `BROLL`, read
+every kept line and list each concrete thing named in it. Every item gets its real picture: find it (Wikimedia Commons, Openverse;
+PD / CC0 / CC BY only), or write down why there is none. Ep. 1 missed the aurochs, the Lascaux painting, the old metal paint can and
+Dutch Boy's plastic jug in v2, and the owner caught it. One mark per line still holds: a photo card replaces a joke caption on the same
+line (`(폴더폰 저격)` became the flip-phone card's label).
+
+**The jingle.** `JINGLE = '<name>'` picks one of `edit/jingles.py`'s candidates (real instruments, FluidSynth + MuseScore General);
+without it the edit uses `sound.py`'s synthesised tune. `python edit/jingles.py <dir>` renders all of them for the owner to choose.
 
 ## 3. Review
 
@@ -81,4 +92,4 @@ chart, a loudness curve, the edit's transcript with the editor's marks, and thes
 
 Score on the mean of the three engines, and on more than one run when a result is near the bar. Never tune the prompt.
 Episode 1: v1 84.0 / 81.7 when uploaded (86.7 / 80.3 re-scored on 2026-11-18); v2 80.3 / 80.3 after nine rounds
-(`RESEARCH.md` §4.5). The rubric does not score the reference grammar of §2; judge that by eye from `qa_edit.py`.
+(`RESEARCH.md` §4.5); the public edit with the reference sweep and the new jingle 80.3 / 81.0 (§4.6). The rubric does not score the reference grammar of §2; judge that by eye from `qa_edit.py`.
