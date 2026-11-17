@@ -30,7 +30,10 @@ FILLER = [('오늘 처음 왔는데 분위기 좋네요', None, None), ('이 책
           ('작은 습관 ㄹㅇ', 'p08', None), ('방송 소리 좋다', None, None), ('나도 해봐야지', 'p08', None), ('어제 다시보기 봤어요', None, None),
           ('모자 새로 샀어요?', None, None), ('책 추천해주세요', None, None), ('독서방 최고', None, None), ('자기 전에 틀어놓는 방송', None, None),
           ('타자 소리 좋다', 'n03', 'ㄴ ASMR 같음'), ('이거 메모함', 'p08', None), ('공부하러 왔다가 눌러앉음', None, None),
-          ('방금 왔는데 무슨 책?', 'n03', 'ㄴ 아주 작은 습관의 힘')]
+          ('방금 왔는데 무슨 책?', 'n03', 'ㄴ 아주 작은 습관의 힘'),
+          ('이 책 읽고 아침에 물 한 잔 마시기 3주째인데 이게 진짜 쌓이긴 하더라고요 신기함', 'n04', None),
+          ('그림판 졸라맨 볼 때마다 웃김 ㅋㅋㅋㅋ 머리가 계속 감자임', 'n06', None), ('🔥🔥', None, None), ('🙏', None, None),
+          ('근데 1%는 하루하루 티가 하나도 안 나서 다들 포기하는 듯', 'p08', None), ('ㅇㅎ', None, None)]
 POOL = []
 BURST = {'sis_in': ['????', '누구야 ㅋㅋㅋ', '동생?', 'ㅋㅋㅋㅋㅋㅋ', '?????', '헐', '누구세요 ㅋㅋ', 'ㅋㅋㅋㅋㅋㅋㅋㅋ', 'ㄷㄷ', 'ㅋㅋㅋ뭐야'],
          'sis_mid': ['ㅋㅋㅋ', '안 들려요', '언니한테 이를거임', '스쿼트 한 개 ㅋㅋㅋ', 'ㅋㅋㅋㅋㅋ', '튀어', '동생 자주 와요?', '😂', 'ㄹㅇ', '한 개 ㅋㅋㅋㅋ', '이를게요'],
@@ -134,7 +137,6 @@ def script(B, rng):
     B.stroke(densify(humanize(stairsB, rng, over=(8, 14))), speed=240, wob=5.5, jit=0.6)
     S(B, 'n05', gaze='screen', expr='neutral', at=B.hand_t + 0.2, gap=0.2)
     B.stroke(densify(humanize(stairs2, rng)), speed=260, wob=3.0, jit=0.5, hook=True)
-    B.stroke(densify([(402, 535), (406, 522), (403, 509)]), speed=140, wob=0.8, jit=0.4)   # closing the gap at a joint
     B.sync_hand(2.3)   # a quiet stretch: she looks at the drawing
     M(B, rng, '졸라맨 머리 찌그러짐 ㅋㅋㅋ', dt=-1.6)
     M(B, rng, '그림 실력 무엇', dt=-0.4)
@@ -156,12 +158,12 @@ def script(B, rng):
     M(B, rng, '37배요!!', at=B.t - 1.4)
     M(B, rng, '37배', at=B.t - 0.7)
     S(B, 'n07', gaze='chat', expr='bigsmile', gap=0.2)
-    B.type('\n= 37배!', prefix='매일 1%씩 1년이면?', t0=B.t - 0.9)
+    B.type('\n= 약 37배 (복리)', prefix='매일 1%씩 1년이면?', t0=B.t - 0.9)
     B.commit_box()
     B.sync_hand(0.2)
     M(B, rng, '근데 37배는 좀 과장 아님?', at=B.t + 0.5)
     M(B, rng, 'ㄴ 복리 계산하면 맞음', at=B.t + 1.7)
-    S(B, 'm40', gaze='chat', expr='soft', at=B.t + 2.1, gap=0.4)
+    S(B, 'm41', gaze='chat', expr='soft', at=B.t + 2.1, gap=0.4)
     # the other way down
     t15 = B.t
     B.pick_tool('pencil', t15 - 0.2)
@@ -208,18 +210,18 @@ def script(B, rng):
     B.t = t_sin + 3.3
     B.sis_keys = []
     e1, _ = S(B, 'e01', gaze='cam', expr='sneaky', gap=0.6)
-    B.sis_keys += [(e1 + 0.15, 188, -0.36), (e1 + 0.9, 160, -0.31)]           # once she talks she comes in a little
+    B.sis_keys += [(e1 + 0.15, 188, -0.36), (e1 + 0.9, 128, -0.27)]           # once she talks she settles further in
     e2s, e2 = S(B, 'e02', gaze='cam', expr='shh', gap=0.5)
     M(B, rng, '소리 끊겨요', dt=-0.2)
     B.gaze.append((e2 + 0.1, e2 + 1.35, 'door', 'sis'))                      # a look back at the door, half hiding
-    B.sis_keys += [(e2 + 0.05, 162, -0.31), (e2 + 0.45, 212, -0.43), (e2 + 1.2, 208, -0.42), (e2 + 1.7, 150, -0.29)]
+    B.sis_keys += [(e2 + 0.05, 130, -0.27), (e2 + 0.45, 212, -0.43), (e2 + 1.2, 208, -0.42), (e2 + 1.7, 124, -0.26)]
     B.gaze.append((e2 + 1.55, e2 + 2.75, 'chat', 'sis'))                    # reads '소리 끊겨요' in chat
     B.t = e2 + 2.6
     S(B, 'e03', gaze='cam', expr='sneaky', gap=0.4)
     M(B, rng, '꿀팁 주세요 ㅋㅋ', dt=-0.2)
     S(B, 'e04', gaze='cam', expr='sneaky', gap=0.4)
     e5, _ = S(B, 'e05c', gaze='cam', expr='sneaky', gap=0.45)
-    B.sis_keys += [(e5 - 0.3, 152, -0.29), (e5 + 0.8, 138, -0.25), (e5 + 2.9, 146, -0.27)]   # leaning in for the secret
+    B.sis_keys += [(e5 - 0.3, 124, -0.26), (e5 + 0.8, 110, -0.22), (e5 + 2.9, 120, -0.24)]   # leaning in for the secret
     t6s, t6e = S(B, 'e06', gaze='cam', expr='sneaky', gap=0.6)
     B.expr.append((t6e + 0.05, t6e + 0.85, 'wink', 'sis'))
     # she leaves a note on her sister's Paint
@@ -236,12 +238,12 @@ def script(B, rng):
     B.t = t_sout + 2.2
     # she comes back
     t_in = B.t
-    B.sfx.append((t_in - 1.8, 'door', None)); B.sfx.append((t_in + 2.3, 'chair', None))
+    B.sfx.append((t_in - 1.8, 'door', None)); B.sfx.append((t_in + B.afk_t['ret_pause_end'] + 0.1, 'chair', None))   # walks in, stops, faces the screen, sits
     B.sfx.append((t_in - 0.9, 'steps', [5, 0.5, 0.11, False]))   # walks in (1.9 s), stops at the seat, sits
     B.afk = (t_out, t_in)
-    B.sfx.append((t_in + 3.1, 'key', None)); B.sfx.append((t_in + 3.19, 'key', None))   # she switches the BRB banner off once she is sitting
-    B.brb = (B.brb[0], t_in + 3.2)
-    B.t = t_in + 3.6
+    B.sfx.append((t_in + B.afk_t['ret_sit_end'] + 0.25, 'key', None)); B.sfx.append((t_in + B.afk_t['ret_sit_end'] + 0.34, 'key', None))   # BRB off once she is sitting
+    B.brb = (B.brb[0], t_in + B.afk_t['ret_sit_end'] + 0.35)
+    B.t = t_in + B.afk_t['ret_end'] - 0.1
     S(B, 'm22', gaze='chat', expr='breathless', gap=0.3)
     S(B, 'm35', gaze='chat', expr='breathless', gap=0.6)
     # back to the book: she looks at the canvas, the hand drifts to the mouse ... and only then she notices the note
@@ -266,18 +268,17 @@ def script(B, rng):
     B.ops.append((B.hand_t - 0.1, {'op': 'erase', 'x': 745, 'y': 48, 'w': 285, 'h': 77}))
     B.ops.append((B.hand_t - 0.1, {'op': 'sel', 'x': 0, 'y': 0, 'w': 0, 'h': 0}))
     B.t = B.hand_t + 0.4
+    S(B, 'm42', gaze='cam', expr='soft', gap=0.5)   # compounding -> identity: the bridge
     t36 = B.t
     B.hand_at(t36 - 0.3)
     B.text_box(470, 590, size=36, minw=380)
     B.type('나는 운동하는 사람이다', t0=t36 + 0.6)
     S(B, 'm36', gaze='screen', expr='earnest', at=t36 + 1.4, gap=0.35)
     B.sync_hand(0.2)
-    t37, _ = S(B, 'p37', gaze='cam', expr='soft', gap=0.4)
+    S(B, 'm43', gaze='cam', expr='soft', gap=0.35)
+    t37, _ = S(B, 'm37', gaze='cam', expr='soft', gap=0.4)
     M(B, rng, '오 이거 좋다', at=t37 - 0.8)
-    M(B, rng, '스쿼트 ㅋㅋㅋㅋ', at=t37 + 3.9)
-    M(B, rng, '아까 동생이 말한거 ㅋㅋ', at=t37 + 4.6)
-    M(B, rng, '양치 스쿼트 ㅋㅋㅋ', at=t37 + 5.3)
-    M(B, rng, '나는 책 읽는 사람이다', at=t37 + 6.4)
+    M(B, rng, '나는 책 읽는 사람이다', at=t37 + 3.6)
     M(B, rng, '근데 자매 나이 차이 몇 살임?', at=t37 + 2.2); M(B, rng, 'ㄴ 그건 묻는 거 아님 ㅋㅋ', at=t37 + 3.2)
     # chat flow: bursts after events, quiet baseline
     burst(B, rng, t_sin + 1.2, 'sis_in', 6, 3.5)
@@ -300,24 +301,24 @@ MAIN_BOX, WIDE = [1380, 470, 1880, 1080], [1250, 380, 1920, 1080]
 REVIEW = {
     'keys': [['오프닝 인사', ['line', 'm02']], ['제목 타이핑 중', ['line', 'n03', .55]], ['그리다 망침(팔이 너무 김): 뾰로통', ['line', 'm31', .4]],
              ['그림 그리는 중: 집중한 얼굴', ['line', 'n05', 0, -1.5]], ['계단 그리기/졸라맨', ['line', 'n05', .9]], ['생각+머리긁기', ['line', 'm13', .5]],
-             ["채팅 '37배 과장 아님?' → 정정하는 중", ['line', 'm40', .3]], ['반대로 나빠지면: 진지한 얼굴', ['line', 'm15', .5]],
-             ['후원 알림', ['line', 'n08', 0, -0.8]], ['일어나서 문 쪽으로 고개를 돌림', ['afk', 0, 1.1]], ['걸어서 화면 밖으로 나가는 중', ['afk', 0, 2.4]],
+             ["채팅 '37배 과장 아님?' → 정정하는 중", ['line', 'm41', .3]], ['반대로 나빠지면: 진지한 얼굴', ['line', 'm15', .5]],
+             ['후원 알림', ['line', 'n08', 0, -0.8]], ['일어나서 문 쪽으로 고개를 돌림', ['afk', 0, 1.05]], ['화면 가장자리에서 얼굴 추적이 끊겨 멈춘 순간', ['afk', 0, 1.9]],
              ['자리비움: 빈자리 + 왼쪽 아래 배너(지난 시간)', ['afk', 0, 6.0]], ['동생이 화면 끝에서 빼꼼', ['extra', 0, 1.6]],
              ['동생이 문 쪽을 돌아보며 살짝 숨음', ['line', 'e02', 1.0, 0.8]], ['동생이 채팅을 올려다봄', ['line', 'e02', 1.0, 2.1]],
              ['동생 속삭임(언니 일화, 몸을 더 들이밂)', ['line', 'e05c', .5]], ['동생 윙크', ['line', 'e06', 1.0, 0.4]],
-             ['동생이 PC 쪽으로 몸을 숙여 타이핑', ['line', 'e07', 0, -1.6]], ['언니 복귀: 걸어 들어오는 중', ['afk', 1, 0.9]],
-             ['자리 앞에 멈췄다가 앉는 중', ['afk', 1, 2.6]], ['낙서를 알아챔(말하기 전)', ['line', 'm23', 0, -0.5]], ['낙서 읽기: 커서로 가리킴', ['line', 'm23', .7]],
-             ['선택 후 삭제', ['line', 'n10', .3]], ['마무리: 정체성 타이핑', ['line', 'm36', .8]], ['마지막 문장 + 채팅 반응', ['line', 'p37', .95]]],
+             ['동생이 PC 쪽으로 몸을 숙여 타이핑', ['line', 'e07', 0, -1.6]], ['복귀: 추적이 다시 잡혀 자리로 들어오는 중', ['afk', 1, 0.5]],
+             ['자리 앞에서 멈췄다가 앉는 중', ['afk', 1, 1.5]], ['낙서를 알아챔(말하기 전)', ['line', 'm23', 0, -0.5]], ['낙서 읽기: 커서로 가리킴', ['line', 'm23', .7]],
+             ['선택 후 삭제', ['line', 'n10', .3]], ['마무리: 정체성 타이핑', ['line', 'm36', .8]], ['복리에서 정체성으로 넘어가는 말', ['line', 'm42', .6]], ['마지막 문장 + 채팅 반응', ['line', 'm37', .95]]],
     'strips': [{'label': '립싱크 연속 8프레임(15fps) — 메인 발화 중', 'at': ['line', 'p08', .3], 'box': [1440, 640, 1800, 960]},
                {'label': '머리 긁기 연속 8프레임 (0.1초 간격)', 'at': ['line', 'm13', .42], 'box': [1400, 560, 1880, 1000], 'step': 0.1},
                {'label': '동생 속삭임 연속 8프레임', 'at': ['line', 'e05c', .4], 'box': [1440, 380, 1920, 1080]},
-               {'label': '메인 퇴장 전체 (0.45초 간격 8컷)', 'at': ['afk', 0, -0.1], 'box': WIDE, 'step': 0.45},
-               {'label': '메인 복귀 전체 (0.5초 간격 8컷)', 'at': ['afk', 1, 0.2], 'box': WIDE, 'step': 0.5},
+               {'label': '메인 퇴장 전체 (0.35초 간격 8컷)', 'at': ['afk', 0, -0.1], 'box': WIDE, 'step': 0.35},
+               {'label': '메인 복귀 전체 (0.35초 간격 8컷)', 'at': ['afk', 1, -0.1], 'box': WIDE, 'step': 0.35},
                {'label': '동생 퇴장 (0.1초 간격 8컷)', 'at': ['extra', 1, -0.6], 'box': WIDE, 'step': 0.1},
                {'label': '메인 2초 모션: 말하는 동안 고개·몸·머리카락 (0.27초 간격 8컷)', 'at': ['line', 'p08', .05], 'box': MAIN_BOX, 'step': 0.27},
                {'label': '생각→눈 굴리기→머리 긁기→깨달음 전체 과정 (0.6초 간격 8컷)', 'at': ['line', 'm13', 0, -0.1], 'box': MAIN_BOX, 'step': 0.6},
                {'label': '동생 등장 (0.4초 간격 8컷)', 'at': ['extra', 0, 0.2], 'box': [1440, 380, 1920, 1080], 'step': 0.4},
-               {'label': '마우스로 졸라맨 그리는 연속 8프레임(커서 포함)', 'at': ['first_draw'], 'box': [100, 560, 600, 960], 'step': 4 / 30}],
+               {'label': '마우스로 계단 긋는 중 연속 8프레임(커서 포함, 0.1초 간격)', 'at': ['line', 'n05', 0, -1.6], 'box': [100, 560, 600, 960], 'step': 0.1}],
     'gaze': [['그림판 작업 중(좌하단 응시)', ['line', 'n05', .5]], ['채팅 읽는 중(위쪽 응시)', ['line', 'n01', .5]],
              ['시청자에게 말할 때(정면)', ['line', 'm02', .5]], ['후원 알림 볼 때', ['line', 'n08', 0, 0.3]]],
     'gaze_box': MAIN_BOX, 'lip_main': 'p08', 'lip_extra': 'e04',

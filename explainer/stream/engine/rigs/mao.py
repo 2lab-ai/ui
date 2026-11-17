@@ -3,7 +3,7 @@ Maps the beat cues (gaze targets, expressions, think / scratch windows, laughs, 
 artist's expression params (ParamMouthAngry, ParamEyeBallForm, ParamEyeEffect) and arm B (hand to head, from mtn_04)."""
 import math
 import numpy as np
-from common import FPS, rng, ease, Noise1D, Spring, seg_at, EXIT_WALK, EXIT_GONE, RET_WALK, RET_PAUSE_END, RET_SIT_END, RET_END
+from common import FPS, rng, ease, Noise1D, Spring, seg_at, AFK_TIMING
 
 GAZE = {   # head X/Y, eyes X/Y   (+X = viewer's right, +Y = up)
     'cam': (0, 0, 0, 0), 'chat': (-3, 26, -0.1, 1.0), 'screen': (-30, -16, -1.0, -0.8), 'alert': (-2, 24, 0.05, 1.0),
@@ -168,13 +168,16 @@ def synth(B, N, vt, cursor_xy, motion=None):
         av = arm(1.0 if scratching else 0.0)
         P['PartArmLA'][i] = 0 if av > 0.02 else 1; P['PartArmLB'][i] = 1 if av > 0.02 else 0
         # the artist's own hand-on-head pose from Mao's mtn_04 (arm B 15/9/8, hand 7) + the hat squashing under the hand
-        P['ParamArmLB01'][i] = -30 + 45 * av + 16 * scr
+        P['ParamArmLB01'][i] = -30 + 45 * av + 20 * scr
         P['ParamArmLB02'][i] = -30 + 39 * av + 9 * scr
-        P['ParamArmLB03'][i] = -10 + 18 * av + 28 * scr
-        P['ParamHandLB'][i] = av * (7 - 9 * abs(scr)) + (9 * math.sin(t * 31) * abs(scr) if scr else 0)   # fingers curl and open while rubbing
-        P['ParamHatForm'][i] = av * (4 + 20 * abs(scr))
+        P['ParamArmLB03'][i] = -10 + 18 * av + 34 * scr
+        P['ParamHandLB'][i] = av * 7 if not scr else av * (1 + 9 * math.sin(t * 14))   # fingers open and curl while rubbing (full range, slow enough to see)
+        P['ParamHatForm'][i] = av * (4 + 28 * abs(scr))   # the hat gives under each rub
         P['ParamAllY'][i] = 0
     if B.afk:
+        AT = getattr(B, 'afk_t', AFK_TIMING['walk'])
+        EXIT_WALK, EXIT_GONE = AT['exit_walk'], AT['exit_gone']
+        RET_WALK, RET_PAUSE_END, RET_SIT_END, RET_END = AT['ret_walk'], AT['ret_pause_end'], AT['ret_sit_end'], AT['ret_end']
         tl, tb = B.afk   # tl: she stands up, tb: she walks back in (see afk_motion for the body path)
         fr = lambda t: int(round(t * FPS))
         live = {k: P[k].copy() for k in P}
@@ -182,8 +185,8 @@ def synth(B, N, vt, cursor_xy, motion=None):
             t = i / FPS
             if t < tl + EXIT_GONE:     # rising, eyes then head turn to the door, then walking off
                 u_up = ease((t - tl) / 0.9)                    # rising: looks up a touch as the face goes up
-                u_eye = ease((t - tl - 0.45) / 0.35)           # eyes lead to the door
-                u_hd = ease((t - tl - 0.7) / 0.6)              # head and shoulders follow ~0.25 s later
+                u_eye = ease((t - tl - 0.35) / 0.3)            # eyes lead to the door
+                u_hd = ease((t - tl - 0.55) / 0.55)            # head and shoulders follow ~0.2 s later, done before she walks
                 walk = max(0.0, t - tl - EXIT_WALK)
                 sway = 1.4 * math.sin(walk * 2 * math.pi * 0.95) * min(1, walk / 0.3)
                 sway += 1.2 * math.sin(math.pi * min(1, walk / 0.5)) * (walk > 0)   # leans into the first step

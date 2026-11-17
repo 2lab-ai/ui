@@ -203,13 +203,6 @@
   "dir": "sudden hushed panic, then a lazy bye"
  },
  {
-  "id": "m40",
-  "who": "main",
-  "text": "물론 진짜 37배가 된다는 건 아니고요, 작은 게 쌓이면 커진다는 얘기예요.",
-  "say": "물론 진짜 삼십칠 배가 된다는 건 아니고요, 작은 게 쌓이면 커진다는 얘기예요.",
-  "dir": "a quick honest caveat, casual and light"
- },
- {
   "id": "p08",
   "who": "main",
   "text": "일단 제일 유명한 얘기부터요. 매일 1%씩만 나아지자.",
@@ -218,15 +211,35 @@
   "tts": "일단 제일 유명한 얘기부터요. 매일 <emphasis>일 퍼센트씩만</emphasis> 나아지자."
  },
  {
-  "id": "p37",
-  "who": "main",
-  "text": "목표 말고 나를 먼저요. 그러면 스쿼트 한 개도 할 만해져요.",
-  "dir": "slow and sure, a small smile at the end"
- },
- {
   "id": "e05c",
   "who": "sis",
   "text": "양치하고 나서 바로 스쿼트 한 개.",
   "dir": "breathy whisper, smug and lazy, trailing vowels"
+ },
+ {
+  "id": "m37",
+  "who": "main",
+  "text": "목표 말고 나를 먼저요. 이게 핵심이에요.",
+  "dir": "slower, sure of it, a quiet emphasis",
+  "tts": "목표 말고 <emphasis>나를</emphasis> 먼저요. 이게 핵심이에요."
+ },
+ {
+  "id": "m41",
+  "who": "main",
+  "text": "계산으로는 진짜 37배 맞아요. 근데 실력이 매일 딱 1%씩 느는 건 아니니까, 쌓이면 커진다는 얘기예요.",
+  "say": "계산으로는 진짜 삼십칠 배 맞아요. 근데 실력이 매일 딱 일 퍼센트씩 느는 건 아니니까, 쌓이면 커진다는 얘기예요.",
+  "dir": "answering a sharp comment, honest and a little sheepish"
+ },
+ {
+  "id": "m42",
+  "who": "main",
+  "text": "그 작은 걸 계속하게 만드는 게, 결국 나를 어떤 사람으로 보느냐래요.",
+  "dir": "slowing down, connecting two ideas, almost to herself"
+ },
+ {
+  "id": "m43",
+  "who": "main",
+  "text": "그리고 그 사람답게, 아주 작은 거 하나를 매일 하는 거죠.",
+  "dir": "warm and concrete, the last practical step"
  }
 ]

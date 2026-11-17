@@ -189,7 +189,7 @@ function renderChat(f) {
   if (n !== lastChatN) {
     list.innerHTML = '';
     for (const m of ms.slice(Math.max(0, n - 14), n)) {
-      const d = el('div', 'msg'); d.appendChild(el('span', 'dot', '', { background: m.c })); d.appendChild(document.createTextNode(m.m)); list.appendChild(d);
+      const d = el('div', /^[\p{Extended_Pictographic}\uFE0F\u200D\s]+$/u.test(m.m) ? 'msg emo' : 'msg'); d.appendChild(el('span', 'dot', '', { background: m.c })); d.appendChild(document.createTextNode(m.m)); list.appendChild(d);
     }
     lastChatN = n;
   }

@@ -9,7 +9,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from hangul import keys_for, simulate, SHIFT, decompose
-from common import FPS, rng, ease, minjerk, Noise1D, EXIT_WALK, EXIT_GONE, RET_WALK, RET_PAUSE_END, RET_SIT_END, RET_END
+from common import FPS, rng, ease, minjerk, Noise1D, AFK_TIMING
 from lipsync import voice_tracks
 import themes as TH
 
@@ -336,6 +336,7 @@ def build(beats_path, audio_dir, outdir, cfg):
     cast = cfg['streamer']['cast']
     B = Builder(audio_dir)
     B.lip_floor = {role: c.get('lip_floor', 0.82) for role, c in cast.items()}
+    B.afk_style = cast['main'].get('afk_style', 'walk'); B.afk_t = AFK_TIMING[B.afk_style]   # beats time the chair/key sounds from B.afk_t
     mod.script(B, rng)
     T = max(B.t, B.hand_t) + mod.TAIL
     N = int(T * FPS)
@@ -366,24 +367,42 @@ def build(beats_path, audio_dir, outdir, cfg):
     # main slide out / in, sis panel
     dy = np.zeros(N); dx = np.zeros(N); alpha = np.ones(N)
     msc = np.ones(N)
+    AT = B.afk_t
+    EXIT_WALK, EXIT_GONE = AT['exit_walk'], AT['exit_gone']
+    RET_WALK, RET_PAUSE_END, RET_SIT_END, RET_END = AT['ret_walk'], AT['ret_pause_end'], AT['ret_sit_end'], AT['ret_end']
+    lost = B.afk_style == 'track_lost'
     if B.afk:
-        tl, tb = B.afk   # she stands up, turns and walks off to the right; later she walks back in, stops at the seat and sits
+        tl, tb = B.afk   # tl: she stands up; tb: she is back in front of the webcam
+        EDGE_DX, EDGE_DY, EDGE_SC = 258, -118, 0.95   # track_lost: where the face leaves the webcam's view
         for i in range(N):
             t = ft[i]
             if tl <= t < tl + EXIT_GONE:
                 r = t - tl
-                up = ease(r / 0.9)
+                up = ease(r / 0.8)
                 dy[i] = -88 * up; dx[i] = 18 * up
-                if r >= EXIT_WALK:   # walking: speeds up over ~0.6 s then a steady pace; the bob runs at step rate, not in lockstep with the travel
+                if r >= EXIT_WALK and lost:   # a step toward the frame edge, the face tracker following her face out
+                    u = ease((r - EXIT_WALK) / (EXIT_GONE - EXIT_WALK))
+                    dx[i] = 18 + (EDGE_DX - 18) * u; dy[i] = -88 + (EDGE_DY + 88) * u; msc[i] = 1 - (1 - EDGE_SC) * u
+                elif r >= EXIT_WALK:   # walking: speeds up, a steady pace; the bob runs at step rate, not in lockstep with the travel
                     w = r - EXIT_WALK
-                    travel = 1150 * (w ** 2 / (2 * 0.6) if w < 0.6 else 0.3 + (w - 0.6)) / (0.3 + (EXIT_GONE - EXIT_WALK - 0.6))
+                    A = 0.4   # seconds to reach walking pace: little frontal travel on screen, she is out of frame quickly
+                    travel = 1150 * (w ** 2 / (2 * A) if w < A else A / 2 + (w - A)) / (A / 2 + (EXIT_GONE - EXIT_WALK - A))
                     dx[i] = 18 + travel
                     dy[i] = -88 + 15 * abs(math.sin(w * 2 * math.pi * 0.95 + 0.4)) * min(1, w / 0.3)
                     msc[i] = 1 - 0.16 * min(1, w / (EXIT_GONE - EXIT_WALK))   # walking away from the webcam
-            elif tl + EXIT_GONE <= t < tb: dy[i] = -88; dx[i] = 1300; msc[i] = 0.84
+            elif tl + EXIT_GONE <= t < tb:
+                if lost:   # tracking lost: frozen where her face left, then hidden
+                    dx[i], dy[i], msc[i] = EDGE_DX, EDGE_DY, EDGE_SC
+                    f0_, f1_ = AT['lost_fade']; r = t - tl
+                    alpha[i] = 1.0 if r < f0_ else max(0.0, 1 - (r - f0_) / (f1_ - f0_))
+                else: dy[i] = -88; dx[i] = 1300; msc[i] = 0.84
             elif tb <= t < tb + RET_END:
                 r = t - tb
-                if r < RET_WALK:   # walking in, slowing down to stop at the seat
+                if r < RET_WALK and lost:   # tracking catches her face at the edge; the model follows her into the seat
+                    u = ease(r / RET_WALK)
+                    dx[i] = EDGE_DX * (1 - u); dy[i] = EDGE_DY + (-88 - EDGE_DY) * u; msc[i] = EDGE_SC + (1 - EDGE_SC) * u
+                    alpha[i] = min(1.0, r / AT['back_fade'])
+                elif r < RET_WALK:   # walking in, slowing down to stop at the seat
                     u = r / RET_WALK; pos = 1 - (1 - u) ** 2.2
                     dx[i] = 1300 * (1 - pos); dy[i] = -88 + 15 * abs(math.sin(r * 2 * math.pi * 0.95)) * (1 - ease(u))
                     msc[i] = 0.84 + 0.16 * ease(u)
@@ -411,8 +430,9 @@ def build(beats_path, audio_dir, outdir, cfg):
         # while she types on her sister's PC she leans in towards the keyboard (more of her in frame, more upright), then snaps back to the edge
         for a_, b_, w_ in B.typing:
             if w_ == 'sis' and t_in < a_ < t_out:
-                ins_m = [(a_ - 0.9, 188), (a_ - 0.2, 105), (b_ + 0.15, 112), (b_ + 0.5, 190)]
-                ins_r = [(a_ - 0.9, -0.36), (a_ - 0.2, -0.13), (b_ + 0.15, -0.15), (b_ + 0.5, -0.37)]
+                m0, r0 = seg(a_ - 0.9, mxk), seg(a_ - 0.9, rk)   # from wherever she is, well in towards the keyboard, then back to the edge
+                ins_m = [(a_ - 0.9, m0), (a_ - 0.2, 78), (b_ + 0.15, 84), (b_ + 0.5, 190)]
+                ins_r = [(a_ - 0.9, r0), (a_ - 0.2, -0.08), (b_ + 0.15, -0.1), (b_ + 0.5, -0.37)]
                 mxk = sorted([k for k in mxk if not (a_ - 0.9 <= k[0] <= b_ + 0.5)] + ins_m)
                 rk = sorted([k for k in rk if not (a_ - 0.9 <= k[0] <= b_ + 0.5)] + ins_r)
         for i in range(N):
@@ -422,6 +442,10 @@ def build(beats_path, audio_dir, outdir, cfg):
                 sis_mx[i] = seg(t, mxk) + (6 * rn(t * 0.6) if t_in + 3.7 <= t < t_out - 0.55 else 0)
                 if t_out - 0.25 <= t: sis_mx[i] = 198 + (400 - 198) * ((t - t_out + 0.25) / 0.37) ** 2   # accelerating duck-out
                 sis_rot[i] = seg(t, rk) + (0.04 * rn(t * 0.8) if t_in + 3.7 <= t < t_out - 0.4 else 0)
+    for a_, b_, w_ in B.typing:   # the extra typing on the PC: her shoulders drop toward the keyboard and she comes closer
+        if w_ != 'sis': continue
+        k = np.interp(ft, [a_ - 0.9, a_ - 0.2, b_ + 0.15, b_ + 0.5], [0, 1, 1, 0], left=0, right=0)
+        sis_sy = sis_sy + 42 * k; sis_sc = sis_sc * (1 + 0.06 * k)
     vel = np.gradient(sis_mx) * FPS
     PS['ParamAngleX'] = np.clip(PS['ParamAngleX'] + vel * 0.035, -30, 30); PS['ParamBodyAngleX'] = np.clip(PS['ParamBodyAngleX'] + vel * 0.02, -10, 10)
     PS['ParamAngleZ'] = np.clip(PS['ParamAngleZ'] - np.gradient(sis_rot) * FPS * 8, -30, 30)
