@@ -7,7 +7,7 @@ a 10-second cold open, a 5-second title card on the channel's jingle, the stream
 - **Files** — `cut.py` (the cut, audio, captions, chapters), `cards.mjs` (HTML → PNG/MP4), `sound.py` (jingle + effects), `review_edit.py` (panel)
 - **Per episode** — `edit_plan.py` in the episode folder decides what is kept, zoomed and captioned
 
-Read §1 to make one, §2 for the editing rules, §3 for review.
+Read §1 to make one, §2 for the editing rules, §3 for review. The sources behind the rules: `RESEARCH.md`.
 
 ## 1. Run
 
