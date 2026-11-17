@@ -5,8 +5,17 @@ import numpy as np
 FPS = 30
 rng = np.random.default_rng(11)   # one seeded stream for the whole build, so a build is reproducible
 # the main streamer's walk off / back in (seconds): the body path lives in build.py, the pose in the rig
-EXIT_WALK, EXIT_GONE = 1.15, 3.3          # she starts walking 1.15 s after rising, gone at 3.3 s
-RET_WALK, RET_PAUSE_END, RET_SIT_END, RET_END = 1.9, 2.25, 2.9, 3.7   # walk in, stand at the seat, sit, settle
+AFK_TIMING = {   # seconds from standing up (exit_*) / from coming back (ret_*); the streamer theme picks a style
+    # walk: she turns and walks out of frame, later walks back in
+    'walk': dict(exit_walk=1.35, exit_gone=2.65, ret_walk=1.3, ret_pause_end=1.85, ret_sit_end=2.5, ret_end=3.3),
+    # track_lost: she turns and steps toward the frame edge, face tracking is lost (the model freezes), then the model hides
+    # (VTube Studio-style); coming back, tracking catches her face, the model appears and follows her into the seat
+    'track_lost': dict(exit_walk=1.1, exit_gone=1.65, lost_fade=(2.1, 2.4), ret_walk=1.0, ret_pause_end=1.25, ret_sit_end=1.8,
+                       ret_end=2.6, back_fade=0.25),
+}
+_W = AFK_TIMING['walk']
+EXIT_WALK, EXIT_GONE = _W['exit_walk'], _W['exit_gone']
+RET_WALK, RET_PAUSE_END, RET_SIT_END, RET_END = _W['ret_walk'], _W['ret_pause_end'], _W['ret_sit_end'], _W['ret_end']
 
 
 

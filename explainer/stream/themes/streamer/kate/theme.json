@@ -50,7 +50,8 @@
     "talk_sway": 0.35,
     "nod": 1.0,
     "idle_sway": 0.8
-   }
+   },
+   "afk_style": "track_lost"
   },
   "sis": {
    "label": "동생(egirl, 속삭임)",

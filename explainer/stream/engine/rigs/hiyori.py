@@ -60,7 +60,7 @@ def synth(B, N, vt, motion=None):
         P['ParamBrowLY'][i] = v['brow']; P['ParamBrowRY'][i] = v['brow']
         P['ParamCheek'][i] = min(1, v['cheek'] + .3)
         hold_e = max(sm[max(0, i - k)] for k in range(5))
-        P['ParamMouthOpenY'][i] = 0.03 * (hold_e > 0.05) + 0.34 * max(0.0, (e - 0.12) / 0.88) ** 1.15   # small on soft syllables, a bit more on stress
+        P['ParamMouthOpenY'][i] = 0.05 * (hold_e > 0.05) + 0.46 * max(0.0, (e - 0.12) / 0.88) ** 1.15   # small on soft syllables, clearly open on stressed vowels
         form = 0.7 * vow['I'][i] + 0.5 * vow['E'][i] - 1.2 * vow['O'][i] - 1.0 * vow['U'][i] + 0.1 * vow['A'][i]
         ew = min(1.0, 0.45 + e); P['ParamMouthForm'][i] = (0.2 + 0.8 * v['smile']) * (1 - ew) + form * ew if hold_e > 0.05 else (0.2 + 0.8 * v['smile'])
         P['ParamBreath'][i] = 0.5 + 0.5 * math.sin(t * 2 * math.pi / 3.2)

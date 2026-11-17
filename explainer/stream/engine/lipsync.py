@@ -39,7 +39,7 @@ def voice_tracks(B, N):
                         cho, jung, jong = sy[k]
                         fl = getattr(B, 'lip_floor', {}).get(who, 0.82)   # how far the mouth stays open inside a syllable (a whisper: lower)
                         m = fl + (1 - fl) * math.sin(math.pi * min(1, ph * 1.1)) ** 0.7
-                        if cho in 'ㅁㅂㅃㅍ' and ph < 0.25: m = 0.05
+                        if cho in 'ㅁㅂㅃㅍ' and ph < 0.35: m = 0.0   # lips shut on ㅁ/ㅂ/ㅍ
                         mod[fi] = m; vk[fi] = VOWEL.get(jung, 'A')
             else:
                 syl = [decompose(c) for c in text if decompose(c)] or [('ㅇ', 'ㅏ', '')]
@@ -51,7 +51,7 @@ def voice_tracks(B, N):
                     m = 0.55 + 0.45 * math.sin(math.pi * min(1, ph * 1.15)) ** 0.7
                     if cho in 'ㅁㅂㅃㅍ' and ph < 0.2: m = 0.05
                     mod[fi] = m; vk[fi] = VOWEL.get(jung, 'A')
-            f0 = int(round(t0 * FPS))
+            f0 = int(round(t0 * FPS)) - 1   # the mouth leads the sound by a frame, as lips move before the air
             for i in range(nf):
                 g = f0 + i
                 if not (0 <= g < N): continue
@@ -61,10 +61,10 @@ def voice_tracks(B, N):
                 elif v: vow[v][g] = 1.0
         sm = np.zeros(N); x = 0
         for i in range(N):
-            tgt = open_[i]; x += (tgt - x) * (0.8 if tgt > x else 0.6); sm[i] = x
+            tgt = open_[i]; x += (tgt - x) * (0.9 if tgt > x else 0.65); sm[i] = x
         for k in vow:
             y = 0; v = vow[k]; r = np.zeros(N)
-            for i in range(N): y += (v[i] - y) * 0.55; r[i] = y
+            for i in range(N): y += (v[i] - y) * 0.75; r[i] = y
             vow[k] = r
         out[who] = (sm, vow)
     return out
