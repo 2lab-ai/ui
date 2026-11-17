@@ -136,8 +136,9 @@ second contact sheets read by eye, ffmpeg frame difference and `silencedetect`),
    chat bubble for the message a line answers.
 8. **Follow the drawing** (A): when a diagram is built line by line, punch into each new piece as it is said, panning
    from one piece to the next.
-9. **The real thing** (B): a licensed photo for each concrete example (a dissolve, 2–3 s, a small "📷" label so viewers
-   know it is a real photo), or a tilted photo card beside a drawing when the joke is the comparison.
+9. **The real thing** (B): a licensed photo of every real thing she names (a dissolve, 2–3 s, a small "📷" label so
+   viewers know it is a real photo), or a tilted photo card beside a drawing when the joke is the comparison. B shows a
+   picture for every analogy; our edit shows one for every named thing, on the word (the reference sweep, README §2).
 10. **The line to keep** (B): the book's core line on a dark card in a serif, no sound effect; its caption is the card.
 11. **Result card** (A): a two-line tally before the goodbye.
 12. **End card over a bonus clip** (A): a playful moment from the stream, muted under the music, with the handwritten ask.
@@ -166,3 +167,21 @@ unmarked (no label, aside or photo on those lines), as before.
   does not score the reference grammar, so it rates v2 level with v1 rather than above it. The panel's recurring asks
   across rounds were: stop the cold open earlier, fewer long explanation shots (12–18 s), less white canvas on screen in
   the explanation parts. The last two are the stream's job (prepared pages, §4.3), not the edit's.
+
+### 4.6 The public edit: the reference sweep and a new jingle (owner, 2026-11-18)
+
+The owner's verdict on v2: "오록스 사진이랑 동굴벽화 비롤은 왜 안올림? 옛날 페인트통이랑 그 회사 페인트통 사진도 왜안올림? 편집본은 말하고 실제
+레퍼런스 찾아서 해당 내용 붙여줘야지", and the jingle was "좀 별로". What changed:
+
+- **Every real thing she names now has its real photo on the word.** A sweep of the 159 kept lines found 24 named things; 27
+  photo moments in the render (some things recur). New: Seth Godin, the Purple Cow book, the aurochs (Vig skeleton, Copenhagen),
+  the Lascaux bull (replica cave), an airliner touching down, a 1928 bread slicer (Smithsonian), Wonder Bread, a flip phone,
+  mechanical keyboards, Dutch Boy's old metal tin and its plastic handled jug, MoMA, murex shells, murex-dyed wool, the
+  Guns, Germs, and Steel cover. Only the milk-carton first edition has no PD/CC0/CC BY photo; a generic carton stands in,
+  labelled "이런 우유팩". Lore lines get their subject's photo with a factual label, never a mark about her.
+- **The jingle is played on real instruments.** `edit/jingles.py` writes 14 candidates as MIDI and renders them with
+  FluidSynth and the MuseScore General SoundFont; the owner got all 14 over the real title card; the edit uses `lofi_keys`.
+- **Review of the uploaded render** (`final_edit.mp4`, sha256 `0761bb9b…`):
+  GPT 86–87, Grok 83–86, gemini-3.8-flash-high 71 → mean **80.3 / 81.0**. The panel asked to label the 1928 slicer against the
+  "1912" line (done: "1928년 첫 판매된 빵 절단기") and to make the result card opaque (done).
+- Published as the one public edit: https://youtu.be/BIKMgYKEcoo (11:43). v1 and the v2 demo are private.

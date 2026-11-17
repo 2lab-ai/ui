@@ -55,27 +55,42 @@
    ],
    "folder": "episodes/01-purple-cow",
    "edit": {
-    "url": "https://youtu.be/d4hvdDCq6_0",
-    "published": "2026-11-17 22:20 KST",
-    "length": "13:24",
-    "title": "[책듣는밤 1화 편집본] 보랏빛 소가 온다, 30분 방송을 13분으로 | 세스 고딘",
-    "title_en": "[Book Night #1 Edit] Purple Cow by Seth Godin, the 30-min stream in 13 min",
+    "url": "https://youtu.be/BIKMgYKEcoo",
+    "published": "2026-11-18 08:20 KST",
+    "length": "11:43",
+    "title": "[책듣는밤 1화 편집본] 보랏빛 소가 온다, 30분 방송을 12분으로 | 세스 고딘",
+    "title_en": "[Book Night #1 Edit] Purple Cow by Seth Godin, the 30-min stream in 12 min",
     "plan": "episodes/01-purple-cow/edit_plan.py",
-    "cold_open": "돌아온 언니가 동생 메모 \"소 다리 다섯 개였음 ㅋ\"를 읽고 \"하나는 꼬리예요\" → 다리 다섯 개 그림에 1~5 카운트",
-    "review": "edit/review_edit.py, 3 engines: 77.7 → 88.0 → 80.0 → 84.0 / 81.7 (uploaded render)"
+    "jingle": "lofi_keys (edit/jingles.py)",
+    "cold_open": "동생이 \"소 다리 다섯 개였음 ㅋ\"를 타이핑(2배속) → 언니 얼굴 → \"네 개였어요.\"에서 컷 → 다리 다섯 개 그림에 1~5 카운트 → 스크래치",
+    "marks": "edit/RESEARCH.md §4 grammar + the reference sweep: 27 real photos on the words she says (aurochs, Lascaux, Dutch Boy tin and jug, murex, MoMA, …; props/broll/CREDITS.md)",
+    "review": "edit/review_edit.py, 3 engines, mean of two runs on the uploaded render: 80.3 / 81.0"
    },
    "symbol": "보랏빛 소 실사 사진(Hereford 소 떼, 한 마리만 보라) — c11 \"사진 찍고\"에 붙여넣기; props/CREDITS.md",
-   "edit_v2": {
-    "url": "https://youtu.be/v0kjtcPzBlI",
-    "visibility": "unlisted (demo; v1 stays the public edit)",
-    "published": "2026-11-18 03:20 KST",
-    "length": "11:43",
-    "title": "[책듣는밤 1화 편집본 v2 · 데모] 보랏빛 소가 온다, 30분 방송을 12분으로 | 세스 고딘",
-    "plan": "episodes/01-purple-cow/edit_plan.py (v1: edit_plan_v1.py)",
-    "cold_open": "동생이 \"소 다리 다섯 개였음 ㅋ\"를 타이핑(2배속) → 언니 얼굴 → \"네 개였어요.\"에서 컷 → 다리 다섯 개 그림에 1~5 카운트 → 스크래치",
-    "marks": "reference edits A/B/C (edit/RESEARCH.md §4): corner labels, caption tones, state labels, editor asides, chat punch-ins, B-roll photos, thesis cards, result card, end card over a bonus clip, live-date label",
-    "review": "edit/review_edit.py, 3 engines, mean of each run over nine rounds: 79.0 → 78.3 → 78.3/79.0 → 79.3/79.7 → 79.3/79.0 → 78.7/80.0 → 80.7/79.0 → 77.3/78.7 → 80.3/80.3 (uploaded render); v1 re-scored 86.7/80.3 the same day"
-   }
+   "edit_history": [
+    {
+     "url": "https://youtu.be/d4hvdDCq6_0",
+     "published": "2026-11-17 22:20 KST",
+     "length": "13:24",
+     "title": "[책듣는밤 1화 편집본] 보랏빛 소가 온다, 30분 방송을 13분으로 | 세스 고딘",
+     "title_en": "[Book Night #1 Edit] Purple Cow by Seth Godin, the 30-min stream in 13 min",
+     "plan": "episodes/01-purple-cow/edit_plan_v1.py",
+     "cold_open": "돌아온 언니가 동생 메모 \"소 다리 다섯 개였음 ㅋ\"를 읽고 \"하나는 꼬리예요\" → 다리 다섯 개 그림에 1~5 카운트",
+     "review": "edit/review_edit.py, 3 engines: 77.7 → 88.0 → 80.0 → 84.0 / 81.7 (uploaded render)",
+     "visibility": "private since 2026-11-18 (replaced)"
+    },
+    {
+     "url": "https://youtu.be/v0kjtcPzBlI",
+     "visibility": "private since 2026-11-18 (demo, replaced)",
+     "published": "2026-11-18 03:20 KST",
+     "length": "11:43",
+     "title": "[책듣는밤 1화 편집본 v2 · 데모] 보랏빛 소가 온다, 30분 방송을 12분으로 | 세스 고딘",
+     "cold_open": "동생이 \"소 다리 다섯 개였음 ㅋ\"를 타이핑(2배속) → 언니 얼굴 → \"네 개였어요.\"에서 컷 → 다리 다섯 개 그림에 1~5 카운트 → 스크래치",
+     "marks": "reference edits A/B/C (edit/RESEARCH.md §4): corner labels, caption tones, state labels, editor asides, chat punch-ins, B-roll photos, thesis cards, result card, end card over a bonus clip, live-date label",
+     "review": "edit/review_edit.py, 3 engines, mean of each run over nine rounds: 79.0 → 78.3 → 78.3/79.0 → 79.3/79.7 → 79.3/79.0 → 78.7/80.0 → 80.7/79.0 → 77.3/78.7 → 80.3/80.3 (uploaded render); v1 re-scored 86.7/80.3 the same day",
+     "plan": "the v2 state of edit_plan.py (git history, PR #81)"
+    }
+   ]
   }
  ]
 }

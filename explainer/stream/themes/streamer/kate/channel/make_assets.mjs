@@ -100,8 +100,8 @@ const thumb1 = (lang) => {
 // ---------------- episode 1 fast edit thumbnail 1280x720: the real purple cow, big
 const thumbEdit = (lang) => {
   const T = lang === 'ko'
-    ? { badge: '책듣는밤 1화', ed: '편집본', title: '보랏빛 소가 온다', sub: '30분 방송 → 13분', hook: '진짜 있음?' }
-    : { badge: 'BOOK NIGHT #1', ed: 'EDIT', title: 'PURPLE COW', sub: '30-min stream → 13 min', hook: 'real?!' };
+    ? { badge: '책듣는밤 1화', ed: '편집본', title: '보랏빛 소가 온다', sub: '30분 방송 → 12분', hook: '진짜 있음?' }
+    : { badge: 'BOOK NIGHT #1', ed: 'EDIT', title: 'PURPLE COW', sub: '30-min stream → 12 min', hook: 'real?!' };
   return { w: 1280, h: 720, html: `${HEAD}<body style="width:1280px;height:720px;position:relative;background:#1a1426;overflow:hidden">
   <img class="abs" src="${SRC}purple_cow_field.jpg" style="left:-80px;top:-150px;width:1500px">
   <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(20,8,40,.92) 0%,rgba(20,8,40,.55) 40%,rgba(20,8,40,0) 62%)"></div>
