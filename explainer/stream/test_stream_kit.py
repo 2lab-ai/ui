@@ -247,6 +247,32 @@ def test_edit_jingle_is_five_seconds_and_effects_exist():
     for fn in (sound.whoosh, sound.pop, sound.ding, sound.boing, sound.scratch, sound.whip):
         x = fn(); assert len(x) > 1000 and np.isfinite(x).all()
 
+
+def test_edit_reference_marks_chat_punch_in_pan_and_head_mapping():
+    """RESEARCH.md §4: a chat punch-in becomes a zoom on the chat box, a pan eases between two boxes of one size,
+    a state label's anchor follows the punch-in, and every caption tone and mark style renders to HTML"""
+    sys.path.insert(0, os.path.join(HERE, 'edit'))
+    import cut
+    with tempfile.TemporaryDirectory() as d:
+        ep, bd = _fake_edit(d)
+        open(os.path.join(ep, 'edit_plan.py'), 'a').write("CHATZOOM = ['a2']\nZ['chat'] = (1294, 255, 560, 315)\n")
+        P = cut.load_plan(os.path.join(ep, 'edit_plan.py')); C = cut.Cut(ep, bd, P)
+        assert next(s for s in C.main_segments() if 'a2' in s['lines'])['zoom'] == 'chat'
+        assert P.ZOOM == {'a4': 'face'}                                                   # the plan itself is not changed
+    Z = {'a': (0, 0, 640, 360), 'b': (400, 300, 640, 360), 'c': (0, 0, 960, 540)}
+    f = cut.crop(Z, ('a', 'b'), 2.0)
+    assert 'crop=640:360' in f and "x='0+(400)*" in f and "y='0+(300)*" in f and 'min(1\\,t/2.000)' in f
+    try: cut.crop(Z, ('a', 'c'), 1.0); assert False, 'a pan between two sizes must fail'
+    except AssertionError as e: assert 'differ' in str(e)
+    assert cut.map_pt(Z, None, 100, 200) == (100, 200)
+    assert cut.map_pt(Z, 'b', 720, 480) == (960.0, 540.0)                                # the middle of the box lands in the middle
+    for tone in ('plain', 'shout', 'mutter', 'chat'): assert '<body' in cut.html_sub('줄', 'main', tone)
+    assert '#ffe14d' in cut.html_sub('리마커블이에요', 'main', 'plain', '리마커블')            # the key phrase is coloured
+    for st in ('key', 'tag', 'gag', 'narr', 'result', 'thesis'): assert '<body' in cut.html_emph('위\n아래', st)
+    assert '제일 좋아하는 말' in cut.html_emph('제일 좋아하는 말|안전한 게 제일 위험하다', 'thesis')
+    for h in (cut.html_state('긴장'), cut.html_corner('코너'), cut.html_live('생방송'), cut.html_photo_card('file:///x.jpg', '실제'),
+              cut.html_end_over({'next': 'n', 'next_title': 't', 'next_sub': 's', 'full': 'f'}, 'file:///x.jpg')): assert '<body' in h
+
 if __name__ == '__main__':
     for name, fn in list(globals().items()):
         if name.startswith('test_'): fn(); print('ok', name)

@@ -15,6 +15,12 @@ SAMPLES_REV = 'b1de66b0b1f1cb881d95fb6158622aeb6a2827bd'   # the revision the ki
 NODE_DEPS = {'pixi.js': '6.5.10', 'pixi-live2d-display': '0.4.0', 'playwright': '^1.56.0'}
 FONT = 'https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-{w}.woff2'
 WEIGHTS = ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold']
+# the edit's caption faces (edit/cut.py), all SIL OFL 1.1 from google/fonts: a heavy display face for corner labels and shouts,
+# a round face for state labels and the extra, a handwriting face for the editor's narration, a serif for the thesis card
+GF = 'https://raw.githubusercontent.com/google/fonts/main/ofl/'
+EDIT_FONTS = {'BlackHanSans-Regular.ttf': GF + 'blackhansans/BlackHanSans-Regular.ttf', 'Jua-Regular.ttf': GF + 'jua/Jua-Regular.ttf',
+              'NanumPenScript-Regular.ttf': GF + 'nanumpenscript/NanumPenScript-Regular.ttf',
+              'NanumMyeongjo-ExtraBold.ttf': GF + 'nanummyeongjo/NanumMyeongjo-ExtraBold.ttf'}
 UA = {'User-Agent': 'Mozilla/5.0 (2lab stream kit setup)'}
 
 
@@ -69,6 +75,7 @@ def setup():
         subprocess.run(['npm', 'install', '--silent', '--no-audit', '--no-fund'], cwd=nd, check=True)
         subprocess.run(['npx', 'playwright', 'install', 'chromium'], cwd=nd, check=True)
     for w in WEIGHTS: get(FONT.format(w=w), os.path.join(C, 'fonts', 'pretendard', f'Pretendard-{w}.woff2'))
+    for name, url in EDIT_FONTS.items(): get(url, os.path.join(C, 'fonts', 'edit', name))
     for f in glob.glob(os.path.join(TH.THEMES, 'streamer', '*', 'theme.json')):
         for rel, src in json.load(open(f)).get('sources', {}).items():
             dst = os.path.join(C, rel)
@@ -80,6 +87,7 @@ def check():
     need = [os.path.join(C, 'live2dcubismcore.min.js'), os.path.join(C, 'node', 'node_modules', 'pixi-live2d-display'), os.path.join(C, 'node', 'node_modules', 'playwright')]
     need += [os.path.join(C, 'cubism', 'Samples', 'Resources', m) for m in models_needed()]
     need += [os.path.join(C, 'fonts', 'pretendard', f'Pretendard-{w}.woff2') for w in WEIGHTS]
+    need += [os.path.join(C, 'fonts', 'edit', name) for name in EDIT_FONTS]
     for f in glob.glob(os.path.join(TH.THEMES, 'streamer', '*', 'theme.json')):
         need += [os.path.join(C, rel) for rel in json.load(open(f)).get('sources', {})]
     miss = [p for p in need if not os.path.exists(p)]

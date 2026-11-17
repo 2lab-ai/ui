@@ -1,68 +1,117 @@
-"""책듣는밤 1화 편집본 (fast edit of the 30-minute live VOD): what edit/cut.py keeps, cuts, zooms and captions.
-Structure the channel asked for: a 10-second cold open (the funniest, most absurd beat, cut off hard) -> 5-second title card
-with the channel's signature jingle -> the stream, jump-cut, about 13-14 minutes -> end card.
+"""책듣는밤 1화 편집본 v2 — the same live VOD cut with the editing grammar taken from three reference edits (edit/RESEARCH.md §4).
+v1 (edit_plan_v1.py) is the edit on YouTube; v2 keeps its cut and cold-open idea and adds what the references do:
+  A (a streamer's gag edit)   caption voice by tone, state labels over her head, the editor's handwritten asides, corner labels,
+                              a punch-in on the live chat when it erupts, a follow-the-drawing pan, a result card, a bonus clip under the end card
+  B (a calm book channel)     a real photo for each concrete example, a dark thesis card for the line to keep
+  C (a live-stream channel)   a '생방송 내용입니다' label where the stream part starts
 Times refer to the live build (events.json voices, marks.json); lines are ids from lines.json."""
 
 TITLE = {'channel': '지구에서 온 Kate', 'series': '📖 책듣는밤', 'ep': '1화', 'title': '보랏빛 소가 온다', 'sub': '세스 고딘 · 첫 방송 편집본',
          'bg': 'props/purple_cow_field_full.jpg', 'cow': [0.615, 0.40, 0.095, 0.15]}   # the purple cow in the photo (centre, radii as fractions)
-END = {'next': '다음 화', 'next_title': '택배로 온 진짜 벽돌', 'next_sub': '제목은 아직 비밀', 'full': '30분 풀버전 라이브', 'bye': '잘 자요, 여러분 🌙'}
+# the end card over a bonus clip: her sister peeking in while she is away (muted; reference A ends on a peek-in clip)
+END = {'next': '다음 화', 'next_title': '택배로 온 진짜 벽돌', 'next_sub': '제목은 아직 비밀', 'full': '30분 풀버전 라이브',
+       'ask': '구독 · 좋아요 · 알림설정 부탁드려요', 'clip': ['mark', 'sis_in', -0.8], 'clip_zoom': 'peek',
+       'clip_pip': (110, 450, 760), 'dur': 12.0}   # the clip in a window at the left; the right 40% is for YouTube's end-screen elements
 
-# zoom boxes on the 1920x1080 live frame (x, y, w, h), 16:9
-Z = {'face': (1000, 563, 920, 517), 'kate': (640, 360, 1280, 720), 'note': (180, 250, 800, 450), 'note2': (260, 290, 640, 360), 'note3': (370, 380, 420, 236),
-     'tvloop': (120, 280, 880, 495), 'plist': (110, 585, 880, 495), 'curve_left': (40, 360, 1100, 619), 'chair': (380, 270, 720, 405),
-     'cows': (100, 290, 960, 540), 'cow5': (31, 314, 448, 252), 'camel': (560, 600, 560, 315)}
+LIVE = '2026. 11. 17(화) 생방송 내용입니다'
+MAIN_LEAD = 0.35   # air between the jingle and her first word
 
-# 10 s cold open: Kate comes back, finds her sister's note on the canvas, insists the cow had four legs ... then the evidence.
-COLD_OPEN = [{'line': 'p06', 'zoom': 'note3', 'pre': 0.4}, {'line': 'p07', 'zoom': 'kate'}, {'line': 'p09', 'zoom': 'face', 'post': 0.35},
+# zoom boxes on the 1920x1080 live frame (x, y, w, h), 16:9; a pair of names in ZOOM is a pan (same size)
+Z = {'face': (1262, 560, 658, 370),   # her face only: no strip of white canvas at the left edge
+     'face_wide': (1000, 563, 920, 517), 'kate': (640, 360, 1280, 720), 'note': (368, 360, 400, 225),
+     'loop_tl': (60, 190, 640, 360), 'loop_tr': (430, 190, 640, 360), 'loop_br': (430, 360, 640, 360), 'loop_bottom': (100, 380, 900, 506),
+     'remark': (120, 270, 640, 360), 'bread': (100, 640, 640, 360), 'curve': (110, 345, 1040, 585), 'edges_text': (100, 270, 640, 360),
+     'plist': (110, 560, 900, 506), 'curve_left': (40, 360, 1100, 619), 'chair': (380, 250, 720, 405),
+     'cows': (100, 290, 960, 540), 'cow5': (31, 314, 448, 252), 'camel': (560, 600, 560, 315), 'chat': (1294, 255, 560, 315), 'peek': (1262, 600, 658, 370)}
+HEAD = (1590, 600)   # a point on her hat in the live frame: where state labels sit (they follow the punch-ins)
+
+# 10 s cold open: while she is away her sister types a note on the canvas (2x, framed on the note) -> she comes back, reads it -> '그리고 네 개였어요.'
+# (cut before '하나는 꼬리예요', so the hook stops on the contradiction) -> her own five-legged cow, counted -> scratch, title.
+# v1 framed the canvas around the note (the ninth-P list leaked in) and ended after the excuse; reviewers asked for both to go.
+COLD_OPEN = [{'at': ['t', 975.7], 'dur': 3.2, 'speed': 2.0, 'zoom': 'note',   # the note mid-typing, readable from the first frame
+              'caption': {'text': '(언니 자리 비운 사이)', 'style': 'narr', 'x': 960, 'y': 170, 'at': 0.0, 'sfx': None}},
+             {'line': 'p06', 'zoom': 'face', 'pre': 0.6}, {'line': 'p07', 'zoom': 'face'},
+             {'line': 'p09', 'zoom': 'face', 'from': 0.28, 'cut': 1.36, 'text': '네 개였어요.', 'text_en': 'It had four.'},
              {'at': ['line', 'c05', 0.1], 'dur': 0.1, 'hold': 'fill', 'zoom': 'cow5', 'mute': True,
-              'count': {'xs': [643, 733, 870, 1003, 1101], 'y': 975, 'at': 0.1, 'step': 0.2, 'sfx': 'pop'},   # her five legs, counted
-              'caption': {'text': '다리 5개 (꼬리 없음)', 'style': 'gag', 'x': 960, 'y': 170, 'at': 1.2, 'sfx': 'boing'}, 'end_sfx': 'scratch'}]
-COLD_LEN = 10.0   # the last shot holds until the cold open is this long
+              'count': {'xs': [643, 733, 870, 1003, 1101], 'y': 975, 'at': 0.05, 'step': 0.1, 'sfx': 'pop'},   # her five legs, counted
+              'caption': {'text': '다리 5개', 'style': 'gag', 'x': 960, 'y': 170, 'at': 0.55, 'sfx': 'boing'}, 'end_sfx': 'scratch'}]
+COLD_LEN = 10.0
 
-# lines left out of the edit (about 6 minutes of a 17.9-minute script): greetings, side notes, second examples, the long recap
-DROP = {'o01', 'o02', 'o05', 'o08', 'o09', 'o11', 'o12', 'o15', 'o06', 'o16', 'o17', 'o18', 'o19', 'o20', 'o21', 'o22', 'o23',
+# lines left out: v1's list, plus o04, o07, o10 (the opening reaches the book sooner; the title card already names the series);
+# z17-z18 come back (her awkward 'subscribe' is a beat)
+DROP = {'o01', 'o02', 'o04', 'o05', 'o07', 'o08', 'o09', 'o10', 'o13', 'o14', 'o11', 'o12', 'o15', 'o06', 'o16', 'o17', 'o18', 'o19', 'o20', 'o21', 'o22', 'o23',
         'b10', 'b11', 'b12', 'b14', 'b15', 'b18', 'b19', 'b20', 'b21', 'b22', 'b23', 'b24', 'b25',
-        'c16', 'c24', 'c25', 'c26', 'c27',
-        'r03', 'r15', 'r16', 'r17', 'r20', 'r25', 'r27', 'r28', 'r31',
-        't08', 't19', 't25', 't26', 't27', 't28', 't29', 't30', 't31', 't32', 't33',
+        'c08', 'c16', 'c19', 'c20', 'c24', 'c25', 'c26', 'c27',
+        'r03', 'r10', 'r15', 'r16', 'r17', 'r20', 'r25', 'r27', 'r28', 'r31',
+        't08', 't11', 't15', 't19', 't21', 't25', 't26', 't27', 't28', 't29', 't30', 't31', 't32', 't33',
         'p04', 'p12', 'p13', 'y02', 'y05',
-        'i11', 'i16', 'i17', 'i26', 'i27', 'i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34',
+        'i09', 'i11', 'i16', 'i17', 'i26', 'i27', 'i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34',
         'x09', 'x12', 'x21', 'x22', 'x30', 'x31', 'x32', 'x33', 'x34', 'x35', 'x36', 'x37',
         'g10', 'g11', 'g16', 'g17', 'g18', 'g19',
-        'z09', 'z10', 'z11', 'z12', 'z13', 'z14', 'z15', 'z16', 'z17', 'z18'}
+        'z09', 'z10', 'z11', 'z12', 'z13', 'z14', 'z15', 'z16'}
 
-# punch-ins on a line (a cut to a closer frame for the whole line)
-ZOOM = {'o14': 'face', 'b05': 'face', 'c04': 'cows', 'c23': 'face', 'r10': 'face', 'r21': 'face', 'r23': 'face', 't12': 'face',
-        't07': 'tvloop', 't21': 'plist', 't22': 'plist', 't23': 'plist', 'i10': 'curve_left', 'x10': 'chair', 'x11': 'chair',
-        'p02': 'face', 'p07': 'note2', 'p08': 'face', 'p09': 'face', 'i23': 'face', 'x28': 'camel', 'g07': 'face', 'z08': 'kate'}
+# punch-ins on a line; the TV loop is followed box by box as she draws it (t04 -> t07); a term or diagram fills the frame while it is explained
+# one mark per line: a line that carries a state label or an aside gets no face punch-in (the label is the emphasis)
+ZOOM = {'c04': 'cows', 'c23': 'face', 't12': 'face',
+        't04': 'loop_tl', 't05': 'loop_tr', 't06': 'loop_br', 't07': 'loop_bottom',
+        'r04': 'remark', 'r05': 'remark', 'i04': 'curve', 'i08': 'curve', 'g03': 'edges_text', 'g04': 'edges_text',
+        't17': 'bread', 't18': 'bread', 'r12': 'face', 'i20': 'face',
+        't22': 'plist', 't23': 'plist', 'i10': 'curve_left', 'x11': 'chair',
+        'p02': 'face', 'p07': 'note', 'x27': 'camel', 'z08': 'kate'}
+CHATZOOM = ['c12', 'g06']   # the live chat erupts here (the purple-cow photo, the 'thickest books only' idea): cut to the chat, her line as a chat box
 
-# the editor's captions: at = fraction of the line; style gag (yellow, tilted) | key (purple box) | tag (small pink label)
+# caption voice (reference A): shout = heavy face, mutter = small handwriting; HL colours one key phrase inside a caption
+TONE = {'i22': 'shout', 'p09': 'shout', 'p06': 'mutter', 'p07': 'mutter', 'z18': 'mutter'}
+HL = {'b17': '눈에 안 띄면, 없는 거랑 똑같다', 'c12': '보랏빛 소', 'r02': '리마커블', 't02': 'TV 산업 복합체', 'i13': '스니저', 'i18': '오타쿠'}
+
+# corner labels (reference A): the start of each part, in the editor's words
+CORNERS = {'b01': '오늘의 책: 보랏빛 소가 온다', 'c01': '고속도로 옆 소 떼', 'r01': '리마커블의 반대말', 't01': 'TV 광고 공식, 고장 나다',
+           'p01': '돌발 상황: 택배', 'i01': '누구한테 팔까', 'x01': '진짜 보라색 소들', 'g01': '가장자리로 가라', 'z01': '한 줄 정리'}
+
+# state labels over her head while a state lasts (reference A: (움찔), (위기)); never on the lore lines
+STATE = [('o03', 'o03', '첫 방송 긴장'), ('r21', 'r23', '첫 후원 동공지진'), ('p08', 'p09', '억울'), ('i23', 'i23', '오타쿠 판정'),
+         ('z17', 'z18', '대본 읽는 중')]
+
+# the editor's marks: key (purple box, the book's point), tag (pink pill), gag (tilted yellow), narr (the editor's handwritten aside),
+# result (two-line tally), thesis (the line to keep on a dark screen; its caption is the card). No mark repeats the line; none on lore lines.
 EMPH = {
-    'b05': ('벽돌은 다음부터', 'gag', 'pop'),
-    'b07': ('책을 우유팩에?!', 'key', 'ding'), 'c04': ('다리… 5개?', 'gag', 'boing'),
-    
     'r09': ('리마커블의 반대말 = 아주 좋은', 'key', 'ding'), 'r14': ('아주 좋은 건, 안 보인다', 'key', 'ding'),
-    'r21': ('첫 후원!!', 'gag', 'ding'), 
-    't23': ('아홉 번째 P = 보랏빛 소', 'key', 'ding'), 'y01': ('동생 등장', 'tag', 'ding'),
-    'y08': ('(도망)', 'gag', 'boing'), 
-    'i05': ('(폴더폰 저격)', 'gag', 'pop'), 'i13': ('재채기꾼 = 스니저', 'key', 'ding'), 
-    'x07': ('(우유통 맞음)', 'gag', 'boing'), 'x11': ('의자가 미술관에', 'key', 'ding'), 'x24': ('안전한 게 제일 위험하다', 'key', 'ding'),
-    'x28': ('(낙타 맞음?)', 'gag', 'boing'), 'g02': ('가장자리로 가라', 'key', 'ding'), 
-    'g09': ('다음 벽돌 후보: 총균쇠', 'tag', 'ding'), 'z02': ('아주 좋은 건, 안 보인다', 'key', 'ding'),
+'y01': ('동생 등장', 'tag', 'ding'), 'y08': ('(도망)', 'gag', 'boing'),
+    'p10': ('다 봤음', 'narr', 'pop'),
+    'i05': ('(폴더폰 저격)', 'gag', 'pop'), 'i13': ('재채기꾼 = 스니저', 'key', 'ding'), 'i25': ('재채기 감염 1명 확인', 'narr', 'pop'),
+    'x07': ('(누가 봐도 우유통)', 'narr', 'boing'),   # x11: the canvas already says '= 미술관' and x10 shows the real chair
+    'x24': ('제일 좋아하는 말|안전한 게 제일 위험하다', 'thesis', None),
+    'g02': ('가장자리로 가라', 'key', 'ding'), 'g07': ('채널 콘셉트: 채팅이 정함', 'narr', 'pop'), 'g09': ('채팅 추천: 총균쇠', 'tag', 'ding'),
+    'z02': ('아주 좋은 건, 안 보인다', 'thesis', None),
+    'z05': ('첫 방송 결산\n후원 3번 · 동생 1번 · 다리 다섯 개 소 1마리', 'result', 'ding'),
 }
 
-# chat that a line answers, shown as a bubble (the live chat panel is too small to read at edit speed)
+# chat that a line answers, shown as a bubble (the live chat panel is too small to read at edit speed); g06 now punches into the real chat
 CHAT = {'b04': '근데 벽돌책이라면서 얇지 않아요?', 'b13': '표지 보라색이죠?', 'c22': '이 채널은 보라 소인가',
         'c28': '근데 보라색 소 진짜 있음?', 'r07': '평범함? 지루한 거? 노잼', 'r29': '우리 동네 줄 서는 빵집 있음', 't12': '유튜브 프리미엄 씀 ㅋㅋ',
         't22': '4P만 배웠는데', 'y06': '몇 살이에요?', 'i07': '가운데요 / 대다수', 'i15': '나 재채기꾼임', 'i19': '오타쿠가 책에 나옴?',
-        'x07': '그림 우유통 같음', 'x17': '근데 왜 하필 보라색이에요?', 'x28': '그림 낙타 맞음?', 'g06': '제일 두꺼운 책만 읽는 방송'}
+        'x17': '근데 왜 하필 보라색이에요?'}
 
-# the book's symbol as a real picture: the photo she pastes at '사진 찍고' fills the screen for a moment
-INSERTS = [{'at': ['mark', 'photo', 0.35], 'dur': 3.6, 'image': 'props/purple_cow_field_full.jpg', 'focus': [0.62, 0.52],
-            'chat': '합성 아님? ㅋㅋㅋ', 'sfx': 'whoosh'},
-           {'at': ['line', 'c21', 0.05], 'dur': 1.4, 'image': 'props/purple_cow_field_full.jpg', 'focus': [0.62, 0.45], 'zoom0': 1.35, 'sfx': 'whoosh'},   # callback: '보라색이어야'
+# the book's symbol as a real picture: the photo she pastes at '사진 찍고' fills the screen; the real chat follows (CHATZOOM c12)
+INSERTS = [{'at': ['mark', 'photo', 0.35], 'dur': 2.0, 'image': 'props/purple_cow_field_full.jpg', 'focus': [0.62, 0.52], 'sfx': 'whoosh'},
+           {'at': ['line', 'c21', 0.05], 'dur': 1.4, 'image': 'props/purple_cow_field_full.jpg', 'focus': [0.62, 0.45], 'zoom0': 1.35, 'sfx': 'whoosh'},
            {'at': ['line', 'g13', 0.35], 'dur': 1.8, 'image': 'props/purple_field_all.jpg', 'focus': [0.5, 0.5], 'zoom0': 1.0, 'sfx': 'whoosh'},   # '그 들판은 또 보라색 소 천지'
-           {'at': ['line', 'z02', 0.0], 'dur': 1.8, 'image': 'props/purple_cow_field_full.jpg', 'focus': [0.62, 0.45], 'zoom0': 1.15, 'sfx': 'whoosh'}]   # the one line to keep
+           ]
+
+# reference B: the real thing behind each concrete example, a dissolve in and out (props/broll/CREDITS.md)
+BROLL = [{'at': ['line', 'c03', 0.05], 'dur': 3.2, 'image': 'props/broll/cows_roadside.jpg', 'focus': [0.55, 0.5], 'label': '📷 길가 목장의 소들'},
+         {'at': ['line', 'b07', 0.1], 'layout': 'card', 'dur': 3.6, 'image': 'props/broll/milk_carton.jpg', 'size': (520, 420), 'pos': (1000, 520), 'tilt': -3,
+          'label': '이런 우유팩에 책을'},
+         {'at': ['line', 't02', 0.1], 'dur': 2.6, 'image': 'props/broll/vintage_tv.jpg', 'focus': [0.35, 0.4], 'label': '📷 그 시절 TV'},
+         {'at': ['line', 'x10', 0.05], 'layout': 'card', 'dur': 3.4, 'image': 'props/broll/aeron_chair.jpg', 'size': (420, 560), 'pos': (1060, 600), 'tilt': 2,
+          'label': '실제 에어론 의자'},
+         {'at': ['line', 'x14', 0.1], 'layout': 'card', 'dur': 3.2, 'image': 'props/broll/elevator_destination_panel.jpg', 'size': (400, 540), 'pos': (980, 540), 'tilt': -2,
+          'label': '층 먼저 누르는 버튼'},
+         {'at': ['line', 't23', 0.35], 'layout': 'card', 'dur': 2.6, 'image': 'props/purple_cow_field_full.jpg', 'size': (440, 300), 'pos': (420, 470),
+          'tilt': -3, 'label': '아홉 번째 P = 이 소', 'sfx': 'pop'},   # the symbol called back as a card, not full screen again
+         {'at': ['line', 'g14', 0.2], 'dur': 2.2, 'image': 'props/broll/cows_roadside.jpg', 'focus': [0.45, 0.5], 'zoom0': 1.1, 'label': '📷 그 고속도로 옆 소들'},   # callback
+         {'at': ['line', 'x28', 0.15], 'layout': 'card', 'dur': 3.4, 'image': 'props/broll/bactrian_camel.jpg', 'size': (440, 320), 'pos': (330, 430), 'tilt': -3,
+          'label': '실제 낙타 (혹 2개 맞음)'}]
 
 # a cut that skips minutes gets a small time card
 JUMP_CARDS = {'y01': '⏩ 1분 뒤'}
