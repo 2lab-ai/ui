@@ -1,0 +1,1653 @@
+[
+ {
+  "id": "o01",
+  "who": "main",
+  "text": "음, 이거 켜진 거 맞죠? 소리 들려요?",
+  "dir": "leaning in to the mic, unsure the stream is live"
+ },
+ {
+  "id": "o02",
+  "who": "main",
+  "text": "들린다. 다행이다.",
+  "dir": "a small relieved exhale, to herself"
+ },
+ {
+  "id": "o03",
+  "who": "main",
+  "text": "안녕하세요. 이렇게 인사하는 거 처음이라, 좀 어색하네요.",
+  "dir": "shy first hello, smiling",
+  "tts": "안녕하세요. 이렇게 인사하는 거 처음이라, [laughs softly] 좀 어색하네요."
+ },
+ {
+  "id": "o04",
+  "who": "main",
+  "text": "네, 오늘이 첫 방송이에요.",
+  "dir": "a little proud, a little nervous"
+ },
+ {
+  "id": "o05",
+  "who": "main",
+  "text": "벌써 와 계신 분들이 있네. 반가워요, 진짜로.",
+  "dir": "genuinely touched, reading chat"
+ },
+ {
+  "id": "o06",
+  "who": "main",
+  "text": "알고리즘 타고 오셨어요? 알고리즘님 감사합니다.",
+  "dir": "playful little bow to the algorithm"
+ },
+ {
+  "id": "o07",
+  "who": "main",
+  "text": "방송 이름은 책듣는밤이에요. 책 읽는 밤 말고, 책 듣는 밤.",
+  "dir": "explaining the name, stress on 듣는"
+ },
+ {
+  "id": "o08",
+  "who": "main",
+  "text": "두꺼운 벽돌책 있잖아요. 사 놓고 베개로 쓰는 책.",
+  "dir": "teasing, knowing"
+ },
+ {
+  "id": "o09",
+  "who": "main",
+  "text": "그런 책을 제가 대신 꼭꼭 씹어서 읽고요,",
+  "dir": "slow, a chewing rhythm on 꼭꼭"
+ },
+ {
+  "id": "o10",
+  "who": "main",
+  "text": "여러분은 소화하기 쉽게, 말로 듣기만 하시면 돼요.",
+  "dir": "warm, inviting"
+ },
+ {
+  "id": "o11",
+  "who": "main",
+  "text": "한 권에 30분. 대신 읽어 드리는 30분이에요.",
+  "dir": "a clear promise, steady",
+  "say": "한 권에 삼십 분. 대신 읽어 드리는 삼십 분이에요."
+ },
+ {
+  "id": "o12",
+  "who": "main",
+  "text": "듣다가 잠 오면 주무셔도 돼요. 그것도 듣는 거예요.",
+  "dir": "soft, permissive",
+  "tts": "듣다가 잠 오면 주무셔도 돼요. [laughs softly] 그것도 듣는 거예요."
+ },
+ {
+  "id": "o13",
+  "who": "main",
+  "text": "그림판도 켜 놨는데요, 그림은 기대하지 마세요.",
+  "dir": "pre-emptive apology, deadpan"
+ },
+ {
+  "id": "o14",
+  "who": "main",
+  "text": "기대하지 말라니까요.",
+  "dir": "mock stern at the chat"
+ },
+ {
+  "id": "o15",
+  "who": "main",
+  "text": "화분이요? 네, 좀 많죠. 얘네가 저보다 방을 더 넓게 써요.",
+  "dir": "fond, a quick look around the room"
+ },
+ {
+  "id": "o16",
+  "who": "main",
+  "text": "목소리요? 감사해요. 오늘 하루 종일 아껴 뒀어요.",
+  "dir": "pleased, a little bashful"
+ },
+ {
+  "id": "b01",
+  "who": "main",
+  "text": "첫 책은 이거예요. 보랏빛 소가 온다.",
+  "dir": "presenting the book, a touch dramatic"
+ },
+ {
+  "id": "b02",
+  "who": "main",
+  "text": "세스 고딘이라는, 마케팅 하는 아저씨가 쓴 책이에요.",
+  "dir": "casual, friendly"
+ },
+ {
+  "id": "b03",
+  "who": "main",
+  "text": "회사에서 읽으라고 주는 책 맞아요. 그리고 다들 안 읽는 책.",
+  "dir": "knowing smile",
+  "tts": "회사에서 읽으라고 주는 책 맞아요. [laughs softly] 그리고 다들 안 읽는 책."
+ },
+ {
+  "id": "b04",
+  "who": "main",
+  "text": "벽돌책 아니지 않냐고요? 맞아요. 얇아요.",
+  "dir": "caught out, admitting it with a grin"
+ },
+ {
+  "id": "b05",
+  "who": "main",
+  "text": "첫 방송이잖아요. 워밍업이에요. 벽돌은 다음부터.",
+  "dir": "bargaining, light"
+ },
+ {
+  "id": "b06",
+  "who": "main",
+  "text": "대신 이 책은요, 처음에 우유팩에 담겨서 나왔어요.",
+  "dir": "leaning in, sharing a fun fact"
+ },
+ {
+  "id": "b07",
+  "who": "main",
+  "text": "진짜예요. 2002년에 저자가 직접 찍어서, 우유팩에 넣어 보냈대요.",
+  "dir": "matter-of-fact, amused",
+  "say": "진짜예요. 이천이 년에 저자가 직접 찍어서, 우유팩에 넣어 보냈대요."
+ },
+ {
+  "id": "b08",
+  "who": "main",
+  "text": "책값은 안 받고, 배송비만 받았고요.",
+  "dir": "counting it off"
+ },
+ {
+  "id": "b09",
+  "who": "main",
+  "text": "책에 쓴 대로 책을 판 거예요. 사람들이 얘기할 수밖에 없게.",
+  "dir": "admiring, slower"
+ },
+ {
+  "id": "b10",
+  "who": "main",
+  "text": "그다음에 정식으로 나온 게 2003년이에요.",
+  "dir": "continuing the timeline",
+  "say": "그다음에 정식으로 나온 게 이천삼 년이에요."
+ },
+ {
+  "id": "b11",
+  "who": "main",
+  "text": "처음 2년 동안 15만 부가 팔렸대요. 23쇄까지 찍고요.",
+  "dir": "impressed by the numbers, a little wide-eyed",
+  "say": "처음 이 년 동안 십오만 부가 팔렸대요. 이십삼 쇄까지 찍고요."
+ },
+ {
+  "id": "b12",
+  "who": "main",
+  "text": "우리나라엔 2004년에 나왔고, 2023년에 새 판이 또 나왔어요.",
+  "dir": "informational, quick",
+  "say": "우리나라엔 이천사 년에 나왔고, 이천이십삼 년에 새 판이 또 나왔어요."
+ },
+ {
+  "id": "b13",
+  "who": "main",
+  "text": "표지 보라색 맞아요. 당연히.",
+  "dir": "of course, smiling"
+ },
+ {
+  "id": "b14",
+  "who": "main",
+  "text": "첫 책으로 이걸 고른 이유는 간단해요.",
+  "dir": "confiding"
+ },
+ {
+  "id": "b15",
+  "who": "main",
+  "text": "첫 방송이니까, 저부터 눈에 띄어야 되잖아요. 공부하는 마음으로.",
+  "dir": "self-aware, honest"
+ },
+ {
+  "id": "b16",
+  "who": "main",
+  "text": "오늘 할 얘기는 사실 딱 하나예요.",
+  "dir": "focusing, setting the agenda"
+ },
+ {
+  "id": "b17",
+  "who": "main",
+  "text": "눈에 안 띄면, 없는 거랑 똑같다.",
+  "dir": "slow, weighty"
+ },
+ {
+  "id": "b18",
+  "who": "main",
+  "text": "이 한 줄을 30분 동안 꼭꼭 씹어 볼게요.",
+  "dir": "cozy determination",
+  "say": "이 한 줄을 삼십 분 동안 꼭꼭 씹어 볼게요."
+ },
+ {
+  "id": "c01",
+  "who": "main",
+  "text": "책은 소 얘기로 시작해요.",
+  "dir": "storyteller mode begins"
+ },
+ {
+  "id": "c02",
+  "who": "main",
+  "text": "저자가 가족이랑 프랑스를 차로 여행하는데요,",
+  "dir": "painting the scene"
+ },
+ {
+  "id": "c03",
+  "who": "main",
+  "text": "고속도로 옆 들판에 소들이 쭉 있는 거예요. 동화책에 나오는 그런 소.",
+  "dir": "dreamy"
+ },
+ {
+  "id": "c04",
+  "who": "main",
+  "text": "다들 창밖 보면서, 와 예쁘다, 했대요.",
+  "dir": "mimicking the family, sweet"
+ },
+ {
+  "id": "c05",
+  "who": "main",
+  "text": "근데 이십 분쯤 지나니까,",
+  "dir": "slowing down, setting up the turn"
+ },
+ {
+  "id": "c06",
+  "who": "main",
+  "text": "다들 소를 쳐다도 안 보더래요.",
+  "dir": "flat, the punchline"
+ },
+ {
+  "id": "c07",
+  "who": "main",
+  "text": "처음 본 소는 신기한데, 백 번째 소는 그냥 풍경이에요.",
+  "dir": "explaining, gentle"
+ },
+ {
+  "id": "c08",
+  "who": "main",
+  "text": "소가 나빠진 게 아니에요. 소는 그대로 예쁜데, 우리가 익숙해진 거죠.",
+  "dir": "thoughtful"
+ },
+ {
+  "id": "c09",
+  "who": "main",
+  "text": "그때 저자가 생각한 거예요.",
+  "dir": "building up"
+ },
+ {
+  "id": "c10",
+  "who": "main",
+  "text": "만약에 저기 보라색 소가 한 마리 있으면?",
+  "dir": "eyes lighting up, curious"
+ },
+ {
+  "id": "c11",
+  "who": "main",
+  "text": "그건 보겠죠. 차 세우고, 사진 찍고, 친구한테 전화하고.",
+  "dir": "excited, listing quickly"
+ },
+ {
+  "id": "c12",
+  "who": "main",
+  "text": "그게 이 책 제목이에요. 보랏빛 소.",
+  "dir": "landing the point"
+ },
+ {
+  "id": "c13",
+  "who": "main",
+  "text": "소도 원래는 이렇게 순하게 생긴 게 아니었어요.",
+  "dir": "casually, almost to herself, looking at the drawing"
+ },
+ {
+  "id": "c14",
+  "who": "main",
+  "text": "오록스라고, 소 조상이 있는데, 어깨가 사람 키만 하고 뿔이 앞으로 이렇게 휘었어요.",
+  "dir": "matter-of-fact, describing something she knows well"
+ },
+ {
+  "id": "c15",
+  "who": "main",
+  "text": "동굴 벽에 그걸 그린 사람들, 진짜 잘 그렸어요. 저보다 훨씬.",
+  "dir": "fond, then self-deprecating",
+  "tts": "동굴 벽에 그걸 그린 사람들, 진짜 잘 그렸어요. [laughs softly] 저보다 훨씬."
+ },
+ {
+  "id": "c16",
+  "who": "main",
+  "text": "하여튼, 우리 얘기로 돌아오면요.",
+  "dir": "steering back, brisk"
+ },
+ {
+  "id": "c17",
+  "who": "main",
+  "text": "요즘은 가게도, 앱도, 유튜브도 다 들판이에요. 소가 너무 많아요.",
+  "dir": "wry, observational"
+ },
+ {
+  "id": "c18",
+  "who": "main",
+  "text": "갈색 소 한 마리 더 데려다 놓는다고 누가 봐요? 안 보죠.",
+  "dir": "rhetorical, a shrug"
+ },
+ {
+  "id": "c19",
+  "who": "main",
+  "text": "매일 지나가는 길에 간판 몇 개나 기억나세요?",
+  "dir": "asking the chat, curious"
+ },
+ {
+  "id": "c20",
+  "who": "main",
+  "text": "저는 하나도 기억 안 나요. 매일 보는데.",
+  "dir": "honest, amused at herself"
+ },
+ {
+  "id": "c21",
+  "who": "main",
+  "text": "그러니까 보라색이어야 한다는 거예요.",
+  "dir": "firm conclusion"
+ },
+ {
+  "id": "c22",
+  "who": "main",
+  "text": "이 채널이요? 음, 그건 여러분이 정해 주세요.",
+  "dir": "deflecting with a smile",
+  "tts": "이 채널이요? [laughs softly] 음, 그건 여러분이 정해 주세요."
+ },
+ {
+  "id": "c23",
+  "who": "main",
+  "text": "제가 보라색이라고 우기면, 그건 그냥 광고고요.",
+  "dir": "self-aware, dry"
+ },
+ {
+  "id": "r01",
+  "who": "main",
+  "text": "이제 이 책에서 제일 중요한 단어 하나.",
+  "dir": "teacherly but cozy"
+ },
+ {
+  "id": "r02",
+  "who": "main",
+  "text": "리마커블. 영어로 remarkable.",
+  "dir": "careful pronunciation",
+  "say": "리마커블. 영어로 리마커블."
+ },
+ {
+  "id": "r03",
+  "who": "main",
+  "text": "보통 놀라운, 이렇게 번역하는데요, 저자는 조금 다르게 써요.",
+  "dir": "nuance, thoughtful"
+ },
+ {
+  "id": "r04",
+  "who": "main",
+  "text": "리마크, 그러니까 한마디 할 만한. 말할 가치가 있는 거요.",
+  "dir": "breaking the word apart slowly"
+ },
+ {
+  "id": "r05",
+  "who": "main",
+  "text": "누가 친구한테 굳이, 야 이거 봤어? 하게 만드는 거.",
+  "dir": "acting out a friend, animated"
+ },
+ {
+  "id": "r06",
+  "who": "main",
+  "text": "그럼 이거의 반대말은 뭘까요? 채팅으로 맞혀 보세요.",
+  "dir": "inviting, a playful quiz"
+ },
+ {
+  "id": "r07",
+  "who": "main",
+  "text": "평범함, 지루함, 구린 거. 다 좋은데요,",
+  "dir": "reading answers, nodding"
+ },
+ {
+  "id": "r08",
+  "who": "main",
+  "text": "책에서 말하는 반대말은요,",
+  "dir": "a pause for effect"
+ },
+ {
+  "id": "r09",
+  "who": "main",
+  "text": "바로, 아주 좋은, 이에요.",
+  "dir": "the reveal, quiet"
+ },
+ {
+  "id": "r10",
+  "who": "main",
+  "text": "이상하죠? 저도 처음에 여기서 멈췄어요.",
+  "dir": "empathetic"
+ },
+ {
+  "id": "r11",
+  "who": "main",
+  "text": "비행기를 탔는데, 아무 일 없이 잘 도착했어요. 그거 누구한테 얘기해요?",
+  "dir": "posing a scenario"
+ },
+ {
+  "id": "r12",
+  "who": "main",
+  "text": "안 하죠. 아주 좋았는데, 할 말이 없어요.",
+  "dir": "a soft punch"
+ },
+ {
+  "id": "r13",
+  "who": "main",
+  "text": "근데 기장님이 안내 방송으로 노래를 불렀다? 그건 평생 얘기하죠.",
+  "dir": "delighted, lively"
+ },
+ {
+  "id": "r14",
+  "who": "main",
+  "text": "그러니까 아주 좋은 건 나쁜 게 아니에요. 그냥 안 보이는 거예요.",
+  "dir": "clarifying, earnest"
+ },
+ {
+  "id": "r15",
+  "who": "main",
+  "text": "다들 이미 아주 좋거든요. 무난한 자리는 벌써 꽉 차 있어요.",
+  "dir": "pointed, steady"
+ },
+ {
+  "id": "r16",
+  "who": "main",
+  "text": "이상하기만 하면 되냐고요? 아뇨, 그건 아니에요.",
+  "dir": "taking the pushback seriously"
+ },
+ {
+  "id": "r17",
+  "who": "main",
+  "text": "그냥 튀는 거랑은 달라요. 말할 가치가 있어야 돼요.",
+  "dir": "an honest correction, measured"
+ },
+ {
+  "id": "r18",
+  "who": "main",
+  "text": "갈색 소를 보라색으로 칠하면, 비 오는 날 다시 갈색이 돼요.",
+  "dir": "a wry image, small smile"
+ },
+ {
+  "id": "r19",
+  "who": "main",
+  "text": "그래서 저자는 보라색이 광고가 아니라 물건 안에 들어 있어야 된대요.",
+  "dir": "serious, the key distinction"
+ },
+ {
+  "id": "r20",
+  "who": "main",
+  "text": "광고에 칠하는 게 아니라, 만들 때부터 넣는 거.",
+  "dir": "restating it simply"
+ },
+ {
+  "id": "r21",
+  "who": "main",
+  "text": "헉, 후원.",
+  "dir": "startled, delighted"
+ },
+ {
+  "id": "r22",
+  "who": "main",
+  "text": "천 치즈 감사합니다. 첫 방송 첫 후원이에요.",
+  "dir": "touched, a bit flustered"
+ },
+ {
+  "id": "r23",
+  "who": "main",
+  "text": "구독까지요? 이거 저 평생 얘기할 거예요.",
+  "dir": "warm, laughing"
+ },
+ {
+  "id": "r24",
+  "who": "main",
+  "text": "봐요, 이게 리마커블이에요. 말할 수밖에 없는 거.",
+  "dir": "tying it back, delighted"
+ },
+ {
+  "id": "t01",
+  "who": "main",
+  "text": "그럼 옛날엔 왜 갈색 소로도 됐을까요?",
+  "dir": "a curious setup"
+ },
+ {
+  "id": "t02",
+  "who": "main",
+  "text": "책에서는 이걸 TV 산업 복합체라고 불러요.",
+  "dir": "naming the term, slightly formal",
+  "say": "책에서는 이걸 티비 산업 복합체라고 불러요."
+ },
+ {
+  "id": "t03",
+  "who": "main",
+  "text": "공식이 간단했어요.",
+  "dir": "simple, rhythmic"
+ },
+ {
+  "id": "t04",
+  "who": "main",
+  "text": "모두가 좋아할 만한, 무난한 걸 만들어요.",
+  "dir": "step one"
+ },
+ {
+  "id": "t05",
+  "who": "main",
+  "text": "그걸 TV에 엄청 틀어요.",
+  "dir": "step two, stress on 엄청",
+  "say": "그걸 티비에 엄청 틀어요."
+ },
+ {
+  "id": "t06",
+  "who": "main",
+  "text": "그러면 팔려요. 텔레비전에 나왔으니까.",
+  "dir": "step three, mock-naive"
+ },
+ {
+  "id": "t07",
+  "who": "main",
+  "text": "번 돈으로 광고를 더 해요. 그리고 계속 돌아요.",
+  "dir": "step four, circling"
+ },
+ {
+  "id": "t08",
+  "who": "main",
+  "text": "텔레비전에 나왔다는 게, 곧 믿을 만하다는 뜻이었으니까요.",
+  "dir": "nostalgic, explanatory"
+ },
+ {
+  "id": "t09",
+  "who": "main",
+  "text": "근데 이게 고장 났어요.",
+  "dir": "the turn, flat"
+ },
+ {
+  "id": "t10",
+  "who": "main",
+  "text": "광고는 건너뛰고, 볼 건 너무 많고, 다들 바빠요.",
+  "dir": "listing the reasons briskly"
+ },
+ {
+  "id": "t11",
+  "who": "main",
+  "text": "쓰던 물건도 잘 돌아가고요. 굳이 새 걸 볼 이유가 없어요.",
+  "dir": "reasonable, the buyer's view"
+ },
+ {
+  "id": "t12",
+  "who": "main",
+  "text": "프리미엄 쓰시는 분들, 저자가 딱 여러분 얘기하는 거예요.",
+  "dir": "pointing at the chat, amused"
+ },
+ {
+  "id": "t13",
+  "who": "main",
+  "text": "책에 재밌는 예가 하나 있어요. 식빵.",
+  "dir": "lighting up"
+ },
+ {
+  "id": "t14",
+  "who": "main",
+  "text": "빵 써는 기계가 1912년에 발명됐대요.",
+  "dir": "storytelling",
+  "say": "빵 써는 기계가 천구백십이 년에 발명됐대요."
+ },
+ {
+  "id": "t15",
+  "who": "main",
+  "text": "1912년이면, 그렇게 옛날도 아니네요.",
+  "dir": "offhand, unbothered, moving on at once",
+  "say": "천구백십이 년이면, 그렇게 옛날도 아니네요."
+ },
+ {
+  "id": "t16",
+  "who": "main",
+  "text": "근데 거의 이십 년 동안 아무도 안 썼어요.",
+  "dir": "continuing straight on, ignoring the chat"
+ },
+ {
+  "id": "t17",
+  "who": "main",
+  "text": "그러다 원더라는 빵 회사가, 썰린 빵을 광고하면서 대박이 났어요.",
+  "dir": "the payoff"
+ },
+ {
+  "id": "t18",
+  "who": "main",
+  "text": "물건이 좋아서라기보다, 광고 덕분에 팔리던 시대였던 거죠.",
+  "dir": "summarising, a bit dry"
+ },
+ {
+  "id": "t19",
+  "who": "main",
+  "text": "책은 그 시대가 끝났다고 말해요.",
+  "dir": "decisive"
+ },
+ {
+  "id": "t20",
+  "who": "main",
+  "text": "마케팅 배울 때, 피로 시작하는 단어들 외우잖아요.",
+  "dir": "recalling school, a light groan"
+ },
+ {
+  "id": "t21",
+  "who": "main",
+  "text": "제품, 가격, 판촉, 포지셔닝, 홍보, 포장, 입소문, 허락. 여덟 개.",
+  "dir": "rattling off the list, mocking rote memorising"
+ },
+ {
+  "id": "t22",
+  "who": "main",
+  "text": "네 개만 배우셨어요? 저자는 여덟 개를 다 늘어놓고, 하나를 더 붙여요.",
+  "dir": "teasing, then building"
+ },
+ {
+  "id": "t23",
+  "who": "main",
+  "text": "그게 아홉 번째 피, 퍼플 카우. 보랏빛 소.",
+  "dir": "grand reveal, playful"
+ },
+ {
+  "id": "t24",
+  "who": "main",
+  "text": "앞에 여덟 개를 다 잘해도, 소가 갈색이면 아무도 안 봐요.",
+  "dir": "firm"
+ },
+ {
+  "id": "t25",
+  "who": "main",
+  "text": "폭스바겐 뉴비틀도 책에 나오는데요, 그 차는 생긴 게 광고였어요.",
+  "dir": "another quick example, bright"
+ },
+ {
+  "id": "t26",
+  "who": "main",
+  "text": "길에 한 대 지나가면, 그게 그대로 광고판이었던 거죠.",
+  "dir": "explaining, satisfied"
+ },
+ {
+  "id": "p01",
+  "who": "main",
+  "text": "택배? 지금?",
+  "dir": "startled by the doorbell, turning to the door"
+ },
+ {
+  "id": "p02",
+  "who": "main",
+  "text": "이거 꼭 받아야 되는 거예요. 잠깐만요, 2분만요, 진짜 2분.",
+  "dir": "hurried, already half up",
+  "say": "이거 꼭 받아야 되는 거예요. 잠깐만요, 이 분만요, 진짜 이 분."
+ },
+ {
+  "id": "y01",
+  "who": "sis",
+  "text": "언니… 없네?",
+  "dir": "peeking in, whispering, checking the room"
+ },
+ {
+  "id": "y02",
+  "who": "sis",
+  "text": "헐, 방송 켜져 있네. 안녕하세요…",
+  "dir": "surprised whisper, a tiny wave"
+ },
+ {
+  "id": "y03",
+  "who": "sis",
+  "text": "저 동생이에요. 쉿, 비밀.",
+  "dir": "conspiratorial whisper"
+ },
+ {
+  "id": "y04",
+  "who": "sis",
+  "text": "언니 첫 방송이라고, 어제 잠 하나도 못 잤어요.",
+  "dir": "telling on her sister, smug whisper"
+ },
+ {
+  "id": "y05",
+  "who": "sis",
+  "text": "거울 보고 안녕하세요 연습만 열 번 했어요.",
+  "dir": "giggling whisper",
+  "tts": "거울 보고 안녕하세요 [laughs softly] 연습만 열 번 했어요."
+ },
+ {
+  "id": "y06",
+  "who": "sis",
+  "text": "저요? 열여덟이요. …올해도요.",
+  "dir": "lazy drawl, then a strange little pause"
+ },
+ {
+  "id": "y07",
+  "who": "sis",
+  "text": "저 아까 폰으로 다 봤어요. 소 다리 다섯 개.",
+  "dir": "teasing, slow",
+  "tts": "저 아까 폰으로 다 봤어요. [laughs softly] 소 다리 다섯 개."
+ },
+ {
+  "id": "y08",
+  "who": "sis",
+  "text": "헉, 문 소리. 안녕.",
+  "dir": "startled whisper, already leaving"
+ },
+ {
+  "id": "p03",
+  "who": "main",
+  "text": "다녀왔어요. 2분 맞죠?",
+  "dir": "slightly breathless, pleased",
+  "say": "다녀왔어요. 이 분 맞죠?"
+ },
+ {
+  "id": "p04",
+  "who": "main",
+  "text": "택배요? 책이에요. 엄청 두꺼운 거.",
+  "dir": "satisfied, hinting"
+ },
+ {
+  "id": "p05",
+  "who": "main",
+  "text": "다음에 읽을 진짜 벽돌. 뭔지는 비밀.",
+  "dir": "playfully secretive",
+  "tts": "다음에 읽을 진짜 벽돌. [laughs softly] 뭔지는 비밀."
+ },
+ {
+  "id": "p06",
+  "who": "main",
+  "text": "이건 또 뭐예요.",
+  "dir": "noticing, suspicious"
+ },
+ {
+  "id": "p07",
+  "who": "main",
+  "text": "소 다리 다섯 개였음?",
+  "dir": "reading slowly, deadpan"
+ },
+ {
+  "id": "p08",
+  "who": "main",
+  "text": "걔가 왔다 갔어요? 첫 방송인데, 진짜.",
+  "dir": "exasperated but fond",
+  "tts": "걔가 왔다 갔어요? [sighs] 첫 방송인데, 진짜."
+ },
+ {
+  "id": "p09",
+  "who": "main",
+  "text": "그리고 네 개였어요. 하나는 꼬리예요.",
+  "dir": "firm, defending her cow"
+ },
+ {
+  "id": "p10",
+  "who": "main",
+  "text": "지운 거 못 보셨죠. 다시 책으로 갈게요.",
+  "dir": "brisk, moving on"
+ },
+ {
+  "id": "i01",
+  "who": "main",
+  "text": "그럼 누구한테 팔아야 하냐.",
+  "dir": "posing the big question"
+ },
+ {
+  "id": "i02",
+  "who": "main",
+  "text": "새 물건이 나오면, 사람들이 받아들이는 순서가 있어요.",
+  "dir": "explaining"
+ },
+ {
+  "id": "i03",
+  "who": "main",
+  "text": "맨 앞에, 새것만 보면 일단 사 보는 사람들이 있고요,",
+  "dir": "the left side"
+ },
+ {
+  "id": "i04",
+  "who": "main",
+  "text": "가운데에 대다수. 남들이 다 쓰면 그때 사는 사람들.",
+  "dir": "the middle, neutral"
+ },
+ {
+  "id": "i05",
+  "who": "main",
+  "text": "맨 끝엔 끝까지 안 바꾸는 사람들이요. 폴더폰 쓰시는 분들.",
+  "dir": "affectionate"
+ },
+ {
+  "id": "i06",
+  "who": "main",
+  "text": "여러분이 사장이면, 누구한테 팔래요?",
+  "dir": "quizzing the chat"
+ },
+ {
+  "id": "i07",
+  "who": "main",
+  "text": "가운데요? 저도 그렇게 생각했어요. 사람이 제일 많으니까.",
+  "dir": "agreeing, then turning"
+ },
+ {
+  "id": "i08",
+  "who": "main",
+  "text": "근데 책은 반대로 말해요. 가운데 사람들은 안 들어요.",
+  "dir": "the reversal, quiet"
+ },
+ {
+  "id": "i09",
+  "who": "main",
+  "text": "이미 쓰는 게 있고, 만족하고, 새로운 거 귀찮아해요.",
+  "dir": "listing their state"
+ },
+ {
+  "id": "i10",
+  "who": "main",
+  "text": "들어 주는 사람은 왼쪽 끝이에요. 새로운 걸 찾아다니는 사람.",
+  "dir": "pointing at the left edge"
+ },
+ {
+  "id": "i11",
+  "who": "main",
+  "text": "맞아요. 적어요. 거기서 끝나면 장사 안 되죠.",
+  "dir": "an honest concession"
+ },
+ {
+  "id": "i12",
+  "who": "main",
+  "text": "그래서 그 사람들이 옆 사람한테 옮겨 줘야 돼요.",
+  "dir": "the key mechanism"
+ },
+ {
+  "id": "i13",
+  "who": "main",
+  "text": "저자는 이 사람들을 재채기하는 사람이라고 불러요. 스니저.",
+  "dir": "a fun term, amused"
+ },
+ {
+  "id": "i14",
+  "who": "main",
+  "text": "감기 옮기듯이, 아이디어를 옮기는 사람.",
+  "dir": "explaining with a grin"
+ },
+ {
+  "id": "i15",
+  "who": "main",
+  "text": "재채기 잘하시는 분, 여기 계시네요.",
+  "dir": "playful",
+  "tts": "재채기 잘하시는 분, [laughs softly] 여기 계시네요."
+ },
+ {
+  "id": "i16",
+  "who": "main",
+  "text": "저자가 이런 말까지 해요. 관심 있는 재채기꾼 말고 다른 사람한테 하는 광고는 쓸모없다.",
+  "dir": "quoting the author, emphatic"
+ },
+ {
+  "id": "i17",
+  "who": "main",
+  "text": "좀 세죠. 근데 저는 맞는 말 같아요.",
+  "dir": "considering, nodding"
+ },
+ {
+  "id": "i18",
+  "who": "main",
+  "text": "그리고 책에 오타쿠라는 단어도 나와요.",
+  "dir": "surprised delight"
+ },
+ {
+  "id": "i19",
+  "who": "main",
+  "text": "네, 진짜 나와요. 취미보다는 조금 더, 집착보다는 조금 덜.",
+  "dir": "reading the definition carefully"
+ },
+ {
+  "id": "i20",
+  "who": "main",
+  "text": "뭔가를 좋아해서, 굳이 찾아가고, 굳이 남한테 얘기하는 사람.",
+  "dir": "warm"
+ },
+ {
+  "id": "i21",
+  "who": "main",
+  "text": "그런 사람이 많은 시장을 찾으래요. 시장 크기보다 그게 먼저래요.",
+  "dir": "advice, clear"
+ },
+ {
+  "id": "i22",
+  "who": "main",
+  "text": "이천 치즈 감사합니다!",
+  "dir": "bright, surprised"
+ },
+ {
+  "id": "i23",
+  "who": "main",
+  "text": "키보드가 여섯 개요? 네. 그건 오타쿠예요. 축하드려요.",
+  "dir": "deadpan verdict, then laughing",
+  "tts": "키보드가 여섯 개요? 네. [laughs softly] 그건 오타쿠예요. 축하드려요."
+ },
+ {
+  "id": "i24",
+  "who": "main",
+  "text": "그리고 친구한테 키보드 추천해 본 적 있죠? 그게 재채기예요.",
+  "dir": "connecting it, delighted"
+ },
+ {
+  "id": "i25",
+  "who": "main",
+  "text": "봐요. 방금 옮았잖아요.",
+  "dir": "triumphant, a small laugh"
+ },
+ {
+  "id": "x01",
+  "who": "main",
+  "text": "책에는 진짜 보라색 소들이 엄청 나와요. 몇 개만 볼게요.",
+  "dir": "transition, list mode"
+ },
+ {
+  "id": "x02",
+  "who": "main",
+  "text": "첫 번째는 더치 보이라는 페인트 회사.",
+  "dir": "first example"
+ },
+ {
+  "id": "x03",
+  "who": "main",
+  "text": "페인트는 똑같아요. 안에 든 건 하나도 안 바꿨어요.",
+  "dir": "stressing that nothing changed inside"
+ },
+ {
+  "id": "x04",
+  "who": "main",
+  "text": "무거운 철 깡통을, 손잡이 달린 플라스틱 통으로 바꿨어요. 돌려서 여는 주둥이도 달고.",
+  "dir": "describing the redesign"
+ },
+ {
+  "id": "x05",
+  "who": "main",
+  "text": "그것만으로 엄청 팔렸대요.",
+  "dir": "impressed"
+ },
+ {
+  "id": "x06",
+  "who": "main",
+  "text": "광고를 바꾼 게 아니라, 물건을 바꾼 거예요. 그게 핵심이에요.",
+  "dir": "the point, firm"
+ },
+ {
+  "id": "x07",
+  "who": "main",
+  "text": "우유통 아니에요. 페인트예요.",
+  "dir": "mock offended"
+ },
+ {
+  "id": "x08",
+  "who": "main",
+  "text": "두 번째, 에어론이라는 사무실 의자.",
+  "dir": "second example"
+ },
+ {
+  "id": "x09",
+  "who": "main",
+  "text": "그 전까지 사무실 의자는 아무도 안 봤대요. 그냥 앉는 거.",
+  "dir": "setting it up"
+ },
+ {
+  "id": "x10",
+  "who": "main",
+  "text": "근데 이 의자는 생긴 게 너무 달라서, 다들 얘기했어요.",
+  "dir": "excited"
+ },
+ {
+  "id": "x11",
+  "who": "main",
+  "text": "1994년에 나왔는데, 지금 뉴욕 현대미술관에 들어가 있어요. 의자가요.",
+  "dir": "amused stress on 의자가요",
+  "say": "천구백구십사 년에 나왔는데, 지금 뉴욕 현대미술관에 들어가 있어요. 의자가요."
+ },
+ {
+  "id": "x12",
+  "who": "main",
+  "text": "비싸죠. 근데 비싼 것도 얘깃거리예요.",
+  "dir": "shrugging, knowing"
+ },
+ {
+  "id": "x13",
+  "who": "main",
+  "text": "세 번째는 엘리베이터.",
+  "dir": "third example"
+ },
+ {
+  "id": "x14",
+  "who": "main",
+  "text": "타기 전에 밖에서 층을 먼저 누르는 엘리베이터, 보셨어요?",
+  "dir": "asking the chat"
+ },
+ {
+  "id": "x15",
+  "who": "main",
+  "text": "오티스라는 회사가 만들었는데, 같은 층 가는 사람끼리 묶어서 태워요.",
+  "dir": "explaining"
+ },
+ {
+  "id": "x16",
+  "who": "main",
+  "text": "그래서 엘리베이터 수가 적어도 되고, 건물을 더 높이 올릴 수 있었대요.",
+  "dir": "the payoff"
+ },
+ {
+  "id": "x17",
+  "who": "main",
+  "text": "왜 하필 보라색이냐고요? 옛날부터 보라색이 제일 귀한 색이었거든요.",
+  "dir": "warm, knowing"
+ },
+ {
+  "id": "x18",
+  "who": "main",
+  "text": "바다 고둥에서 짜내는데, 옷 한 벌 물들이려면 고둥이 몇 만 마리씩 들었어요.",
+  "dir": "casual, as if common knowledge"
+ },
+ {
+  "id": "x19",
+  "who": "main",
+  "text": "그 동네는 냄새가 진짜, 지독했죠.",
+  "dir": "wrinkling her nose at a memory, said plainly"
+ },
+ {
+  "id": "x20",
+  "who": "main",
+  "text": "그러니까 보라색은 원래부터, 남들이 쳐다보는 색이에요.",
+  "dir": "tying back, moving on"
+ },
+ {
+  "id": "x21",
+  "who": "main",
+  "text": "하나 더 있어요. 저자는 제트블루라는 항공사가 반칙을 한대요.",
+  "dir": "mischievous"
+ },
+ {
+  "id": "x22",
+  "who": "main",
+  "text": "칭찬이에요. 남들이 못 따라 하는 방식으로 일하니까, 반칙이라는 거죠.",
+  "dir": "explaining the compliment"
+ },
+ {
+  "id": "x23",
+  "who": "main",
+  "text": "그리고 이 책에서 제가 제일 좋아하는 말.",
+  "dir": "intimate, leaning in"
+ },
+ {
+  "id": "x24",
+  "who": "main",
+  "text": "안전한 게 제일 위험하다.",
+  "dir": "slow, every word"
+ },
+ {
+  "id": "x25",
+  "who": "main",
+  "text": "튀지 말자, 욕먹지 말자, 무난하게 가자. 그게 제일 위험하대요.",
+  "dir": "listing timid choices"
+ },
+ {
+  "id": "x26",
+  "who": "main",
+  "text": "회의에서 다 같이 고치고 또 고치면 어떻게 되는지 아세요?",
+  "dir": "rhetorical"
+ },
+ {
+  "id": "x27",
+  "who": "main",
+  "text": "말을 만들려다가 낙타가 나와요.",
+  "dir": "deadpan punchline"
+ },
+ {
+  "id": "x28",
+  "who": "main",
+  "text": "낙타 맞아요. 혹이 두 개잖아요.",
+  "dir": "defensive, pointing at it",
+  "tts": "낙타 맞아요. [laughs softly] 혹이 두 개잖아요."
+ },
+ {
+  "id": "x29",
+  "who": "main",
+  "text": "모두를 만족시키려다가, 아무도 얘기 안 하는 물건이 되는 거죠.",
+  "dir": "summing up, serious"
+ },
+ {
+  "id": "g01",
+  "who": "main",
+  "text": "그럼 보라색 소는 어떻게 만드냐.",
+  "dir": "a practical turn"
+ },
+ {
+  "id": "g02",
+  "who": "main",
+  "text": "책에 정답은 없어요. 대신 힌트를 줘요. 가장자리로 가라.",
+  "dir": "honest, then crisp"
+ },
+ {
+  "id": "g03",
+  "who": "main",
+  "text": "제일 싼 거, 제일 비싼 거, 제일 빠른 거, 제일 느린 거.",
+  "dir": "a rhythmic list"
+ },
+ {
+  "id": "g04",
+  "who": "main",
+  "text": "제일 쉬운 거, 제일 어려운 거. 끝까지 한번 가 보라는 거예요.",
+  "dir": "continuing the list, encouraging"
+ },
+ {
+  "id": "g05",
+  "who": "main",
+  "text": "가운데는 이미 꽉 찼으니까요. 비어 있는 데는 가장자리뿐이에요.",
+  "dir": "logical"
+ },
+ {
+  "id": "g06",
+  "who": "main",
+  "text": "제일 두꺼운 책만 읽는 방송. 오, 그거 좋네요.",
+  "dir": "delighted, considering it"
+ },
+ {
+  "id": "g07",
+  "who": "main",
+  "text": "벽돌책 방송이 그래서 벽돌책인 거예요. 방금 정했어요.",
+  "dir": "playful, mock-serious",
+  "tts": "벽돌책 방송이 그래서 벽돌책인 거예요. [laughs softly] 방금 정했어요."
+ },
+ {
+  "id": "g08",
+  "who": "main",
+  "text": "천 치즈 감사합니다.",
+  "dir": "grateful"
+ },
+ {
+  "id": "g09",
+  "who": "main",
+  "text": "총균쇠요? 진짜 벽돌이네요. 적어 둘게요.",
+  "dir": "amused, noting it down"
+ },
+ {
+  "id": "g10",
+  "who": "main",
+  "text": "택배 상자는 아직 안 뜯었어요. 다음 시간에 같이 뜯어요.",
+  "dir": "teasing about the parcel"
+ },
+ {
+  "id": "g11",
+  "who": "main",
+  "text": "마지막으로 하나만 더요.",
+  "dir": "winding down"
+ },
+ {
+  "id": "g12",
+  "who": "main",
+  "text": "보라색 소도 영원하진 않아요.",
+  "dir": "a gentle warning"
+ },
+ {
+  "id": "g13",
+  "who": "main",
+  "text": "다들 따라서 보라색으로 칠하면, 그 들판은 또 보라색 소 천지예요.",
+  "dir": "imagining it, wry"
+ },
+ {
+  "id": "g14",
+  "who": "main",
+  "text": "그럼 또 아무도 안 봐요. 그 프랑스 고속도로처럼.",
+  "dir": "calling back to the start"
+ },
+ {
+  "id": "g15",
+  "who": "main",
+  "text": "그러니까 보라색 소는 한 번 만들고 끝나는 게 아니라, 계속 새로 만드는 거래요.",
+  "dir": "the closing principle"
+ },
+ {
+  "id": "z01",
+  "who": "main",
+  "text": "오늘 꼭꼭 씹은 거, 한 줄로 하면요,",
+  "dir": "summarising, cozy"
+ },
+ {
+  "id": "z02",
+  "who": "main",
+  "text": "딱 이거예요. 아주 좋은 건, 안 보인다.",
+  "dir": "slow"
+ },
+ {
+  "id": "z03",
+  "who": "main",
+  "text": "그러니까 누가 한마디 할 만한 걸 만들자.",
+  "dir": "warm encouragement"
+ },
+ {
+  "id": "z04",
+  "who": "main",
+  "text": "여러분 일에도 보라색 소 하나쯤 있을 거예요. 아직 갈색이어도 괜찮고요.",
+  "dir": "kind, sincere"
+ },
+ {
+  "id": "z05",
+  "who": "main",
+  "text": "책듣는밤 1화는 여기까지예요.",
+  "dir": "the closing announcement",
+  "say": "책듣는밤 일 화는 여기까지예요."
+ },
+ {
+  "id": "z06",
+  "who": "main",
+  "text": "첫 방송인데 끝까지 같이 있어 줘서 고마워요. 진짜로.",
+  "dir": "sincere, a little emotional"
+ },
+ {
+  "id": "z07",
+  "who": "main",
+  "text": "다음엔 택배로 온 진짜 벽돌 들고 올게요.",
+  "dir": "a teaser, smiling"
+ },
+ {
+  "id": "z08",
+  "who": "main",
+  "text": "잘 자요, 여러분.",
+  "dir": "a soft goodnight"
+ },
+ {
+  "id": "o17",
+  "who": "main",
+  "text": "사실 방송 켜기 전에, 한 시간 동안 마이크만 만졌어요.",
+  "dir": "confessing, a little embarrassed"
+ },
+ {
+  "id": "o18",
+  "who": "main",
+  "text": "근데 막상 켜니까 괜찮네요. 와 계신 분들 덕분이에요.",
+  "dir": "relaxing, grateful"
+ },
+ {
+  "id": "o19",
+  "who": "main",
+  "text": "채팅은 천천히 읽을게요. 제가 좀 느려요.",
+  "dir": "easygoing"
+ },
+ {
+  "id": "o20",
+  "who": "main",
+  "text": "규칙은 하나예요. 편하게 계시기.",
+  "dir": "gentle, cozy"
+ },
+ {
+  "id": "o21",
+  "who": "main",
+  "text": "책 안 읽으셔도 돼요. 그게 이 방송이 있는 이유니까.",
+  "dir": "reassuring, a small smile"
+ },
+ {
+  "id": "b19",
+  "who": "main",
+  "text": "원래 부제가 있는데요, 리마커블해져서 사업을 바꿔라, 이런 뜻이에요.",
+  "dir": "reading the subtitle, slightly amused"
+ },
+ {
+  "id": "b20",
+  "who": "main",
+  "text": "제목만 보면 동화책 같은데, 내용은 꽤 냉정해요.",
+  "dir": "warning, wry"
+ },
+ {
+  "id": "b21",
+  "who": "main",
+  "text": "회사 다니시는 분들은 읽다가 좀 아플 수도 있어요.",
+  "dir": "teasing, sympathetic",
+  "tts": "회사 다니시는 분들은 [laughs softly] 읽다가 좀 아플 수도 있어요."
+ },
+ {
+  "id": "b22",
+  "who": "main",
+  "text": "저자는 블로그도 엄청 오래 썼어요. 거의 매일.",
+  "dir": "impressed, offhand"
+ },
+ {
+  "id": "c24",
+  "who": "main",
+  "text": "여러분도 그런 거 있죠? 처음엔 신기했는데, 지금은 안 보이는 거.",
+  "dir": "inviting the chat to relate"
+ },
+ {
+  "id": "c25",
+  "who": "main",
+  "text": "익숙해지는 게 제일 무서운 거예요. 아무 소리도 안 내고 오거든요.",
+  "dir": "quiet, a little serious"
+ },
+ {
+  "id": "c26",
+  "who": "main",
+  "text": "저자 말로는, 요즘 시장이 딱 그 고속도로래요.",
+  "dir": "connecting the story to business"
+ },
+ {
+  "id": "c27",
+  "who": "main",
+  "text": "다들 괜찮은 소를 키우는데, 괜찮은 소는 이미 너무 많아요.",
+  "dir": "wry"
+ },
+ {
+  "id": "r25",
+  "who": "main",
+  "text": "재밌는 건, 리마커블은 내가 정하는 게 아니라는 거예요.",
+  "dir": "an interesting twist, thoughtful"
+ },
+ {
+  "id": "r26",
+  "who": "main",
+  "text": "남이 한마디 해 줘야 리마커블이에요. 내가 우겨 봐야 소용없어요.",
+  "dir": "plain, honest"
+ },
+ {
+  "id": "r27",
+  "who": "main",
+  "text": "그래서 좀 무섭기도 해요. 남의 입에 맡기는 거니까.",
+  "dir": "a little uneasy"
+ },
+ {
+  "id": "r28",
+  "who": "main",
+  "text": "근데 거꾸로 말하면, 돈이 없어도 할 수 있다는 거죠. 광고비가 아니라 물건이니까.",
+  "dir": "brightening, hopeful"
+ },
+ {
+  "id": "t27",
+  "who": "main",
+  "text": "옛날엔 광고비 많이 쓰는 회사가 이겼어요. 싸움이 단순했죠.",
+  "dir": "explaining, a bit nostalgic"
+ },
+ {
+  "id": "t28",
+  "who": "main",
+  "text": "지금은 돈을 써도 안 보여요. 다들 넘겨 버리니까.",
+  "dir": "matter-of-fact"
+ },
+ {
+  "id": "t29",
+  "who": "main",
+  "text": "그래서 저자가 묻는 거예요. 그 돈, 물건에 쓰면 안 돼요?",
+  "dir": "pointed question"
+ },
+ {
+  "id": "t30",
+  "who": "main",
+  "text": "책에 이런 질문도 있어요. 타이드라는 세제 회사는 이제 뭘 해야 하냐.",
+  "dir": "posing the case"
+ },
+ {
+  "id": "t31",
+  "who": "main",
+  "text": "저자 답은, 지루한 세제에 광고비를 계속 붓지 말고, 새 소를 키우라는 거예요.",
+  "dir": "firm, a little blunt"
+ },
+ {
+  "id": "p11",
+  "who": "main",
+  "text": "제가 어디까지 했죠? 아홉 번째 피까지 했죠.",
+  "dir": "getting back on track, checking with chat"
+ },
+ {
+  "id": "p12",
+  "who": "main",
+  "text": "네, 그럼 이제 진짜 중요한 거 하나 할게요.",
+  "dir": "refocusing, energetic"
+ },
+ {
+  "id": "i26",
+  "who": "main",
+  "text": "근데 재채기꾼이 아무 데나 재채기하는 건 아니에요.",
+  "dir": "a caveat, thoughtful"
+ },
+ {
+  "id": "i27",
+  "who": "main",
+  "text": "자기가 진짜 좋아하는 거, 남한테 말해도 안 창피한 것만 옮겨요.",
+  "dir": "explaining people"
+ },
+ {
+  "id": "i28",
+  "who": "main",
+  "text": "그러니까 물건이, 그걸 추천한 사람을 좀 멋있게 만들어 줘야 돼요.",
+  "dir": "insightful, warm"
+ },
+ {
+  "id": "i29",
+  "who": "main",
+  "text": "그리고 오타쿠는 만들 수도 있대요. 원래 없던 집착을.",
+  "dir": "surprised, curious"
+ },
+ {
+  "id": "i30",
+  "who": "main",
+  "text": "커피가 그렇잖아요. 원래 그냥 잠 깨는 음료였는데, 지금은 원두 얘기를 몇 시간씩 해요.",
+  "dir": "an everyday example, amused"
+ },
+ {
+  "id": "x30",
+  "who": "main",
+  "text": "하나 더. 이탈리아에 단테 시를 읊으면서 고기 써는 정육점 아저씨도 나와요.",
+  "dir": "delighted, telling a quirky story"
+ },
+ {
+  "id": "x31",
+  "who": "main",
+  "text": "고기는 다른 집이랑 비슷할 수도 있는데, 사람들이 그 집 얘기를 해요. 일부러 찾아가고요.",
+  "dir": "explaining why it works"
+ },
+ {
+  "id": "x32",
+  "who": "main",
+  "text": "공통점 보이세요? 다 광고보다, 물건이나 가게 그 자체가 얘깃거리예요.",
+  "dir": "connecting the examples"
+ },
+ {
+  "id": "g16",
+  "who": "main",
+  "text": "저자가 든 목록은 더 길어요. 제일 시끄러운 거, 제일 오래된 거, 제일 새로운 거.",
+  "dir": "continuing, a bit playful"
+ },
+ {
+  "id": "g17",
+  "who": "main",
+  "text": "중요한 건, 끝까지 가 보고 사람들이 뭐라고 하는지 보는 거예요. 시험해 보고.",
+  "dir": "practical, steady"
+ },
+ {
+  "id": "z09",
+  "who": "main",
+  "text": "오늘 거 정리해 볼게요. 딱 세 개만.",
+  "dir": "wrapping up, organized"
+ },
+ {
+  "id": "z10",
+  "who": "main",
+  "text": "하나. 익숙한 건 안 보인다. 소가 아무리 예뻐도.",
+  "dir": "counting, calm"
+ },
+ {
+  "id": "z11",
+  "who": "main",
+  "text": "둘. 리마커블은 남이 한마디 하는 거다. 내가 우기는 게 아니라.",
+  "dir": "counting, clear"
+ },
+ {
+  "id": "z12",
+  "who": "main",
+  "text": "셋. 가운데 말고, 왼쪽 끝 재채기꾼들한테 먼저.",
+  "dir": "counting, warm"
+ },
+ {
+  "id": "z13",
+  "who": "main",
+  "text": "그리고 덤으로, 안전한 게 제일 위험하다.",
+  "dir": "a bonus, smiling"
+ },
+ {
+  "id": "z14",
+  "who": "main",
+  "text": "다음 책 하다가 오늘 얘기가 필요하면, 보라색 소 다시 꺼낼게요.",
+  "dir": "a promise for future episodes"
+ },
+ {
+  "id": "z15",
+  "who": "main",
+  "text": "추천해 주신 책들도 다 적어 뒀어요. 총균쇠, 사피엔스, 코스모스.",
+  "dir": "reading off notes, pleased"
+ },
+ {
+  "id": "o22",
+  "who": "main",
+  "text": "와 계신 분들 숫자가 조금씩 늘어나네요. 신기하다.",
+  "dir": "surprised, watching the viewer count"
+ },
+ {
+  "id": "o23",
+  "who": "main",
+  "text": "지금 들어오신 분들도 안녕하세요. 안 늦으셨어요. 이제 시작해요.",
+  "dir": "welcoming latecomers, warm"
+ },
+ {
+  "id": "b23",
+  "who": "main",
+  "text": "이분이 퍼미션 마케팅이라는 말을 유명하게 만든 사람이기도 해요.",
+  "dir": "a fun fact, casual"
+ },
+ {
+  "id": "b24",
+  "who": "main",
+  "text": "광고를 들이밀지 말고, 허락받고 말을 걸라는 거요. 그게 1999년 책이에요.",
+  "dir": "explaining briefly",
+  "say": "광고를 들이밀지 말고, 허락받고 말을 걸라는 거요. 그게 천구백구십구 년 책이에요."
+ },
+ {
+  "id": "b25",
+  "who": "main",
+  "text": "그다음엔 아이디어가 바이러스처럼 퍼진다는 책도 썼고요. 오늘 그 얘기도 살짝 나와요.",
+  "dir": "foreshadowing, light"
+ },
+ {
+  "id": "c28",
+  "who": "main",
+  "text": "보라색 소가 진짜 있냐고요? 없죠. 그러니까 다들 쳐다보는 거예요.",
+  "dir": "answering chat, amused"
+ },
+ {
+  "id": "r29",
+  "who": "main",
+  "text": "우리 동네 빵집이요? 줄 서는 집?",
+  "dir": "reading chat, curious"
+ },
+ {
+  "id": "r30",
+  "who": "main",
+  "text": "그 집이 왜 줄 서는지 한 문장으로 말할 수 있으면, 그게 보라색이에요.",
+  "dir": "a useful test, clear"
+ },
+ {
+  "id": "r31",
+  "who": "main",
+  "text": "빵이 맛있다, 말고요. 맛있는 빵집은 많으니까.",
+  "dir": "gentle caveat"
+ },
+ {
+  "id": "r32",
+  "who": "main",
+  "text": "새벽 다섯 시에만 판다, 이런 거요. 남한테 전할 수 있는 이유 하나.",
+  "dir": "giving an example, playful"
+ },
+ {
+  "id": "t32",
+  "who": "main",
+  "text": "원서로 읽는 게 낫냐고요? 번역도 좋아요. 얇아서 원서도 금방이고요.",
+  "dir": "answering chat, easygoing"
+ },
+ {
+  "id": "t33",
+  "who": "main",
+  "text": "근데 예시가 다 미국 회사라서, 처음엔 좀 낯설 수 있어요.",
+  "dir": "a fair warning"
+ },
+ {
+  "id": "p13",
+  "who": "main",
+  "text": "택배 상자 진짜 무거웠어요. 벽돌 맞아요.",
+  "dir": "still a little out of breath, amused"
+ },
+ {
+  "id": "i31",
+  "who": "main",
+  "text": "저자 말로는, 처음부터 왼쪽 끝 사람들 마음에 들게 만들래요. 가운데에 맞추지 말고.",
+  "dir": "explaining the advice"
+ },
+ {
+  "id": "i32",
+  "who": "main",
+  "text": "그 사람들이 좋아하면, 그다음은 그 사람들이 알아서 옮겨 줘요.",
+  "dir": "reassuring"
+ },
+ {
+  "id": "i33",
+  "who": "main",
+  "text": "책에서 말하는 아이디어 바이러스가 이거예요. 재채기로 옮는 바이러스.",
+  "dir": "connecting back, satisfied"
+ },
+ {
+  "id": "i34",
+  "who": "main",
+  "text": "오타쿠가 원래는 좀 놀리는 말이었잖아요. 근데 이 책에선 칭찬이에요.",
+  "dir": "thoughtful, a little amused"
+ },
+ {
+  "id": "x33",
+  "who": "main",
+  "text": "크리스피 크림 도넛 얘기도 있어요.",
+  "dir": "remembering another case, bright"
+ },
+ {
+  "id": "x34",
+  "who": "main",
+  "text": "세상엔 두 종류 사람이 있대요. 그 도넛 얘기를 들어 본 사람이랑, 아직 동네에 그 가게가 안 생긴 사람.",
+  "dir": "telling it with a grin"
+ },
+ {
+  "id": "x35",
+  "who": "main",
+  "text": "우리나라도 처음 들어왔을 때 줄이 엄청 길었다고 하더라고요.",
+  "dir": "hearsay, casual"
+ },
+ {
+  "id": "x36",
+  "who": "main",
+  "text": "도넛 맛보다 그 줄 얘기를 더 많이 했죠. 그게 재채기예요.",
+  "dir": "tying it back"
+ },
+ {
+  "id": "x37",
+  "who": "main",
+  "text": "회의 많이 하시는 분들, 오늘 낙타 하나씩 떠올리셨죠.",
+  "dir": "teasing the office workers in chat"
+ },
+ {
+  "id": "g18",
+  "who": "main",
+  "text": "가장자리가 무서운 건, 거기엔 싫어하는 사람도 꼭 있다는 거예요.",
+  "dir": "honest, a bit serious"
+ },
+ {
+  "id": "g19",
+  "who": "main",
+  "text": "근데 모두가 괜찮다고 하는 건, 아무도 얘기 안 한다는 뜻이기도 하고요.",
+  "dir": "calm, convincing"
+ },
+ {
+  "id": "z16",
+  "who": "main",
+  "text": "첫 방송이라 말이 좀 빨랐죠. 다음엔 더 천천히 할게요.",
+  "dir": "self-aware, sheepish"
+ },
+ {
+  "id": "z17",
+  "who": "main",
+  "text": "그리고 이건 한 번은 말해야 된다고 해서요. 구독, 알림 설정.",
+  "dir": "awkwardly reciting it",
+  "tts": "그리고 이건 한 번은 말해야 된다고 해서요. [laughs softly] 구독, 알림 설정."
+ },
+ {
+  "id": "z18",
+  "who": "main",
+  "text": "말하고 나니까 좀 쑥스럽네요.",
+  "dir": "embarrassed, small laugh"
+ }
+]

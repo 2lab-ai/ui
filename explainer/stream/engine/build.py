@@ -13,6 +13,11 @@ from common import FPS, rng, ease, minjerk, Noise1D, EXIT_WALK, EXIT_GONE, RET_W
 from lipsync import voice_tracks
 import themes as TH
 
+# Win11 Paint's palette, in the order stage.js draws the swatches (10 per row from layout.tools.black)
+PALETTE = ['#000000', '#7f7f7f', '#880015', '#ed1c24', '#ff7f27', '#fff200', '#22b14c', '#00a2e8', '#3f48cc', '#a349a4',
+           '#ffffff', '#c3c3c3', '#b97a57', '#ffaec9', '#ffc90e', '#efe4b0', '#b5e61d', '#99d9ea', '#7092be', '#c8bfe7']
+COLOR = {'black': 0, 'gray': 1, 'darkred': 2, 'red': 3, 'orange': 4, 'yellow': 5, 'green': 6, 'blue': 7, 'indigo': 8, 'purple': 9,
+         'white': 10, 'silver': 11, 'brown': 12, 'pink': 13, 'gold': 14, 'cream': 15, 'lime': 16, 'sky': 17, 'steel': 18, 'lavender': 19}
 L = {}    # merged layout (filled by configure() before the beats are imported, mutated in place so `from build import CV` works)
 CV = {}   # the Paint canvas rectangle on screen
 
@@ -46,6 +51,7 @@ class Builder:
         self.meta = {}
         self.text_boxes = {}
         self.tool = 'pencil'
+        self.color = PALETTE[0]
         self.afk = None        # (t_leave, t_back)
         self.jumps = []        # (t, seconds skipped) edited-VOD jump cuts
         self.talk_busy = []
@@ -119,6 +125,28 @@ class Builder:
         self.tool = name
         return self.hand_t
 
+    def pick_color(self, name, t0=None):
+        """click a palette swatch: later pencil strokes use that colour (the colour-1 dot in the toolbar follows)"""
+        i = COLOR[name]; bx, by = L['tools']['black']
+        self.move(bx + (i % 10) * 26 + rng.uniform(-2, 2), by + (i // 10) * 26 + rng.uniform(-2, 2), t0)
+        self.hand_t += rng.uniform(0.08, 0.18)
+        t = self.click()
+        self.color = PALETTE[i]; self.ops.append((t, {'op': 'color', 'c': self.color}))
+        return self.hand_t
+
+    def clear_canvas(self, at=None):
+        """Ctrl+A, Delete: the whole page goes white (a long stream turns the page this way between topics)"""
+        if self.tool != 'select': self.pick_tool('select', at)
+        t = max(self.hand_t, at if at is not None else self.hand_t) + rng.uniform(0.15, 0.3)
+        self.sfx.append((t, 'ctrl', None)); self.sfx.append((t + 0.1, 'key', None))
+        self.ops.append((t + 0.11, {'op': 'sel', 'x': 0, 'y': 0, 'w': CV['w'] - 1, 'h': CV['h'] - 1}))
+        t2 = t + rng.uniform(0.45, 0.7)
+        self.sfx.append((t2, 'delete', None))
+        self.ops.append((t2 + 0.02, {'op': 'erase', 'x': 0, 'y': 0, 'w': CV['w'], 'h': CV['h']}))
+        self.ops.append((t2 + 0.02, {'op': 'sel', 'x': 0, 'y': 0, 'w': 0, 'h': 0}))
+        self.hand_t = t2 + 0.25
+        return t2
+
     # ---------------- drawing
     def stroke(self, path, speed=330.0, t0=None, width=4, wob=4.0, jit=0.9, snap=False, hook=False):
         """path in canvas coords (dense list). Mouse wobble added; drawn as 'seg' ops per frame."""
@@ -170,10 +198,10 @@ class Builder:
             f = int(math.floor(t * FPS))
             if cur_f is None: cur_f = f
             if f != cur_f and buf:
-                self.ops.append((cur_f / FPS, {'op': 'seg', 'pts': ([prev] if prev else []) + buf, 'w': width}))
+                self.ops.append((cur_f / FPS, {'op': 'seg', 'pts': ([prev] if prev else []) + buf, 'w': width, 'c': self.color}))
                 prev = buf[-1]; buf = []; cur_f = f
             buf.append([round(x, 1), round(y, 1)])
-        if buf: self.ops.append((cur_f / FPS, {'op': 'seg', 'pts': ([prev] if prev else []) + buf, 'w': width}))
+        if buf: self.ops.append((cur_f / FPS, {'op': 'seg', 'pts': ([prev] if prev else []) + buf, 'w': width, 'c': self.color}))
         tend = tstart + dur
         self.sfx.append((tend + 0.02, 'mup', None))
         self.cur = [CV['x'] + P[-1, 0], CV['y'] + P[-1, 1]]
@@ -320,6 +348,13 @@ def densify(pts, step=3.0):
     return out
 
 
+def stage_cfg(cfg, mod):
+    """the themes' stage config + the beats' title and per-stream string overrides (STRINGS, e.g. a BRB banner for a parcel)"""
+    st = dict(TH.stage_config(cfg), title=getattr(mod, 'STREAM_TITLE', ''))
+    st['strings'] = dict(st.get('strings', {}), **getattr(mod, 'STRINGS', {}))
+    return st
+
+
 def load_beats(path):
     spec = importlib.util.spec_from_file_location('beats', path)
     mod = importlib.util.module_from_spec(spec); sys.modules['beats'] = mod
@@ -426,9 +461,14 @@ def build(beats_path, audio_dir, outdir, cfg):
     PS['ParamAngleX'] = np.clip(PS['ParamAngleX'] + vel * 0.035, -30, 30); PS['ParamBodyAngleX'] = np.clip(PS['ParamBodyAngleX'] + vel * 0.02, -10, 10)
     PS['ParamAngleZ'] = np.clip(PS['ParamAngleZ'] - np.gradient(sis_rot) * FPS * 8, -30, 30)
     ops = sorted(B.ops, key=lambda o: o[0])
-    viewers = []; v = 287
+    # viewer count: a slow random walk; VIEWERS = (start, end) in the beats bends it towards a target (a first stream starts small)
+    v0, v1 = getattr(mod, 'VIEWERS', (287, None))
+    viewers = []; v = float(v0)
     for s in range(int(T) + 2):
-        v += int(rng.integers(-2, 4)) if s % 3 == 0 else 0; viewers.append(v)
+        if s % 3 == 0:
+            v += float(rng.integers(-2, 4))
+            if v1 is not None: v += (v0 + (v1 - v0) * s / max(1.0, T) - v) * 0.04
+        viewers.append(max(1, int(round(v))))
     BADGE = getattr(mod, 'BADGES', {})
     COLORS = ['#ffb86b', '#8be9fd', '#50fa7b', '#ff79c6', '#bd93f9', '#f1fa8c', '#ff6e6e', '#7ee0c3', '#ffd0a8', '#a6b8ff']
     ucol = {}
@@ -448,7 +488,7 @@ def build(beats_path, audio_dir, outdir, cfg):
         'jumps': [{'f': int(round(t * FPS)), 'add': a} for t, a in B.jumps],
         'frames': N,
         'layout': L,
-        'stage': dict(TH.stage_config(cfg), title=getattr(mod, 'STREAM_TITLE', '')),
+        'stage': stage_cfg(cfg, mod),
     }
     json.dump(tl, open(os.path.join(outdir, 'timeline.json'), 'w'), separators=(',', ':'), ensure_ascii=False)
     st, sr, ct = cfg['streaming'], cfg['streamer'], cfg['content']

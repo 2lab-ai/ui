@@ -59,7 +59,8 @@ function buildUI() {
   T('size', 1);
   // colors
   const [cx, cy] = rel(L.tools.color1);
-  tb.appendChild(el('div', '', '', { position: 'absolute', left: px(cx - 18), top: px(cy - ty - 18), width: '36px', height: '36px', borderRadius: '50%', background: '#000', boxShadow: '0 0 0 2px #fff,0 0 0 3.5px #3b82f6' }));
+  const c1 = el('div', '', '', { position: 'absolute', left: px(cx - 18), top: px(cy - ty - 18), width: '36px', height: '36px', borderRadius: '50%', background: '#000', boxShadow: '0 0 0 2px #fff,0 0 0 3.5px #3b82f6' });
+  c1.id = 'color1'; tb.appendChild(c1);
   tb.appendChild(el('div', '', '', { position: 'absolute', left: px(cx + 16), top: px(cy - ty + 2), width: '22px', height: '22px', borderRadius: '50%', background: '#fff', boxShadow: '0 0 0 1px #aaa' }));
   PAL.forEach((c, i) => { const [bx, by] = rel(L.tools.black); tb.appendChild(el('span', 'sw', '', { left: px(bx + (i % 10) * 26), top: px(by - ty + Math.floor(i / 10) * 26), background: c })); });
   for (let i = 0; i < 10; i++) { const [bx, by] = rel(L.tools.black); tb.appendChild(el('span', 'sw', '', { left: px(bx + i * 26), top: px(by - ty + 52), background: '#fff', boxShadow: '0 0 0 1px #ddd' })); }
@@ -103,6 +104,7 @@ async function applyTheme() {
   }
   $('chattitle').textContent = STR('chat_title'); $('title').textContent = TL.stage.title || '';
   $('al_word').textContent = STR('donation_word'); $('brb_title').textContent = STR('brb_title');
+  if (STR('brb_emoji')) document.querySelector('#brb .em').textContent = STR('brb_emoji');
   await new Promise(res => { const b = $('bg'); b.onload = b.onerror = res; b.src = TL.stage.bg; });
 }
 
@@ -131,7 +133,8 @@ window.setup = async function (layout, timeline) {
   const hide = (m, ids) => m.internalModel.on('beforeModelUpdate', () => { const c = m.internalModel.coreModel; for (const pid of ids || []) { try { c.setPartOpacityById(pid, 0); } catch (e) {} } });
   hide(mainM, MD.main.hide_parts); if (MD.sis) hide(sisM, MD.sis.hide_parts);
   hook(mainM, mainCur); hook(sisM, sisCur);
-  document.fonts && await document.fonts.ready;
+  // load every weight up front: a face first used mid-render (the BRB banner's 800) otherwise draws invisible text for a few frames
+  if (document.fonts) { await Promise.all([400, 500, 600, 700, 800].map(w => document.fonts.load(`${w} 30px Pret`, '가A1'))); await document.fonts.ready; }
   return { mainH: mh, sisH: sisM.height / ss };
 };
 
@@ -164,7 +167,8 @@ function doOp(o) {
     const s = tbState; actx.fillStyle = '#000'; actx.font = `${s.size}px Pret`; actx.textBaseline = 'top';
     const lines = (s.s + (s.c || '')).split('\n'); lines.forEach((ln, i) => actx.fillText(ln, s.x + 4, s.y + 3 + i * s.size * 1.25 + s.size * 0.06));
     $('textbox').style.display = 'none'; tbState = null; $('textbar').style.display = 'none';
-  } else if (o.op === 'erase') { actx.fillStyle = '#fff'; actx.fillRect(o.x, o.y, o.w, o.h); }
+  } else if (o.op === 'color') { $('color1').style.background = o.c; }
+  else if (o.op === 'erase') { actx.fillStyle = '#fff'; actx.fillRect(o.x, o.y, o.w, o.h); }
   else if (o.op === 'sel') {
     let s = $('selrect'); if (!s) { s = el('div', '', '', { position: 'absolute', border: '1px dashed #1a73e8', background: 'rgba(26,115,232,.06)' }); s.id = 'selrect'; $('workspace').appendChild(s); }
     const w = L.win; const wy = w.title + w.menu + w.tool;

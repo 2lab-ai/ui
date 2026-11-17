@@ -1,6 +1,13 @@
 {
  "name": "kate",
- "about": "Kate (main, cwon voice, Live2D Mao) streams from a warm night room; her younger sister (extra, egirl voice, Live2D Hiyori) sneaks in while Kate is away. Character bibles: kate.md, sister.md. Never named on screen or in speech.",
+ "about": "Kate (main, cwon voice, Live2D Mao) streams from a warm night room; her younger sister (extra, egirl voice, Live2D Hiyori) sneaks in while Kate is away. Kate runs the YouTube channel 「지구에서 온 Kate」 (Kate from Earth, a nod to The Man from Earth): 100,000+ years old (estimated), she knows tens of thousands of years she should not and lets it show only in passing. Character bibles: kate.md, sister.md. Never named on screen or in speech; the name is channel branding only.",
+ "channel": {
+  "name_ko": "지구에서 온 Kate",
+  "name_en": "Kate from Earth",
+  "handle": "@KateFromEarth",
+  "homage": "The Man from Earth (2007)",
+  "age": "100,000+ years (estimated), never said"
+ },
  "cast": {
   "main": {
    "label": "메인(cwon)",
@@ -118,7 +125,7 @@
    20
   ],
   [
-   "화장실 기믹 + 다른 Live2D(18세 고딩 느낌 e-girl)가 옆에서 얼굴을 내밀고 조곤조곤 속삭이는 연출",
+   "자리비움 기믹(화장실·택배 등) + 다른 Live2D(18세 고딩 느낌 e-girl)가 옆에서 얼굴을 내밀고 조곤조곤 속삭이는 연출",
    15
   ]
  ],
