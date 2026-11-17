@@ -222,6 +222,11 @@ def typed(B, x, y, text, size=38, minw=300, t0=None, commit=True, cps=1.0):
     return out
 
 
+def quiet(B, s, expr='soft'):
+    """a few seconds of reading the chat without a word (real streams breathe between topics)"""
+    B.gaze.append((B.t, B.t + s, 'chat', 'main')); B.expr.append((B.t, B.t + s, expr, 'main')); B.t += s
+
+
 def look_screen(B, t0, t1):
     B.gaze.append((t0, t1, 'screen', 'main'))
 
@@ -230,10 +235,10 @@ def look_screen(B, t0, t1):
 def script(B, rng):
     R = {}   # times the review panel anchors to
     # ---- the stream is already live; she is checking the mic
-    B.gaze.append((0.0, 2.2, 'screen', 'main'))
+    B.gaze.append((0.0, 4.0, 'screen', 'main'))
     B.pick_tool('pencil', 0.4)
     B.move(720, 560)
-    B.t = 2.4
+    B.t = 4.2
     S(B, 'o01', gaze='cam', expr='neutral', gap=0.9)
     M(B, rng, '들려요', at=B.t - 0.6); M(B, rng, '잘 들려요!', at=B.t + 0.1)
     S(B, 'o02', gaze='down', expr='soft', gap=0.6)
@@ -326,6 +331,7 @@ def script(B, rng):
     M(B, rng, 'ㄱㄱ', at=B.t - 0.2); M(B, rng, '꼭꼭 ㅋㅋ', at=B.t + 0.4)
 
     # ---- page 2: the cows
+    quiet(B, 3.0)
     B.hand_at(B.t); B.clear_canvas()
     S(B, 'c01', gaze='cam', expr='soft', at=B.hand_t + 0.3, gap=0.4)
     S(B, 'c02', gaze='cam', expr='neutral', gap=0.3)
@@ -387,6 +393,7 @@ def script(B, rng):
     S(B, 'c23', gaze='cam', expr='deadpan', gap=0.9)
 
     # ---- page 3: remarkable
+    quiet(B, 3.0)
     B.hand_at(B.t); B.clear_canvas()
     S(B, 'r01', gaze='cam', expr='earnest', at=B.hand_t + 0.3, gap=0.4)
     t = B.t; look_screen(B, t - 0.2, t + 4)
@@ -464,8 +471,10 @@ def script(B, rng):
     S(B, 'r24', gaze='cam', expr='bigsmile', gap=0.8)
     burst(B, rng, ta + 0.6, 'don1', 4, 3.5)
     M(B, rng, 'ㅋㅋㅋ 바로 써먹음', at=B.t - 0.4)
+    quiet(B, 2.5, 'smile')
 
     # ---- page 4: the TV formula, sliced bread, the P's
+    quiet(B, 3.0)
     B.hand_at(B.t); B.clear_canvas()
     S(B, 't01', gaze='cam', expr='neutral', at=B.hand_t + 0.3, gap=0.3)
     S(B, 't02', gaze='cam', expr='earnest', gap=0.4)
@@ -657,6 +666,7 @@ def script(B, rng):
     S(B, 'p12', gaze='cam', expr='earnest', gap=0.6)
 
     # ---- page 5: who listens — the curve, sneezers, otaku
+    quiet(B, 3.0)
     B.hand_at(B.t); B.clear_canvas()
     S(B, 'i01', gaze='cam', expr='earnest', at=B.hand_t + 0.3, gap=0.3)
     S(B, 'i02', gaze='cam', expr='neutral', gap=0.3)
@@ -744,8 +754,10 @@ def script(B, rng):
     M(B, rng, 'ㅋㅋㅋ 정확함', at=B.t - 0.4); M(B, rng, '제 친구 그분한테 추천받음', at=B.t + 0.5)
     B.t += 0.6
     S(B, 'i25', gaze='chat', expr='laugh', gap=0.9)
+    quiet(B, 2.0, 'smile')
 
     # ---- page 6: real purple cows
+    quiet(B, 3.0)
     B.hand_at(B.t); B.clear_canvas()
     S(B, 'x01', gaze='cam', expr='soft', at=B.hand_t + 0.3, gap=0.4)
     t = B.t; look_screen(B, t - 0.2, t + 3)
@@ -809,6 +821,7 @@ def script(B, rng):
     S(B, 'x19', gaze='away', expr='exasp', gap=0.6)
     M(B, rng, '냄새를 어떻게 앎 ㅋㅋㅋ', at=B.t - 0.3); M(B, rng, '고둥 ㄷㄷ', at=B.t + 0.6)
     S(B, 'x20', gaze='cam', expr='soft', gap=0.8)
+    quiet(B, 2.0)
     # safe is risky, and the committee's camel
     S(B, 'x23', gaze='cam', expr='soft', gap=0.4)
     t = B.t; look_screen(B, t - 0.2, t + 6)
@@ -830,6 +843,7 @@ def script(B, rng):
     S(B, 'x37', gaze='chat', expr='sneaky', gap=1.0)
 
     # ---- page 7: go to the edges; the third donation; closing
+    quiet(B, 3.0)
     B.hand_at(B.t); B.clear_canvas()
     S(B, 'g01', gaze='cam', expr='earnest', at=B.hand_t + 0.3, gap=0.3)
     t = B.t; look_screen(B, t - 0.2, t + 4)
@@ -871,6 +885,7 @@ def script(B, rng):
     S(B, 'g09', gaze='cam', expr='laugh', gap=0.4)
     S(B, 'g10', gaze='cam', expr='sneaky', gap=0.8)
     burst(B, rng, ta + 0.6, 'don3', 4, 3.5)
+    quiet(B, 2.0, 'smile')
     S(B, 'g11', gaze='cam', expr='soft', gap=0.3)
     S(B, 'g12', gaze='cam', expr='serious', gap=0.4)
     S(B, 'g13', gaze='cam', expr='deadpan', gap=0.4)
@@ -908,8 +923,8 @@ def script(B, rng):
     S(B, 'z06', gaze='cam', expr='embarrassed', gap=0.4)
     S(B, 'z07', gaze='cam', expr='sneaky', gap=0.5)
     S(B, 'z08', gaze='cam', expr='soft', gap=0.4)
-    B.gaze.append((B.t, B.t + 5.0, 'chat', 'main')); B.expr.append((B.t, B.t + 5.0, 'soft', 'main'))
-    B.t += 5.0
+    B.gaze.append((B.t, B.t + 8.0, 'chat', 'main')); B.expr.append((B.t, B.t + 8.0, 'soft', 'main'))
+    B.t += 8.0
     R['end'] = B.t
     burst(B, rng, B.t - 8.0, 'end', 8, 7.0)
     for lt, w, st in list(B.laughs):

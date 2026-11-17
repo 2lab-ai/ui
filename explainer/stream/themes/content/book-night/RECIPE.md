@@ -51,3 +51,5 @@
   - 그 밖: `B.say`, `B.type`, `B.text_box`, `B.stroke`, `B.stickman`, `B.undo`, `B.drag_select`, `B.alert`, `B.msg`, `B.afk`, `B.brb`, `B.sis_win`, `B.sis_keys`.
 - `REVIEW`: 앵커는 `['line', id, 비율, 오프셋]`, `['afk', 0|1, 오프셋]`, `['extra', 0|1, 오프셋]`, `['first_draw']`, `['t', 초]`. 라벨은 화면에 보이는 것만.
 - 회차 폴더 `episodes/NN-<slug>/`에 `beats.py`, `lines.json`, `research.md`를 남기고 `episodes.json`에 한 줄을 더한다.
+- 1화 폴더의 도구(복사해서 쓴다): `make_lines.py`(대사 → `lines.json`), `marks.py`(리뷰 앵커 시각 → `marks.json`), `qa_stills.py`(최종 영상에서 QA 스틸 26장 + 시트), `make_srt.py` + `subs_en.json`(한/영 자막 SRT).
+- 채널 문구·썸네일: 스트리머 테마 kate의 `channel/`(`make_assets.mjs`, `gen_package.py`가 최종 빌드에서 챕터·쇼츠 구간을 채운다).

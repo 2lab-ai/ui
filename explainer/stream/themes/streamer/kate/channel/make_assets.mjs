@@ -84,7 +84,7 @@ const thumb1 = (lang) => {
   return { w: 1280, h: 720, html: `${HEAD}<body style="width:1280px;height:720px;position:relative;background:#1a1426">
   <img class="abs" src="${ROOM}" style="left:0;top:0;width:1280px;height:720px;object-fit:cover;filter:brightness(.45) saturate(.8) blur(3px)">
   <div class="abs" style="inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(163,73,164,.45),rgba(0,0,0,0) 60%)"></div>
-  <div class="abs" style="left:34px;top:112px;width:720px;height:380px;background:#fff;border-radius:10px;transform:rotate(-2deg);box-shadow:0 16px 40px rgba(0,0,0,.55);overflow:hidden;border:6px solid #f3f3f3">
+  <div class="abs" style="left:34px;top:116px;width:720px;height:352px;background:#fff;border-radius:10px;transform:rotate(-2deg);box-shadow:0 16px 40px rgba(0,0,0,.55);overflow:hidden;border:6px solid #f3f3f3">
     <img class="abs" src="${SRC}paint_cows.png" style="left:0;top:0;width:708px"></div>
   <img class="abs" src="${SRC}bust_surprise.png" style="left:790px;top:60px;width:560px">
   <div class="abs" style="left:40px;top:30px;display:flex;gap:12px">
