@@ -1,0 +1,146 @@
+{
+ "name": "book-night",
+ "about": "책듣는밤 — '벽돌책 꼭꼭 대신 읽고 소화하기 쉽게 말로 설명해주는 책듣는밤'. A series of ~30-minute book streams: one thick book per episode, read on the viewer's behalf and explained in plain speech over several Paint pages (Ctrl+A, Delete between topics), two or three donations, one 60-120 s step-away where the extra drops in, and a closing recap. Episodes are numbered and remember each other through episodes.json.",
+ "series": {
+  "name_ko": "책듣는밤",
+  "name_en": "Book-Listening Night",
+  "concept_ko": "벽돌책 꼭꼭 대신 읽고 소화하기 쉽게 말로 설명해주는 책듣는밤",
+  "concept_en": "Brick-thick books, read for you, chewed well, explained out loud so they go down easy",
+  "minutes": 30,
+  "title": "📖 책듣는밤 {n}화 · {book}",
+  "typed_header": "책듣는밤 {n}화",
+  "ledger": "episodes.json"
+ },
+ "activity": "paint",
+ "example": "episodes/01-purple-cow/beats.py",
+ "layout": {
+  "W": 1920,
+  "H": 1080,
+  "win": {
+   "x": 28,
+   "y": 28,
+   "w": 1232,
+   "h": 1024,
+   "title": 34,
+   "menu": 40,
+   "tool": 100,
+   "status": 30
+  },
+  "canvas": {
+   "x": 94,
+   "y": 262,
+   "w": 1100,
+   "h": 700
+  },
+  "tools": {
+   "select": [
+    75,
+    140
+   ],
+   "crop": [
+    140,
+    124
+   ],
+   "resize": [
+    176,
+    124
+   ],
+   "rotate": [
+    212,
+    124
+   ],
+   "pencil": [
+    262,
+    124
+   ],
+   "fill": [
+    298,
+    124
+   ],
+   "text": [
+    334,
+    124
+   ],
+   "eraser": [
+    262,
+    158
+   ],
+   "picker": [
+    298,
+    158
+   ],
+   "zoom": [
+    334,
+    158
+   ],
+   "brush": [
+    405,
+    138
+   ],
+   "shapes": [
+    540,
+    138
+   ],
+   "size": [
+    680,
+    138
+   ],
+   "color1": [
+    760,
+    132
+   ],
+   "black": [
+    838,
+    118
+   ]
+  },
+  "menu": {
+   "file": [
+    56,
+    82
+   ],
+   "edit": [
+    104,
+    82
+   ],
+   "view": [
+    152,
+    82
+   ],
+   "save": [
+    214,
+    82
+   ],
+   "undo": [
+    250,
+    82
+   ],
+   "redo": [
+    286,
+    82
+   ]
+  }
+ },
+ "review": [
+  [
+   "그림판: 진짜 Windows 그림판 같은가, 마우스로 그린 비뚤빼뚤한 그림, 주제마다 페이지를 비우고 새로 그리는 흐름",
+   10
+  ],
+  [
+   "타이핑: 텍스트 도구와 한글 조합, 키보드 소리 동기화",
+   5
+  ],
+  [
+   "책 설명 콘텐츠: 벽돌책을 대신 읽어 소화하기 쉽게 말로 풀었는가(정확성, 쉬운 말, 예시)",
+   10
+  ],
+  [
+   "30분 장편 흐름: 지루한 구간 없이 주제가 넘어가는가, 회차 표시와 지난 회차 연결이 자연스러운가",
+   10
+  ]
+ ],
+ "review_facts": [
+  "키 입력 소리 {keys}회: 모든 타건음은 그림판 텍스트 상자에 글자(한글 IME 조합 단계 포함: ㅇ→아→앚→아주 — '앚'은 실제 두벌식 IME가 다음 모음 전까지 받침으로 붙여 두는 정상 중간 상태)가 바뀌는 바로 그 프레임에 배치(동기 오차 0프레임, 같은 이벤트 리스트에서 생성). 스페이스/엔터/백스페이스는 더 무거운 키음. 오타→백스페이스 정정도 있음.",
+  "마우스 클릭음 {clicks}회: 도구 선택, 텍스트 상자 클릭, 선 긋기 시작/끝(마우스 다운/업)에 동기."
+ ]
+}

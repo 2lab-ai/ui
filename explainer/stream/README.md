@@ -25,11 +25,14 @@ explainer/stream/
 │   ├── mix.py, mux.sh            the audio mix; mux + loudness (-16 LUFS)
 │   ├── tts.py, align.py          soma-voice (blade-4090) per line with padcut; mlx-whisper word timings
 │   ├── review.py, rescore.py     the external review panel (llmux), and re-scoring a packet
+│   ├── portrait.mjs              one cast member on a transparent PNG (channel art: profile picture, banner, thumbnails)
 │   └── setup_assets.py           downloads everything into ~/.cache/2lab-stream (nothing binary is committed)
 └── themes/
     ├── streaming/<id>/           the platform look     — default: CHZZK (THEME.md)
     ├── streamer/<id>/            who is on screen      — kate: Kate (Mao, cwon) + her sister (Hiyori, egirl) (kate.md, sister.md)
-    └── content/<id>/             what the stream does  — reading-book: a book stream in Paint (RECIPE.md, example/)
+    └── content/<id>/             what the stream does  — reading-book: a 4-minute book stream in Paint (RECIPE.md, example/)
+                                                        — book-night: 책듣는밤, ~30-minute numbered episodes (RECIPE.md,
+                                                          episodes.json ledger, episodes/NN-<slug>/)
 ```
 
 What each theme decides:
@@ -38,9 +41,13 @@ What each theme decides:
 |---|---|
 | streaming | overlay CSS, strings (chat title, donation word, BRB text), donation TTS voice, chat and label positions, its rubric lines |
 | streamer | cast: per role a model, rig, voice, hidden parts, room-light tint, motion knobs (`talk_sway`, `nod`, `idle_sway`) and whisper gain; the room (background, BGM, room sounds, their download sources); where the cast stands; character bibles; rubric lines |
-| content | the activity layout (the Paint window), the recipe, the example beats, rubric lines |
+| content | the activity layout (the Paint window), the recipe, the example beats, rubric lines; a series theme also keeps an episode ledger |
 
 Every theme adds its own lines to the review rubric (`review`), and they sum to 100.
+
+The beats may override per stream: `STRINGS` (overlay strings, e.g. a BRB banner for a parcel: `{'brb_title': '택배 받으러 잠깐!', 'brb_emoji': '📦'}`)
+and `VIEWERS` (start, end viewer count; a first stream starts small). Long streams turn the Paint page with `B.clear_canvas()`
+(Ctrl+A, Delete), draw in colour with `B.pick_color('purple')`, and can ring the doorbell (`'bell'`) or a door lock (`'doorlock'`) as sfx.
 
 ## Run
 
@@ -53,6 +60,7 @@ python engine/build.py --beats <beats.py> --audio <audio> --out <build> \
 node engine/render.mjs <build> 8                    # -> <build>/video.mp4
 python engine/mix.py <build> && sh engine/mux.sh <build>      # -> <build>/final.mp4
 python engine/review.py <build> <lines.json> v1     # optional: 3-engine panel; write <build>/review_note.txt first
+node engine/portrait.mjs kate main kate.png --expr smile --height 3200 --focus 0.27   # channel art
 ```
 
 Python: `~/.cache/2lab-explainer-venv` (numpy, scipy, PIL, matplotlib, mlx-whisper). Node: the cache's own `node_modules`.
