@@ -65,9 +65,20 @@ ff = [m for m in E['main'] if m['speed'] > 1]
 zooms = [m for m in E['main'] if m.get('zoom')]
 alerts = [m for m in E['main'] if m.get('fill') == 'alert']
 sis = [s for s in E['subs'] if s[3] == 'sis']
+K = lambda kind: [o for o in ov if o.get('kind') == kind]
+ins = [o for o in ov if 'video' in o and o.get('kind', 'insert') == 'insert'] or ins
+broll = [o for o in ov if o.get('kind') == 'broll' and ('video' in o or '/card_' in o.get('png', ''))]
 picks = []
-if ins: picks += [('보랏빛 소 사진 전체 화면 인서트', ins[0]['t0'] + 0.6), ('인서트 끝(채팅 말풍선)', ins[0]['t1'] - 0.4)]
-for o in emph[::max(1, len(emph) // 8)][:8]: picks.append(('강조 자막', o['t0'] + 0.35))
+if ins: picks += [('보랏빛 소 사진 전체 화면 인서트', ins[0]['t0'] + 0.6), ('인서트 끝', ins[0]['t1'] - 0.4)]
+for o in broll[:4]: picks.append(('실사 B-roll', o['t0'] + 1.0))
+for o in K('corner')[:2]: picks.append(('코너 라벨', o['t0'] + 0.5))
+for o in K('state')[:2]: picks.append(('상태 라벨', o['t0'] + 0.6))
+for o in K('live')[:1]: picks.append(('생방송 라벨', o['t0'] + 0.8))
+for st in ('narr', 'thesis', 'result'):
+    for o in [x for x in emph if x.get('style') == st][:2]: picks.append(({'narr': '편집자 손글씨 내레이션', 'thesis': '테제 카드', 'result': '결산 카드'}[st], o['t0'] + 0.9))
+for z in [m for m in E['main'] if m.get('zoom') == 'chat'][:2]: picks.append(('채팅창 줌 + 채팅형 자막', z['o1'] - 0.8))   # after any photo that opens the part
+for z in [m for m in E['main'] if isinstance(m.get('zoom'), list)][:1]: picks.append(('그림 따라가는 패닝', z['o0'] + 0.5 * (z['o1'] - z['o0'])))
+for o in [x for x in emph if x.get('style', 'key') in ('key', 'gag', 'tag')][::3][:4]: picks.append(('강조 자막', o['t0'] + 0.35))
 for o in chat[:3]: picks.append(('채팅 말풍선', o['t0'] + 0.6))
 for m in ff[:2]: picks.append((f'배속 ×{m["speed"]:g}', m['o0'] + 0.4))
 for m in zooms[:3]: picks.append((f'줌인({m["zoom"]})', m['o0'] + 0.5))
@@ -116,13 +127,19 @@ imgs.append(('증거 차트: 징글 구간', p))
 emph_by_t = {round(o['t0'], 2): os.path.basename(o['png'])[5:-4] for o in emph}
 zoom_at = lambda t: next((m.get('zoom') for m in E['main'] + E['cold'] if m['o0'] <= t < m['o1'] and m.get('zoom')), None)
 rows = []
-for o0, o1, lid, who in E['subs']:
+ST = E.get('sub_text', {})   # captions a cold-open shot cut short: the transcript shows what is on screen and heard
+for i, (o0, o1, lid, who) in enumerate(E['subs']):
     tag = []
     z = zoom_at(o0)
     if z: tag.append(f'줌:{z}')
     for k, v in emph_by_t.items():
-        if o0 <= k < o1 + 0.6 and v == lid: tag.append('강조자막')
-    rows.append(f"[{mmss(o0)}] {'동생' if who == 'sis' else '케이트'}: {L[lid]['text']}" + (f"  <{', '.join(tag)}>" if tag else ''))
+        if o0 <= k < o1 + 0.6 and v == lid: tag.append('강조자막:' + next((x.get('style', '') for x in emph if x['t0'] == k), ''))
+    tone = next((x.get('tone') for x in ov if x.get('kind') == 'sub' and abs(x['t0'] - o0) < 0.01), None)
+    if tone and tone != 'plain': tag.append('자막톤:' + tone)
+    for x in ov:
+        if x.get('kind') in ('state', 'corner') and x.get('anim') and o0 - 0.3 <= x['t0'] < o1: tag.append(('상태라벨:' if x['kind'] == 'state' else '코너라벨:') + x.get('text', ''))
+        if x.get('kind') == 'broll' and o0 <= x['t0'] < o1 and ('video' in x or '/card_' in x.get('png', '')): tag.append('실사사진')
+    rows.append(f"[{mmss(o0)}] {'동생' if who == 'sis' else '케이트'}: {ST.get(str(i), L[lid]['text'])}" + (f"  <{', '.join(tag)}>" if tag else ''))
 S = E['stats']
 loud = subprocess.run(['ffmpeg', '-hide_banner', '-i', VID, '-af', 'ebur128', '-f', 'null', '-'], capture_output=True, text=True).stderr
 I = [l for l in loud.splitlines() if 'I:' in l][-1].strip()
@@ -131,9 +148,10 @@ facts = f"""측정치와 사실(리뷰어는 소리를 못 들음):
 - 콜드 오픈 {E['title'][0]:.2f}초, 타이틀 카드 {E['title'][1] - E['title'][0]:.1f}초, 시그니처 징글 5.0초(타이틀 시작과 동시에 시작, 마지막 0.6초 페이드).
 - 징글: 채널 전용으로 합성한 오리지널 곡(F장조 120bpm, 뮤직박스 리드·패드·베이스·가벼운 드럼, C-F-A-G / F-C 모티프). 매 화 같은 곡.
 - 본편 BGM: 원본 방송과 같은 Tokyo Sunset(HoliznaCC0, CC0), 대사보다 약 19dB 낮게 연속 재생(컷마다 끊기지 않게 원본 음악을 빼고 다시 깔았음). 엔드카드에서 커짐.
-- 효과음(합성): 줌인 휙, 강조 자막 뿅/딩/뾰잉, 콜드 오픈 끝 레코드 스크래치, 타이틀 진입 휙. 효과음 {len(E['sounds'])}개.
+- 효과음(합성): 강조 자막 뿅/딩/뾰잉, 코너 라벨 휙, 콜드 오픈 끝 레코드 스크래치, 타이틀 진입 휙{', 줌인 휙' if S.get('sfx') is None else ''}. 효과음 {len(E['sounds'])}개.
 - 배속 구간(그리기·타이핑): {S['fills'].get('timelapse', 0):.0f}초 분량, ×2~×8, 화면에 ▶▶ 배지. 후원 알림 {S['fills'].get('alert', 0):.0f}초는 원속도 유지.
-- 줌인 컷 {S['zooms']}개, 강조 자막 {S['emph']}개, 채팅 말풍선 {S['chat']}개, 사진 인서트 {S['inserts']}개.
+- 줌인 컷 {S['zooms']}개, 강조 자막 {S['emph']}개(손글씨 내레이션 {S.get('narr', 0)}개 포함), 채팅 말풍선 {S['chat']}개, 보랏빛 소 사진 인서트 {S['inserts']}개, 실사 B-roll {S.get('broll', 0)}개.
+- 상태 라벨 {S.get('states', 0)}개, 코너 라벨 {S.get('corners', 0)}개, 채팅창 줌 {S.get('chatzoom', 0)}개, 자막 톤(외침/중얼/채팅형) {S.get('tones', {})}, 엔드카드 아래 보너스 클립 {'있음' if S.get('end_clip') else '없음'}.
 - 최종 라우드니스 {I} (목표 -16 LUFS).
 - 챕터: {' / '.join(E['chapters_ko'])}
 """
