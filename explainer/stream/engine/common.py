@@ -34,10 +34,24 @@ class Spring:
     def __call__(self, tgt, k=None): self.x += (tgt - self.x) * (k or self.k); return self.x
 
 
+_SEG = {}   # (id(list), who) -> (len, {second: [(t0, t1, v), ...] in list order}): a 30-minute stream has ~1000 cues
+
+
 def seg_at(segs, t, who, default):
+    """the value of the last cue in `segs` (t0, t1, value, who) that covers t, else default. Cues are bucketed per
+    second once per list, so a long stream does not rescan every cue on every frame."""
+    key = (id(segs), who)
+    c = _SEG.get(key)
+    if c is None or c[0] != len(segs) or c[2] is not segs:
+        bins = {}
+        for t0, t1, v, w in segs:
+            if w != who: continue
+            for b in range(int(math.floor(t0)), int(math.floor(min(t1, t0 + 7200))) + 1):
+                bins.setdefault(b, []).append((t0, t1, v))
+        c = (len(segs), bins, segs); _SEG[key] = c
     val = default
-    for t0, t1, v, w in segs:
-        if w == who and t0 <= t < t1: val = v
+    for t0, t1, v in c[1].get(int(math.floor(t)), ()):
+        if t0 <= t < t1: val = v
     return val
 
 

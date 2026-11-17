@@ -68,6 +68,29 @@ def chime():
     return x / np.max(np.abs(x)) * 0.5
 
 
+def doorbell():
+    """an apartment door chime heard from the next room: two soft tones (ding-dong), a little muffled"""
+    t = np.arange(int(1.9 * SR)) / SR
+    x = np.zeros_like(t)
+    for f0, st in [(659.3, 0.0), (523.3, 0.55)]:
+        tt = np.clip(t - st, 0, None); env = np.where(t >= st, np.exp(-tt * 3.2) * np.minimum(1, tt / 0.004), 0)
+        x += env * (np.sin(2 * np.pi * f0 * tt) + 0.35 * np.sin(2 * np.pi * 2.01 * f0 * tt) + 0.12 * np.sin(2 * np.pi * 3.02 * f0 * tt))
+    return lp(x / np.max(np.abs(x)), 2800)
+
+
+def doorlock():
+    """a digital door lock opening down the hall: four keypad beeps, the bolt, a short three-note jingle"""
+    out = np.zeros(int(2.0 * SR))
+    for k in range(4):
+        i = int((0.0 + k * 0.17) * SR); n = int(0.07 * SR); t = np.arange(n) / SR
+        out[i:i + n] += np.sin(2 * np.pi * 1850 * t) * np.exp(-t * 18) * 0.6
+    i = int(0.85 * SR); n = int(0.06 * SR); out[i:i + n] += lp(rng.normal(0, 1, n), 1500) * np.exp(-np.arange(n) / SR * 60)
+    for k, f0 in enumerate((1568, 1976, 2349)):
+        i = int((1.0 + k * 0.12) * SR); n = int(0.22 * SR); t = np.arange(n) / SR
+        out[i:i + n] += np.sin(2 * np.pi * f0 * t) * np.exp(-t * 9) * 0.5
+    return lp(out / np.max(np.abs(out)), 3000)
+
+
 def step(g):
     # a soft footstep on a floor, through a closed-ish room: a low thump + a short muffled scuff
     n = int(0.16 * SR); t = np.arange(n) / SR
@@ -165,6 +188,10 @@ def main(bdir):
             for k in range(int(cnt)):
                 place(life, step(rng), t + k * dt_ + rng.uniform(-0.03, 0.03), g_ * (1 - 0.12 * k) * 10 ** (rng.uniform(-2, 1) / 20))
             if rs: place(life, rustle(rng), t - 0.1, g_ * 0.35)
+        elif kind == 'doorlock':
+            place(life, doorlock(), t, 0.12 if extra is None else float(extra))
+        elif kind == 'bell':
+            place(life, doorbell(), t, 0.22 if extra is None else float(extra))
         elif kind == 'alert':
             place(alert, chime(), t, 0.5)
         elif kind == 'yuna':
