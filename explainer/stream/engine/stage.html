@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Pret;src:url(/cache/fonts/pretendard/Pretendard-Regular.woff2);font-weight:400}
+@font-face{font-family:Pret;src:url(/cache/fonts/pretendard/Pretendard-Medium.woff2);font-weight:500}
+@font-face{font-family:Pret;src:url(/cache/fonts/pretendard/Pretendard-SemiBold.woff2);font-weight:600}
+@font-face{font-family:Pret;src:url(/cache/fonts/pretendard/Pretendard-Bold.woff2);font-weight:700}
+@font-face{font-family:Pret;src:url(/cache/fonts/pretendard/Pretendard-ExtraBold.woff2);font-weight:800}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#222;font-family:Pret,sans-serif}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden}
+#bg{position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:cover;filter:saturate(1.02)}
+#bgshade{position:absolute;inset:0;background:radial-gradient(ellipse at 75% 60%,rgba(0,0,0,0) 30%,rgba(0,0,0,.18) 100%)}
+/* ---------- Paint window ---------- */
+#win{position:absolute;background:#f3f3f3;border-radius:8px;box-shadow:0 10px 36px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.25);overflow:hidden;color:#1b1b1b;font-size:13px}
+#titlebar{position:absolute;left:0;right:0;top:0;background:#eef0f4;display:flex;align-items:center}
+#titlebar .ic{width:18px;height:18px;margin:0 10px 0 14px}
+#titlebar .t{font-size:13px;color:#222}
+#titlebar .wb{position:absolute;right:0;top:0;height:100%;display:flex}
+#titlebar .wb span{width:46px;display:flex;align-items:center;justify-content:center;color:#333;font-size:14px}
+#menubar{position:absolute;left:0;right:0;background:#f9f9fb;display:flex;align-items:center;border-bottom:1px solid #e5e5e5}
+#menubar .m{position:absolute;font-size:14px;transform:translate(-50%,-50%)}
+#menubar .i{position:absolute;transform:translate(-50%,-50%);width:20px;height:20px}
+#toolbar{position:absolute;left:0;right:0;background:#f9f9fb;border-bottom:1px solid #dcdcdc}
+.grp-label{position:absolute;font-size:12px;color:#555;transform:translateX(-50%);bottom:8px;white-space:nowrap}
+.sep{position:absolute;top:10px;bottom:10px;width:1px;background:#e1e1e1}
+.tbtn{position:absolute;width:32px;height:30px;border-radius:5px;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center}
+.tbtn.on{background:#dfe6f2;box-shadow:inset 0 0 0 1px #c5d0e3}
+.tbtn svg{width:20px;height:20px}
+.big{width:52px;height:56px}
+.big svg{width:30px;height:30px}
+.sw{position:absolute;width:20px;height:20px;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+#workspace{position:absolute;left:0;right:0;background:#e7eaf0;overflow:hidden}
+#art{position:absolute;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.14)}
+#statusbar{position:absolute;left:0;right:0;bottom:0;background:#f9f9fb;border-top:1px solid #e3e3e3;display:flex;align-items:center;font-size:12.5px;color:#333}
+#statusbar .s{position:absolute;display:flex;align-items:center;gap:6px}
+#statusbar svg{width:15px;height:15px}
+#textbox{position:absolute;display:none;border:1px dashed #333;outline:1px dashed rgba(255,255,255,.8);outline-offset:-2px;padding:2px 3px;white-space:pre;font-family:Pret;color:#000;line-height:1.25}
+#textbox .comp{text-decoration:underline;text-underline-offset:3px}
+#textbox .caret{display:inline-block;width:1.5px;background:#000;vertical-align:-0.15em;height:1.05em}
+#textbar{position:absolute;display:none;background:#fbfbfd;border:1px solid #d9d9d9;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.12);font-size:12.5px;align-items:center;gap:10px;padding:5px 10px}
+#textbar .dd{border:1px solid #cfcfcf;border-radius:4px;padding:2px 8px;background:#fff}
+#cursor{position:absolute;left:0;top:0;width:32px;height:32px;pointer-events:none;z-index:50}
+#sisshadow{position:absolute;display:none;width:430px;height:620px;z-index:29;pointer-events:none;background:radial-gradient(ellipse at 62% 42%,rgba(18,9,4,.42) 0%,rgba(18,9,4,.16) 46%,rgba(0,0,0,0) 72%);filter:blur(16px)}
+#pixi{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:30}
+</style>
+<script src="/cache/live2dcubismcore.min.js"></script>
+<script src="/cache/node/node_modules/pixi.js/dist/browser/pixi.min.js"></script>
+<script src="/cache/node/node_modules/pixi-live2d-display/dist/cubism4.min.js"></script>
+</head><body>
+<div id="stage">
+  <img id="bg">
+  <div id="bgshade"></div>
+  <div id="win">
+    <div id="titlebar"><svg class="ic" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="#5b8def"/><circle cx="7" cy="8" r="2" fill="#ffd400"/><circle cx="12" cy="6.5" r="1.8" fill="#ff5a5a"/><circle cx="13.5" cy="11" r="1.8" fill="#3ccf6e"/><path d="M5 15c3-1 4-4 8-3" stroke="#fff" stroke-width="1.6" fill="none"/></svg><span class="t" id="wtitle">제목 없음 - 그림판</span>
+      <div class="wb"><span>&#x2014;</span><span>&#x25A2;</span><span>&#x2715;</span></div></div>
+    <div id="menubar"></div>
+    <div id="toolbar"></div>
+    <div id="workspace"><canvas id="art"></canvas><div id="textbox"></div></div>
+    <div id="textbar"><span class="dd">맑은 고딕 ▾</span><span class="dd">36 ▾</span><b>B</b><i>I</i><u>U</u><s>S</s><span>배경 채우기 ☐</span></div>
+    <div id="statusbar"></div>
+  </div>
+  <div id="chat"><div id="chathead"><span class="dot"></span><span id="chattitle"></span></div><div id="chatlist"><div id="chatinner"></div></div></div>
+  <div id="label"><span id="title"></span><span class="clock" id="clock"></span></div>
+  <div id="sisshadow"></div>
+  <canvas id="pixi" width="1920" height="1080"></canvas>
+  <div id="alert"><div class="card"><div class="em">💪</div><div class="t1"><b id="al_amt"></b> <span id="al_word"></span></div><div class="t2" id="al_msg"></div></div></div>
+  <div id="brb"><div class="card"><div class="em">🚽</div><div class="t1" id="brb_title"></div><div class="cd" id="brb_cd"></div></div></div>
+  <div id="jumpcap"></div>
+  <svg id="cursor" viewBox="0 0 32 32"></svg>
+</div>
+<script src="/engine/stage.js"></script>
+</body></html>
