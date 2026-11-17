@@ -227,6 +227,9 @@ def quiet(B, s, expr='soft'):
     B.gaze.append((B.t, B.t + s, 'chat', 'main')); B.expr.append((B.t, B.t + s, expr, 'main')); B.t += s
 
 
+PHOTO = 'content/book-night/episodes/01-purple-cow/props/purple_cow_field.jpg'   # CC BY 4.0 herd photo, one cow recoloured (props/CREDITS.md)
+
+
 def look_screen(B, t0, t1):
     B.gaze.append((t0, t1, 'screen', 'main'))
 
@@ -364,7 +367,15 @@ def script(B, rng):
     typed(B, 700, 610, '보랏빛 소!', size=40, minw=200)
     B.sync_hand(0.5)
     M(B, rng, '보라 소 ㅋㅋㅋ', at=B.t - 1.2); M(B, rng, '소 귀엽다', at=B.t - 0.3)
-    S(B, 'c11', gaze='cam', expr='bigsmile', gap=0.4)
+    # '사진 찍고': the photo she made before the stream (a real herd, one cow purple) lands on the empty corner of the page
+    t11 = B.t; d11 = B.dur('c11')
+    look_screen(B, t11 - 1.6, t11 + 0.45 * d11 + 0.6)
+    B.hand_at(t11 + 0.42 * d11 - 1.9)
+    R['photo'] = B.paste_image(PHOTO, 50, 385, 430, 307)
+    S(B, 'c11', gaze='cam', expr='bigsmile', at=t11, gap=0.4)
+    M(B, rng, '헐 진짜 보라 소', at=R['photo'] + 0.9); M(B, rng, '합성 아님? ㅋㅋㅋ', at=R['photo'] + 2.0)
+    M(B, rng, '가운데 애 표정 봐 ㅋㅋ', at=R['photo'] + 3.1)
+    B.t = max(B.t, B.hand_t + 0.2)
     S(B, 'c12', gaze='cam', expr='smile', gap=0.9)
     M(B, rng, '근데 보라색 소 진짜 있음?', at=B.t - 0.5)
     B.t += 1.0
@@ -936,7 +947,7 @@ def script(B, rng):
 MAIN_BOX, WIDE = [1380, 470, 1880, 1080], [1250, 380, 1920, 1080]
 REVIEW = {
     'keys': [['오프닝: 첫 인사', ['line', 'o03', .5]], ['채널 이름 타이핑 후 소개', ['line', 'o07', .4]], ['책 제목 타이핑', ['line', 'b01', .5]],
-             ['우유팩 그림', ['line', 'b09', .2]], ['소 그리기(갈색)', ['line', 'c04', .5]], ['보라색 소', ['line', 'c11', .5]],
+             ['우유팩 그림', ['line', 'b09', .2]], ['소 그리기(갈색)', ['line', 'c04', .5]], ['보라색 소 그림 + 보랏빛 소 사진(실사 소떼, 한 마리만 보라)', ['line', 'c12', .5]],
              ['오록스 이야기(그림 보며)', ['line', 'c14', .5]], ['반대말 질문 → 생각+머리 긁기', ['line', 'r08', .5]], ['첫 후원 알림', ['line', 'r21', .2]],
              ['TV 광고 공식 순환도 + X', ['line', 't10', .5]], ['식빵 그림', ['line', 't14', .5]], ['초인종 → 택배 받으러 일어남', ['line', 'p02', .9]],
              ['자리비움: 빈자리 + 택배 배너', ['afk', 0, 30.0]], ['동생이 빼꼼', ['extra', 0, 1.6]], ['동생 속삭임', ['line', 'y04', .5]],

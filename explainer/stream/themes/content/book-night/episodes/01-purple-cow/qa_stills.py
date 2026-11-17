@@ -8,7 +8,7 @@ ev = json.load(open(os.path.join(B, 'events.json')))
 start = {lid: t0 for who, lid, t0, d in ev['voices']}
 T = ev['T']
 SHOTS = [('00 opening', start['o03'] + 1.0), ('01 title typed', R['title'] + 1.0), ('02 milk carton', start['b09'] + 0.5),
-         ('03 cows', start['c11'] + 0.5), ('04 aurochs', start['c14'] + 2.0), ('05 think+scratch', R['think1'] + 1.6),
+         ('03 cows', start['c11'] - 0.5), ('03b purple cow photo', R['photo'] + 2.5), ('04 aurochs', start['c14'] + 2.0), ('05 think+scratch', R['think1'] + 1.6),
          ('06 donation 1', R['don1'] + 1.5), ('07 TV loop + X', start['t10'] + 1.0), ('08 doorbell', start['p01'] + 0.4),
          ('09 walk-off', R['afk0'] + 2.2), ('10 empty seat + parcel banner', R['afk0'] + 30.0), ('11 sister peeks', R['sis_in'] + 1.8),
          ('12 sister whisper', start['y04'] + 1.0), ('13 sister typing', start['y08'] - 2.0), ('14 sister runs', R['sis_out'] - 0.1),

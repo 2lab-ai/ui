@@ -54,6 +54,7 @@ class Builder:
         self.color = PALETTE[0]
         self.afk = None        # (t_leave, t_back)
         self.jumps = []        # (t, seconds skipped) edited-VOD jump cuts
+        self.images = []       # page URLs of pictures pasted onto the canvas (stage.js loads them before frame 0)
         self.talk_busy = []
 
     # ---------------- voices
@@ -318,6 +319,23 @@ class Builder:
         self.sfx.append((t + dur + 0.02, 'mup', None)); self.hand_t = t + dur + 0.2
         return self.hand_t
 
+    def paste_image(self, src, x, y, w, h, hold=1.4):
+        """Ctrl+V a picture saved before the stream: drag a box where it should go (Paint pastes at the selection's corner), paste,
+        then a click outside drops it. (x, y, w, h) in canvas coords. src: 'cache:...' or a path under themes/.
+        Returns the time the picture appears."""
+        u = '/cache/' + src[6:] if src.startswith('cache:') else '/themes/' + src.lstrip('/')
+        if u not in self.images: self.images.append(u)
+        self.drag_select(x, y, x + w, y + h)
+        t = self.hand_t + rng.uniform(0.25, 0.4)
+        self.sfx.append((t, 'ctrl', None)); self.sfx.append((t + 0.1, 'key', None))
+        self.ops.append((t + 0.12, {'op': 'img', 'src': u, 'x': x, 'y': y, 'w': w, 'h': h}))
+        self.ops.append((t + 0.12, {'op': 'sel', 'x': x, 'y': y, 'w': w, 'h': h}))
+        self.hand_t = t + hold
+        self.move(CV['x'] + min(CV['w'] - 20, x + w + rng.uniform(40, 90)), CV['y'] + min(CV['h'] - 20, y + h * 0.5 + rng.uniform(-30, 30)))
+        tc = self.click()
+        self.ops.append((tc + 0.03, {'op': 'sel', 'x': 0, 'y': 0, 'w': 0, 'h': 0}))
+        return t + 0.12
+
     # ---------------- overlays
     def msg(self, user, text, dt=0.0, at=None):
         self.chat.append(((self.t if at is None else at) + dt, user, text))
@@ -483,6 +501,7 @@ def build(beats_path, audio_dir, outdir, cfg):
         'brb': {'f0': int(B.brb[0] * FPS), 'f1': int(B.brb[1] * FPS), 'secs': getattr(mod, 'BRB_SECS', 300)} if B.brb else None,
         'cursor': {'x': r(cx), 'y': r(cy), 'k': kind},
         'ops': [dict(o, f=int(math.floor(t * FPS))) for t, o in ops],
+        'images': B.images,
         'main': {'p': {k: r(v) for k, v in PM.items()}, 'dx': r(dx), 'dy': r(dy), 'a': r(alpha), 'sc': r(msc)},
         'sis': {'p': {k: r(v) for k, v in PS.items()}, 'px': r(px_), 'sc': r(sis_sc), 'sy': r(sis_sy), 'mx': r(sis_mx), 'rot': r(sis_rot)},
         'jumps': [{'f': int(round(t * FPS)), 'add': a} for t, a in B.jumps],

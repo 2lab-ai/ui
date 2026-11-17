@@ -163,6 +163,90 @@ def test_long_form_builder_calls_page_turn_colour_banner_and_viewers():
         assert 'bell' in kinds and 'doorlock' in kinds and 'delete' in kinds and 'ctrl' in kinds
 
 
+PASTE_BEATS = """
+TAIL = 1.0
+CLOCK0 = 22 * 3600
+STREAM_TITLE = 'paste'
+def script(B, rng):
+    B.t = 0.5
+    B.say('a1', gaze='cam')
+    B.hand_at(B.t)
+    t = B.paste_image('content/book-night/episodes/01-purple-cow/props/purple_cow_field.jpg', 60, 385, 430, 307)
+    B.t = max(B.t, B.hand_t) + 1.0
+"""
+
+
+def test_paste_image_draws_a_served_picture_inside_a_selection_and_drops_it():
+    import build
+    with tempfile.TemporaryDirectory() as d:
+        audio = os.path.join(d, 'audio'); os.makedirs(audio)
+        _wav(os.path.join(audio, 'a1.wav'), 1.0)
+        json.dump({'id': 'a1', 'who': 'main', 'dur': 1.0, 'said': '안녕'}, open(os.path.join(audio, 'a1.json'), 'w'), ensure_ascii=False)
+        bp = os.path.join(d, 'beats.py'); open(bp, 'w').write(PASTE_BEATS)
+        out = os.path.join(d, 'out')
+        build.build(bp, audio, out, TH.load('default', 'kate', 'book-night'))
+        tl = json.load(open(os.path.join(out, 'timeline.json'))); ev = json.load(open(os.path.join(out, 'events.json')))
+        img = [o for o in tl['ops'] if o['op'] == 'img']
+        assert len(img) == 1 and tl['images'] == [img[0]['src']]
+        u = img[0]['src']; assert u.startswith('/themes/')
+        assert os.path.isfile(os.path.join(HERE, 'themes', u[len('/themes/'):]))       # render.mjs serves /themes/ from here
+        sels = [o for o in tl['ops'] if o['op'] == 'sel']
+        assert any(o['w'] == 430 and o['h'] == 307 and o['f'] == img[0]['f'] for o in sels)   # the pasted picture stays selected
+        assert sels[-1]['w'] == 0 and sels[-1]['f'] > img[0]['f']                             # until a click outside drops it
+        assert 'ctrl' in [s[1] for s in ev['sfx']]
+
+
+def _fake_edit(d):
+    """a tiny live build + episode for edit/cut.py: four lines, drawing in one gap, a donation in another, one line dropped"""
+    ep = os.path.join(d, 'ep'); bd = os.path.join(d, 'build'); os.makedirs(ep); os.makedirs(bd)
+    voices = [['main', 'a1', 1.0, 2.0], ['main', 'a2', 3.2, 1.5], ['main', 'a3', 12.0, 2.0], ['main', 'a4', 20.0, 2.0], ['sis', 'a5', 30.0, 1.0]]
+    json.dump({'T': 40.0, 'voices': voices, 'sfx': [], 'afk': None, 'sis': [], 'review': {}}, open(os.path.join(bd, 'events.json'), 'w'))
+    ops = [{'f': int(t * 30), 'op': 'seg'} for t in np.arange(5.0, 11.0, 0.1)]          # drawing between a2 and a3
+    json.dump({'ops': ops, 'alerts': [{'f0': 16 * 30, 'f1': 23 * 30}]}, open(os.path.join(bd, 'timeline.json'), 'w'))
+    json.dump({'photo': 4.0}, open(os.path.join(bd, 'marks.json'), 'w'))
+    json.dump([{'id': f'a{k}', 'text': f'line {k}'} for k in range(1, 6)], open(os.path.join(ep, 'lines.json'), 'w'))
+    open(os.path.join(ep, 'edit_plan.py'), 'w').write("""
+DROP = {'a5'}
+ZOOM = {'a4': 'face'}
+Z = {'face': (900, 506, 1020, 574)}
+COLD_OPEN = [{'line': 'a4', 'zoom': 'face'}, {'at': ['line', 'a1', 0.5], 'dur': 0.1, 'hold': 'fill'}]
+COLD_LEN = 10.0
+EMPH = {}; CHAT = {}
+""")
+    return ep, bd
+
+
+def test_edit_cut_keeps_lines_whole_speeds_up_drawing_keeps_the_donation_and_fills_the_cold_open():
+    sys.path.insert(0, os.path.join(HERE, 'edit'))
+    import cut
+    with tempfile.TemporaryDirectory() as d:
+        ep, bd = _fake_edit(d)
+        P = cut.load_plan(os.path.join(ep, 'edit_plan.py')); C = cut.Cut(ep, bd, P)
+        segs = C.main_segments()
+        lines = [l for s in segs for l in s['lines']]
+        assert lines == ['a1', 'a2', 'a3', 'a4']                                        # a5 dropped, order kept
+        for s in segs:                                                                  # a kept line is never cut inside
+            for l in s['lines']:
+                _, t0, dd = C.V[l]; assert s['s0'] <= t0 and t0 + dd <= s['s1'] and s['speed'] == 1.0
+        tl = [s for s in segs if s.get('fill') == 'timelapse']
+        assert len(tl) == 1 and tl[0]['speed'] >= 2.0 and 4.8 < tl[0]['s0'] < 5.2           # the drawing, sped up
+        al = [s for s in segs if s.get('fill') == 'alert']
+        assert len(al) == 1 and al[0]['speed'] == 1.0 and abs(al[0]['s0'] - 15.8) < 0.01     # the donation at 1x
+        assert all(b['s0'] >= a['s1'] - 1e-6 for a, b in zip(segs, segs[1:]))               # no overlap, source order
+        assert next(s for s in segs if 'a4' in s['lines'])['zoom'] == 'face'
+        cold = C.cold_segments()
+        assert abs(sum(s['s1'] - s['s0'] + s['hold'] for s in cold) - 10.0) < 1e-6        # the freeze fills to COLD_LEN
+
+
+def test_edit_jingle_is_five_seconds_and_effects_exist():
+    sys.path.insert(0, os.path.join(HERE, 'edit'))
+    import sound
+    j = sound.jingle()
+    assert abs(len(j) / sound.SR - 5.0) < 1e-3 and np.max(np.abs(j)) <= 0.9
+    assert np.max(np.abs(j[-int(0.05 * sound.SR):])) < 0.05                               # it ends faded
+    for fn in (sound.whoosh, sound.pop, sound.ding, sound.boing, sound.scratch, sound.whip):
+        x = fn(); assert len(x) > 1000 and np.isfinite(x).all()
+
 if __name__ == '__main__':
     for name, fn in list(globals().items()):
         if name.startswith('test_'): fn(); print('ok', name)

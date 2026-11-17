@@ -46,7 +46,7 @@ What each theme decides:
 Every theme adds its own lines to the review rubric (`review`), and they sum to 100.
 
 The beats may override per stream: `STRINGS` (overlay strings, e.g. a BRB banner for a parcel: `{'brb_title': '택배 받으러 잠깐!', 'brb_emoji': '📦'}`)
-and `VIEWERS` (start, end viewer count; a first stream starts small). Long streams turn the Paint page with `B.clear_canvas()`
+and `VIEWERS` (start, end viewer count; a first stream starts small). `B.paste_image(src, x, y, w, h)` pastes a picture prepared before the stream (drag a box, Ctrl+V, click off), so the book's symbol can be on screen as a real photo. Long streams turn the Paint page with `B.clear_canvas()`
 (Ctrl+A, Delete), draw in colour with `B.pick_color('purple')`, and can ring the doorbell (`'bell'`) or a door lock (`'doorlock'`) as sfx.
 
 ## Run
@@ -61,6 +61,8 @@ node engine/render.mjs <build> 8                    # -> <build>/video.mp4
 python engine/mix.py <build> && sh engine/mux.sh <build>      # -> <build>/final.mp4
 python engine/review.py <build> <lines.json> v1     # optional: 3-engine panel; write <build>/review_note.txt first
 node engine/portrait.mjs kate main kate.png --expr smile --height 3200 --focus 0.27   # channel art
+python edit/cut.py <episode dir> <build> <edit out> --portrait <bust.png>      # the fast edit (편집본): see edit/README.md
+python edit/review_edit.py <edit out> <episode dir> e1                          # 3-engine panel on the edit rubric
 ```
 
 Python: `~/.cache/2lab-explainer-venv` (numpy, scipy, PIL, matplotlib, mlx-whisper). Node: the cache's own `node_modules`.
