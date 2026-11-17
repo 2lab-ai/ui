@@ -1,0 +1,132 @@
+{
+ "name": "reading-book",
+ "about": "A book-reading stream: the streamer explains one book to chat while drawing mouse-wobbly stick figures and typing key words in Win11 Paint, takes a donation, steps away once (the extra peeks in), and closes on the book's core idea.",
+ "activity": "paint",
+ "example": "example/beats.py",
+ "layout": {
+  "W": 1920,
+  "H": 1080,
+  "win": {
+   "x": 28,
+   "y": 28,
+   "w": 1232,
+   "h": 1024,
+   "title": 34,
+   "menu": 40,
+   "tool": 100,
+   "status": 30
+  },
+  "canvas": {
+   "x": 94,
+   "y": 262,
+   "w": 1100,
+   "h": 700
+  },
+  "tools": {
+   "select": [
+    75,
+    140
+   ],
+   "crop": [
+    140,
+    124
+   ],
+   "resize": [
+    176,
+    124
+   ],
+   "rotate": [
+    212,
+    124
+   ],
+   "pencil": [
+    262,
+    124
+   ],
+   "fill": [
+    298,
+    124
+   ],
+   "text": [
+    334,
+    124
+   ],
+   "eraser": [
+    262,
+    158
+   ],
+   "picker": [
+    298,
+    158
+   ],
+   "zoom": [
+    334,
+    158
+   ],
+   "brush": [
+    405,
+    138
+   ],
+   "shapes": [
+    540,
+    138
+   ],
+   "size": [
+    680,
+    138
+   ],
+   "color1": [
+    760,
+    132
+   ],
+   "black": [
+    838,
+    118
+   ]
+  },
+  "menu": {
+   "file": [
+    56,
+    82
+   ],
+   "edit": [
+    104,
+    82
+   ],
+   "view": [
+    152,
+    82
+   ],
+   "save": [
+    214,
+    82
+   ],
+   "undo": [
+    250,
+    82
+   ],
+   "redo": [
+    286,
+    82
+   ]
+  }
+ },
+ "review": [
+  [
+   "그림판: UI가 진짜 Windows 그림판 같은가, 마우스 커서 움직임, 졸라맨이 최대한 단순하고 마우스로 그린 듯 비뚤빼뚤한가",
+   15
+  ],
+  [
+   "타이핑: 글은 실제로 타자 치는 설정(텍스트 도구, 한글 조합), 키보드 소리 동기화",
+   10
+  ],
+  [
+   "책 설명 콘텐츠로서의 전달력과 재미",
+   10
+  ]
+ ],
+ "review_facts": [
+  "키 입력 소리 {keys}회: 모든 타건음은 그림판 텍스트 상자에 글자(한글 IME 조합 단계 포함: ㅇ→아→앚→아주 — '앚'은 실제 두벌식 IME가 다음 모음 전까지 받침으로 붙여 두는 정상 중간 상태)가 바뀌는 바로 그 프레임에 배치(동기 오차 0프레임, 같은 이벤트 리스트에서 생성). 스페이스/엔터/백스페이스는 더 무거운 키음. 오타→백스페이스 정정도 있음.",
+  "마우스 클릭음 {clicks}회: 도구 선택, 텍스트 상자 클릭, 선 긋기 시작/끝(마우스 다운/업)에 동기."
+ ]
+}

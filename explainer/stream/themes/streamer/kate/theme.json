@@ -1,0 +1,193 @@
+{
+ "name": "kate",
+ "about": "Kate (main, cwon voice, Live2D Mao) streams from a warm night room; her younger sister (extra, egirl voice, Live2D Hiyori) sneaks in while Kate is away. Character bibles: kate.md, sister.md. Never named on screen or in speech.",
+ "cast": {
+  "main": {
+   "label": "메인(cwon)",
+   "character": "kate.md",
+   "voice": "cwon",
+   "model": "cache:cubism/Samples/Resources/Mao/Mao.model3.json",
+   "rig": "mao",
+   "hide_parts": [
+    "PartColorSample",
+    "PartSketch",
+    "PartWandA",
+    "PartWandB"
+   ],
+   "tint": [
+    0.97,
+    0.02,
+    0,
+    0,
+    0.012,
+    0.01,
+    0.92,
+    0,
+    0,
+    0.004,
+    0,
+    0.02,
+    0.84,
+    0,
+    -0.01,
+    0,
+    0,
+    0,
+    1,
+    0
+   ],
+   "lip_floor": 0.82,
+   "motion": {
+    "talk_sway": 0.35,
+    "nod": 1.0,
+    "idle_sway": 0.8
+   }
+  },
+  "sis": {
+   "label": "동생(egirl, 속삭임)",
+   "character": "sister.md",
+   "voice": "egirl",
+   "model": "cache:cubism/Samples/Resources/Hiyori/Hiyori.model3.json",
+   "rig": "hiyori",
+   "tint": [
+    0.97,
+    0.02,
+    0,
+    0,
+    0.012,
+    0.01,
+    0.92,
+    0,
+    0,
+    0.004,
+    0,
+    0.02,
+    0.84,
+    0,
+    -0.01,
+    0,
+    0,
+    0,
+    1,
+    0
+   ],
+   "lip_floor": 0.62,
+   "whisper": {
+    "gain": 0.45
+   }
+  }
+ },
+ "room": {
+  "background": "cache:rooms/kate_room.jpg",
+  "bgm": {
+   "file": "cache:bgm/tokyo_sunset.mp3",
+   "db": -27,
+   "credit": "Music: \"Tokyo Sunset\" by HoliznaCC0 (CC0 1.0) — freemusicarchive.org"
+  },
+  "sfx": {
+   "keys": "cache:sfx/keys_509171.mp3",
+   "typing": "cache:sfx/typing_331656.mp3",
+   "click": "cache:sfx/click_448086.mp3",
+   "clicks": "cache:sfx/clicks_447938.mp3",
+   "chair_stand": "cache:sfx/chair_stand_573706.mp3",
+   "chair_roll": "cache:sfx/chair_roll_521398.mp3",
+   "door": "cache:sfx/door_close_478076.mp3"
+  }
+ },
+ "layout": {
+  "main": {
+   "cx": 1610,
+   "top": 440,
+   "height": 1350
+  },
+  "sis": {
+   "x": 1585,
+   "y": 528,
+   "w": 380,
+   "h": 560,
+   "cx": 1750,
+   "neckY": 905,
+   "neck": 400,
+   "top": 398,
+   "height": 1620
+  }
+ },
+ "review": [
+  [
+   "Live2D 아바타 표현: 립싱크, 생각하는 동작, 눈알 굴리기, 손으로 머리 긁기, 시선 처리, 깜빡임, 미세 움직임",
+   20
+  ],
+  [
+   "화장실 기믹 + 다른 Live2D(18세 고딩 느낌 e-girl)가 옆에서 얼굴을 내밀고 조곤조곤 속삭이는 연출",
+   15
+  ]
+ ],
+ "review_facts": [
+  "보이스: 메인=cwon(Fish Audio Drama 3), 동생=egirl 보이스 속삭임 연기. 문장마다 감정 지시.",
+  "BGM: CC0 로파이(HoliznaCC0 'Tokyo Sunset') 낮게 깔림, 자리비움 동안에도 계속. 마이크 버스에 노이즈 게이트 + 아주 약한 룸톤."
+ ],
+ "sources": {
+  "rooms/kate_room.jpg": {
+   "url": "https://images.unsplash.com/photo-1730154838429-642ab631e311?ixlib=rb-4.1.0&q=85&fm=jpg&w=2400",
+   "license": "Unsplash License — photo by Dina Badamshina",
+   "fit": {
+    "mirror": true,
+    "box": [
+     400,
+     240,
+     2000,
+     1140
+    ],
+    "size": [
+     1920,
+     1080
+    ],
+    "color": 0.82,
+    "rgb_gain": [
+     0.95,
+     1.0,
+     1.05
+    ],
+    "unsharp": {
+     "radius": 2,
+     "percent": 50,
+     "threshold": 2
+    },
+    "brightness": 1.04
+   },
+   "page": "https://unsplash.com/photos/zHT9jQZ6iTs"
+  },
+  "bgm/tokyo_sunset.mp3": {
+   "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/Xnd9Hr5AVzB68IlWcImKtXPlwCePD2G2m8ZFSVj4.mp3",
+   "license": "CC0 1.0 — HoliznaCC0, Tokyo Sunset"
+  },
+  "sfx/keys_509171.mp3": {
+   "url": "https://cdn.freesound.org/previews/509/509171_10957758-hq.mp3",
+   "license": "CC0 — freesound 509171 (mccreery)"
+  },
+  "sfx/typing_331656.mp3": {
+   "url": "https://cdn.freesound.org/previews/331/331656_5825863-hq.mp3",
+   "license": "CC0 — freesound 331656 (Trollarch2)"
+  },
+  "sfx/click_448086.mp3": {
+   "url": "https://cdn.freesound.org/previews/448/448086_9159316-hq.mp3",
+   "license": "CC0 — freesound 448086 (Breviceps)"
+  },
+  "sfx/clicks_447938.mp3": {
+   "url": "https://cdn.freesound.org/previews/447/447938_9159316-hq.mp3",
+   "license": "CC0 — freesound 447938 (Breviceps)"
+  },
+  "sfx/chair_stand_573706.mp3": {
+   "url": "https://cdn.freesound.org/previews/573/573706_12956274-hq.mp3",
+   "license": "CC0 — freesound 573706"
+  },
+  "sfx/chair_roll_521398.mp3": {
+   "url": "https://cdn.freesound.org/previews/521/521398_4984902-hq.mp3",
+   "license": "CC0 — freesound 521398"
+  },
+  "sfx/door_close_478076.mp3": {
+   "url": "https://cdn.freesound.org/previews/478/478076_4965320-hq.mp3",
+   "license": "CC0 — freesound 478076"
+  }
+ }
+}
