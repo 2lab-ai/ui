@@ -133,6 +133,8 @@ window.setup = async function (layout, timeline) {
   const hide = (m, ids) => m.internalModel.on('beforeModelUpdate', () => { const c = m.internalModel.coreModel; for (const pid of ids || []) { try { c.setPartOpacityById(pid, 0); } catch (e) {} } });
   hide(mainM, MD.main.hide_parts); if (MD.sis) hide(sisM, MD.sis.hide_parts);
   hook(mainM, mainCur); hook(sisM, sisCur);
+  // pictures the beats paste onto the canvas: decoded before frame 0 so the paste op can draw them synchronously
+  await Promise.all((TL.images || []).map(u => new Promise((res, rej) => { const im = new Image(); im.onload = () => { IMGS[u] = im; res(); }; im.onerror = () => rej(new Error('pasted picture not found: ' + u)); im.src = u; })));
   // load every weight up front: a face first used mid-render (the BRB banner's 800) otherwise draws invisible text for a few frames
   if (document.fonts) { await Promise.all([400, 500, 600, 700, 800].map(w => document.fonts.load(`${w} 30px Pret`, '가A1'))); await document.fonts.ready; }
   return { mainH: mh, sisH: sisM.height / ss };
@@ -144,7 +146,7 @@ function applyOps(f) {
   const ops = TL.ops;
   while (opIdx < ops.length && ops[opIdx].f <= f) { doOp(ops[opIdx]); opIdx++; }
 }
-let tbState = null; const undoStack = [];
+let tbState = null; const undoStack = []; const IMGS = {};
 function doOp(o) {
   if (o.op === 'seg') {
     actx.strokeStyle = o.c || '#000'; actx.lineWidth = o.w || 4; actx.lineCap = 'round'; actx.lineJoin = 'round';
@@ -169,6 +171,7 @@ function doOp(o) {
     $('textbox').style.display = 'none'; tbState = null; $('textbar').style.display = 'none';
   } else if (o.op === 'color') { $('color1').style.background = o.c; }
   else if (o.op === 'erase') { actx.fillStyle = '#fff'; actx.fillRect(o.x, o.y, o.w, o.h); }
+  else if (o.op === 'img') { const im = IMGS[o.src]; if (im) actx.drawImage(im, o.x, o.y, o.w, o.h); }
   else if (o.op === 'sel') {
     let s = $('selrect'); if (!s) { s = el('div', '', '', { position: 'absolute', border: '1px dashed #1a73e8', background: 'rgba(26,115,232,.06)' }); s.id = 'selrect'; $('workspace').appendChild(s); }
     const w = L.win; const wy = w.title + w.menu + w.tool;

@@ -85,7 +85,8 @@ const thumb1 = (lang) => {
   <img class="abs" src="${ROOM}" style="left:0;top:0;width:1280px;height:720px;object-fit:cover;filter:brightness(.45) saturate(.8) blur(3px)">
   <div class="abs" style="inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(163,73,164,.45),rgba(0,0,0,0) 60%)"></div>
   <div class="abs" style="left:34px;top:116px;width:720px;height:352px;background:#fff;border-radius:10px;transform:rotate(-2deg);box-shadow:0 16px 40px rgba(0,0,0,.55);overflow:hidden;border:6px solid #f3f3f3">
-    <img class="abs" src="${SRC}paint_cows.png" style="left:0;top:0;width:708px"></div>
+    <img class="abs" src="${SRC}purple_cow_field.jpg" style="left:-6px;top:-118px;width:720px">
+    <svg class="abs" style="left:0;top:0" width="708" height="340"><ellipse cx="437" cy="128" rx="92" ry="120" fill="none" stroke="#ffe14d" stroke-width="7" transform="rotate(-8 437 128)"/></svg></div>
   <img class="abs" src="${SRC}bust_surprise.png" style="left:790px;top:60px;width:560px">
   <div class="abs" style="left:40px;top:30px;display:flex;gap:12px">
     <div style="background:${C.amber};color:${C.night};font-weight:800;font-size:40px;padding:6px 20px;border-radius:10px">${T.badge}</div>
@@ -96,6 +97,28 @@ const thumb1 = (lang) => {
   <div class="abs" style="left:46px;top:622px;background:${C.purple};color:#fff;font-weight:800;font-size:44px;padding:6px 22px;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.4)">${T.sub}</div>
   </body>` };
 };
+// ---------------- episode 1 fast edit thumbnail 1280x720: the real purple cow, big
+const thumbEdit = (lang) => {
+  const T = lang === 'ko'
+    ? { badge: '책듣는밤 1화', ed: '편집본', title: '보랏빛 소가 온다', sub: '30분 방송 → 13분', hook: '진짜 있음?' }
+    : { badge: 'BOOK NIGHT #1', ed: 'EDIT', title: 'PURPLE COW', sub: '30-min stream → 13 min', hook: 'real?!' };
+  return { w: 1280, h: 720, html: `${HEAD}<body style="width:1280px;height:720px;position:relative;background:#1a1426;overflow:hidden">
+  <img class="abs" src="${SRC}purple_cow_field.jpg" style="left:-80px;top:-150px;width:1500px">
+  <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(20,8,40,.92) 0%,rgba(20,8,40,.55) 40%,rgba(20,8,40,0) 62%)"></div>
+  <svg class="abs" style="left:0;top:0" width="1280" height="720"><ellipse cx="842" cy="300" rx="150" ry="215" fill="none" stroke="#ffe14d" stroke-width="10" transform="rotate(-8 842 300)"/></svg>
+  <div class="abs" style="left:880px;top:40px;transform:rotate(6deg);font-weight:800;font-size:64px;color:#ffe14d;-webkit-text-stroke:3px #111;text-shadow:4px 6px 0 #111">${T.hook}</div>
+  <img class="abs" src="${SRC}bust_surprise.png" style="left:930px;top:250px;width:470px">
+  <div class="abs" style="left:40px;top:30px;display:flex;gap:12px">
+    <div style="background:${C.amber};color:${C.night};font-weight:800;font-size:40px;padding:6px 20px;border-radius:10px">${T.badge}</div>
+    <div style="background:#ff4f5e;color:#fff;font-weight:800;font-size:40px;padding:6px 20px;border-radius:10px">${T.ed}</div>
+  </div>
+  <div class="abs" style="left:40px;top:${lang === 'ko' ? 450 : 430}px;white-space:nowrap;font-weight:800;font-size:${lang === 'ko' ? 100 : 128}px;line-height:1.0;color:#fff;
+       -webkit-text-stroke:3px #2a0f33;text-shadow:6px 8px 0 ${C.purple},0 12px 30px rgba(0,0,0,.6);letter-spacing:${lang === 'ko' ? '-2px' : '2px'}">${T.title}</div>
+  <div class="abs" style="left:46px;top:600px;background:${C.purple};color:#fff;font-weight:800;font-size:44px;padding:6px 22px;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.4)">${T.sub}</div>
+  </body>` };
+};
+A.thumb_ep01_edit_ko = () => thumbEdit('ko');
+A.thumb_ep01_edit_en = () => thumbEdit('en');
 A.thumb_ep01_ko = () => thumb1('ko');
 A.thumb_ep01_en = () => thumb1('en');
 

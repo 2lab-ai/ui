@@ -38,6 +38,7 @@
 - 장편 채팅: 평소엔 몇 초에 한 줄, 가끔 10~25초 조용한 구간. 짧은 반응("ㅋㅋ", "ㅇㅈ")은 다시 써도 되지만 45초 안에 같은 말은 안 된다. 긴 말은 한 번씩만, 그 내용이 나온 뒤에만(`FILLER = (문장, 이 대사 이후에만, 답글)`).
 - 스트리머 테마의 컨셉은 **암시만** 한다. kate는 약 10분에 하나, 책 주제와 이어지는 옛일을 담담하게. 채팅이 "어떻게 알아요?" 하면 답하지 않는다.
 - 숫자는 `say`로 읽는 형태를 준다(2003년 → "이천삼 년", 15만 부 → "십오만 부"). 대사가 아/어로 시작하면 패드와 붙어 잘리니 첫 단어를 바꾼다. `[laughs softly]`는 문장 끝이 아니라 안쪽에 둔다.
+- **책의 상징은 진짜 이미지로 화면에 나온다.** 낙서만으로 끝내지 않는다. 그 회차의 상징물(1화: 보랏빛 소)을 실사 사진이나 실물 이미지로 준비해 두고, 대사가 그걸 부르는 순간 `B.paste_image(...)`로 그림판에 붙여넣는다(1화: "사진 찍고" 순간, 헤리퍼드 소 떼 중 한 마리만 보라색). 이미지는 회차 폴더 `props/`에 생성 스크립트와 `CREDITS.md`(출처·라이선스·변경 내용)를 같이 둔다. 썸네일·편집본 타이틀에도 같은 이미지를 쓴다.
 - 사실 확인: 스트리머가 말하는 사실은 전부 `research.md`에 출처와 함께 적는다. 책에 없는 예시는 "만약에"로 말해 책 내용과 구분한다.
 
 ## 길이 잡기
@@ -47,9 +48,10 @@
 ## 파일
 - `lines.json`: `id`, `who`(main | sis), `text`, `dir`, 선택 `tts`(태그 포함), `say`(읽는 형태).
 - `beats.py`: 1화를 복사해 내용을 바꾼다. `STREAM_TITLE`, `STRINGS`(자리비움 배너 문구·이모지), `VIEWERS`(시작·끝 시청자 수), `WHISPER_HARD_DROP`, `FILLER`, `GENERIC`, `BURST`, `script(B, rng)`.
-  - 장편용 빌더 호출: `B.clear_canvas()`, `B.pick_color('brown'|'purple'|'red'|…)`, 효과음 `('bell')` 초인종, `('doorlock')` 도어락.
+  - 장편용 빌더 호출: `B.paste_image(src, x, y, w, h)`(미리 만들어 둔 사진을 영역 선택 → Ctrl+V로 붙여넣기, src는 `themes/` 아래 경로), `B.clear_canvas()`, `B.pick_color('brown'|'purple'|'red'|…)`, 효과음 `('bell')` 초인종, `('doorlock')` 도어락.
   - 그 밖: `B.say`, `B.type`, `B.text_box`, `B.stroke`, `B.stickman`, `B.undo`, `B.drag_select`, `B.alert`, `B.msg`, `B.afk`, `B.brb`, `B.sis_win`, `B.sis_keys`.
 - `REVIEW`: 앵커는 `['line', id, 비율, 오프셋]`, `['afk', 0|1, 오프셋]`, `['extra', 0|1, 오프셋]`, `['first_draw']`, `['t', 초]`. 라벨은 화면에 보이는 것만.
 - 회차 폴더 `episodes/NN-<slug>/`에 `beats.py`, `lines.json`, `research.md`를 남기고 `episodes.json`에 한 줄을 더한다.
 - 1화 폴더의 도구(복사해서 쓴다): `make_lines.py`(대사 → `lines.json`), `marks.py`(리뷰 앵커 시각 → `marks.json`), `qa_stills.py`(최종 영상에서 QA 스틸 26장 + 시트), `make_srt.py` + `subs_en.json`(한/영 자막 SRT).
 - 채널 문구·썸네일: 스트리머 테마 kate의 `channel/`(`make_assets.mjs`, `gen_package.py`가 최종 빌드에서 챕터·쇼츠 구간을 채운다).
+- 편집본(유튜브 업로드용 빠른 편집): 회차 폴더의 `edit_plan.py` → `edit/cut.py`. 규칙은 `edit/README.md`.

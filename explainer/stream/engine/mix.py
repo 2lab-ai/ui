@@ -227,13 +227,15 @@ def main(bdir):
     b = out_b * 10 ** (MX.get('bgm_db', -27) / 20)
     out = np.zeros((n, 2))
     out[:, 0] += mic + sis + alert; out[:, 1] += mic + sis + alert
+    dry = out[:int(T * SR)].copy()   # the same mix without the music: an edit (edit/cut.py) lays its own music under its cuts
     out += b
     out = out[:int(T * SR)]
-    pk = np.max(np.abs(out)); out = out / max(pk, 1e-9) * 0.89
-    p = os.path.join(bdir, 'mix.wav')
-    with wave.open(p, 'wb') as w:
-        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(out, -1, 1) * 32767).astype(np.int16).tobytes())
-    print('mix', p, f'{T:.1f}s')
+    pk = np.max(np.abs(out)); g = 0.89 / max(pk, 1e-9); out = out * g
+    for name, x in (('mix.wav', out), ('mix_dry.wav', dry * g)):
+        p = os.path.join(bdir, name)
+        with wave.open(p, 'wb') as w:
+            w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(x, -1, 1) * 32767).astype(np.int16).tobytes())
+    print('mix', os.path.join(bdir, 'mix.wav'), f'{T:.1f}s (+ mix_dry.wav without music)')
 
 
 if __name__ == '__main__':
