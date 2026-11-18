@@ -12,7 +12,7 @@
 //     list    : numbered "items" (two columns over 5), "image" optional (top right)
 //     versus  : "left" / "right" = {"label", "image", "lines"}: before and after, side by side with an arrow
 //     big     : one "big" number or word in the middle, "lines" under it
-//     blank   : the headline only; the rest is free for a hand drawing
+//     blank   : the headline only; the rest is free for a hand drawing (labels: [{x, y, text}] typed beforehand, e.g. axis names)
 //   out: <id>.png (the page, canvas size) and <id>.boxes.json {"head", "image", "images": [...], "items": [...],
 //        "big", "free", "marks": [{"text", "x", "y", "w", "h"}]} — boxes in page px = canvas px when pasted at (0, 0, w, h)
 // In beats.py: B.clear_canvas(); B.paste_image('content/.../pages/out/p1.png', 0, 0, 1100, 700); then mark with
@@ -71,7 +71,7 @@ function body(p) {
   }
   if (k === 'big') return `${p.image ? img(p.image, 'img main', `left:44px;top:150px;width:${Math.round(W * 0.36)}px;height:${Math.round(H * 0.6)}px`) : ''}
     <div class="bigw" style="left:${p.image ? Math.round(W * 0.36) + 70 : 44}px;right:44px"><div class="big"><span class="bigt">${marked(p.big || '')}</span></div>${lines(p.lines, 'bln')}</div>`;
-  if (k === 'blank') return `<div id="free" style="position:absolute;left:30px;right:30px;top:140px;bottom:${p.foot ? 44 : 20}px"></div>${p.lines ? `<div class="txt" style="left:44px;right:44px;top:150px">${lines(p.lines)}</div>` : ''}`;
+  if (k === 'blank') return `<div id="free" style="position:absolute;left:30px;right:30px;top:140px;bottom:${p.foot ? 44 : 20}px"></div>${p.lines ? `<div class="txt" style="left:44px;right:44px;top:150px">${lines(p.lines)}</div>` : ''}${(p.labels || []).map(l => `<div class="lab" style="left:${l.x}px;top:${l.y}px">${marked(l.text)}</div>`).join('')}`;
   throw new Error('unknown page kind ' + k);
 }
 
@@ -98,6 +98,7 @@ html,body{margin:0;width:${W}px;height:${H}px;background:#fff;font-family:P,sans
 .by{font-weight:500;font-size:20px;color:#888;margin-top:16px}
 .cover{object-fit:contain;background:#f3f3f3;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .lwrap{display:flex;flex-direction:column}
+.lab{position:absolute;font-weight:600;font-size:28px;color:#333;white-space:nowrap}
 .lwrap .sub{order:-1}
 .sub{font-weight:500;font-size:24px;color:#777;word-break:keep-all;line-height:1.35;margin-bottom:20px}
 .list .it{display:flex;align-items:flex-start;gap:14px;font-weight:500;font-size:30px;color:#222;line-height:1.35;margin-bottom:16px;word-break:keep-all}

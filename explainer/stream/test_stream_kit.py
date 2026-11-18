@@ -254,6 +254,20 @@ def test_solo_build_lights_the_contents_marks_in_red_and_scores_on_the_solo_line
         assert rv['solo'] and rv['goal'] and sum(p for _, p in rv['rubric']) == 100
 
 
+def test_solo_page_turns_never_show_a_white_canvas():
+    beats = SOLO_BEATS.replace("    B.chapter(0)\n", "    B.paste_page('cache:p1.png', ready=True)\n    B.chapter(0)\n").replace(
+        "    B.chapter(1)\n", "    t_img = B.paste_page('cache:p2.png', at=B.t)\n    B.chapter(1, at=t_img)\n")
+    with tempfile.TemporaryDirectory() as d:
+        tl, _ = _solo_build(d, beats)
+        img = [o for o in tl['ops'] if o['op'] == 'img']
+        assert [o['src'] for o in img] == ['/cache/p1.png', '/cache/p2.png'] and img[0]['f'] == 0      # the first page is up at frame 0
+        assert all((o['x'], o['y'], o['w'], o['h']) == (0, 0, 1100, 700) for o in img)
+        assert not [o for o in tl['ops'] if o['op'] == 'erase']                                          # Ctrl+A, Ctrl+V: never Delete
+        sel = max(o['f'] for o in tl['ops'] if o['op'] == 'sel' and o['w'] > 0 and o['f'] < img[1]['f'])
+        assert img[1]['f'] - sel <= 0.6 * 30                                                              # the old page stays until the new one lands
+        assert tl['toc']['ev'][1]['f'] == img[1]['f']
+
+
 def test_solo_build_refuses_an_audience():
     with tempfile.TemporaryDirectory() as d:
         try: _solo_build(d, SOLO_BEATS.replace("    B.chapter(0)", "    B.chapter(0)\n    B.msg('x', 'ㅎㅇ')"))
@@ -275,13 +289,14 @@ def test_pages_draw_every_kind_and_report_the_marked_boxes():
                 {'id': 'l', 'kind': 'list', 'head': 'h', 'items': ['하나', '둘', '**셋**', '넷', '다섯', '여섯']},
                 {'id': 'v', 'kind': 'versus', 'head': 'h', 'left': {'label': '전', 'image': 'x.jpg'}, 'right': {'label': '**후**', 'image': 'x.jpg'}, 'foot': 'credit'},
                 {'id': 'b', 'kind': 'big', 'head': 'h', 'big': '**20분**'},
-                {'id': 'k', 'kind': 'blank', 'head': 'h'}]
+                {'id': 'k', 'kind': 'blank', 'head': 'h', 'labels': [{'x': 100, 'y': 560, 'text': '**혁신자**'}, {'x': 900, 'y': 620, 'text': '시간 →'}]}]
         json.dump(spec, open(os.path.join(d, 'pages.json'), 'w'), ensure_ascii=False)
         subprocess.run(['node', os.path.join(HERE, 'engine', 'pages.mjs'), os.path.join(d, 'pages.json'), os.path.join(d, 'out')], check=True, capture_output=True)
         for p in spec:
             bx = json.load(open(os.path.join(d, 'out', p['id'] + '.boxes.json')))
             assert Image.open(os.path.join(d, 'out', p['id'] + '.png')).size == (1100, 700)
-            if p['id'] != 'k': assert bx['marks'] and all(0 <= m['x'] and m['x'] + m['w'] <= 1100 and m['y'] + m['h'] <= 700 for m in bx['marks'])
+            if p['id'] == 'k': assert [m['text'] for m in bx['marks']] == ['혁신자'] and 90 <= bx['marks'][0]['x'] <= 110   # a typed-beforehand label is a mark too
+            assert bx['marks'] and all(0 <= m['x'] and m['x'] + m['w'] <= 1100 and m['y'] + m['h'] <= 700 for m in bx['marks'])
         assert len(json.load(open(os.path.join(d, 'out', 'v.boxes.json')))['images']) == 2
         assert len(json.load(open(os.path.join(d, 'out', 'l.boxes.json')))['items']) == 6
         assert json.load(open(os.path.join(d, 'out', 'k.boxes.json')))['free']['h'] > 400
@@ -299,6 +314,8 @@ say('첫 문장은 충분히 길어요. 두 번째 문장도 꽤 길게 갑니�
 SEQ.append(('part', 1))
 page('p2', kind='big', head='빅', big='**20분**', image='../props/none.jpg')
 say('세 번째는 짧고. 아니래요 다음.', say='세 번째는 짧고. 아니래요 다음.', sec='s02')
+say('나중에 넣은 줄이에요.', id='k001x', sec='s02')
+say('그다음 줄.', sec='s02')
 """
 
 
@@ -312,15 +329,16 @@ def test_storyboard_splits_sentences_moves_marks_drops_missing_pictures_and_cred
         sp = os.path.join(d, 'book', 'script.py'); open(sp, 'w').write(STORY)
         lines = storyboard.compile_script(sp)
         ids = [l['id'] for l in lines]
-        assert ids == ['k001a', 'k001b', 'k002'], ids                       # 2 sentences -> 2 takes; a 아-sentence stays glued
+        assert ids == ['k001a', 'k001b', 'k002', 'k001x', 'k003'], ids      # 2 sentences -> 2 takes; a 아-sentence stays glued; an added line keeps the ids after it
         S = json.load(open(os.path.join(d, 'book', 'story.json')))['story']
         ln = [e for e in S if e['ev'] == 'line']
         assert ln[0]['m'] == [] and ln[1]['m'] and ln[1]['m'][0][:2] == ['u', 0]   # the mark at 0.8 lands in the second sentence
+        assert ln[0]['expr'] == 'smile' and ln[2]['expr'] is None                # a joke line smiles
         pages = {p['id']: p for p in json.load(open(os.path.join(d, 'book', 'pages', 'pages.json')))}
         assert 'image' not in pages['p2']                                     # a picture not there yet drops out
         assert pages['p1']['image'] == '../props/x.jpg' and pages['p1']['foot'] == '사진: 누군가, CC BY 4.0'                 # credits come from the CREDITS.md beside it
         cov = json.load(open(os.path.join(d, 'book', 'coverage.json')))
-        assert [c['lines'] for c in cov] == [['k001a', 'k001b'], ['k002']]
+        assert [c['lines'] for c in cov] == [['k001a', 'k001b'], ['k002', 'k001x', 'k003']]
 
 def _fake_edit(d):
     """a tiny live build + episode for edit/cut.py: four lines, drawing in one gap, a donation in another, one line dropped"""

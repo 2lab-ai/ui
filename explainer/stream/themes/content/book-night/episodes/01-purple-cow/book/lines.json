@@ -14,7 +14,7 @@
 {
 "id": "k002b",
 "who": "main",
-"text": "짧은 꼭지 일흔 개, 사례 연구 열아홉 개.",
+"text": "짧은 꼭지 칠십 개, 사례 연구 열아홉 개.",
 "dir": "calm, close, explaining"
 },
 {
@@ -97,18 +97,11 @@
 "sec": "s02"
 },
 {
-"id": "k008a",
+"id": "k008",
 "who": "main",
-"text": "소 백 마리째부터는 그냥 갈색 배경이에요.",
+"text": "소 백 마리째부터는 그냥 갈색 배경이에요. 저라도 그래요.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s02"
-},
-{
-"id": "k008b",
-"who": "main",
-"text": "저라도 그래요.",
-"dir": "calm, close, explaining",
+"tts": "소 백 마리째부터는 그냥 갈색 배경이에요. [laughs softly] 저라도 그래요.",
 "j": 1,
 "sec": "s02"
 },
@@ -281,26 +274,11 @@
 "sec": "s05"
 },
 {
-"id": "k019a",
+"id": "k019",
 "who": "main",
-"text": "이십 년쯤 뒤 원더 브레드가 포장과 광고로 대박을 냈고요.",
+"text": "이십 년쯤 뒤 원더 브레드가 포장과 광고로 대박을 냈고요. 광고 문구가 열두 가지 방식으로 튼튼한 몸을. 식빵이 무슨 헬스장이에요.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s05"
-},
-{
-"id": "k019b",
-"who": "main",
-"text": "광고 문구가 열두 가지 방식으로 튼튼한 몸을.",
-"dir": "calm, close, explaining",
-"j": 1,
-"sec": "s05"
-},
-{
-"id": "k019c",
-"who": "main",
-"text": "식빵이 무슨 헬스장이에요.",
-"dir": "calm, close, explaining",
+"tts": "이십 년쯤 뒤 원더 브레드가 포장과 광고로 대박을 냈고요. 광고 문구가 열두 가지 방식으로 튼튼한 몸을. [laughs softly] 식빵이 무슨 헬스장이에요.",
 "j": 1,
 "sec": "s05"
 },
@@ -375,26 +353,11 @@
 "sec": "s07"
 },
 {
-"id": "k024a",
+"id": "k024",
 "who": "main",
-"text": "시간 없는 사람한테 당신은 투명 인간이래요.",
+"text": "시간 없는 사람한테 당신은 투명 인간이래요. 회사 단톡방의 제 공지처럼요. 읽음은 뜨는데 아무도 안 읽은.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s07"
-},
-{
-"id": "k024b",
-"who": "main",
-"text": "회사 단톡방의 제 공지처럼요.",
-"dir": "calm, close, explaining",
-"j": 1,
-"sec": "s07"
-},
-{
-"id": "k024c",
-"who": "main",
-"text": "읽음은 뜨는데 아무도 안 읽은.",
-"dir": "calm, close, explaining",
+"tts": "시간 없는 사람한테 당신은 투명 인간이래요. 회사 단톡방의 제 공지처럼요. [laughs softly] 읽음은 뜨는데 아무도 안 읽은.",
 "j": 1,
 "sec": "s07"
 },
@@ -434,26 +397,11 @@
 "sec": "s07"
 },
 {
-"id": "k027a",
+"id": "k027",
 "who": "main",
-"text": "저희 집에도 요가 책 있어요.",
+"text": "저희 집에도 요가 책 있어요. 펼친 적은 없어요. 그래도 샀으니까 저는 시장에서 빠진 거예요.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s07"
-},
-{
-"id": "k027b",
-"who": "main",
-"text": "펼친 적은 없어요.",
-"dir": "calm, close, explaining",
-"j": 1,
-"sec": "s07"
-},
-{
-"id": "k027c",
-"who": "main",
-"text": "그래도 샀으니까 저는 시장에서 빠진 거예요.",
-"dir": "calm, close, explaining",
+"tts": "저희 집에도 요가 책 있어요. [laughs softly] 펼친 적은 없어요. 그래도 샀으니까 저는 시장에서 빠진 거예요.",
 "j": 1,
 "sec": "s07"
 },
@@ -614,18 +562,11 @@
 "sec": "s10"
 },
 {
-"id": "k037a",
+"id": "k037",
 "who": "main",
-"text": "노란 비틀 보면 한 대 치는 놀이 아세요?",
+"text": "노란 비틀 보면 한 대 치는 놀이 아세요? 그것도 다 공짜 광고예요. 아프긴 하지만.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s10"
-},
-{
-"id": "k037b",
-"who": "main",
-"text": "그것도 다 공짜 광고예요. 아프긴 하지만.",
-"dir": "calm, close, explaining",
+"tts": "노란 비틀 보면 한 대 치는 놀이 아세요? 그것도 다 공짜 광고예요. [laughs softly] 아프긴 하지만.",
 "j": 1,
 "sec": "s10"
 },
@@ -790,23 +731,16 @@
 {
 "id": "k047",
 "who": "main",
-"text": "세제 타이드는 아마 역사상 최고의 세제인데, 매출 삼분의 일이 월마트 한 곳이래요.",
+"text": "세제 타이드는 아마 역사상 최고의 세제인데, 책이 나올 때 매출 삼분의 일이 월마트 한 곳이었대요.",
 "dir": "calm, close, explaining",
 "sec": "s16"
 },
 {
-"id": "k048a",
+"id": "k048",
 "who": "main",
-"text": "다시 매료될 미래가 안 보이면, 더 하얗게 만드는 데 돈 쓰지 말고 이익을 거둬서 새것을 만들래요.",
+"text": "다시 매료될 미래가 안 보이면, 더 하얗게 만드는 데 돈 쓰지 말고 이익을 거둬서 새것을 만들래요. 이미 충분히 하얘요.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s16"
-},
-{
-"id": "k048b",
-"who": "main",
-"text": "이미 충분히 하얘요.",
-"dir": "calm, close, explaining",
+"tts": "다시 매료될 미래가 안 보이면, 더 하얗게 만드는 데 돈 쓰지 말고 이익을 거둬서 새것을 만들래요. [laughs softly] 이미 충분히 하얘요.",
 "j": 1,
 "sec": "s16"
 },
@@ -855,6 +789,20 @@
 "sec": "s17"
 },
 {
+"id": "k051xa",
+"who": "main",
+"text": "왼쪽과 가운데 사이엔 골짜기가 있어요.",
+"dir": "calm, close, explaining",
+"sec": "s17"
+},
+{
+"id": "k051xb",
+"who": "main",
+"text": "제프리 무어가 캐즘이라고 부른 틈인데, 많은 제품이 여기서 떨어진대요.",
+"dir": "calm, close, explaining",
+"sec": "s17"
+},
+{
 "id": "k052a",
 "who": "main",
 "text": "요즘 예로는 챗GPT요.",
@@ -885,23 +833,16 @@
 {
 "id": "k053b",
 "who": "main",
-"text": "그걸 옮기는 사람이 스니저, 재채기하는 사람이에요.",
+"text": "그걸 옮기는 사람을 재채기하는 사람, 스니저라고 불러요.",
 "dir": "calm, close, explaining",
 "sec": "s18"
 },
 {
-"id": "k054a",
+"id": "k054",
 "who": "main",
-"text": "맛집 하나 찾으면 단톡방 열 개에 올리는 친구 있잖아요.",
+"text": "맛집 하나 찾으면 단톡방 열 개에 올리는 친구 있잖아요. 그 친구예요. 사람들이 믿는 공짜 광고판.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s18"
-},
-{
-"id": "k054b",
-"who": "main",
-"text": "그 친구예요. 사람들이 믿는 공짜 광고판.",
-"dir": "calm, close, explaining",
+"tts": "맛집 하나 찾으면 단톡방 열 개에 올리는 친구 있잖아요. [laughs softly] 그 친구예요. 사람들이 믿는 공짜 광고판.",
 "j": 1,
 "sec": "s18"
 },
@@ -1045,6 +986,20 @@
 "sec": "s22"
 },
 {
+"id": "k063xa",
+"who": "main",
+"text": "요점은 음악 업계가 더 좋은 광고를 찾아야 한다는 게 아니래요.",
+"dir": "calm, close, explaining",
+"sec": "s22"
+},
+{
+"id": "k063xb",
+"who": "main",
+"text": "광고로 풀 문제가 아니라는 거죠.",
+"dir": "calm, close, explaining",
+"sec": "s22"
+},
+{
 "id": "k064a",
 "who": "main",
 "text": "처방은 짧아요.",
@@ -1082,7 +1037,7 @@
 {
 "id": "k065b",
 "who": "main",
-"text": "그런데 그 시절 배너 광고 클릭률은 백만 분의 일 퍼센트도 안 됐대요.",
+"text": "그런데 그 시절 배너 광고는 거의 아무도 안 눌렀대요.",
 "dir": "calm, close, explaining",
 "sec": "s24"
 },
@@ -1164,26 +1119,11 @@
 "sec": "s26"
 },
 {
-"id": "k070a",
+"id": "k070",
 "who": "main",
-"text": "불경기엔 실수할 여유가 없다, 호경기엔 굳이 모험할 필요 없다.",
+"text": "불경기엔 실수할 여유가 없다, 호경기엔 굳이 모험할 필요 없다. 결국 언제나 안전하게. 핑계는 계절을 안 타요.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s26"
-},
-{
-"id": "k070b",
-"who": "main",
-"text": "결국 언제나 안전하게.",
-"dir": "calm, close, explaining",
-"j": 1,
-"sec": "s26"
-},
-{
-"id": "k070c",
-"who": "main",
-"text": "핑계는 계절을 안 타요.",
-"dir": "calm, close, explaining",
+"tts": "불경기엔 실수할 여유가 없다, 호경기엔 굳이 모험할 필요 없다. 결국 언제나 안전하게. [laughs softly] 핑계는 계절을 안 타요.",
 "j": 1,
 "sec": "s26"
 },
@@ -1286,9 +1226,16 @@
 "sec": "s28"
 },
 {
-"id": "k076",
+"id": "k076a",
 "who": "main",
 "text": "당장 실적만 보면 모두에게 무난한 제품을 만들고, 지루한 혁신의 악순환에 빠진대요.",
+"dir": "calm, close, explaining",
+"sec": "s29"
+},
+{
+"id": "k076b",
+"who": "main",
+"text": "그런데 그런 광고가 닿는 사람 중 제일 탐나는 혁신자와 얼리어답터는, 무난한 제품이 지루해서 그냥 넘긴대요.",
 "dir": "calm, close, explaining",
 "sec": "s29"
 },
@@ -1298,6 +1245,13 @@
 "text": "파리의 제빵사 리오넬 푸알란은 프랑스 제빵사 팔천 명 넘게 만나 기법을 조사하고, 장작 화덕 사워도우 하나로 천만 달러어치를 팔았대요. 빵이요.",
 "dir": "calm, close, explaining",
 "j": 1,
+"sec": "s30"
+},
+{
+"id": "k077x",
+"who": "main",
+"text": "처음엔 프랑스 제빵계가 너무 대담하고 다르다며 거부했는데, 압도적인 품질과 고집이 결국 설득했대요.",
+"dir": "calm, close, explaining",
 "sec": "s30"
 },
 {
@@ -1363,6 +1317,13 @@
 "id": "k081b",
 "who": "main",
 "text": "샘 애덤스 맥주, 평균의 열 배 값인 병원용 아기 침대처럼요.",
+"dir": "calm, close, explaining",
+"sec": "s33"
+},
+{
+"id": "k081x",
+"who": "main",
+"text": "잃을 게 없는 쪽은, 게임의 규칙을 바꾸면 얻을 게 많다는 걸 알거든요.",
 "dir": "calm, close, explaining",
 "sec": "s33"
 },
@@ -1456,26 +1417,11 @@
 "sec": "s35"
 },
 {
-"id": "k087a",
+"id": "k087",
 "who": "main",
-"text": "처방이 구체적이에요.",
+"text": "처방이 구체적이에요. 발명 팀과 짜내는 팀을 다른 건물에 두고, 제품을 넘길 땐 정식 의식을 치러라. 촛불 켜고 소를 넘겨주는 장면이 자꾸 떠올라요.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s35"
-},
-{
-"id": "k087b",
-"who": "main",
-"text": "발명 팀과 짜내는 팀을 다른 건물에 두고, 제품을 넘길 땐 정식 의식을 치러라.",
-"dir": "calm, close, explaining",
-"j": 1,
-"sec": "s35"
-},
-{
-"id": "k087c",
-"who": "main",
-"text": "촛불 켜고 소를 넘겨주는 장면이 자꾸 떠올라요.",
-"dir": "calm, close, explaining",
+"tts": "처방이 구체적이에요. 발명 팀과 짜내는 팀을 다른 건물에 두고, 제품을 넘길 땐 정식 의식을 치러라. [laughs softly] 촛불 켜고 소를 넘겨주는 장면이 자꾸 떠올라요.",
 "j": 1,
 "sec": "s35"
 },
@@ -1496,9 +1442,23 @@
 "sec": "s36"
 },
 {
-"id": "k089",
+"id": "k089a",
 "who": "main",
-"text": "닷컴 붐 때 상장한 회사들도 다 리마커블했는데, 그 돈으로 다음 소를 안 만들고 이익만 챙겼대요.",
+"text": "닷컴 붐 때 상장에 성공한 회사들은 다 리마커블한 걸 내놨대요.",
+"dir": "calm, close, explaining",
+"sec": "s37"
+},
+{
+"id": "k089b",
+"who": "main",
+"text": "그런데 거의 모두 소의 교훈을 잊었어요.",
+"dir": "calm, close, explaining",
+"sec": "s37"
+},
+{
+"id": "k089c",
+"who": "main",
+"text": "그 돈으로 다음 소를 줄줄이 만드는 대신, 이익만 챙겼대요.",
 "dir": "calm, close, explaining",
 "sec": "s37"
 },
@@ -1566,26 +1526,11 @@
 "sec": "s38"
 },
 {
-"id": "k095a",
+"id": "k095",
 "who": "main",
-"text": "불붙인 크레프요.",
+"text": "불붙인 크레프요. 비행기 안에서요. 그건 저도 얘기할 것 같아요. 소방관한테.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s38"
-},
-{
-"id": "k095b",
-"who": "main",
-"text": "비행기 안에서요.",
-"dir": "calm, close, explaining",
-"j": 1,
-"sec": "s38"
-},
-{
-"id": "k095c",
-"who": "main",
-"text": "그건 저도 얘기할 것 같아요. 소방관한테.",
-"dir": "calm, close, explaining",
+"tts": "불붙인 크레프요. 비행기 안에서요. [laughs softly] 그건 저도 얘기할 것 같아요. 소방관한테.",
 "j": 1,
 "sec": "s38"
 },
@@ -1643,7 +1588,7 @@
 {
 "id": "k100a",
 "who": "main",
-"text": "음반은 구십칠 퍼센트가 손해를 본대요.",
+"text": "책이 나올 무렵엔 음반 구십칠 퍼센트가 손해를 봤대요.",
 "dir": "calm, close, explaining",
 "sec": "s41"
 },
@@ -1762,26 +1707,11 @@
 "sec": "s45"
 },
 {
-"id": "k108a",
+"id": "k108",
 "who": "main",
-"text": "도넛엔 오타쿠가 있는데 베이글엔 별로 없대요.",
+"text": "도넛엔 오타쿠가 있는데 베이글엔 별로 없대요. 베이글 좋아하시는 분들 죄송해요. 책이 그랬어요.",
 "dir": "calm, close, explaining",
-"j": 1,
-"sec": "s45"
-},
-{
-"id": "k108b",
-"who": "main",
-"text": "베이글 좋아하시는 분들 죄송해요.",
-"dir": "calm, close, explaining",
-"j": 1,
-"sec": "s45"
-},
-{
-"id": "k108c",
-"who": "main",
-"text": "책이 그랬어요.",
-"dir": "calm, close, explaining",
+"tts": "도넛엔 오타쿠가 있는데 베이글엔 별로 없대요. [laughs softly] 베이글 좋아하시는 분들 죄송해요. 책이 그랬어요.",
 "j": 1,
 "sec": "s45"
 },
@@ -1862,6 +1792,13 @@
 "id": "k112b",
 "who": "main",
 "text": "진로이즈백은 다들 쓰던 초록 병 대신 하늘색 병에 두꺼비를 붙였는데, 일 년 목표 천만 병을 칠십이 일 만에 넘겼대요.",
+"dir": "calm, close, explaining",
+"sec": "s46"
+},
+{
+"id": "k112c",
+"who": "main",
+"text": "병 하나 덕분이라고 단정할 순 없지만, 말할 거리를 병에 넣은 건 맞죠.",
 "dir": "calm, close, explaining",
 "sec": "s46"
 },
@@ -1989,7 +1926,7 @@
 {
 "id": "k118d",
 "who": "main",
-"text": "훨씬 아름다운 판테온은 설명이 어려워서 관광객이 피사의 일 퍼센트래요.",
+"text": "저자 말로는, 훨씬 아름다운 판테온은 설명이 어려워서 관광객이 피사의 일 퍼센트래요.",
 "dir": "calm, close, explaining",
 "sec": "s49"
 },
@@ -2116,7 +2053,7 @@
 {
 "id": "k125b",
 "who": "main",
-"text": "유일하게 리마커블했던 걸 스스로 지운 거죠.",
+"text": "로고 하나 탓만은 아니겠지만, 유일하게 리마커블했던 걸 스스로 지운 거죠.",
 "dir": "calm, close, explaining",
 "sec": "s52"
 },
@@ -2156,6 +2093,50 @@
 "sec": "s54"
 },
 {
+"id": "k127xa",
+"who": "main",
+"text": "허락이라는 건 스팸 보내고 재고 떠넘기라는 허락이 아니래요.",
+"dir": "calm, close, explaining",
+"sec": "s54"
+},
+{
+"id": "k127xb",
+"who": "main",
+"text": "다음 소가 나오면 알려 달라는 허락이에요.",
+"dir": "calm, close, explaining",
+"sec": "s54"
+},
+{
+"id": "k127ya",
+"who": "main",
+"text": "짜낼 땐 최대한, 빨리.",
+"dir": "calm, close, explaining",
+"j": 1,
+"sec": "s54"
+},
+{
+"id": "k127yb",
+"who": "main",
+"text": "제품은 서비스로, 서비스는 제품으로, 천 가지 변형을 피우되 내 보도자료는 믿지 말래요.",
+"dir": "calm, close, explaining",
+"j": 1,
+"sec": "s54"
+},
+{
+"id": "k127za",
+"who": "main",
+"text": "그리고 다시. 실패하고, 실패하고, 또 실패하래요.",
+"dir": "calm, close, explaining",
+"sec": "s54"
+},
+{
+"id": "k127zb",
+"who": "main",
+"text": "지난번에 리마커블했던 게 이번에도 리마커블할 거라고 가정하지 말고요.",
+"dir": "calm, close, explaining",
+"sec": "s54"
+},
+{
 "id": "k128a",
 "who": "main",
 "text": "그래서 마케터의 정의가 바뀌어요.",
@@ -2173,6 +2154,20 @@
 "id": "k128c",
 "who": "main",
 "text": "디자인하고, 만들고, 값을 매기고, 파는 것까지.",
+"dir": "calm, close, explaining",
+"sec": "s55"
+},
+{
+"id": "k128xa",
+"who": "main",
+"text": "제트블루 대표는 첫날 마케팅 책임자한테 제품 디자인과 직원 교육까지 맡겼대요.",
+"dir": "calm, close, explaining",
+"sec": "s55"
+},
+{
+"id": "k128xb",
+"who": "main",
+"text": "회사가 실패하면, 제품을 마케팅하지 않고 회사만 운영한 맨 위 경영진 탓이래요.",
 "dir": "calm, close, explaining",
 "sec": "s55"
 },
@@ -2266,6 +2261,20 @@
 "id": "k133b",
 "who": "main",
 "text": "그리고 싸게 파는 건 게으른 탈출구고, 제일 싼 자리는 이미 월마트 차지예요.",
+"dir": "calm, close, explaining",
+"sec": "s60"
+},
+{
+"id": "k133xa",
+"who": "main",
+"text": "책에선 베스트바이의 새 대표가 예로 나와요.",
+"dir": "calm, close, explaining",
+"sec": "s60"
+},
+{
+"id": "k133xb",
+"who": "main",
+"text": "매출이 둔해진 전자제품 가게들이 늘 하듯 신문 광고를 더 사는 대신, 고객이 원하는 걸 먼저 택했대요.",
 "dir": "calm, close, explaining",
 "sec": "s60"
 },
@@ -2395,9 +2404,16 @@
 "sec": "s66"
 },
 {
+"id": "k140c",
+"who": "main",
+"text": "수입량은 인기의 대략적인 그림자일 뿐이지만요.",
+"dir": "calm, close, explaining",
+"sec": "s66"
+},
+{
 "id": "k141a",
 "who": "main",
-"text": "유행 수명을 재 보면 크로플 백육십 일, 탕후루 오십 일, 두쫀쿠는 열흘에서 이십 일.",
+"text": "검색량으로 유행 수명을 재 보면 크로플 백육십 일, 탕후루 오십 일, 두쫀쿠는 열흘에서 이십 일.",
 "dir": "calm, close, explaining",
 "sec": "s66"
 },
@@ -2483,12 +2499,19 @@
 {
 "id": "k147a",
 "who": "main",
-"text": "브레인스토밍 꼭지엔 짧은 아이디어가 서른여덟 개 있고, 마지막 꼭지가 소금이에요.",
+"text": "브레인스토밍 꼭지엔 짧은 아이디어가 서른여덟 개 있는데, 목록이라 직접 넘겨 보시길 권해요.",
 "dir": "calm, close, explaining",
 "sec": "s69"
 },
 {
 "id": "k147b",
+"who": "main",
+"text": "마지막 꼭지가 소금이에요.",
+"dir": "calm, close, explaining",
+"sec": "s69"
+},
+{
+"id": "k147c",
 "who": "main",
 "text": "그 지루한 소금도 프랑스 수제 소금은 한 파운드에 이십 달러래요.",
 "dir": "calm, close, explaining",
@@ -2719,7 +2742,7 @@
 {
 "id": "k159a",
 "who": "main",
-"text": "정리할게요. 하나, 아주 좋은 것은 안 보인다.",
+"text": "정리할게요. 첫째, 아주 좋은 것은 안 보인다.",
 "dir": "calm, close, explaining"
 },
 {
@@ -2731,7 +2754,7 @@
 {
 "id": "k160a",
 "who": "main",
-"text": "둘, 광고는 듣는 사람에게만.",
+"text": "둘째, 광고는 듣는 사람에게만.",
 "dir": "calm, close, explaining"
 },
 {
@@ -2743,7 +2766,7 @@
 {
 "id": "k160c",
 "who": "main",
-"text": "셋, 안전한 게 위험하다.",
+"text": "셋째, 안전한 게 위험하다.",
 "dir": "calm, close, explaining"
 },
 {
@@ -2755,7 +2778,7 @@
 {
 "id": "k161a",
 "who": "main",
-"text": "넷, 소는 바랜다.",
+"text": "넷째, 소는 바랜다.",
 "dir": "calm, close, explaining"
 },
 {

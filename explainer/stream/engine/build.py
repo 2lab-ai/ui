@@ -338,6 +338,29 @@ class Builder:
         self.ops.append((tc + 0.03, {'op': 'sel', 'x': 0, 'y': 0, 'w': 0, 'h': 0}))
         return t + 0.12
 
+    def paste_page(self, src, at=None, hold=0.45, ready=False):
+        """a prepared page the size of the canvas: Ctrl+A, then Ctrl+V. The page lands over the old one in one go (no white
+        canvas in between), then a click drops the selection. ready=True: the page is already up when the recording starts.
+        Returns the time the page appears."""
+        u = '/cache/' + src[6:] if src.startswith('cache:') else '/themes/' + src.lstrip('/')
+        if u not in self.images: self.images.append(u)
+        full = {'x': 0, 'y': 0, 'w': CV['w'], 'h': CV['h']}
+        if ready:
+            t = 0.0 if at is None else at
+            self.ops.append((t, dict(full, op='img', src=u))); return t
+        if self.tool != 'select': self.pick_tool('select', at)
+        t = max(self.hand_t, at if at is not None else self.hand_t) + rng.uniform(0.12, 0.22)
+        self.sfx.append((t, 'ctrl', None)); self.sfx.append((t + 0.1, 'key', None))
+        self.ops.append((t + 0.11, {'op': 'sel', 'x': 0, 'y': 0, 'w': CV['w'] - 1, 'h': CV['h'] - 1}))
+        t2 = t + rng.uniform(0.3, 0.45)
+        self.sfx.append((t2, 'ctrl', None)); self.sfx.append((t2 + 0.1, 'key', None))
+        self.ops.append((t2 + 0.12, dict(full, op='img', src=u)))
+        self.hand_t = t2 + hold
+        self.move(CV['x'] + CV['w'] - rng.uniform(30, 60), CV['y'] + CV['h'] * 0.5 + rng.uniform(-40, 40))
+        tc = self.click()
+        self.ops.append((tc + 0.03, {'op': 'sel', 'x': 0, 'y': 0, 'w': 0, 'h': 0}))
+        return t2 + 0.12
+
     # ---------------- overlays
     def chapter(self, i, at=None):
         """the contents panel lights part i of the beats' TOC (a solo recording, streaming theme studio)"""

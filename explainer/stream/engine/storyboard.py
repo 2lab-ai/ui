@@ -9,7 +9,7 @@ script.py defines
     SECTIONS = [('part', 'section of the book', 'key'), ...]   every section of the book, in the book's order
     PAGES    = {'p01': {page spec for engine/pages.mjs}, ...}
     SEQ      = [('part', i) | ('page', 'p01') | ('pause', s) | ('think', s) |
-                (text, {opts}) ...]        a line; opts: say, dir, tts, j (1 = joke / exaggeration / aside), sec (section key),
+                (text, {opts}) ...]        a line; opts: say, dir, tts, j (1 = joke / exaggeration / aside, smiles unless expr), sec (section key), id (for a line added later),
                                            gaze ('cam' | 'screen' | 'think' | 'down'), expr, gap, m (marks, below)
     marks: ('u', i[, frac]) underline marks[i]   ('uu', i) double   ('c', i) circle   ('x', i) cross   ('s', i) strike
            ('bx', i) box        ('h',) underline the headline     ('cb',) circle the big number   ('ci'|'ui'|'ti'|'xi', i) item i
@@ -72,8 +72,9 @@ def compile_script(path):
                 assert ev[1] in m.PAGES, ev[1]; page = ev[1]
             story.append({'ev': ev[0], 'v': ev[1]}); continue
         text, o = ev[0], (ev[1] if len(ev) > 1 else {})
-        n += 1
-        if o.get('sec') and o['sec'] not in keys: raise SystemExit(f'k{n:03d}: unknown section {o["sec"]}')
+        if o.get('id'): base = o['id']            # a line added later keeps every id after it (and their takes) unchanged
+        else: n += 1; base = f'k{n:03d}'
+        if o.get('sec') and o['sec'] not in keys: raise SystemExit(f'{base}: unknown section {o["sec"]}')
         # a long line is voiced sentence by sentence (shorter takes are cleaner); its marks move to the sentence they land in
         parts_t, parts_s = split_sentences(text), split_sentences(o.get('say') or text)
         if len(parts_t) != len(parts_s) or o.get('tts'): parts_t, parts_s = [text], [o.get('say') or text]
@@ -83,7 +84,7 @@ def compile_script(path):
         w = [max(1, syllables(x)) for x in parts_s]; edges = [sum(w[:i]) / sum(w) for i in range(len(w) + 1)]
         marks = [list(x) for x in o.get('m', [])]
         for i, (pt, ps) in enumerate(zip(parts_t, parts_s)):
-            lid = f'k{n:03d}' + ('' if len(parts_t) == 1 else 'abcdefghij'[i])
+            lid = base + ('' if len(parts_t) == 1 else 'abcdefghij'[i])
             L = {'id': lid, 'who': 'main', 'text': pt, 'dir': o.get('dir', 'calm, close, explaining')}
             if ps != pt: L['say'] = ps
             for k in ('tts', 'j', 'sec'):
@@ -98,7 +99,7 @@ def compile_script(path):
                     mine.append((mk[:-1] if isinstance(mk[-1], float) and 0 <= mk[-1] <= 1 else mk) + [round(min(0.95, loc), 3)])
             last = i == len(parts_t) - 1
             story.append({'ev': 'line', 'id': lid, 'page': page, 'm': mine, 'gaze': o.get('gaze', 'cam'),
-                          'expr': o.get('expr'), 'gap': o.get('gap', 0.35) if last else 0.3})
+                          'expr': o.get('expr') or ('smile' if o.get('j') else None), 'gap': o.get('gap', 0.35) if last else 0.3})
     os.makedirs(os.path.join(d, 'pages'), exist_ok=True)
     # a picture that is not there yet (still being licensed) drops out of its page instead of failing the page build
     pdir = os.path.join(d, 'pages')
@@ -194,13 +195,14 @@ def play(B, rng, book_dir, first_at=1.2):
             B.think.append((B.t, B.t + ev['v'])); B.gaze.append((B.t, B.t + ev['v'], 'think', 'main')); B.t += ev['v']
         elif e == 'page':
             pid = ev['v']; boxes[pid] = json.load(open(os.path.join(book_dir, 'pages', 'out', pid + '.boxes.json')))
-            t_go = max(last_end - 0.6, B.hand_t) if turned else 0.4   # the hand starts on the last words of the page before
+            t_go = max(last_end - 0.6, B.hand_t) if turned else 0.0   # the hand starts on the last words of the page before
             B.hand_at(t_go)
-            if turned: B.clear_canvas()
-            t_img = B.paste_image(f'{rel}/{pid}.png', 0, 0, 1100, 700, hold=0.45)
+            # Ctrl+A, Ctrl+V: the next page covers the last one at once (no white canvas while she talks);
+            # the first page is already up when the recording starts
+            t_img = B.paste_page(f'{rel}/{pid}.png', at=t_go, hold=0.45, ready=not turned)
             if pending_part is not None: B.chapter(pending_part, at=t_img); pending_part = None
             K._pen()                                                    # the red pencil, ready before the first mark
-            B.gaze.append((t_go, t_img + 0.5, 'screen', 'main'))
+            B.gaze.append((t_go, t_img + 1.1, 'screen', 'main'))       # she looks at the page as it lands
             min_next = t_img - 1.4 if turned else 0.0                   # she keeps talking while the page lands
             turned += 1; page = pid
         elif e == 'line':
@@ -208,6 +210,8 @@ def play(B, rng, book_dir, first_at=1.2):
             at = max(B.t, min_next)
             t0, t1 = B.say(ev['id'], gap=ev['gap'], gaze=ev['gaze'], expr=ev['expr'], at=at)
             last_end = t1
+            if not ev['m'] and ev['gaze'] in (None, 'cam') and rng.random() < 0.5:   # reads the next point off the page, then back to camera
+                B.gaze.append((t0 + 0.1, t0 + min(rng.uniform(0.8, 1.6), 0.5 * (t1 - t0)), 'screen', 'main'))
             for m_ in re.finditer(r'\[(laughs[^\]]*)\]', L.get('tts') or ''):
                 before = re.sub(r'<[^>]+>|\[[^\]]+\]', '', L['tts'][:m_.start()])
                 B.laughs.append((t0 + (t1 - t0) * syllables(before) / max(1, syllables(L['text'])), 'main', 0.75 if 'softly' in m_.group(1) else 1.0))
