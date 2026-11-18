@@ -121,24 +121,24 @@
       "review": "87.0 (v2 look)"
      },
      {
-      "id": "s2",
-      "url": null,
-      "publish": "queued: the channel hit its daily upload limit at 15:29; 2026-11-18 22:00 if a slot frees by 21:30, else 2026-11-19 16:00 (s3 takes 22:00)",
-      "length": "0:24",
-      "title": "20년 동안 아무도 안 쓴 식빵 기계 | 보랏빛 소가 온다 #책듣는밤",
-      "hook": "20년 동안 아무도 / 안 쓴 식빵 기계",
-      "lines": "t14 t15 t16 t17 t18 t19",
-      "review": "81.7 / 82.0 (two runs, v2 look)"
-     },
-     {
       "id": "s3",
       "url": "https://youtube.com/shorts/0gXP9tcyHik",
-      "publish": "2026-11-19 16:00 KST (scheduled; interim v2 render with 0.12 s caption overlaps, replaced by the fixed render if a second slot frees)",
+      "publish": "2026-11-18 22:00 KST (scheduled; took the 22:00 slot at 21:32 because the daily upload limit held; interim v2 render with 0.12 s caption overlaps)",
       "length": "0:28",
       "title": "말 만들려다 낙타 만드는 회의 | 보랏빛 소가 온다 #책듣는밤",
       "hook": "말 만들려다 / 낙타 만드는 회의",
       "lines": "x26 x27 x28 x29 x24 x25 g01",
       "review": "83.0 (fixed render, v2 look)"
+     },
+     {
+      "id": "s2",
+      "url": null,
+      "publish": "queued for 2026-11-19 16:00 KST: uploads when the daily upload limit frees (watch3.sh)",
+      "length": "0:24",
+      "title": "20년 동안 아무도 안 쓴 식빵 기계 | 보랏빛 소가 온다 #책듣는밤",
+      "hook": "20년 동안 아무도 / 안 쓴 식빵 기계",
+      "lines": "t14 t15 t16 t17 t18 t19",
+      "review": "81.7 / 82.0 (two runs, v2 look)"
      }
     ],
     "look": "v2 since 2026-11-18 15:30: black frame, two lines of Pretendard Black across the width, one flat yellow word; no band, emoji, gradient or series line (v1 = \"AI slop\", owner)",
@@ -148,7 +148,8 @@
      "vDoSuH1Ly4I v1 s3 (schedule cancelled; private)",
      "VJ-QFTQ8yY4 v1 s1 first draft (never public; private)",
      "CzNbswNNJX4 v2 s1 interim with overlapping captions (public 15:00-15:35; private)"
-    ]
+    ],
+    "order": "by publish time: s1 15:35, s3 22:00, s2 tomorrow 16:00"
    }
   }
  ]

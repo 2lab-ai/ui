@@ -76,6 +76,9 @@ Daily upload limit: without the advanced features the channel gets about a dozen
 2026-11-18). The upload dialog then says "일일 업로드 한도 도달" and its one-time verification leads to the same locked
 verification. `up_private.js` prints `LIMIT` and stops; `watch.sh` (same folder) retries every 15 minutes and carries
 on with captions and the schedule once a slot frees. Count the uploads before a remake: every replaced short costs one.
+If no slot frees before a slot time (ep. 1: still blocked at 21:18 for 22:00), move a short that is already on the
+channel into that slot (`sched_any.js` re-dates a scheduled video) and give the waiting short the later slot: one upload
+instead of two. On macOS keep flag files and folders apart by more than case (`FALLBACK` and `fallback/` are one path).
 
 Scripts: `~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/shorts_upload/` (Aside, run with `run_files.sh`).
 
@@ -86,8 +89,8 @@ v2 look (black frame, heavy white title, one yellow word). v1 and the interim s1
 | Short | Idea | Length | Published | Review (3 engines) |
 |---|---|---|---|---|
 | s1 | 소가 풍경이 되는 데 걸리는 시간 (the roadside cows go unseen in 20 minutes → the purple one stops the car → "어떻게 만드냐") | 47.1 s | https://youtube.com/shorts/tcdgyjamzkI, public 2026-11-18 15:35 | **87.0** |
-| s2 | 20년 동안 아무도 안 쓴 식빵 기계 (the 1912 bread slicer → Wonder Bread advertised it → "그 시대가 끝났다") | 24.4 s | queued behind the daily upload limit (ledger) | **81.7 / 82.0** |
-| s3 | 말 만들려다 낙타 만드는 회의 (horse → camel by committee → "안전한 게 제일 위험하다") | 27.9 s | https://youtube.com/shorts/0gXP9tcyHik, scheduled 2026-11-19 16:00 (interim render) | **83.0** |
+| s2 | 20년 동안 아무도 안 쓴 식빵 기계 (the 1912 bread slicer → Wonder Bread advertised it → "그 시대가 끝났다") | 24.4 s | queued behind the daily upload limit, for 2026-11-19 16:00 (ledger) | **81.7 / 82.0** |
+| s3 | 말 만들려다 낙타 만드는 회의 (horse → camel by committee → "안전한 게 제일 위험하다") | 27.9 s | https://youtube.com/shorts/0gXP9tcyHik, scheduled 2026-11-18 22:00 (interim render; took the 22:00 slot) | **83.0** |
 
 What the panel moved (each fix lives in `shorts.py` or the plan): the hook title must not give the answer away; the CTA card
 comes after the last line, alone, never over the drawing; one idea per short (s3 lost its second story); a photo per
