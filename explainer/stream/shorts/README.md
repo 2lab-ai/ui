@@ -81,11 +81,13 @@ Scripts: `~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/shorts_upload/` (A
 
 ## 5. Episode 1 (2026-11-18)
 
+v2 look (black frame, heavy white title, one yellow word). v1 and the interim s1 are private; every id is in the ledger.
+
 | Short | Idea | Length | Published | Review (3 engines) |
 |---|---|---|---|---|
-| s1 | 들판에 보라색 소가 한 마리 있으면? (hook question → the highway cows → "어떻게 만드냐") | 47.7 s | https://youtube.com/shorts/LztXx76RP8c, public 2026-11-18 13:06 | 88.7 → 91.3 → 92.3 → **90.7** |
-| s2 | '리마커블'의 반대말이 '아주 좋은'? (the plane that landed fine → "이상하기만 하면 되냐") | 37.6 s | https://youtube.com/shorts/wIAuwrXHHPQ, scheduled 2026-11-18 22:00 | 84.7 → 86.3 → 89.7 → **86.3** |
-| s3 | 회의로 고친 제품이 낙타가 되는 이유 (horse → camel → "안전한 게 제일 위험하다" → "어떻게 만드냐") | 28.5 s | https://youtube.com/shorts/vDoSuH1Ly4I, scheduled 2026-11-19 16:00 | 85.3 → 88.3 → 88.3 → **88.7** |
+| s1 | 소가 풍경이 되는 데 걸리는 시간 (the roadside cows go unseen in 20 minutes → the purple one stops the car → "어떻게 만드냐") | 47.1 s | https://youtube.com/shorts/tcdgyjamzkI, public 2026-11-18 15:35 | **87.0** |
+| s2 | 20년 동안 아무도 안 쓴 식빵 기계 (the 1912 bread slicer → Wonder Bread advertised it → "그 시대가 끝났다") | 24.4 s | queued behind the daily upload limit (ledger) | **81.7 / 82.0** |
+| s3 | 말 만들려다 낙타 만드는 회의 (horse → camel by committee → "안전한 게 제일 위험하다") | 27.9 s | https://youtube.com/shorts/0gXP9tcyHik, scheduled 2026-11-19 16:00 (interim render) | **83.0** |
 
 What the panel moved (each fix lives in `shorts.py` or the plan): the hook title must not give the answer away; the CTA card
 comes after the last line, alone, never over the drawing; one idea per short (s3 lost its second story); a photo per
