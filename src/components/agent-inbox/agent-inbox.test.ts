@@ -2587,7 +2587,7 @@ describe('window controls (0.43.0, data.controls = window)', () => {
     const order = Array.from(head.children).map(
       (n) => n.getAttribute('data-win') ?? (n.classList.contains('ib-star') ? 'star' : n.className),
     );
-    expect(order).toEqual(['min', 'ib-spark', 'detail', 'star', 'expand']);
+    expect(order).toEqual(['min', 'ib-min-st', 'ib-spark', 'detail', 'star', 'expand']);
     const face = c.querySelector<HTMLElement>('.ib-face')!;
     expect(face.hasAttribute('role')).toBe(false);
     expect(face.hasAttribute('tabindex')).toBe(false);
@@ -2779,6 +2779,56 @@ describe('window controls (0.43.0, data.controls = window)', () => {
     el.renderNow();
     expect(c.querySelector('[data-win="detail"]')).not.toBeNull();
     expect(c.querySelector('.ib-face')!.hasAttribute('role')).toBe(false);
+  });
+
+  it('one line keeps the status: a dot and the status word for a screen reader, outside the folded rows', () => {
+    const el = mount(winBoard({ minimized: ['migrate'] }), { lang: 'ko' });
+    const st = card(el, 'migrate').querySelector<HTMLElement>('.ib-head > .ib-min-st')!;
+    expect(st.getAttribute('data-tone')).toBe('wait');
+    expect(st.querySelector('.ib-min-dot')!.getAttribute('aria-hidden')).toBe('true');
+    expect(st.textContent).toBe('입력 대기');
+    expect(st.closest('[inert]')).toBeNull();
+    expect(monoStyles).toMatch(
+      /\.ib-min-st \{ display: none; flex: none; \}\n\.ib-card\.is-min \.ib-min-st \{ display: inline-flex;/,
+    );
+  });
+
+  it('a minimized seed is read once while the card is on the board: a group opened again keeps the person’s choice', () => {
+    const data = (): AgentInboxData => ({
+      columns: [
+        { id: 'done', label: 'Done', cards: [], groups: [{ id: 'g', label: 'Older', open: true, cards: [DONE] }] },
+      ],
+      controls: 'window',
+      minimized: ['digest'],
+    });
+    const el = mount(data());
+    expect(card(el, 'digest').classList.contains('is-min')).toBe(true);
+    ctl(el, 'digest', 'min').click(); // the person brings it back
+    const head = () => q(el, '.ib-group-head')!;
+    head().click(); // the group closes: the card's node goes
+    vi.advanceTimersByTime(2000);
+    el.renderNow();
+    head().click(); // and opens again: a new node
+    el.renderNow();
+    expect(card(el, 'digest').classList.contains('is-min')).toBe(false);
+    // Off the board and back: a fresh card, seeded again.
+    el.data = { columns: [], controls: 'window', minimized: ['digest'] };
+    el.renderNow();
+    vi.advanceTimersByTime(2000);
+    el.data = data();
+    el.renderNow();
+    expect(card(el, 'digest').classList.contains('is-min')).toBe(true);
+  });
+
+  it('a TL;DR × the host takes away hands focus to the card’s title (the face takes none)', () => {
+    const tldr = { ...WAIT, tldr: { lines: ['Ran the dry run.'] } };
+    const el = mount(winBoard({}, tldr));
+    const x = card(el, 'migrate').querySelector<HTMLElement>('[data-dismiss="tldr"]')!;
+    x.focus();
+    expect(el.shadowRoot!.activeElement).toBe(x);
+    el.data = winBoard({}, WAIT);
+    el.renderNow();
+    expect(el.shadowRoot!.activeElement).toBe(ctl(el, 'migrate', 'detail'));
   });
 
   it('escapes the title in its button and speaks Korean with lang="ko"', () => {

@@ -531,6 +531,11 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 }
 .ib-title.is-detail:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 .ib-title.is-detail:focus-visible .ib-peek, .ib-card.is-current .ib-peek { opacity: 1; transform: none; }
+/* One line keeps its status: a dot in the status colour (hollow when idle), read as the status word. */
+.ib-min-st { display: none; flex: none; }
+.ib-card.is-min .ib-min-st { display: inline-flex; align-items: center; }
+.ib-min-dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--st-color); }
+.ib-card[data-status="idle"] .ib-min-dot { background: none; box-shadow: inset 0 0 0 1.5px var(--st-color); }
 /* The card whose detail is shown beside the board (list–detail selection). */
 .ib-card.is-current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--ib-shadow); }
 /* One line: everything under the head folds away as a grid row (like the in-place body); the head stays. */
