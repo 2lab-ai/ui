@@ -465,7 +465,7 @@
 {
 "id": "k031b",
 "who": "main",
-"text": "사람들이 돈을 내고 광고를 피하는 거죠.",
+"text": "음악 때문에 내는 사람도 있겠지만, 광고 없는 쪽에 돈을 내는 사람이 이만큼이에요.",
 "dir": "calm, close, explaining",
 "j": 1,
 "sec": "s08"
@@ -1307,6 +1307,20 @@
 "sec": "s32"
 },
 {
+"id": "k080xa",
+"who": "main",
+"text": "그래서 로지텍은 광고를 더 원하지 않는대요.",
+"dir": "calm, close, explaining",
+"sec": "s32"
+},
+{
+"id": "k080xb",
+"who": "main",
+"text": "자주 쓰는 사람이 알아서 재채기해 주니까요.",
+"dir": "calm, close, explaining",
+"sec": "s32"
+},
+{
 "id": "k081a",
 "who": "main",
 "text": "누가 이길까. 관성 큰 대기업보다 잃을 게 없는 중소기업이래요.",
@@ -2053,7 +2067,7 @@
 {
 "id": "k125b",
 "who": "main",
-"text": "로고 하나 탓만은 아니겠지만, 유일하게 리마커블했던 걸 스스로 지운 거죠.",
+"text": "로고 하나 때문만은 아니겠지만, 손님들이 아끼던 옛 그림을 스스로 지운 거죠.",
 "dir": "calm, close, explaining",
 "sec": "s52"
 },
@@ -2075,6 +2089,20 @@
 "id": "k126b",
 "who": "main",
 "text": "이만 천 달러짜리 보석 휴대폰, 일회용 휴대폰, 사진 보내는 휴대폰.",
+"dir": "calm, close, explaining",
+"sec": "s53"
+},
+{
+"id": "k126xa",
+"who": "main",
+"text": "정답이 하나라는 게 아니에요.",
+"dir": "calm, close, explaining",
+"sec": "s53"
+},
+{
+"id": "k126xb",
+"who": "main",
+"text": "작게 만드는 경쟁이 끝나자, 여러 가장자리를 한꺼번에 찔러 본 거죠.",
 "dir": "calm, close, explaining",
 "sec": "s53"
 },
@@ -2160,7 +2188,7 @@
 {
 "id": "k128xa",
 "who": "main",
-"text": "제트블루 대표는 첫날 마케팅 책임자한테 제품 디자인과 직원 교육까지 맡겼대요.",
+"text": "수신자 부담 전화 일 팔백 콜렉트는 외우기 쉬운 번호부터 남의 사업을 빼앗는 발상까지, 마케팅이 제품 안에 들어 있었대요.",
 "dir": "calm, close, explaining",
 "sec": "s55"
 },
@@ -2223,6 +2251,20 @@
 "id": "k131",
 "who": "main",
 "text": "그럼 충격적이어야 하냐. 아니래요. 우리는 너무 충격적이라서가 아니라 너무 수줍어서 문제고, 소수의 스니저가 거부할 수 없는 존재가 되면 된대요.",
+"dir": "calm, close, explaining",
+"sec": "s58"
+},
+{
+"id": "k131xa",
+"who": "main",
+"text": "충격적인 게 늘 리마커블한 건 아니고, 가끔은 그냥 짜증 난대요.",
+"dir": "calm, close, explaining",
+"sec": "s58"
+},
+{
+"id": "k131xb",
+"who": "main",
+"text": "충격은 더 깊은 목적을 받칠 때만 오래간대요.",
 "dir": "calm, close, explaining",
 "sec": "s58"
 },
@@ -2314,6 +2356,20 @@
 "sec": "s62"
 },
 {
+"id": "k135xa",
+"who": "main",
+"text": "홀마크는 상품권 회사도 있어서, 카드 보내러 스스로 온 손님한테 말 걸 허락이 이미 있대요.",
+"dir": "calm, close, explaining",
+"sec": "s62"
+},
+{
+"id": "k135xb",
+"who": "main",
+"text": "다만 받은 사람도 다시 상품권을 보내야 홈런이 된대요.",
+"dir": "calm, close, explaining",
+"sec": "s62"
+},
+{
 "id": "k136a",
 "who": "main",
 "text": "그리고 사람 얘기.",
@@ -2358,6 +2414,20 @@
 "text": "좁힐수록 리마커블해져요.",
 "dir": "calm, close, explaining",
 "sec": "s64"
+},
+{
+"id": "k137xa",
+"who": "main",
+"text": "로빈 워터스는 할인점 타깃의 트렌드와 디자인 담당 부사장이었어요.",
+"dir": "calm, close, explaining",
+"sec": "s65"
+},
+{
+"id": "k137xb",
+"who": "main",
+"text": "건축가 마이클 그레이브스를 설득해 타깃 전용 찻주전자를 만들게 한 사람이죠.",
+"dir": "calm, close, explaining",
+"sec": "s65"
 },
 {
 "id": "k138a",
@@ -2420,7 +2490,7 @@
 {
 "id": "k141b",
 "who": "main",
-"text": "책의 몇 년이 이제 보름이에요.",
+"text": "측정 방식은 다르지만, 책이 말한 몇 년짜리 수명이 요즘 어떤 유행에선 보름까지 줄었다는 거예요.",
 "dir": "calm, close, explaining",
 "sec": "s66"
 },
@@ -2514,6 +2584,20 @@
 "id": "k147c",
 "who": "main",
 "text": "그 지루한 소금도 프랑스 수제 소금은 한 파운드에 이십 달러래요.",
+"dir": "calm, close, explaining",
+"sec": "s69"
+},
+{
+"id": "k147xa",
+"who": "main",
+"text": "이 꼭지의 핵심 생각은 하나예요.",
+"dir": "calm, close, explaining",
+"sec": "s69"
+},
+{
+"id": "k147xb",
+"who": "main",
+"text": "안 가 본 혁신 영역은 별로 없고, 안 해 본 조합이 있을 뿐이래요.",
 "dir": "calm, close, explaining",
 "sec": "s69"
 },
@@ -2724,7 +2808,13 @@
 {
 "id": "k157b",
 "who": "main",
-"text": "책이 칭찬한 크리스피 크림은 바로 그 주유소 확장 때문에 몇 년 뒤 주가가 폭락했어요.",
+"text": "책이 칭찬한 크리스피 크림은 몇 년 뒤 주가가 폭락했어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "k157c",
+"who": "main",
+"text": "원인은 여럿이지만, 잘된 사례만 골라 보면 이런 걸 놓치죠.",
 "dir": "calm, close, explaining"
 },
 {

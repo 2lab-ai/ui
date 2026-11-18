@@ -54,6 +54,7 @@ All files below are Public Domain, CC0 or CC BY (no SA/NC/ND). Licence, author a
 
 ## Footer credits
 
+- `dutchboy_can_crop.jpg`: 사진: Thester11, CC BY 3.0 (잘라냄)
 - `akihabara.jpg`: 사진: ElHeineken, CC BY 4.0
 - `altoids_tin.jpg`: 사진: User Bindingtheory on en.wikipedia, Public domain
 - `ben_jerrys.jpg`: 사진: Nielsoncaetanosalmeron, CC BY 4.0
@@ -105,3 +106,4 @@ All files below are Public Domain, CC0 or CC BY (no SA/NC/ND). Licence, author a
 ## Not found
 
 - `curad_bandage.jpg` — No PD/CC0/CC BY photo of cartoon-printed kids' adhesive bandages found. Searched Wikimedia Commons for: adhesive bandage cartoon, Band-Aid children, kids bandages, adhesive bandages printed, Band-Aid, bandaids, plasters colorful, character bandages, decorated adhesive bandage, Pflaster Kinder, Curad. Closest CC BY hits were Browndages tins (adult-illustrated) and vintage Band-Aid tins (CC BY 4.0, File:Band-Aid_tins_(1942,_1958).jpg) — not used. Openverse API returned 500/504 during the session.
+- `dutchboy_can_crop.jpg` — "LeadPaint1" (Dutch Boy tin) — Thester11 — CC BY 3.0 — https://commons.wikimedia.org/wiki/File:LeadPaint1.JPG — cropped to the logo (the lead label cut off: the book's point is the can, not the paint)

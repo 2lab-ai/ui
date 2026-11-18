@@ -210,8 +210,8 @@ def play(B, rng, book_dir, first_at=1.2):
             at = max(B.t, min_next)
             t0, t1 = B.say(ev['id'], gap=ev['gap'], gaze=ev['gaze'], expr=ev['expr'], at=at)
             last_end = t1
-            if not ev['m'] and ev['gaze'] in (None, 'cam') and rng.random() < 0.5:   # reads the next point off the page, then back to camera
-                B.gaze.append((t0 + 0.1, t0 + min(rng.uniform(0.8, 1.6), 0.5 * (t1 - t0)), 'screen', 'main'))
+            if not ev['m'] and ev['gaze'] in (None, 'cam') and rng.random() < 0.65:   # reads the next point off the page, then back to camera
+                B.gaze.append((t0 + 0.1, t0 + min(rng.uniform(1.0, 2.0), 0.5 * (t1 - t0)), 'screen', 'main'))
             for m_ in re.finditer(r'\[(laughs[^\]]*)\]', L.get('tts') or ''):
                 before = re.sub(r'<[^>]+>|\[[^\]]+\]', '', L['tts'][:m_.start()])
                 B.laughs.append((t0 + (t1 - t0) * syllables(before) / max(1, syllables(L['text'])), 'main', 0.75 if 'softly' in m_.group(1) else 1.0))

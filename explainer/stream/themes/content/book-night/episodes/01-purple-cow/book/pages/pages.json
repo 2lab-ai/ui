@@ -737,8 +737,8 @@
 "kind": "versus",
 "head": "사례 연구: 더치 보이 — 페인트는 그대로, 통만 바꿨다",
 "left": {
-"label": "전: 무거운 **철 깡통** (사진은 더 옛날 납 페인트 통)",
-"image": "../../props/broll/dutchboy_metal_can.jpg",
+"label": "전: 무거운 **철 깡통**",
+"image": "../props/dutchboy_can_crop.jpg",
 "lines": [
 "들기·열기·닫기·붓기 **다 어렵다**"
 ]
@@ -751,7 +751,7 @@
 "매출↑, **더 비싼 값**에 더 넓게"
 ]
 },
-"foot": "사진: Thester11, CC BY 3.0 / Beth Bryan Designs (Flickr: Unskinny Boppy), CC BY 2.0",
+"foot": "사진: Thester11, CC BY 3.0 (잘라냄) / Beth Bryan Designs (Flickr: Unskinny Boppy), CC BY 2.0",
 "id": "p48"
 },
 {
