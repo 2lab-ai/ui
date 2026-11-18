@@ -1057,7 +1057,8 @@ export function tldrLines(tldr: InboxTldr | undefined): string[] {
 }
 
 /** The face's TL;DR box (0.20.0): a label, the lines, and the × that sends `ui-dismiss`. */
-function renderTldr(c: InboxCard, t: Strings): string {
+/** `key` prefixes the × button's focus key: `d` in the rows, `dm` in a one-line card's head (0.43.0). */
+function renderTldr(c: InboxCard, t: Strings, key = 'd'): string {
   const lines = tldrLines(c.tldr);
   if (!lines.length) return '';
   const label = str(c.tldr?.title).trim() || t.tldr;
@@ -1066,7 +1067,7 @@ function renderTldr(c: InboxCard, t: Strings): string {
       ? ''
       : `<button type="button" class="ib-tldr-x" data-dismiss="tldr" aria-label="${escAttr(t.tldrDismiss)}" title="${escAttr(
           t.tldrDismiss,
-        )}" data-key="${escAttr(`d:${c.id}`)}">${X_SVG}</button>`;
+        )}" data-key="${escAttr(`${key}:${c.id}`)}">${X_SVG}</button>`;
   return `<div class="ib-tldr"><div class="ib-tldr-head"><span class="ib-tldr-label">${esc(label)}</span>${x}</div><ul class="ib-tldr-lines">${lines
     .map((l) => `<li>${esc(l)}</li>`)
     .join('')}</ul></div>`;
@@ -1272,8 +1273,11 @@ function renderFace(
     .join('')}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
     statusOf(c),
   )}">${renderStatus(c, t)}</span>${renderMetrics(c, t)}</div>`;
-  // Window controls: everything under the head folds away on one line (a grid row, like the in-place body).
-  return win ? `${head}<div class="ib-rest"><div class="ib-rest-in">${rest}</div></div>` : `${head}${rest}`;
+  // Window controls: everything under the head folds away on one line (a grid row, like the in-place body) — but a
+  // TL;DR stays under the head until its × (0.43.0, drawn only while folded; the one in the rows is inert then).
+  if (!win) return `${head}${rest}`;
+  const tldr = faceRows(c).includes('tldr') ? renderTldr(c, t, 'dm') : '';
+  return `${head}${tldr ? `<div class="ib-min-tldr">${tldr}</div>` : ''}<div class="ib-rest"><div class="ib-rest-in">${rest}</div></div>`;
 }
 
 function renderButton(cardId: string, a: InboxAction, primary: boolean): string {
@@ -2579,7 +2583,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       const keys = this.$$<HTMLElement>('[data-key]');
       // A TL;DR × the host took away with its box (0.20.0): focus goes to that card's face, never to the page.
       // With window controls (0.43.0) the face takes no focus: its title does.
-      const fallback = activeKey.startsWith('d:') ? `${this.#win ? 'wd' : 'f'}:${activeKey.slice(2)}` : '';
+      const dismissed = /^dm?:/.exec(activeKey);
+      const fallback = dismissed ? `${this.#win ? 'wd' : 'f'}:${activeKey.slice(dismissed[0].length)}` : '';
       const next =
         // Two cards' keys can meet (`kc:a:b:c` is card a:b's child c and card a's child b:c): its own card's first.
         (activeCard !== null
