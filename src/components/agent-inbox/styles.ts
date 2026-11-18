@@ -5,6 +5,9 @@
  */
 import { ownerBadgeCss } from '../../core/owner-badge';
 
+/** The caret's hop, ▽ → △ (0.43.0, window controls) — its CSS animation's length in ms. */
+export const HOP_MS = 560;
+
 export const styles = `
 :host {
   /* Mono (--chroma 0, 0.25.0): a tone keeps no tint — the tag is the neutral pill in the secondary ink, and only
@@ -486,6 +489,106 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
    the sentence the clamp cut short (0.21.0). */
 .ib .ib-card.is-open .ib-summary { display: block; -webkit-line-clamp: unset; }
 .ib-card.no-motion .ib-expand, .ib-card.no-motion .ib-expand-inner { transition: none; }
+/* ── WINDOW CONTROLS (0.43.0, data.controls = 'window') — each does one thing in every view ──
+   − (one line) at the head's left, the title opens the detail, ▽ (in place) at the right. Their state is on the nodes
+   (aria-pressed / aria-expanded / aria-current), so nothing is drawn twice. */
+.ib-win {
+  flex: none; position: relative; display: inline-grid; place-items: center; inline-size: 28px; block-size: 28px;
+  margin-block: -6px; padding: 0; border: 0; border-radius: 7px; background: none; color: var(--ib-muted); cursor: pointer;
+  font: inherit; transition: color 120ms ease, background-color 120ms ease;
+}
+.ib-win svg { inline-size: 16px; block-size: 16px; }
+.ib-win-min { margin-inline-start: -7px; margin-inline-end: -2px; }
+.ib-win-caret { margin-inline-end: -8px; overflow: visible; }
+.ib-star + .ib-win-caret { margin-inline-start: 2px; }
+.ib-win:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+@media (hover: hover) and (pointer: fine) {
+  .ib-win:hover { color: var(--ib-text); background: color-mix(in srgb, var(--ib-text) 8%, transparent); }
+}
+/* Touch: the hit area grows to 44px past the 28px button; the drawing and the head line stay. */
+@media (pointer: coarse), (max-width: 639px) { .ib-win::before { content: ''; position: absolute; inset: -8px; } }
+.ib-win-min .ib-g-restore, .ib-win-min[aria-pressed="true"] .ib-g-min { display: none; }
+.ib-win-min[aria-pressed="true"] .ib-g-restore { display: block; }
+/* The title is the detail's button: on hover (and focus, and on the current card) it underlines in the accent and a
+   side-panel glyph slides in after it — it opens beside the board, not in place (Notion's OPEN → side peek). */
+.ib-title.is-detail {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; margin: -2px -4px; border: 0; border-radius: 6px;
+  background: none; color: inherit; font-family: inherit; letter-spacing: inherit; text-align: start; cursor: pointer;
+}
+.ib-title-text {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-decoration: underline 1.5px transparent; text-underline-offset: 3px; transition: color 140ms ease, text-decoration-color 140ms ease;
+}
+.ib-peek {
+  flex: none; display: inline-flex; color: var(--ib-wd-c); opacity: 0; transform: translateX(-4px);
+  transition: opacity 140ms ease, transform 180ms var(--ease-out);
+}
+.ib-peek svg { inline-size: 14px; block-size: 14px; }
+.ib-card { --ib-wd-c: color-mix(in srgb, var(--accent) calc(85% * var(--chroma)), var(--ib-text)); }
+@media (hover: hover) and (pointer: fine) {
+  .ib-title.is-detail:hover .ib-title-text { color: var(--ib-wd-c); text-decoration-color: currentColor; }
+  .ib-title.is-detail:hover .ib-peek { opacity: 1; transform: none; }
+}
+.ib-title.is-detail:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+.ib-title.is-detail:focus-visible .ib-peek, .ib-card.is-current .ib-peek { opacity: 1; transform: none; }
+/* The card whose detail is shown beside the board (list–detail selection). */
+.ib-card.is-current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--ib-shadow); }
+/* One line: everything under the head folds away as a grid row (like the in-place body); the head stays. */
+.ib-rest { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--dur-expand) var(--ease-out); }
+.ib-rest-in { min-height: 0; overflow: hidden; transition: opacity var(--dur-expand) var(--ease-out); }
+.ib-face:has(> .ib-rest) { transition: padding var(--dur-expand) var(--ease-out); }
+.ib-card.is-min .ib-face { padding-block: 9px; }
+.ib-card.is-min .ib-rest { grid-template-rows: 0fr; }
+.ib-card.is-min .ib-rest-in { opacity: 0; }
+.ib-card.no-motion .ib-rest, .ib-card.no-motion .ib-rest-in, .ib-card.no-motion .ib-face { transition: none; }
+/* ▽ → △: open = turned 180°. The press that opens hops in place — up and bigger over a shrinking ground shadow,
+   a half turn in the air, a squashed landing that throws five grains of dust (is-hop, HOP_MS). Closing turns back. */
+.ib-caret-lift { display: inline-grid; place-items: center; transition: transform 220ms var(--ease-out); }
+.ib-win-caret[aria-expanded="true"] .ib-caret-lift { transform: rotate(180deg); }
+.ib-caret-shadow {
+  position: absolute; left: 50%; bottom: 4px; inline-size: 12px; block-size: 3px; margin-inline-start: -6px; border-radius: 50%;
+  background: color-mix(in srgb, var(--ib-text) 40%, transparent); opacity: 0; pointer-events: none;
+}
+.ib-dust { position: absolute; left: 50%; bottom: 6px; pointer-events: none; }
+.ib-dust i {
+  position: absolute; left: -1.5px; top: -1.5px; inline-size: 3px; block-size: 3px; border-radius: 50%;
+  background: color-mix(in srgb, var(--ib-muted) 75%, transparent); opacity: 0;
+}
+.ib-dust i:nth-child(1) { --dx: -12px; --dy: -2px; }
+.ib-dust i:nth-child(2) { --dx: -7px; --dy: -6px; inline-size: 2px; block-size: 2px; }
+.ib-dust i:nth-child(3) { --dx: 1px; --dy: -8px; inline-size: 2px; block-size: 2px; }
+.ib-dust i:nth-child(4) { --dx: 7px; --dy: -6px; }
+.ib-dust i:nth-child(5) { --dx: 12px; --dy: -1px; inline-size: 2px; block-size: 2px; }
+.ib-win-caret.is-hop .ib-caret-lift { animation: ib-hop ${HOP_MS}ms cubic-bezier(0.3, 0.7, 0.4, 1) both; }
+.ib-win-caret.is-hop .ib-caret-shadow { animation: ib-hop-shadow ${HOP_MS}ms ease both; }
+.ib-win-caret.is-hop .ib-dust i { animation: ib-dust 320ms cubic-bezier(0.2, 0.8, 0.3, 1) ${Math.round(HOP_MS * 0.7)}ms both; }
+@keyframes ib-hop {
+  0% { transform: translateY(0) scale(1) rotate(0deg); }
+  28% { transform: translateY(-7px) scale(1.35) rotate(0deg); filter: drop-shadow(0 4px 3px color-mix(in srgb, var(--ib-text) 30%, transparent)); }
+  68% { transform: translateY(-6px) scale(1.3) rotate(180deg); filter: drop-shadow(0 4px 3px color-mix(in srgb, var(--ib-text) 30%, transparent)); }
+  80% { transform: translateY(1px) scale(1.18, 0.82) rotate(180deg); }
+  100% { transform: translateY(0) scale(1) rotate(180deg); }
+}
+@keyframes ib-hop-shadow {
+  0% { opacity: 0; transform: scaleX(1); }
+  10% { opacity: 0.55; transform: scaleX(1); }
+  28% { opacity: 0.25; transform: scaleX(0.55); }
+  68% { opacity: 0.3; transform: scaleX(0.6); }
+  78% { opacity: 0.6; transform: scaleX(1.25); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+@keyframes ib-dust {
+  0% { opacity: 0.9; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ib-caret-lift, .ib-rest, .ib-rest-in, .ib-peek, .ib-face:has(> .ib-rest) { transition: none; }
+  .ib-win-caret.is-hop .ib-caret-lift, .ib-win-caret.is-hop .ib-caret-shadow, .ib-win-caret.is-hop .ib-dust i { animation: none; }
+}
+@media (forced-colors: active) {
+  .ib-card.is-current { border-color: Highlight; box-shadow: 0 0 0 1px Highlight; }
+  .ib-caret-shadow, .ib-dust { display: none; }
+}
 .ib-body { margin: 0 14px; padding: 12px 0 14px; border-top: 1px solid var(--ib-card-border); font-size: 13px; color: var(--ib-text-2); }
 /* Steps: dot + connector, the current step's dot in ink. */
 .ib-more { font-size: 12px; color: var(--ib-muted); padding: 0 0 6px 16px; }
