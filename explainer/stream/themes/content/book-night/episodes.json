@@ -7,7 +7,22 @@
    "no": 1,
    "date": "2026-11-17",
    "first_stream": true,
-   "book": "보랏빛 소가 온다",
+   "book": {
+    "url": "pending — 2026-11-18 21:35 KST upload hit the channel's daily upload limit; cron book-ep01-upload-retry retries every 30 min (upload/book_publish.sh) and schedules 2026-11-19 18:00 KST",
+    "publish": "2026-11-19 18:00 KST (scheduled once the upload goes through)",
+    "length": "30:26",
+    "title": "[책듣는밤 1화] 보랏빛 소가 온다 한 권 다 읽어드림 (스트리밍 북) | 세스 고딘",
+    "folder": "episodes/01-purple-cow/book",
+    "script": "episodes/01-purple-cow/book/script.py",
+    "themes": "studio + kate + book-night (solo)",
+    "coverage": "71 sections of 71 (book/coverage.py), 19 case studies, the 8 ways, the 4 slogans, the book history, 3 criticisms, a reading order",
+    "pages": 78,
+    "takes": 414,
+    "syllables": 8706,
+    "joke_share": "21% of lines (88), 11 laughs",
+    "news": "두쫀쿠·탕후루·유행 반감기, 성심당, 다이소, 크래커 배럴, 카카오톡 친구탭, 챗GPT, 케데헌, 포켓몬 카드, 진로이즈백, 지상파 광고 -17% (research_news.md)",
+    "review": "b1 73.3/73.0 → b3 77.3/76.0 → b4 75.7/76.0 → b5 77.3/86.3 (mean 81.8; gemini 68 vs 97 between runs)"
+   },
    "book_en": "Purple Cow",
    "author": "세스 고딘 (Seth Godin)",
    "edition": "재인 2004 (남수영·이주형 옮김, 208쪽) / 쌤앤파커스 2023 개정판 (280쪽); 원서 Portfolio 2003",
@@ -41,7 +56,9 @@
    "lore_used": [
     "오록스: 소 조상은 어깨가 사람 키, 동굴 벽에 그린 사람들 잘 그렸다",
     "1912년이면 그렇게 옛날도 아니다(시간 감각)",
-    "티리언 퍼플: 고둥 염료 만들던 동네 냄새가 지독했다"
+    "티리언 퍼플: 고둥 염료 만들던 동네 냄새가 지독했다",
+    "우물가: 옛날 마을에서 소문이 제일 빨리 돌던 자리(물 길으러 온 사람들 입이 제일 바빴다) — 스트리밍 북",
+    "종이가 처음 들어왔을 때도 다들 신기해했는데 한 세대 지나니 아무도 신기해하지 않았다 — 스트리밍 북"
    ],
    "sister": "첫 등장. 택배 받으러 간 120초 사이에 들어와 '열여덟이요. …올해도요.'를 한 번 씀. 그림판에 '소 다리 다섯 개였음 ㅋ'.",
    "open_threads": [

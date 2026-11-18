@@ -196,6 +196,150 @@ def test_paste_image_draws_a_served_picture_inside_a_selection_and_drops_it():
         assert 'ctrl' in [s[1] for s in ev['sfx']]
 
 
+
+def test_studio_is_a_solo_theme_and_the_solo_rubric_of_the_book_composes_to_100():
+    cfg = TH.load('studio', 'kate', 'book-night')
+    assert cfg['streaming']['solo'] is True and 'toc' in cfg['layout'] and '{ver}' in cfg['streaming']['review_goal']
+    solo = [p for k in TH.KINDS for _, p in cfg[k].get('review_solo', cfg[k].get('review', []))]
+    assert sum(solo) == 100
+    # no live line leaks into a solo review: chat, donation, AFK and typing are scored only on the live
+    lines = ' '.join(t for k in TH.KINDS for t, _ in cfg[k].get('review_solo', []))
+    assert '채팅 흐름' not in lines and '자리비움' not in lines and '엑스트라' not in lines
+
+
+SOLO_BEATS = """
+import json, os
+from marks import Marker, bell
+TAIL = 1.0
+STREAM_TITLE = 'solo'
+TOC = ['하나', '둘', '셋']
+def script(B, rng):
+    K = Marker(B)
+    B.t = 0.5
+    B.chapter(0)
+    B.say('a1', gaze='cam')
+    B.hand_at(B.t)
+    box = {'x': 100, 'y': 100, 'w': 200, 'h': 40}
+    K.underline(box); K.circle(box); K.arrow((400, 300), (300, 150)); K.cross(box); K.tick(500, 500)
+    K.curve(bell(100, 600, 650, 300))
+    K.note(700, 500, 'x14')
+    B.t = max(B.t, B.hand_t) + 0.3
+    B.chapter(1)
+    B.say('a1', gaze='screen')
+    B.t = max(B.t, B.hand_t) + 0.5
+"""
+
+
+def _solo_build(d, beats):
+    import build
+    audio = os.path.join(d, 'audio'); os.makedirs(audio)
+    _wav(os.path.join(audio, 'a1.wav'), 1.0)
+    json.dump({'id': 'a1', 'who': 'main', 'dur': 1.0, 'said': '안녕'}, open(os.path.join(audio, 'a1.json'), 'w'), ensure_ascii=False)
+    bp = os.path.join(d, 'beats.py'); open(bp, 'w').write(beats)
+    out = os.path.join(d, 'out')
+    build.build(bp, audio, out, TH.load('studio', 'kate', 'book-night'))
+    return json.load(open(os.path.join(out, 'timeline.json'))), json.load(open(os.path.join(out, 'events.json')))
+
+
+def test_solo_build_lights_the_contents_marks_in_red_and_scores_on_the_solo_lines():
+    with tempfile.TemporaryDirectory() as d:
+        tl, ev = _solo_build(d, SOLO_BEATS)
+        assert tl['toc']['items'] == ['하나', '둘', '셋'] and [e['i'] for e in tl['toc']['ev']] == [0, 1]
+        assert tl['toc']['ev'][0]['f'] < tl['toc']['ev'][1]['f'] and tl['chat'] == [] and tl['alerts'] == []
+        segs = [o for o in tl['ops'] if o['op'] == 'seg']
+        assert len(segs) > 20 and all(o['c'] == '#ed1c24' for o in segs)                       # every mark in red
+        assert any(o['op'] == 'tb_open' and o['col'] == '#ed1c24' for o in tl['ops'])           # the typed note too
+        assert 'layout' in tl and 'chat' not in tl['layout']
+        rv = ev['review']
+        assert rv['solo'] and rv['goal'] and sum(p for _, p in rv['rubric']) == 100
+
+
+def test_solo_page_turns_never_show_a_white_canvas():
+    beats = SOLO_BEATS.replace("    B.chapter(0)\n", "    B.paste_page('cache:p1.png', ready=True)\n    B.chapter(0)\n").replace(
+        "    B.chapter(1)\n", "    t_img = B.paste_page('cache:p2.png', at=B.t)\n    B.chapter(1, at=t_img)\n")
+    with tempfile.TemporaryDirectory() as d:
+        tl, _ = _solo_build(d, beats)
+        img = [o for o in tl['ops'] if o['op'] == 'img']
+        assert [o['src'] for o in img] == ['/cache/p1.png', '/cache/p2.png'] and img[0]['f'] == 0      # the first page is up at frame 0
+        assert all((o['x'], o['y'], o['w'], o['h']) == (0, 0, 1100, 700) for o in img)
+        assert not [o for o in tl['ops'] if o['op'] == 'erase']                                          # Ctrl+A, Ctrl+V: never Delete
+        sel = max(o['f'] for o in tl['ops'] if o['op'] == 'sel' and o['w'] > 0 and o['f'] < img[1]['f'])
+        assert img[1]['f'] - sel <= 0.6 * 30                                                              # the old page stays until the new one lands
+        assert tl['toc']['ev'][1]['f'] == img[1]['f']
+
+
+def test_solo_build_refuses_an_audience():
+    with tempfile.TemporaryDirectory() as d:
+        try: _solo_build(d, SOLO_BEATS.replace("    B.chapter(0)", "    B.chapter(0)\n    B.msg('x', 'ㅎㅇ')"))
+        except SystemExit as e: assert 'no audience' in str(e)
+        else: raise AssertionError('a chat message in a solo build must stop the build')
+
+
+def test_pages_draw_every_kind_and_report_the_marked_boxes():
+    import shutil, subprocess
+    cache = os.environ.get('STREAM_CACHE', os.path.expanduser('~/.cache/2lab-stream'))
+    if not (shutil.which('node') and os.path.isdir(os.path.join(cache, 'node', 'node_modules', 'playwright'))):
+        print('skip: playwright cache not installed (engine/setup_assets.py)'); return
+    from PIL import Image
+    with tempfile.TemporaryDirectory() as d:
+        Image.new('RGB', (400, 300), (120, 80, 160)).save(os.path.join(d, 'x.jpg'))
+        spec = [{'id': 'p', 'head': '헤드 **강조**', 'image': 'x.jpg', 'src': 'src', 'lines': ['한 줄 **빨강**']},
+                {'id': 'a', 'kind': 'article', 'head': 'h', 'outlet': '연합뉴스', 'date': '2026.11.18', 'title': '제목 **핵심**', 'lines': ['본문']},
+                {'id': 'q', 'kind': 'quote', 'head': 'h', 'image': 'x.jpg', 'en': 'Safe is risky.', 'lines': ['**안전한 게** 위험하다'], 'by': '— 저자'},
+                {'id': 'l', 'kind': 'list', 'head': 'h', 'items': ['하나', '둘', '**셋**', '넷', '다섯', '여섯']},
+                {'id': 'v', 'kind': 'versus', 'head': 'h', 'left': {'label': '전', 'image': 'x.jpg'}, 'right': {'label': '**후**', 'image': 'x.jpg'}, 'foot': 'credit'},
+                {'id': 'b', 'kind': 'big', 'head': 'h', 'big': '**20분**'},
+                {'id': 'k', 'kind': 'blank', 'head': 'h', 'labels': [{'x': 100, 'y': 560, 'text': '**혁신자**'}, {'x': 900, 'y': 620, 'text': '시간 →'}]}]
+        json.dump(spec, open(os.path.join(d, 'pages.json'), 'w'), ensure_ascii=False)
+        subprocess.run(['node', os.path.join(HERE, 'engine', 'pages.mjs'), os.path.join(d, 'pages.json'), os.path.join(d, 'out')], check=True, capture_output=True)
+        for p in spec:
+            bx = json.load(open(os.path.join(d, 'out', p['id'] + '.boxes.json')))
+            assert Image.open(os.path.join(d, 'out', p['id'] + '.png')).size == (1100, 700)
+            if p['id'] == 'k': assert [m['text'] for m in bx['marks']] == ['혁신자'] and 90 <= bx['marks'][0]['x'] <= 110   # a typed-beforehand label is a mark too
+            assert bx['marks'] and all(0 <= m['x'] and m['x'] + m['w'] <= 1100 and m['y'] + m['h'] <= 700 for m in bx['marks'])
+        assert len(json.load(open(os.path.join(d, 'out', 'v.boxes.json')))['images']) == 2
+        assert len(json.load(open(os.path.join(d, 'out', 'l.boxes.json')))['items']) == 6
+        assert json.load(open(os.path.join(d, 'out', 'k.boxes.json')))['free']['h'] > 400
+
+
+STORY = """
+TOC = ['하나', '둘']
+SECTIONS = [('하나', '첫 꼭지', 's01'), ('둘', '둘째 꼭지', 's02')]
+PAGES = {}; SEQ = []
+def page(pid, **spec): PAGES[pid] = spec; SEQ.append(('page', pid))
+def say(text, **o): SEQ.append((text, o))
+SEQ.append(('part', 0))
+page('p1', kind='photo', head='헤드', image='../props/x.jpg', lines=['**강조**'])
+say('첫 문장은 충분히 길어요. 두 번째 문장도 꽤 길게 갑니다.', sec='s01', m=[('u', 0, 0.8)], j=1)
+SEQ.append(('part', 1))
+page('p2', kind='big', head='빅', big='**20분**', image='../props/none.jpg')
+say('세 번째는 짧고. 아니래요 다음.', say='세 번째는 짧고. 아니래요 다음.', sec='s02')
+say('나중에 넣은 줄이에요.', id='k001x', sec='s02')
+say('그다음 줄.', sec='s02')
+"""
+
+
+def test_storyboard_splits_sentences_moves_marks_drops_missing_pictures_and_credits_photos():
+    import storyboard
+    from PIL import Image
+    with tempfile.TemporaryDirectory() as d:
+        os.makedirs(os.path.join(d, 'book', 'pages')); os.makedirs(os.path.join(d, 'book', 'props'))
+        Image.new('RGB', (40, 30)).save(os.path.join(d, 'book', 'props', 'x.jpg'))
+        open(os.path.join(d, 'book', 'props', 'CREDITS.md'), 'w').write('## Footer credits\n- `x.jpg`: 사진: 누군가, CC BY 4.0\n')
+        sp = os.path.join(d, 'book', 'script.py'); open(sp, 'w').write(STORY)
+        lines = storyboard.compile_script(sp)
+        ids = [l['id'] for l in lines]
+        assert ids == ['k001a', 'k001b', 'k002', 'k001x', 'k003'], ids      # 2 sentences -> 2 takes; a 아-sentence stays glued; an added line keeps the ids after it
+        S = json.load(open(os.path.join(d, 'book', 'story.json')))['story']
+        ln = [e for e in S if e['ev'] == 'line']
+        assert ln[0]['m'] == [] and ln[1]['m'] and ln[1]['m'][0][:2] == ['u', 0]   # the mark at 0.8 lands in the second sentence
+        assert ln[0]['expr'] == 'smile' and ln[2]['expr'] is None                # a joke line smiles
+        pages = {p['id']: p for p in json.load(open(os.path.join(d, 'book', 'pages', 'pages.json')))}
+        assert 'image' not in pages['p2']                                     # a picture not there yet drops out
+        assert pages['p1']['image'] == '../props/x.jpg' and pages['p1']['foot'] == '사진: 누군가, CC BY 4.0'                 # credits come from the CREDITS.md beside it
+        cov = json.load(open(os.path.join(d, 'book', 'coverage.json')))
+        assert [c['lines'] for c in cov] == [['k001a', 'k001b'], ['k002', 'k001x', 'k003']]
+
 def _fake_edit(d):
     """a tiny live build + episode for edit/cut.py: four lines, drawing in one gap, a donation in another, one line dropped"""
     ep = os.path.join(d, 'ep'); bd = os.path.join(d, 'build'); os.makedirs(ep); os.makedirs(bd)

@@ -11,8 +11,10 @@ The kit draws a 1080p30 MP4 that should make a viewer wonder whether it is a rea
 
 The `make-streaming-video` skill drives it. It is plain Python and JS outside the npm package, like `explainer/`.
 
-Every stream becomes three uploads (owner, 2026-11-18): the live VOD, the fast edit (`edit/`, 10–30 min) and 2–3 Shorts of
-about a minute (`shorts/`), each Short pointing at the live VOD.
+Every book becomes four uploads (owner, 2026-11-18): the live VOD (light, ~30% of the book), the fast edit (`edit/`, 10–30 min),
+2–3 Shorts of about a minute (`shorts/`, each pointing at the live VOD) and, a day after the edit, the streaming book (`book/`):
+the main video, recorded alone with no audience (`--streaming studio`), walking through the whole book over prepared pages
+to carry 80% of it.
 
 ## Three themes, one engine
 
@@ -31,7 +33,7 @@ explainer/stream/
 │   ├── portrait.mjs              one cast member on a transparent PNG (channel art: profile picture, banner, thumbnails)
 │   └── setup_assets.py           downloads everything into ~/.cache/2lab-stream (nothing binary is committed)
 └── themes/
-    ├── streaming/<id>/           the platform look     — default: CHZZK (THEME.md)
+    ├── streaming/<id>/           the platform look     — default: CHZZK (THEME.md); studio: no audience, contents panel (solo)
     ├── streamer/<id>/            who is on screen      — kate: Kate (Mao, cwon) + her sister (Hiyori, egirl) (kate.md, sister.md)
     └── content/<id>/             what the stream does  — reading-book: a 4-minute book stream in Paint (RECIPE.md, example/)
                                                         — book-night: 책듣는밤, ~30-minute numbered episodes (RECIPE.md,
@@ -68,6 +70,10 @@ python edit/cut.py <episode dir> <build> <edit out> --portrait <bust.png>      #
 python edit/review_edit.py <edit out> <episode dir> e1                          # 3-engine panel on the edit rubric
 python shorts/shorts.py <episode dir> <build> <shorts out>                      # 2-3 Shorts (쇼츠): see shorts/README.md
 python shorts/review_shorts.py <shorts out>/<id> e1                             # 3-engine panel on the shorts rubric
+python book/coverage.py <episode dir>/book                                      # the streaming book carries >= 80% of the book's sections
+node engine/pages.mjs <pages.json> <out>                                        # prepared pages: photo, article, quote, list, versus, big, blank
+python engine/build.py --beats <episode dir>/book/beats.py --audio <audio> --out <build> \
+       --streaming studio --streamer kate --content book-night                  # the streaming book: see book/README.md
 ```
 
 Python: `~/.cache/2lab-explainer-venv` (numpy, scipy, PIL, matplotlib, mlx-whisper). Node: the cache's own `node_modules`.

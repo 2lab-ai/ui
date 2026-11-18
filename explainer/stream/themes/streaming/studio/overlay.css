@@ -1,0 +1,13 @@
+/* streaming theme 'studio' — a solo recording: no chat, donation, BRB or live label; a contents panel where the chat box was. */
+#chat,#label,#alert,#brb,#jumpcap{display:none !important}
+#toc{position:absolute;background:rgba(18,16,28,.64);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);box-shadow:0 4px 18px rgba(0,0,0,.3);color:#f3f0ff}
+#tochead{position:absolute;left:0;right:0;top:0;height:52px;display:flex;align-items:center;padding:0 18px;font-weight:800;font-size:19px;letter-spacing:.2px;border-bottom:1px solid rgba(255,255,255,.09);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toclist{position:absolute;left:0;right:0;top:60px;bottom:22px;padding:0 14px;display:flex;flex-direction:column;justify-content:space-evenly}
+#toc .ti{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:600;line-height:1.2;padding:5px 10px;border-radius:9px;color:rgba(243,240,255,.82);word-break:keep-all}
+#toc .ti .n{flex:0 0 28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;background:rgba(255,255,255,.1);color:#d9ccff}
+#toc .ti.done{color:rgba(243,240,255,.42)}
+#toc .ti.done .n{background:rgba(177,140,255,.18);color:rgba(217,204,255,.55)}
+#toc .ti.on{background:rgba(177,140,255,.22);color:#fff;box-shadow:inset 3px 0 0 #b18cff}
+#toc .ti.on .n{background:#b18cff;color:#1a1328}
+#tocbar{position:absolute;left:18px;right:18px;bottom:10px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+#tocfill{display:block;height:100%;width:0;background:#b18cff}

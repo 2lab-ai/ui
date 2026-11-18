@@ -71,11 +71,12 @@ def synth(B, N, vt, cursor_xy, motion=None):
                 v = 1 - (1 - min(1, abs(x) / 0.075)) if x < 0 else (min(1, x / 0.16))
                 blink_f[i] = min(blink_f[i], v)
     sp['laugh'] = Spring(0, .14)
-    # glances at the screen/chat while talking to camera
+    # glances at the screen/chat while talking to camera (a solo recording has no chat to read)
     glances = []; t = 2.0
     while t < T:
-        glances.append((t, t + rng.uniform(0.35, 0.7), rng.choice(['screen', 'chat'])))
-        t += rng.uniform(4.0, 8.0)
+        solo = getattr(B, 'solo', False)
+        glances.append((t, t + (rng.uniform(0.6, 1.2) if solo else rng.uniform(0.35, 0.7)), rng.choice(['screen'] if solo else ['screen', 'chat'])))   # alone (no chat): the page, longer and more often
+        t += rng.uniform(3.0, 6.0) if solo else rng.uniform(4.0, 8.0)
     in_any = lambda t, L: any(a <= t < b for a, b in L)
     sacc = []; t = 0.5
     while t < T: sacc.append((t, rng.normal(0, 0.13), rng.normal(0, 0.09))); t += rng.uniform(0.35, 1.2)

@@ -84,8 +84,9 @@ function buildUI() {
   sb.appendChild(el('span', 's', '<span>−</span>', { right: '196px' }));
   sb.appendChild(el('span', 's', '<span>+</span>', { right: '40px' }));
   // overlays
-  Object.assign($('chat').style, { left: px(L.chat.x), top: px(L.chat.y), width: px(L.chat.w), height: px(L.chat.h) });
-  Object.assign($('label').style, { left: px(L.label.x), top: px(L.label.y), width: px(L.label.w), height: px(L.label.h) });
+  // a solo recording's streaming theme has no chat box or live label in its layout: they stay hidden
+  for (const k of ['chat', 'label', 'toc']) if (L[k]) Object.assign($(k).style, { display: k === 'toc' ? 'block' : '', left: px(L[k].x), top: px(L[k].y), width: px(L[k].w), height: px(L[k].h) });
+    else if (k !== 'toc') $(k).style.display = 'none';
   const tbar = $('textbar'); Object.assign(tbar.style, { left: px(L.canvas.x - w.x + 10), top: px(L.canvas.y - w.y - 46) });
 }
 
@@ -106,6 +107,18 @@ async function applyTheme() {
   $('al_word').textContent = STR('donation_word'); $('brb_title').textContent = STR('brb_title');
   if (STR('brb_emoji')) document.querySelector('#brb .em').textContent = STR('brb_emoji');
   await new Promise(res => { const b = $('bg'); b.onload = b.onerror = res; b.src = TL.stage.bg; });
+  // contents panel (a solo recording): the book's parts, the current one lit
+  if (TL.toc && L.toc) {
+    $('tochead').textContent = TL.stage.title || '';
+    TL.toc.items.forEach((t, i) => { const d = el('div', 'ti', `<span class="n">${i + 1}</span><span class="tt"></span>`); d.querySelector('.tt').textContent = t; $('toclist').appendChild(d); });
+  }
+}
+let tocCur = -2;
+function renderToc(f) {
+  if (!TL.toc || !L.toc) return;
+  let cur = -1; for (const e of TL.toc.ev) if (e.f <= f) cur = e.i;
+  if (cur !== tocCur) { [...$('toclist').children].forEach((d, i) => { d.className = 'ti' + (i === cur ? ' on' : i < cur ? ' done' : ''); }); tocCur = cur; }
+  $('tocfill').style.width = (100 * f / Math.max(1, TL.frames - 1)).toFixed(2) + '%';
 }
 
 window.setup = async function (layout, timeline) {
@@ -160,13 +173,13 @@ function doOp(o) {
     const e = $('tb_' + o.name); if (e) e.classList.add('on');
 
   } else if (o.op === 'tb_open') {
-    tbState = { x: o.x, y: o.y, size: o.size, s: '', c: '' }; $('textbar').style.display = 'flex';
+    tbState = { x: o.x, y: o.y, size: o.size, s: '', c: '', col: o.col || '#000' }; $('textbar').style.display = 'flex';
     const tb = $('textbox'); const w = L.win; const wy = w.title + w.menu + w.tool;
-    Object.assign(tb.style, { display: 'block', left: px(L.canvas.x - w.x + o.x), top: px(L.canvas.y - w.y - wy + o.y), fontSize: px(o.size), minWidth: px(o.minw || 260), minHeight: px(o.size * 1.3) });
+    Object.assign(tb.style, { display: 'block', color: tbState.col, left: px(L.canvas.x - w.x + o.x), top: px(L.canvas.y - w.y - wy + o.y), fontSize: px(o.size), minWidth: px(o.minw || 260), minHeight: px(o.size * 1.3) });
     renderTB();
   } else if (o.op === 'tb') { tbState.s = o.s; tbState.c = o.c || ''; renderTB(); }
   else if (o.op === 'tb_commit') {
-    const s = tbState; actx.fillStyle = '#000'; actx.font = `${s.size}px Pret`; actx.textBaseline = 'top';
+    const s = tbState; actx.fillStyle = s.col; actx.font = `${s.size}px Pret`; actx.textBaseline = 'top';
     const lines = (s.s + (s.c || '')).split('\n'); lines.forEach((ln, i) => actx.fillText(ln, s.x + 4, s.y + 3 + i * s.size * 1.25 + s.size * 0.06));
     $('textbox').style.display = 'none'; tbState = null; $('textbar').style.display = 'none';
   } else if (o.op === 'color') { $('color1').style.background = o.c; }
@@ -218,7 +231,7 @@ window.renderFrame = function (f) {
   // overlays
   const jadd = (TL.jumps || []).filter(j => j.f <= f).reduce((a, j) => a + j.add, 0);
   $('clock').textContent = fmtClock(TL.clock0 + f / fps + jadd);
-  renderChat(f);
+  renderChat(f); renderToc(f);
   const jc = (TL.jumps || []).find(j => TL.showJumpCaption && f >= j.f && f < j.f + 75); const JC = $('jumpcap');
   if (jc) { JC.style.display = 'block'; JC.style.opacity = String(Math.min(1, (f - jc.f) / 6, (jc.f + 75 - f) / 10)); JC.textContent = STR('jump_caption').replace('{min}', Math.round(jc.add / 60)); } else JC.style.display = 'none';
   const al = TL.alerts.find(a => f >= a.f0 && f < a.f1);

@@ -1,0 +1,1100 @@
+[
+{
+"kind": "photo",
+"head": "책듣는밤 1화 · 스트리밍 북 — 『보랏빛 소가 온다』 한 권 전부",
+"image": "../../props/purple_cow_field.jpg",
+"src": "Seth Godin, Purple Cow (2003) · 한국어판 재인 2004 (208쪽) / 쌤앤파커스 2023 (280쪽)",
+"lines": [
+"짧은 꼭지 **70개**, 사례 연구 19개",
+"목표: **책을 읽은 것의 80%**",
+"읽기 전엔 예습, 읽은 뒤엔 복습"
+],
+"foot": "사진: Quintin Soloviev, CC BY 4.0 (Wikimedia Commons) — 한 마리를 보라색으로 칠함",
+"id": "p00"
+},
+{
+"kind": "list",
+"head": "충분치 않은 P: 마케터가 외우던 P 여덟 개",
+"items": [
+"Product 제품",
+"Pricing 가격",
+"Promotion 판촉",
+"Positioning 포지셔닝",
+"Publicity 홍보",
+"Packaging 포장",
+"Pass-along 퍼뜨리기",
+"Permission 허락"
+],
+"sub": "\"예전에는 P만 잘 챙기면 **성공할 확률이 더 높았다. 이제는 아니다.**\"",
+"foot": "출처: Fast Company 2003 원문 (In Praise of the Purple Cow)",
+"id": "p01"
+},
+{
+"kind": "photo",
+"head": "새로운 P: 프랑스 시골길의 소 떼",
+"image": "../../props/broll/cows_roadside.jpg",
+"src": "Purple Cow, \"The New P\"",
+"lines": [
+"\"동화책에서 나온 것 같은 소\"에 **넋을 잃다**",
+"몇 분, 길어야 **20분** 뒤엔 아무도 안 본다",
+"새 소 = 아까 그 소 → **지루하다**"
+],
+"foot": "사진: qwesy qwesy (via Panoramio), CC BY 3.0",
+"id": "p02"
+},
+{
+"kind": "quote",
+"head": "아무리 좋은 소도 계속 보면 지루하다",
+"image": "../../props/broll/purple_cow_book.jpg",
+"en": "They may be well-bred cows, Six Sigma cows, cows lit by a beautiful light, but they are still boring.",
+"lines": [
+"혈통 좋은 소, 식스 시그마 소,",
+"아름다운 빛을 받은 소라도 **여전히 지루하다**."
+],
+"by": "— 「새로운 P」 (번역: 책듣는밤)",
+"foot": "사진: Abdulla Al Muhairi, CC BY 2.0",
+"id": "p03"
+},
+{
+"kind": "photo",
+"head": "그때 보라색 소가 한 마리 서 있다면?",
+"image": "../../props/purple_cow_field.jpg",
+"lines": [
+"**리마커블(remarkable)**",
+"= remark(한마디 할) + able(만한)",
+"주목할 가치가 있고, 예외적이고, 새롭고, 흥미로운 것",
+"지루한 것은 **보이지 않는다**. 그건 갈색 소다."
+],
+"foot": "사진: Quintin Soloviev, CC BY 4.0 (Wikimedia Commons) — 한 마리를 보라색으로 칠함",
+"id": "p04"
+},
+{
+"kind": "list",
+"head": "새로운 개념 정의: 이 책의 단어 세 개",
+"items": [
+"**리마커블 마케팅**: 주목할 가치를 제품 안에 처음부터 넣는 기술",
+"**TV-산업 복합체**: 소비자 수요 + TV 광고 + 광고비로 커 온 기업의 공생",
+"**탈소비형 소비자**: 필요한 건 다 있고, 시간만 없는 사람"
+],
+"sub": "결론: **광고를 멈추고, 혁신을 시작하라**",
+"id": "p05"
+},
+{
+"kind": "list",
+"head": "그 이전, 그동안, 그 이후: 마케팅의 세 시대",
+"items": [
+"**광고 이전**: 입소문이 전부 — 제일 좋은 채소 장수가 동네 화제",
+"**광고 시대**: TV와 매스미디어에 광고 = 매출",
+"**그 이후**: 다시 입소문, 이번엔 네트워크를 타고 **로켓 속도**로"
+],
+"id": "p06"
+},
+{
+"kind": "versus",
+"head": "조각 식빵의 성공 이유: 좋은 제품만으로는 안 팔리던 시절",
+"left": {
+"label": "책: 1912년 빵 써는 기계 (기록: 1928년)",
+"image": "../../props/broll/bread_slicer_1928.jpg",
+"lines": [
+"책: 발명했지만 **완전히 실패**"
+]
+},
+"right": {
+"label": "원더 브레드",
+"image": "../../props/broll/wonder_bread.jpg",
+"lines": [
+"**포장과 광고**로 성공",
+"\"열두 가지로 튼튼한 몸을\""
+]
+},
+"foot": "역사 기록: 첫 판매 1928-07-07, 원더 브레드 1930 · 사진: Smithsonian National Museum of American History (maker: Micro Machine Company), CC0 / Mike Mozart from Funny YouTube, USA, CC BY 2.0",
+"id": "p07"
+},
+{
+"kind": "list",
+"head": "혁명을 눈치챘는가? 마케팅을 다시 쓴 책들",
+"items": [
+"톰 피터스 『The Pursuit of Wow』: 큰 회사는 대개 **겁먹은 회사**",
+"페퍼스·로저스 『One to One Future』: 새 고객보다 **지금 고객**",
+"제프리 무어 『캐즘 마케팅』: 혁신자 → 다수 → 지각 수용자",
+"고딘 『퍼미션 마케팅』: 관심을 **허락받고** 쓰는 회사가 이긴다"
+],
+"sub": "그런데 기업들은 이걸 아직도 **신기한 별종**으로만 본다",
+"id": "p08"
+},
+{
+"kind": "photo",
+"head": "왜 퍼플 카우가 필요한가: 마케팅의 슬픈 진실",
+"image": "../../props/broll/vintage_tv.jpg",
+"src": "\"Most people can't buy your product.\"",
+"lines": [
+"대부분은 당신 제품을 **못 산다**",
+"돈이 없거나 → 시장이 아니다",
+"시간이 없거나 → 당신은 **투명 인간**",
+"원하지 않거나 → 더 갈 데가 없다"
+],
+"foot": "사진: Sven Scheuermeier sveninho, CC0",
+"id": "p09"
+},
+{
+"kind": "photo",
+"head": "예전엔 통했다: 냉동 피자, 아스피린, 요가 책",
+"image": "../props/cereal_aisle.jpg",
+"lines": [
+"술집 피자 → 크래프트가 사서 **광고 폭격** → 수십억",
+"아스피린 1개 → 지금은 **100개 넘는** 진통제",
+"요가 책 살 사람은 **이미 샀다**"
+],
+"foot": "사진: Rowanswiki, CC0",
+"id": "p10"
+},
+{
+"kind": "list",
+"head": "TV-산업 복합체: 50년 동안 돈 되던 순환",
+"items": [
+"채워야 할 **시장의 틈**을 찾는다",
+"공장을 짓는다",
+"**TV 광고**를 잔뜩 산다",
+"광고가 유통과 판매를 부른다",
+"판매가 공장을 돌리고 이익을 낸다",
+"이익으로 **광고를 또 산다**"
+],
+"sub": "P&G, 퀘이커가 이렇게 컸다 · TV에 안 나오면 **매장에서 빠졌다**",
+"id": "p11"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: TV 광고는 정말 줄었나",
+"outlet": "디지털데일리 · 전자신문",
+"date": "2026.01 ~ 2026.06",
+"title": "\"방송광고 **2조원 붕괴** 눈앞…방송매출 3년째 뒷걸음\"",
+"lines": [
+"지상파 광고매출 6,936억, 1년 새 **17% 감소**",
+"온라인 광고 59% vs 방송 18.8% (2025년)",
+"유튜브 뮤직·프리미엄 세계 구독 **1억 5천만** (돈 내고 광고를 피한다)"
+],
+"foot": "출처: 디지털데일리 2026-06-19, 전자신문 2026-01-08, Music Business Worldwide 2026-10-28",
+"id": "p11b"
+},
+{
+"kind": "quote",
+"head": "옛 법칙과 새 법칙",
+"image": "../../props/broll/purple_cow_book.jpg",
+"en": "The old rule was this: Create safe, ordinary products and combine them with great marketing. The new rule is: Create remarkable products that the right people seek out.",
+"lines": [
+"옛 법칙: 안전하고 평범한 제품 + **위대한 마케팅**",
+"새 법칙: **알맞은 사람들이 찾아오는** 리마커블한 제품"
+],
+"by": "— 「TV-산업 복합체의 죽음」 (한국어판 44~45쪽 취지)",
+"foot": "사진: Abdulla Al Muhairi, CC BY 2.0",
+"id": "p12"
+},
+{
+"kind": "versus",
+"head": "이전과 이후: 커지는 건 크기가 아니라 영향력",
+"left": {
+"label": "TV-산업 시대 제품",
+"image": "../../props/broll/vintage_tv.jpg",
+"lines": [
+"바비, 맥도날드, 말보로,",
+"캡틴 크런치, **원조 비틀**"
+]
+},
+"right": {
+"label": "퍼플 카우 제품",
+"image": "../props/starbucks_store.jpg",
+"lines": [
+"스타벅스, 리눅스, 제트블루,",
+"아웃백, 모텔 6, **뉴비틀**"
+]
+},
+"foot": "책의 비교표 일부 · 사진: Sven Scheuermeier sveninho, CC0 / KennethHan, Public domain",
+"id": "p13"
+},
+{
+"kind": "photo",
+"head": "비틀을 생각해 보라: 같은 차, 다른 성공",
+"image": "../props/vw_new_beetle.jpg",
+"lines": [
+"원조 비틀: 처음엔 안 팔림 → **광고**가 살림 → 15년 넘게 이익",
+"뉴비틀: **생김새**와 입소문으로 성공",
+"각진 SUV 사이를 달릴 때마다 **차가 스스로 광고**"
+],
+"foot": "사진: Harvey Bold, CC BY 4.0",
+"id": "p14"
+},
+{
+"kind": "list",
+"head": "무엇이 통하는가? 공통점이 없다는 게 공통점",
+"items": [
+"포시즌스 ↔ **모텔 6**",
+"니먼 마커스 ↔ **월마트**",
+"노키아 (30일마다 새 휴대폰) ↔ 닌텐도 (같은 게임보이 **14년**)"
+],
+"sub": "\"그들은 **별종**이다. 가장자리에 있다. 초고속이거나 초저속, 아주 고급이거나 아주 싸거나.\"",
+"id": "p15"
+},
+{
+"kind": "photo",
+"head": "나는 왜 월 스트리트 저널만 보면 짜증 날까",
+"image": "../props/old_newspaper_ad.jpg",
+"lines": [
+"매일 **100만 달러** 넘는 전면 광고",
+"전면 광고 한 번 > **집 한 채** 값",
+"로고를 가리면 **어느 회사인지 모른다**"
+],
+"foot": "사진: General Electric, Public domain",
+"id": "p16"
+},
+{
+"kind": "quote",
+"head": "인지도가 다는 아니다",
+"image": "../../props/broll/purple_cow_book.jpg",
+"en": "The Purple Cow is not a cheap shortcut. It is, however, your best (perhaps only) strategy for growth.",
+"lines": [
+"알려지는 것 ≠ **팔리는 것**",
+"퍼플 카우는 싼 지름길이 아니다.",
+"하지만 성장의 **최선의 (어쩌면 유일한) 전략**이다."
+],
+"by": "— 「인지도가 다는 아니다」 근처 (번역: 책듣는밤)",
+"foot": "사진: Abdulla Al Muhairi, CC BY 2.0",
+"id": "p17"
+},
+{
+"kind": "quote",
+"head": "위험한 길이 안전한 길이다",
+"image": "../../props/broll/seth_godin.jpg",
+"en": "It's safer to be risky. ... What's missing isn't the ideas. It's the will to execute them.",
+"lines": [
+"리마커블한 아이디어는 **모자라지 않다**.",
+"모자란 건 **실행할 의지**다.",
+"→ **위험한 편이 더 안전하다**"
+],
+"by": "— 「The Will and the Way」 (번역: 책듣는밤)",
+"foot": "사진: Joi Ito, CC BY 2.0",
+"id": "p18"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 올라갑니까? — 엘리베이터를 급행으로",
+"image": "../../props/broll/elevator_destination_panel.jpg",
+"src": "책: 오티스 / 잡지판(Fast Company 2003): 쉰들러 — 첫 상용화는 쉰들러 Miconic 10 (1990)",
+"lines": [
+"타기 전에 **가는 층을 먼저 누른다**",
+"패널이 탈 엘리베이터를 정해 준다 → **전부 급행**",
+"건물은 더 높게, 엘리베이터는 더 적게"
+],
+"foot": "사진: Raysonho @ Open Grid Scheduler / Grid Engine, CC0",
+"id": "p19"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 타이드는 무엇을 해야 하는가?",
+"image": "../props/tide_detergent.jpg",
+"lines": [
+"역사상 최고의 세제일지도 모른다",
+"매출의 **3분의 1**이 월마트 한 곳",
+"다시 매료될 미래가 없다면 → **이익을 거둬 새것에**"
+],
+"foot": "사진: Austin Kirk, CC BY 2.0",
+"id": "p20"
+},
+{
+"kind": "blank",
+"head": "진입하기: 아이디어 확산 곡선",
+"foot": "제프리 무어 『캐즘 마케팅』의 곡선을 책이 빌려 씀",
+"labels": [
+{
+"x": 150,
+"y": 578,
+"text": "**혁신자**"
+},
+{
+"x": 285,
+"y": 578,
+"text": "**얼리어답터**"
+},
+{
+"x": 560,
+"y": 578,
+"text": "**다수**"
+},
+{
+"x": 830,
+"y": 578,
+"text": "**지각 수용자**"
+},
+{
+"x": 44,
+"y": 200,
+"text": "사람 수"
+},
+{
+"x": 790,
+"y": 620,
+"text": "받아들이는 순서 →"
+}
+],
+"id": "p21"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: 왼쪽에서 가운데로 건너간 제품",
+"outlet": "TechCrunch · 디지털데일리",
+"date": "2025.05 ~ 2026.02",
+"title": "\"ChatGPT reaches **900M** weekly active users\"",
+"lines": [
+"출시 두 달 만에 월 1억 명 (역사상 가장 빠른 소비자 앱)",
+"한국: 유료 구독자 **세계 2위**",
+"얼리어답터가 신기해서 쓰고, 보여 주고, **다수가 따라왔다**"
+],
+"foot": "출처: TechCrunch 2026-02-27, 디지털데일리 2025-05-26, UBS 2023",
+"id": "p21b"
+},
+{
+"kind": "photo",
+"head": "퍼져나가는 아이디어가 승리한다: 스니저",
+"image": "../props/sneeze.jpg",
+"src": "\"A brand is nothing more than an idea. Ideas that spread are more likely to succeed.\"",
+"lines": [
+"스니저 = 새것을 **친구와 동료에게 옮기는** 전문가",
+"\"모든 이를 위한 제품은 **누구를 위한 것도 아니다**\"",
+"대중으로 가는 길 = **틈새**부터"
+],
+"foot": "사진: James Gathany / CDC, Public domain",
+"id": "p22"
+},
+{
+"kind": "list",
+"head": "커다란 오해: 마케팅만 잘하면 바이럴이 된다?",
+"items": [
+"퍼뜨리기가 얼마나 **매끄럽고 쉬운가**?",
+"사람들이 친구에게 **얼마나 자주** 옮기겠는가?",
+"목표 집단은 얼마나 끈끈한가, **서로 믿는가**?",
+"퍼뜨릴 사람들은 **평판이 좋은가**?"
+],
+"sub": "퍼지는 제품은 **처음부터 퍼지도록 설계**된다",
+"id": "p23"
+},
+{
+"kind": "quote",
+"head": "누가 귀를 기울이는가?",
+"image": "../../props/broll/purple_cow_book.jpg",
+"en": "IT IS USELESS TO ADVERTISE TO ANYONE — EXCEPT INTERESTED SNEEZERS WITH INFLUENCE.",
+"lines": [
+"영향력 있고 관심 있는 스니저가 아니면,",
+"누구에게 광고해도 **소용없다**.",
+"광고는 **찾고 있을 때, 찾는 곳**에서만"
+],
+"by": "— 「누가 귀를 기울이는가?」 (번역: 책듣는밤)",
+"foot": "사진: Abdulla Al Muhairi, CC BY 2.0",
+"id": "p24"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: 홍보 없이 입소문만으로",
+"outlet": "이투데이 · 한경비즈니스",
+"date": "2025.08 ~ 2026.01",
+"title": "\"'케데헌', 넷플릭스서 **역대 가장 많이 본 영화** 등극\"",
+"lines": [
+"큰 홍보 없이 공개 → 입소문과 SNS로 (IndieWire)",
+"국립중앙박물관 굿즈 매출 사상 첫 **400억 원** 돌파"
+],
+"foot": "출처: 이투데이 2025-08-27, 한경비즈니스 2026-01-02, IndieWire 2025",
+"id": "p24b"
+},
+{
+"kind": "photo",
+"head": "속임수 쓰기: 규칙대로 안 하는 회사들",
+"image": "../props/jetblue_plane.jpg",
+"lines": [
+"제트블루: **낮은 비용 구조**, 덜 붐비는 공항",
+"뱅가드: 초저비용 인덱스 펀드",
+"두카티: 멋진 오토바이만, **해마다 매진**",
+"\"당신은 왜 **반칙하지 않는가**?\""
+],
+"foot": "사진: Ian Gratton, CC BY 2.0",
+"id": "p25"
+},
+{
+"kind": "list",
+"head": "누가 관심이나 있대? / 모든 고객이 다 똑같지는 않다",
+"items": [
+"클래식 음악: 스니저가 **새 음악을 안 찾는다**",
+"고객을 구별하라",
+"가장 **돈이 되는** 집단, 가장 **재채기 잘하는** 집단을 찾아라",
+"그들을 위해 개발하고, 광고하고, 보상하라",
+"**나머지는 무시하라**"
+],
+"id": "p26"
+},
+{
+"kind": "big",
+"head": "큰 수의 법칙: 시청자는 많은데 왜 안 팔릴까",
+"big": "1억 ≠ 매출",
+"bigsize": 110,
+"lines": [
+"책: 슈퍼볼 1억 명, 아카데미 10억 명 (아카데미는 과장 논란)",
+"그때 배너 광고는 **거의 아무도 안 눌렀다**",
+"무관심한 큰 숫자 = **작은 매출**"
+],
+"id": "p27"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 칩 콘리 — 동네에서 제일 나쁜 모텔",
+"image": "../props/phoenix_hotel.jpg",
+"lines": [
+"샌프란시스코 최악의 동네, 사실상 **모텔**",
+"모두를 위한 호텔이 아니다 → **펑키한 색, 록스타**",
+"몇 달 만에 \"**로큰롤 모텔**\""
+],
+"foot": "사진: Kate Nevens, CC BY 2.0",
+"id": "p28"
+},
+{
+"kind": "quote",
+"head": "퍼플 카우의 문제점: 왜 다들 안 할까? 두려움",
+"image": "../../props/broll/seth_godin.jpg",
+"en": "If you're remarkable, then it's likely that some people won't like you. ... The best the timid can hope for is to be unnoticed.",
+"lines": [
+"리마커블하면 **누군가는 싫어한다**.",
+"소심한 사람이 바랄 최선은 **눈에 안 띄는 것**.",
+"\"붐비는 시장에서 **튀지 않는 것은 실패**다\""
+],
+"by": "— 「퍼플 카우의 문제점」 (번역: 책듣는밤)",
+"foot": "사진: Joi Ito, CC BY 2.0",
+"id": "p29"
+},
+{
+"kind": "photo",
+"head": "리더를 따르라? 그 자리는 이미 찼다",
+"image": "../props/caravan_camels.jpg",
+"lines": [
+"앞을 따라가면 **편하다**",
+"리더는 리마커블한 일을 해서 리더다 → **그 자리는 이미 찼다**",
+"그래서 **안전한 것이 위험하다**"
+],
+"foot": "사진: Théodore Frère, Public domain",
+"id": "p30"
+},
+{
+"kind": "versus",
+"head": "사례 연구: 에어론 의자 — 안전한 의자가 제일 위험했다",
+"left": {
+"label": "그 전: **안 보이던** 사무용 의자",
+"image": "../props/focus_group.jpg",
+"lines": [
+"구매부가 사는 안전하고 쉬운 선택"
+]
+},
+"right": {
+"label": "1994년 에어론 **750달러**",
+"image": "../../props/broll/aeron_chair.jpg",
+"lines": [
+"수백만 개, **MoMA 영구 소장**"
+]
+},
+"foot": "사진: Bill Branson / National Cancer Institute, Public domain / Cubicle Sherpa (www.CubicleSherpa.com), CC BY 2.0",
+"id": "p31"
+},
+{
+"kind": "list",
+"head": "예측, 이윤 그리고 퍼플 카우",
+"items": [
+"당장 실적 → 모두에게 무난한 제품",
+"→ **지루한 혁신의 악순환**",
+"새 제품은 **혁신자부터** 사로잡아야 퍼진다"
+],
+"id": "p32"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 세계 최고의 빵집 — 리오넬 푸알란",
+"image": "../props/poilane_bread.jpg",
+"lines": [
+"제빵사 **8,000명** 넘게 만나 기법 조사",
+"밀가루, 물, 발효종, 바닷소금, **장작 화덕**",
+"처음엔 거부 → 작년 **1,000만 달러**어치"
+],
+"foot": "사진: THOR, CC BY 2.0",
+"id": "p33"
+},
+{
+"kind": "photo",
+"head": "매스 마케터는 측정하기를 싫어한다",
+"image": "../props/zara_store.jpg",
+"lines": [
+"광고 반응 추적 기술 → 잡지사 대표 **경악**",
+"\"측정한다는 건 **망가진 걸 인정하는 것**이다\"",
+"자라: **3~4주마다** 바꾸고, 팔리는 건 더, 안 팔리는 건 바로 끝"
+],
+"foot": "사진: Wide Awake!, CC BY 4.0",
+"id": "p32b"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 로지텍 — 하루 종일 쓰는 물건",
+"image": "../props/logitech_mouse.jpg",
+"lines": [
+"획기적 기술보다 **쓰는 느낌과 디자인**",
+"자주 쓰는 사람에게 조금 더 좋은 마우스 = **전도사**",
+"\"로지텍은 광고를 더 원하지 않는다\""
+],
+"foot": "사진: User:E, CC BY 3.0",
+"id": "p34"
+},
+{
+"kind": "list",
+"head": "퍼플 카우의 세계에서 누가 이기는가: 잃을 게 없는 쪽",
+"items": [
+"샘 애덤스 → 버드와이저 몫을 가져감",
+"아기 침대 **9,945달러** (평균의 10배) → 새 시장",
+"야마하 전자 피아노, 뱅가드 펀드",
+"빅 볼펜 → 재밌는 **일본 펜**에 밀림"
+],
+"sub": "이기는 쪽: 점유율을 늘리려는 **중소기업**",
+"id": "p35"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 새로운 종류의 키위 — 광고 0원, 1억 달러",
+"image": "../props/golden_kiwi.jpg",
+"lines": [
+"구스베리 → 이름을 \"**키위**\"로 → 대박",
+"황금 키위: 대중 말고 **라틴계 미식가**만 공략",
+"광고 0 → **1억 달러** 넘게 팔림"
+],
+"foot": "사진: Nesnad, CC BY 4.0",
+"id": "p36"
+},
+{
+"kind": "versus",
+"head": "퍼플 카우 되기의 이점: 스타벅스 vs 맥스웰 하우스",
+"left": {
+"label": "스타벅스: 몇 년 전엔 **리마커블**",
+"image": "../props/starbucks_store.jpg",
+"lines": [
+"→ 전 세계 **수천 개 매장**"
+]
+},
+"right": {
+"label": "맥스웰 하우스: **안전하게**",
+"image": "../props/maxwell_house.jpg",
+"lines": [
+"→ 10년 전과 **그대로**"
+]
+},
+"foot": "사진: KennethHan, Public domain / Frank Ruggles, Public domain",
+"id": "p37"
+},
+{
+"kind": "list",
+"head": "짜내고, 다음 소를 키워라",
+"items": [
+"지금의 퍼플 카우를 **최대한 짜낸다**",
+"효과가 줄 때를 대비해 **새 소를 발명**할 환경을 만든다",
+"처방: **발명 팀**과 **짜내는 팀**, 다른 건물에",
+"넘길 때는 정식 의식을, 둘 다 축하하고, 사람은 돌려 가며"
+],
+"sub": "돌파구 뒤 멈춘 회사들: AOL, 메리어트, 마블, 팜, 야후",
+"id": "p38"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 이탈리아 정육점 — 스테이크 장례식",
+"image": "../props/cecchini_butcher.jpg",
+"lines": [
+"정육점 주인은 수천 명, 유명한 건 **한 명**",
+"단테를 읊으며 고기를 판다",
+"뼈 있는 스테이크 금지 → **관까지 갖춘 장례식**"
+],
+"foot": "사진: judywitts, CC BY 2.0",
+"id": "p39"
+},
+{
+"kind": "quote",
+"head": "리마커블의 반대말은 '아주 좋은'",
+"image": "../../props/broll/purple_cow_book.jpg",
+"en": "That's why the opposite of remarkable is \"very good.\" ... Are you making very good stuff? How fast can you stop?",
+"lines": [
+"리마커블의 반대말은 **'아주 좋은'**이다.",
+"아주 좋은 건 **매일 있는 일**이라 말할 거리가 안 된다.",
+"아주 좋은 걸 만들고 있나? **얼마나 빨리 그만둘 수 있나?**"
+],
+"by": "— 「리마커블의 반대말」 (번역: 책듣는밤)",
+"foot": "사진: Abdulla Al Muhairi, CC BY 2.0",
+"id": "p40"
+},
+{
+"kind": "photo",
+"head": "무사히 도착한 비행기 얘기는 아무도 안 한다",
+"image": "../../props/broll/airplane_landing.jpg",
+"lines": [
+"안전하게 도착 → **아무에게도 말 안 함** (당연하니까)",
+"한 시간 일찍 도착! 일등석에 **불붙인 크레프 수제트**!",
+"리마커블 ≠ 품질. 품질 기준은 **따분한 일**"
+],
+"foot": "사진: Matthew Groh, CC BY 4.0",
+"id": "p41"
+},
+{
+"kind": "versus",
+"head": "병 속의 진주: 광고로 뜬 샴푸 vs 포장으로 뜬 비누",
+"left": {
+"label": "프렐 샴푸",
+"image": "../../props/broll/vintage_tv.jpg",
+"lines": [
+"병에 진주를 떨어뜨리는 **TV 광고**",
+"광고가 빠지자 관심도 빠짐"
+]
+},
+"right": {
+"label": "닥터 브로너스 비누",
+"image": "../props/dr_bronners.jpg",
+"lines": [
+"광고 없이 **글씨 빽빽한 병**",
+"친구 집 욕실에서 발견 → 얘기"
+]
+},
+"foot": "사진: Sven Scheuermeier sveninho, CC0 / ortolina, CC BY 2.0",
+"id": "p42"
+},
+{
+"kind": "photo",
+"head": "패러디의 역설 / 72개의 펄 잼 앨범",
+"image": "../props/pearl_jam.jpg",
+"lines": [
+"J. 피터먼 카탈로그: 과장된 설명 → 시트콤 「사인펠드」에 **패러디**",
+"L.L.Bean, Lands' End: 안전, 꾸준, 지루 → **아무도 패러디 안 함**",
+"펄 잼: 라이브 앨범 **72장** → 이미 넘어온 팬에게 → **전부 이익**"
+],
+"foot": "사진: tammylo, CC BY 2.0",
+"id": "p43"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 큐래드 — 반창고에 캐릭터를",
+"lines": [
+"밴드에이드: 이름이 곧 **일반명사**",
+"큐래드: **캐릭터 반창고** → 아이들이 반함",
+"한 아이가 붙이고 학교에 가자 **모두가 원함**"
+],
+"id": "p44"
+},
+{
+"kind": "quote",
+"head": "아무거나 하느니 그냥 앉아 있어라",
+"image": "../props/ben_jerrys.jpg",
+"en": "Doing nothing is not as good as doing something great. But marketing just to keep busy is worse than nothing at all.",
+"lines": [
+"대단한 걸 하는 것 > 아무것도 안 하는 것",
+"하지만 **바빠 보이려는 마케팅**은 아무것도 안 하는 것보다 **나쁘다**.",
+"벤 앤 제리스: 1년에 한 번 **공짜 아이스크림**은 예스, 5% 할인은 노"
+],
+"by": "— (번역: 책듣는밤)",
+"foot": "사진: Nielsoncaetanosalmeron, CC BY 4.0",
+"id": "p45"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 미국우정공사 — 우편번호 뒤 네 자리",
+"image": "../props/zip_code.jpg",
+"lines": [
+"제일 **소심한 청중**: 관료제, 보수적인 대형 고객",
+"ZIP+4: 배달이 빨라지고 **대량 발송비가 확 줄었다**",
+"기민한 **얼리어답터 몇 곳**부터 → 나머지에게 재채기"
+],
+"foot": "사진: United States Post Office Department, Public domain",
+"id": "p46"
+},
+{
+"kind": "photo",
+"head": "오타쿠를 찾아서: 취미보다 조금 더, 집착보다 조금 덜",
+"image": "../props/akihabara.jpg",
+"lines": [
+"20마일을 운전해 **도넛**을 사러 가는 마음",
+"오타쿠 = 당신이 찾는 **스니저**",
+"오타쿠가 많은 시장에 집중 — **크기와 상관없이**"
+],
+"foot": "오타쿠: 책은 \"열정\"에 가까운 뜻으로 씀 · 사진: ElHeineken, CC BY 4.0",
+"id": "p47"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: 오타쿠가 줄을 선다",
+"outlet": "한국일보 · 서울파이낸스",
+"date": "2026.10",
+"title": "\"'매일 20만 원씩 벌어요'… 포켓몬 카드 열풍에 **70대 노인도** 매장 앞 '오픈런'\"",
+"lines": [
+"편의점 포켓몬 카드 매출 GS25 **+494%** (1~8월)",
+"용산 매장 대기 \"총 151팀, 예상 **181분**\""
+],
+"foot": "출처: 한국일보 2026-10-26, 서울파이낸스 2026-10-16",
+"id": "p47b"
+},
+{
+"kind": "versus",
+"head": "사례 연구: 더치 보이 — 페인트는 그대로, 통만 바꿨다",
+"left": {
+"label": "전: 무거운 **철 깡통**",
+"image": "../props/dutchboy_can_crop.jpg",
+"lines": [
+"들기·열기·닫기·붓기 **다 어렵다**"
+]
+},
+"right": {
+"label": "후: **트위스트 앤 푸어**",
+"image": "../../props/broll/dutchboy_twist_pour.jpg",
+"lines": [
+"손잡이 + 돌려 여는 뚜껑",
+"매출↑, **더 비싼 값**에 더 넓게"
+]
+},
+"foot": "사진: Thester11, CC BY 3.0 (잘라냄) / Beth Bryan Designs (Flickr: Unskinny Boppy), CC BY 2.0",
+"id": "p48"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: 한국판 더치 보이 — 병만 바꿨다",
+"outlet": "세계일보 · 비즈워치",
+"date": "2019 ~ 2025.04",
+"title": "\"'1초에 12병 이상 팔려'…하이트진로, 출시 6주년 '진로' **23억병** 돌파\"",
+"lines": [
+"초록 공용병 대신 **하늘색 병 + 두꺼비**",
+"연간 목표 1,000만 병을 **72일** 만에"
+],
+"foot": "출처: 세계일보 2025-04-23, 비즈워치 2019-11-04",
+"id": "p48b"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 크리스피 크림 — 20마일 오는 사람에서 길 건너기 귀찮은 사람까지",
+"image": "../props/krispy_kreme.jpg",
+"lines": [
+"새 도시에선 먼저 **도넛 수천 개를 공짜로**",
+"전설을 듣고 기다린 **스니저**가 먼저 온다",
+"그다음 주유소·커피숍·델리 → **우연히 만나게**"
+],
+"foot": "사진: G. Edward Johnson, CC BY 4.0",
+"id": "p49"
+},
+{
+"kind": "list",
+"head": "과정과 계획: 계획은 없다. 과정은 있다 — 가장자리로 가라",
+"items": [
+"P를 하나씩 보며 **우리의 가장자리**와 경쟁자의 자리를 그린다",
+"어느 가장자리가 돈이 될지 **시험**한다",
+"헬스장 전부 무료 = 리마커블, 하지만 **재무 모델이 없으면** 끝",
+"제트블루: 서비스와 가격, **두 가장자리**를 동시에"
+],
+"sub": "\"경쟁이 **없는 곳**으로 가라. 멀수록 좋다.\"",
+"id": "p50"
+},
+{
+"kind": "versus",
+"head": "슬로건의 힘: 스니저가 친구에게 읽을 대본",
+"left": {
+"label": "피사의 사탑: **말하기 쉽다**",
+"image": "../props/leaning_tower.jpg",
+"lines": [
+"\"기울어진 탑 봤어\""
+]
+},
+"right": {
+"label": "로마 판테온: 아름답지만…",
+"image": "../props/pantheon_rome.jpg",
+"lines": [
+"관광객은 피사의 **1%**"
+]
+},
+"foot": "책: 티파니 블루 박스 = 말 없는 슬로건 · 사진: PaestumPaestum, CC BY 4.0 / Neil, CC BY 2.0",
+"id": "p51"
+},
+{
+"kind": "photo",
+"head": "사례 연구: 브롱스빌의 하겐다즈 — 계산대 위 명함 한 장",
+"image": "../props/haagen_dazs_shop.jpg",
+"lines": [
+"다른 가게와 같은 메뉴, 다른 건 **더 깨끗하고 잘 운영된다**는 것",
+"\"가게에 대해 의견이 있으면 **집으로 전화 주세요**\"",
+"명함에 점주의 **집 전화번호**"
+],
+"foot": "사진: Phillip Pessar, CC BY 4.0",
+"id": "p52"
+},
+{
+"kind": "versus",
+"head": "사람들이 얘기할 만한 것을 팔아라",
+"left": {
+"label": "버터볼 칠면조",
+"image": "",
+"lines": [
+"아무의 문제도 **안 푼다**",
+"(버터볼 자신의 문제만)"
+]
+},
+"right": {
+"label": "알토이즈 박하사탕",
+"image": "../props/altoids_tin.jpg",
+"lines": [
+"**나눠 먹고 싶어지는 깡통**",
+"→ 얼리어답터가 퍼뜨린다"
+]
+},
+"foot": "사진: User Bindingtheory on en.wikipedia, Public domain",
+"id": "p53"
+},
+{
+"kind": "quote",
+"head": "타협의 문제점: 낙타는 위원회가 설계한 말이다",
+"image": "../../props/broll/bactrian_camel.jpg",
+"en": "The old saying is right: \"A camel is a horse designed by a committee.\"",
+"lines": [
+"타협 = 다른 부서의 동의를 얻으려 **모서리를 사포질**하는 것",
+"진짜 성장은 **너무 무언가인** 제품에서",
+"새 소를 맡은 사람은 **내버려 둬라**"
+],
+"by": "— 「타협의 문제점」 (번역: 책듣는밤)",
+"foot": "사진: Bernard Gagnon, CC0",
+"id": "p54"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: 무난하게 바꿨다가 생긴 일",
+"outlet": "CNBC · Restaurant Dive · NBC News · 주간경향",
+"date": "2025.08 ~ 2026.07",
+"title": "크래커 배럴, 할아버지 그림 뺀 **무난한 로고** → 일주일 만에 철회",
+"lines": [
+"미국인 **76%**가 옛 로고 선호 · 방문객 약 10%↓ → 1년 뒤 **CEO 교체**",
+"카카오톡 친구 목록 **인스타그램식 피드** → 석 달 만에 원상복구"
+],
+"foot": "출처: CNBC 2025-08-27, Restaurant Dive 2026-03-05, NBC News 2026-07-27, 주간경향 2025-09-29, 한국경제 2025-11-23",
+"id": "p55"
+},
+{
+"kind": "list",
+"head": "사례 연구: 모토로라와 노키아 / 퍼플 카우 마법의 순환",
+"items": [
+"노키아 **2만 1,000달러** 휴대폰 버투",
+"놀랄 만큼 싼 **일회용** 휴대폰",
+"사진을 보내는 휴대폰"
+],
+"sub": "순환: ① 감동한 사람에게 **허락** ② 스니저와 함께 캐즘 너머로 ③ 다른 팀이 **짜낸다** ④ **재투자**, 같은 청중에게 새 소",
+"image": "../props/vertu_phone.jpg",
+"foot": "사진: Tinh Te Photos, CC0",
+"id": "p57"
+},
+{
+"kind": "quote",
+"head": "오늘날 마케터가 된다는 것: 마케팅은 제품을 발명하는 일",
+"image": "../props/jetblue_plane.jpg",
+"en": "Marketing is the act of inventing the product. The effort of designing it. The craft of producing it. The art of pricing it. The technique of selling it.",
+"lines": [
+"마케팅은 **제품을 발명하는 행위**다.",
+"디자인하고, 만들고, 값을 매기고, 파는 일 전부.",
+"발명·디자인·수정·**폐기**를 모르면 → **죽은 나무**"
+],
+"by": "— 「오늘날 마케터가 된다는 것의 의미」 (번역: 책듣는밤)",
+"foot": "사진: Ian Gratton, CC BY 2.0",
+"id": "p58"
+},
+{
+"kind": "versus",
+"head": "하워드는 무엇을 알고 있는가? / 리마커블하려면 충격적이어야 하나?",
+"left": {
+"label": "스타벅스 커피: **커피 오타쿠**",
+"image": "../props/starbucks_store.jpg",
+"lines": [
+"하워드 슐츠는 커피를 사랑한다",
+"초콜릿은 그냥 판다"
+]
+},
+"right": {
+"label": "충격 ≠ 리마커블",
+"image": "",
+"lines": [
+"\"당신은 너무 충격적이라서가 아니라",
+"**너무 수줍어서** 문제다\"",
+"소수의 스니저가 **거부할 수 없는** 존재"
+]
+},
+"foot": "사진: KennethHan, Public domain",
+"id": "p59"
+},
+{
+"kind": "list",
+"head": "맥도날드 프랑스 / 공장은 어떻게 하는가? / 값싼 것의 문제점",
+"items": [
+"맥도날드 프랑스: \"패스트푸드는 **일주일에 한 번까지만**\" 보고서를 후원 → 본사 충격",
+"베스트바이: 신문 광고 대신 **고객 요구**부터",
+"\"싸게 파는 건 퍼플 카우 싸움에서 **게으르게 빠져나가는 길**\"",
+"가장 싼 자리는 이미 **월마트** 차지"
+],
+"image": "../props/walmart_store.jpg",
+"foot": "사진: Doctor Dragon 2000, CC0",
+"id": "p60"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: 싸게 파는 게 아니라, 싼 것의 끝까지 가면",
+"outlet": "머니투데이 · 시대",
+"date": "2026.04",
+"title": "\"1000원짜리 팔아 '4.5조' 벌었다...다이소, '역대 최대' 실적\"",
+"image": "../props/daiso_store.jpg",
+"lines": [
+"모든 상품 **최대 5,000원** 상한",
+"2025년 매출 4조 5,363억, 영업이익률 **9.7%**",
+"뷰티 매출 2024년 **+144%**"
+],
+"foot": "출처: 머니투데이 2026-04-14, 시대 2026-04-15, 서울경제 · 사진: LuxTonnerre, CC BY 2.0",
+"id": "p61"
+},
+{
+"kind": "list",
+"head": "홀마크 닷컴 / 퍼플 카우가 일자리를 찾을 때",
+"items": [
+"e카드는 받은 사람이 **답장으로 또 보내며** 퍼졌다",
+"제안: 카드에 상품권을 붙이면 포인트 **100~100만 점 무작위**",
+"\"경력에서는 브랜드보다 더욱, **안전한 것이 위험하다**\"",
+"평생 고용 안정에 이르는 길 = **리마커블해지는 것**"
+],
+"id": "p62"
+},
+{
+"kind": "list",
+"head": "트레이시 / 로빈 워터스 / 너무 유명해서 아무도 안 간다",
+"items": [
+"홍보 전문가 → 의료 → 의사 → **성형외과 의사 전문** 홍보",
+"타깃 부사장 로빈 워터스: 마이클 그레이브스 **찻주전자**",
+"\"케이마트에 마지막으로 간 게 언제인가? **타깃은 다르다**\"",
+"스튜 레너즈: 딸기를 바구니에서 꺼내 고르게 → **매출 두 배**"
+],
+"image": "../props/target_store.jpg",
+"foot": "사진: Brainulator9, Public domain",
+"id": "p63"
+},
+{
+"kind": "article",
+"head": "요즘 뉴스: 소가 바래는 속도",
+"outlet": "아시아경제 · 머니투데이 · 매일일보",
+"date": "2024.06 ~ 2026.08",
+"title": "\"'두쫀쿠' 그렇게 난리더니…반년 만에 원재료 수입 **90% '뚝'**\"",
+"image": "../props/tanghulu.jpg",
+"lines": [
+"탕후루: 2024년 **하루 2곳씩** 폐업",
+"두쫀쿠: 피스타치오 수입 731t → 54t (**5개월 -92.6%**)",
+"유행 수명: 크로플 160일 → 탕후루 50일 → 두쫀쿠 **10~20일**"
+],
+"foot": "출처: 아시아경제 2024-06-24, 머니투데이 2026-08-24, 매일일보 2026-03-25, 서울경제 2026-03-27 · 사진: MPCROOYW GROAHMOIOE, CC0",
+"id": "p64"
+},
+{
+"kind": "quote",
+"head": "열정의 문제인가? 아니다. 다른 길이 없다는 통찰이다",
+"image": "../props/focus_group.jpg",
+"en": "If the focus group likes it, they're probably wrong.",
+"lines": [
+"퍼플 카우에 **열정도, 대단한 창의성도 필요 없다**.",
+"1억 달러 TV 광고 제품 1개 < **1,000만 달러 제품 10개**",
+"포커스 그룹이 좋아한다면 **아마 틀린 것**이다."
+],
+"by": "— 「열정의 문제인가?」 (번역: 책듣는밤)",
+"foot": "사진: Bill Branson / National Cancer Institute, Public domain",
+"id": "p65"
+},
+{
+"kind": "article",
+"head": "틀림없는 사실: 큰 브랜드는 대부분 소로 컸다",
+"outlet": "자본시장뉴스 · 한국경제",
+"date": "2026.04 ~ 2026.07",
+"title": "\"매장 4개로 영업이익 643억···**성심당**, 대기업 프랜차이즈를 눌렀다\"",
+"lines": [
+"책: 인터브랜드 100대 브랜드를 걸러 남은 30개 중 **절반이 입소문**으로",
+"성심당(2025): 광고비 **매출의 0.13%**, 영업이익 643억",
+"파리바게뜨 + 뚜레쥬르 운영사 영업이익 합계 542억"
+],
+"foot": "출처: 자본시장뉴스 2026-07-09, 한국경제 2026-04-10",
+"id": "p66"
+},
+{
+"kind": "list",
+"head": "소금은 지루하지 않다: 퍼플 카우를 작동하게 하는 8가지",
+"items": [
+"**작게** 생각하라",
+"공장이 반대하면 **외주**",
+"**허락 자산**을 쌓고 써라",
+"베껴라, **다른 업계**에서",
+"가장자리의 경쟁자보다 **한두 걸음 더**",
+"업계에서 **\"안 하는 것\"**을 하라",
+"**\"왜 안 돼?\"**라고 물어라",
+"**한계를 탐험**하라"
+],
+"sub": "소금도: 프랑스 수제 소금 **1파운드 20달러** · \"제품을 바꿀 방법 10가지를 적어라\"",
+"image": "../props/sea_salt.jpg",
+"foot": "사진: H. Grobe, CC BY 3.0",
+"id": "p67"
+},
+{
+"kind": "big",
+"head": "오웰이라면 뭐라고 말할까: 책의 마지막 쪽",
+"big": "Very Good Is Bad",
+"bigsize": 96,
+"lines": [
+"**Don't Be Boring** · 지루해지지 마라",
+"**Safe Is Risky** · 안전한 것이 위험하다",
+"**Design Rules Now** · 이제 디자인이 지배한다"
+],
+"id": "p68"
+},
+{
+"kind": "photo",
+"head": "이 책 자체가 보랏빛 소였다",
+"image": "../../props/broll/milk_carton.jpg",
+"src": "Fast Company 2003년 2월호 표지 기사 → 자비출판 1만 부 → Portfolio 2003-05",
+"lines": [
+"**보라색 우유팩**에 담은 초판 (팩 1만 개 2,300달러)",
+"잡지 독자에게 \"배송비 **5달러**만\" → 그다음 **12권 묶음 60달러**만",
+"1만 부 → **1만 번의 대화**, 본전 · 2년에 **15만 부**"
+],
+"foot": "출처: Seth's Blog 2003, ClickZ 2003, Publishers Weekly 2005 · 사진: Renee Comet (Photographer), National Cancer Institute, Public domain",
+"id": "p69"
+},
+{
+"kind": "list",
+"head": "읽기 전에 알아 둘 비판 세 가지",
+"items": [
+"**얇고 되풀이된다**: 입맛은 돋우지만 배는 안 채운다 (스티브 데닝)",
+"**생존자 편향**: 예시가 다 나중에 고른 승자다 — 크리스피 크림은 2004~2005년 주가 폭락",
+"**전제 자체가 논쟁**: 바이런 샤프 등은 브랜드 성장이 차별화보다 **넓은 도달**에서 온다고 본다"
+],
+"sub": "그리고 책 속 날짜 오류: 식빵(1928~1930), 엘리베이터(쉰들러), 펄 잼 앨범 수",
+"id": "p70"
+},
+{
+"kind": "list",
+"head": "한 권을 1분으로 + 생각해 볼 질문",
+"items": [
+"아주 좋은 것은 **안 보인다** — 말할 가치를 제품 안에",
+"광고는 듣는 사람에게만 — **스니저와 오타쿠**가 있는 틈새부터",
+"안전한 게 위험하다 — **가장자리**로, 타협하지 말고",
+"소는 바랜다 — **짜내고, 다음 소**에 투자"
+],
+"sub": "질문: 내 일에서 **\"아주 좋은데 아무도 말 안 하는 것\"**은 뭔가? 제일 작은 시장은 어디인가?",
+"id": "p71"
+},
+{
+"kind": "list",
+"head": "책을 펼친다면: 이 순서로",
+"items": [
+"「새로운 P」와 「리마커블의 반대말」: 책의 심장 (10분)",
+"「TV-산업 복합체의 죽음」과 「이전과 이후」: 왜 지금인가",
+"「퍼플 카우의 문제점」: 두려움을 다루는 꼭지, 회사 다니면 필독",
+"「소금은 지루하지 않다」: 내일 할 일 8가지"
+],
+"sub": "꼭지가 짧아서 **아무 데나 펼쳐도** 된다 · 한국어판 208쪽(2004) / 280쪽(2023)",
+"image": "../../props/broll/purple_cow_book.jpg",
+"foot": "사진: Abdulla Al Muhairi, CC BY 2.0",
+"id": "p72"
+}
+]
