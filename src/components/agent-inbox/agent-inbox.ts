@@ -309,7 +309,7 @@ export interface AgentInboxData {
   strings?: InboxStringOverrides;
   /**
    * 0.43.0 — `'window'`: every card head gets window controls and each control does one thing in every view. The
-   * left button folds the card to its head line (`ui-minimize`; folded it shows ▢ and brings the card back as it
+   * left button folds the card to its head line (`ui-minimize`; folded it shows + and brings the card back as it
    * was), the title is a button that asks for the card's detail elsewhere (`ui-detail`; unless prevented the card
    * folds to one line until `restore()`), and the right caret opens the card in place (`ui-toggle`; ▽ hops, turns
    * and lands as △). The rest of the face is not a toggle (its text can be selected). Default: the face is the toggle.
@@ -535,12 +535,12 @@ const STAR_SVG =
   '<svg viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>';
 const X_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>';
-// 0.43.0 — window controls: − folds the card to its head line (macOS's minimise, Mac OS 8's collapse box), ▢ brings
-// it back, the rounded ▽ opens it in place (turned 180° = △), ⧉ (a side panel) trails the title on hover.
+// 0.43.0 — window controls: − folds the card to its head line (macOS's minimise, Mac OS 8's collapse box), + brings
+// it back (a square would read as a checkbox beside a task's mark), the rounded ▽ opens it in place (turned 180° = △), ⧉ (a side panel) trails the title on hover.
 const MIN_SVG =
   '<svg class="ib-g-min" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8"/></svg>';
 const RESTORE_SVG =
-  '<svg class="ib-g-restore" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="2"/></svg>';
+  '<svg class="ib-g-restore" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8M8 4v8"/></svg>';
 const CARET_SVG =
   '<svg class="ib-caret-g" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.6 5.2h8.8c.8 0 1.3.9.8 1.6l-4.4 5.4c-.4.5-1.2.5-1.6 0L2.8 6.8c-.5-.7 0-1.6.8-1.6z"/></svg>';
 const PEEK_SVG =

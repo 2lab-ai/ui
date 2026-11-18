@@ -1010,7 +1010,7 @@ export const doc: ComponentDoc = {
       name: 'data.controls',
       type: "'window'",
       description:
-        '0.43.0 — window controls on every card head, each doing one thing in every view: − at the left folds the card to its head line (`ui-minimize`; folded it shows ▢, which brings the card back as it was — open again if it was open), the title is a button that asks for the card’s detail elsewhere (`ui-detail`; unless prevented the card folds until `restore()`), and ▽ at the right opens the card in place (`ui-toggle`; it hops, grows over its shadow, turns 180° and lands as △ throwing dust; △ turns back). The rest of the face is no toggle, so its text can be selected. Hover on the title underlines it and slides in a side-panel glyph. Default: the face is the toggle.',
+        '0.43.0 — window controls on every card head, each doing one thing in every view: − at the left folds the card to its head line (`ui-minimize`; folded it shows +, which brings the card back as it was — open again if it was open), the title is a button that asks for the card’s detail elsewhere (`ui-detail`; unless prevented the card folds until `restore()`), and ▽ at the right opens the card in place (`ui-toggle`; it hops, grows over its shadow, turns 180° and lands as △ throwing dust; △ turns back). The rest of the face is no toggle, so its text can be selected. Hover on the title underlines it and slides in a side-panel glyph. Default: the face is the toggle.',
     },
     {
       name: 'data.minimized',
@@ -1105,7 +1105,7 @@ export const doc: ComponentDoc = {
       name: 'ui-minimize',
       detail: '{ cardId: string; minimized: boolean }',
       description:
-        '0.43.0 — window controls: − (or ▢) was pressed, or ▽ on a folded card (`minimized: false`). Cancelable. Not sent for the fold that comes with a title press, nor for setMinimized / restore.',
+        '0.43.0 — window controls: − (or +) was pressed, or ▽ on a folded card (`minimized: false`). Cancelable. Not sent for the fold that comes with a title press, nor for setMinimized / restore.',
     },
     {
       name: 'ui-detail',
@@ -1183,7 +1183,7 @@ export const doc: ComponentDoc = {
       id: 'window',
       title: 'Window controls',
       description:
-        'data.controls = "window" (0.43.0): − folds a card to one line (▢ brings it back), the title opens its detail beside the board and folds the card until the detail closes, ▽ opens the card in place — it hops, turns and lands as △.',
+        'data.controls = "window" (0.43.0): − folds a card to one line (+ brings it back), the title opens its detail beside the board and folds the card until the detail closes, ▽ opens the card in place — it hops, turns and lands as △.',
       height: 760,
       frame: false,
       create: windowDemo,
