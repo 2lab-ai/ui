@@ -1257,7 +1257,13 @@ function renderFace(
   win: { body: boolean } | null = null,
 ): string {
   const title = win ? renderWinTitle(c, t) : `<span class="ib-title">${esc(c.title)}</span>`;
-  const head = `<div class="ib-head">${win ? renderWinMin(c, t) : ''}${renderLead(c)}${title}${renderBadge(c, t)}${renderStar(
+  // One line keeps the status (0.43.0): a dot in the status colour, its word for a screen reader (the tag folds away).
+  const minStatus = win
+    ? `<span class="ib-min-st" data-tone="${statusTone(statusOf(c))}"><span class="ib-min-dot" aria-hidden="true"></span><span class="sr-only">${esc(
+        statusWord(c, t),
+      )}</span></span>`
+    : '';
+  const head = `<div class="ib-head">${win ? renderWinMin(c, t) : ''}${minStatus}${renderLead(c)}${title}${renderBadge(c, t)}${renderStar(
     c,
     t,
   )}${win ? renderWinCaret(c, t, win.body) : ''}</div>`;
@@ -1421,6 +1427,11 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #minAuto = new Set<string>();
   /** 0.43.0 — the card whose detail is shown (`data.current`). */
   #current = '';
+  /**
+   * 0.43.0 — cards whose `data.minimized` seed has been read: a card seeds once while it is on the board, so a shell
+   * drawn again (a closed group opened again) keeps the person's fold instead of the first one.
+   */
+  #minSeen = new Set<string>();
   /** Cards whose follow-up bar shows every line (`+N more` was pressed, 0.34.0). */
   #fuAll = new Set<string>();
   /** The card whose `+N more` was pressed: its first newly shown line takes focus after the render. */
@@ -2397,7 +2408,10 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
           this.#cards.set(id, sh);
           fresh.add(id);
           if (startOpen.has(id)) this.#open.add(id);
-          if (startMin.has(id)) this.#min.add(id);
+          if (!this.#minSeen.has(id)) {
+            this.#minSeen.add(id);
+            if (startMin.has(id)) this.#min.add(id);
+          }
         }
         this.#patch(sh, id, all.get(id)!, t, openLabel, live && !reduced);
         sh.col = key;
@@ -2478,6 +2492,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
         this.#open.delete(id);
         this.#min.delete(id);
         this.#minAuto.delete(id);
+        this.#minSeen.delete(id);
       }
       this.#shown.delete(`${id}\u0000tok`);
       this.#shown.delete(`${id}\u0000usd`);
@@ -2563,7 +2578,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     if (activeKey && (this.root.activeElement as HTMLElement | null)?.dataset?.key !== activeKey) {
       const keys = this.$$<HTMLElement>('[data-key]');
       // A TL;DR × the host took away with its box (0.20.0): focus goes to that card's face, never to the page.
-      const fallback = activeKey.startsWith('d:') ? `f:${activeKey.slice(2)}` : '';
+      // With window controls (0.43.0) the face takes no focus: its title does.
+      const fallback = activeKey.startsWith('d:') ? `${this.#win ? 'wd' : 'f'}:${activeKey.slice(2)}` : '';
       const next =
         // Two cards' keys can meet (`kc:a:b:c` is card a:b's child c and card a's child b:c): its own card's first.
         (activeCard !== null
