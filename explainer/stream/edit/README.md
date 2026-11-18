@@ -95,4 +95,4 @@ chart, a loudness curve, the edit's transcript with the editor's marks, and thes
 
 Score on the mean of the three engines, and on more than one run when a result is near the bar. Never tune the prompt.
 Episode 1: v1 84.0 / 81.7 when uploaded (86.7 / 80.3 re-scored on 2026-11-18); v2 80.3 / 80.3 after nine rounds
-(`RESEARCH.md` §4.5); the public edit with the reference sweep and the new jingle 80.3 / 81.0 (§4.6). The rubric does not score the reference grammar of §2; judge that by eye from `qa_edit.py`.
+(`RESEARCH.md` §4.5); the public edit with the reference sweep and the new jingle 80.3 / 81.0 (§4.6); with the owner's opening and closing picks 89.7 / 80.0 (§4.7). The rubric does not score the reference grammar of §2; judge that by eye from `qa_edit.py`.

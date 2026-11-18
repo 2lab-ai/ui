@@ -1,7 +1,8 @@
 """책듣는밤 1화 편집본 — the 30-minute live VOD cut to ~12 minutes with the editing grammar of edit/RESEARCH.md §4, every real thing she
 names shown as its real photo (the reference sweep, edit/README.md §2) and the channel's opening and closing tunes on real instruments (edit/jingles.py).
 History: v1 (edit_plan_v1.py) was the first public edit; v2 added the reference grammar (unlisted demo); this plan adds the reference
-sweep and the jingle and is the public edit. Both earlier uploads are private.
+sweep and the jingle; the owner then picked the opening (no. 13) and closing (no. 14) tunes, and that render is the public edit.
+Every earlier upload is private.
   A (a streamer's gag edit)   caption voice by tone, state labels over her head, the editor's handwritten asides, corner labels,
                               a punch-in on the live chat when it erupts, follow-the-drawing punch-ins, a result card, a bonus clip under the end card
   B (a calm book channel)     the real thing behind every example, a dark thesis card for the line to keep
