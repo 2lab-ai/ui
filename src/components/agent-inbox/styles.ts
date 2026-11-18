@@ -531,6 +531,9 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 }
 .ib-title.is-detail:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
 .ib-title.is-detail:focus-visible .ib-peek, .ib-card.is-current .ib-peek { opacity: 1; transform: none; }
+/* A one-line card keeps its TL;DR under the head until its × (the copy in the rows is folded and inert then). */
+.ib-min-tldr { display: none; }
+.ib-card.is-min .ib-min-tldr { display: block; }
 /* One line keeps its status: a dot in the status colour (hollow when idle), read as the status word. */
 .ib-min-st { display: none; flex: none; }
 .ib-card.is-min .ib-min-st { display: inline-flex; align-items: center; }

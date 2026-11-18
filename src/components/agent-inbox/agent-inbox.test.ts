@@ -2820,6 +2820,41 @@ describe('window controls (0.43.0, data.controls = window)', () => {
     expect(card(el, 'digest').classList.contains('is-min')).toBe(true);
   });
 
+  it('a one-line card keeps its TL;DR under the head until its × — then it is one line (SSOT_2)', () => {
+    const tldr: InboxCard = { ...WAIT, tldr: { lines: ['Dry run passed.', 'Waiting on the prod run.'] } };
+    const el = mount(winBoard({ minimized: ['migrate'] }, tldr));
+    const c = card(el, 'migrate');
+    const keep = c.querySelector<HTMLElement>(':scope .ib-face > .ib-min-tldr')!;
+    // After the head, outside the folded rows; the rows' own copy is inert while folded.
+    expect(keep.previousElementSibling?.classList.contains('ib-head')).toBe(true);
+    expect(keep.closest('[inert]')).toBeNull();
+    expect(keep.querySelectorAll('.ib-tldr-lines li')).toHaveLength(2);
+    expect(c.querySelector('.ib-rest .ib-tldr')!.closest('[inert]')).not.toBeNull();
+    const dismissed = vi.fn();
+    el.addEventListener('ui-dismiss', (e) => dismissed((e as CustomEvent).detail));
+    const x = keep.querySelector<HTMLElement>('[data-dismiss="tldr"]')!;
+    expect(x.dataset.key).toBe('dm:migrate');
+    x.focus();
+    x.click();
+    expect(dismissed).toHaveBeenCalledWith({ cardId: 'migrate', what: 'tldr' });
+    // The host drops the TL;DR: one line, focus on the title.
+    el.data = winBoard({ minimized: ['migrate'] }, WAIT);
+    el.renderNow();
+    expect(c.querySelector('.ib-min-tldr')).toBeNull();
+    expect(c.classList.contains('is-min')).toBe(true);
+    expect(el.shadowRoot!.activeElement).toBe(ctl(el, 'migrate', 'detail'));
+    // Shown only while folded.
+    expect(monoStyles).toMatch(
+      /\.ib-min-tldr \{ display: none; \}\n\.ib-card\.is-min \.ib-min-tldr \{ display: block; \}/,
+    );
+  });
+
+  it('a card whose rows leave the TL;DR out keeps none on one line', () => {
+    const tldr: InboxCard = { ...WAIT, tldr: { lines: ['Dry run passed.'] }, rows: ['summary'] };
+    const el = mount(winBoard({ minimized: ['migrate'] }, tldr));
+    expect(card(el, 'migrate').querySelector('.ib-min-tldr')).toBeNull();
+  });
+
   it('a TL;DR × the host takes away hands focus to the card’s title (the face takes none)', () => {
     const tldr = { ...WAIT, tldr: { lines: ['Ran the dry run.'] } };
     const el = mount(winBoard({}, tldr));
