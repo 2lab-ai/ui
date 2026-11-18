@@ -14,7 +14,7 @@ SAMPLES = 'https://github.com/Live2D/CubismWebSamples.git'
 SAMPLES_REV = 'b1de66b0b1f1cb881d95fb6158622aeb6a2827bd'   # the revision the kit was built on (Mao, Hiyori)
 NODE_DEPS = {'pixi.js': '6.5.10', 'pixi-live2d-display': '0.4.0', 'playwright': '^1.56.0'}
 FONT = 'https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-{w}.woff2'
-WEIGHTS = ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold']
+WEIGHTS = ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold', 'Black']   # Black: the Shorts titles
 # the edit's caption faces (edit/cut.py), all SIL OFL 1.1 from google/fonts: a heavy display face for corner labels and shouts,
 # a round face for state labels and the extra, a handwriting face for the editor's narration, a serif for the thesis card
 GF = 'https://raw.githubusercontent.com/google/fonts/main/ofl/'

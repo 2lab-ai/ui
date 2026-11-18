@@ -116,3 +116,29 @@ Researched 2026-11-18. Tags: **[O]** = YouTube/Google official, **[C]** = creato
 | Up to 3 hashtags (§7) | ep. 1 descriptions carry three: #책듣는밤 #보랏빛소가온다 #세스고딘 |
 | Schedule like long videos (§7) | private upload, then the edit page's scheduler (`sched_any.js`) |
 
+## 10. The look: 56 real Korean clip Shorts (2026-11-18, after the owner called v1's title "AI slop")
+
+v1 put a purple gradient behind everything, a small orange series line with a 📖 emoji, the title in Black Han Sans with a
+thick purple outline and a yellow gradient fill, a "왜 ~할까" question template, and emoji pill cards (📷 labels, a yellow 👇
+end card). The owner: "타이틀 화면 … ai slop 그자체임 … 다른 쇼츠 영상 참고해서 ai slop틱한거 빼주고".
+
+Sample: YouTube search with the Shorts filter, eight results each for 버튜버 키리누키 쇼츠, 버튜버 클립 shorts, 침착맨 쇼츠,
+우왁굳 쇼츠 클립, 책 요약 쇼츠, 북튜버 쇼츠 책 추천, 강의 쇼츠 지식 (56; the 1080x1920 `oar2` frame of each). Sheets and the
+side-by-side comparisons: `~/2lab.ai/ARTIFACTS/stream/refs_shorts_2026-11-18/` (third-party frames, not in the repo).
+
+What the clip Shorts share (VTuber clips, 침착맨, 우왁굳; the book channels vary more):
+- **A black frame.** The content sits in a band in the middle; above and below is plain black. No gradients, no tinted panels.
+- **The title: a few words of very heavy white sans, big.** One or two lines that fill ~70–95% of the width (≈ 90–120 px on
+  1080), in the black band at y ≈ 150–450. No outline (it sits on black), no shadow, no glow.
+- **Colour, if any, is flat and on one word or one line** (yellow, sky blue, green, pink). Never a gradient fill.
+- **No emoji, no pills, no badges, no series line over the title.** The streamer's name or a date, when present, is a small
+  plain line under the picture.
+- **The words are a topic with a twist or a scene, not a template question:** 화난 요리사 관통, 과몰입이 위험한 이유,
+  폐급병사의 반란, 조카와 놀아주고 싶은 삼촌, 단 네 문제만에 수학이 끝장나는 순간, 위험한 토끼.
+- **Captions:** white heavy sans with a thin black outline, or a flat colour; one key word in colour.
+
+What shorts.py does now: `html_bg` = #000; `html_hook` = Pretendard Black, white, sized to fill 970 px of a 1000 px band at
+y 200–500, `hook_key` in flat #ffe14d; `html_cap` = Pretendard Black white with a black outline; photo labels are plain
+white text (the 📷 is stripped); the end line is a caption ("풀버전은 채널 홈에서", `end_key` in colour). The review rubric
+gained a line for it (10 points: looks like a real clip, no AI-template tells).
+

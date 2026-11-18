@@ -26,13 +26,18 @@ base picture lacks the stream (`blank_frames`: a shot that starts before its pic
 LIVE = 'https://youtu.be/<live VOD>'          # every short's related video and the first link of its description
 SHORTS = [{'id': 's1', 'publish': 'now' | 'YYYY-MM-DD HH:MM',
            'title': '<YouTube title: the question or the claim, then | book #series>',
-           'hook': '<two short lines on top: what is at stake>',
+           'hook': '<the title: a few words, a topic with a twist or a scene; no question template>', 'hook_key': '<one word in colour>',
            'lines': ['c10', 'c03', ...],      # whole lines, in the order they play; the first one is the spoken hook
            'hl': {'c07': '그냥 풍경'},         # one phrase per caption in yellow
            'show': {'c04': (image, label, focus)},  # a photo over that whole line (a blank canvas, the ending's picture)
+           'zoom': {'r09': (x, y, w)},         # a punch-in on the live frame for that line's shot (canvas text, a doodle)
+           'split': ['t15'],                  # start a new shot (a new picture) at these lines even with no time cut
+           'no_broll': ['x28'],               # skip the edit's photo on these lines (the short frames them itself)
            'text': {'c09': '...'},            # caption text when it must differ from the line
-           'end': '<the end card: the open question + where the answer is ▶>',
-           'end_hold': 1.6, 'desc': '...', 'tags': '...'}]
+           'end': '<the last line on screen: where the full stream is>', 'end_key': '<one word in colour>',
+           'end_hold': 1.4,                   # the last line on screen after the last words (the stream keeps running if she is silent)
+           'photo_labels': False,             # default: no captions on photos (real clips do not label their pictures)
+           'desc': '...', 'tags': '...'}]
 ```
 
 The edit plan's real photos (`BROLL`, `INSERTS`) and canvas punch-ins (`ZOOM`/`Z`) are reused automatically for the lines a
@@ -42,13 +47,14 @@ short contains, so a thing she names shows as its real photo on the word, as in 
 
 | Band | y | What |
 |---|---|---|
-| hook | 288–538 (x 48–888) | series label + the hook in two lines (white, then yellow), the whole short |
-| canvas | 548–1188 | the Paint canvas at 1080:640 (or a punch-in on it), or the real photo (label top left) |
-| captions | 1068–1308 (x 48–888) | big captions over the seam, ≤ 13 characters a line, one phrase yellow; the end card here after the last line |
-| face | 1188–1795 | her face, big (eyes ≈ 1450) |
-| foot | 1780 | the channel name, under the player's own title bar |
+| frame | 0–1920 | black (#000): no gradient, no tint (RESEARCH.md §10) |
+| title | 200–500 (x 40–1040) | a few words of Pretendard Black, white, filling the width; one word (`hook_key`) in flat yellow |
+| canvas | 520–1160 | the Paint canvas at 1080:640 (or a punch-in on it), or the real photo (plain white label top left) |
+| captions | 1040–1280 (x 48–888) | white with a black outline, ≤ 13 characters a line, one phrase yellow; after the last line the end line goes here |
+| face | 1160–1767 | her face, big (eyes ≈ 1420) |
 
-Everything that must be read stays inside the Shorts safe zone (`RESEARCH.md` §6).
+Everything that must be read stays inside the Shorts safe zone (`RESEARCH.md` §6); the title band may run wider because the button rail starts far below it.
+No emoji, gradients, outlines on the title, pills or series badges anywhere: that was v1, and the owner called it AI slop (§10).
 
 ## 4. Upload and schedule
 
@@ -63,15 +69,25 @@ short 3 at 16:00 the next day. Each short goes up **private**, then on its edit 
    then check the cells (`caps_check.js`).
 3. public now (`vis_set.js`) or scheduled (`sched_any.js`, `<id>|2026. 11. 18.|오후 10:00`).
 
+Replacing a short: upload the new one first, then set the old one private (`vis_set.js <id> PRIVATE`; a scheduled one has
+no PRIVATE radio until its "save or publish" section is opened, so use `unsched.js`). Never delete.
+
+Daily upload limit: without the advanced features the channel gets about a dozen uploads a day (ep. 1 hit it at the 14th on
+2026-11-18). The upload dialog then says "일일 업로드 한도 도달" and its one-time verification leads to the same locked
+verification. `up_private.js` prints `LIMIT` and stops; `watch.sh` (same folder) retries every 15 minutes and carries
+on with captions and the schedule once a slot frees. Count the uploads before a remake: every replaced short costs one.
+
 Scripts: `~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/shorts_upload/` (Aside, run with `run_files.sh`).
 
 ## 5. Episode 1 (2026-11-18)
 
+v2 look (black frame, heavy white title, one yellow word). v1 and the interim s1 are private; every id is in the ledger.
+
 | Short | Idea | Length | Published | Review (3 engines) |
 |---|---|---|---|---|
-| s1 | 들판에 보라색 소가 한 마리 있으면? (hook question → the highway cows → "어떻게 만드냐") | 47.7 s | https://youtube.com/shorts/LztXx76RP8c, public 2026-11-18 13:06 | 88.7 → 91.3 → 92.3 → **90.7** |
-| s2 | '리마커블'의 반대말이 '아주 좋은'? (the plane that landed fine → "이상하기만 하면 되냐") | 37.6 s | https://youtube.com/shorts/wIAuwrXHHPQ, scheduled 2026-11-18 22:00 | 84.7 → 86.3 → 89.7 → **86.3** |
-| s3 | 회의로 고친 제품이 낙타가 되는 이유 (horse → camel → "안전한 게 제일 위험하다" → "어떻게 만드냐") | 28.5 s | https://youtube.com/shorts/vDoSuH1Ly4I, scheduled 2026-11-19 16:00 | 85.3 → 88.3 → 88.3 → **88.7** |
+| s1 | 소가 풍경이 되는 데 걸리는 시간 (the roadside cows go unseen in 20 minutes → the purple one stops the car → "어떻게 만드냐") | 47.1 s | https://youtube.com/shorts/tcdgyjamzkI, public 2026-11-18 15:35 | **87.0** |
+| s2 | 20년 동안 아무도 안 쓴 식빵 기계 (the 1912 bread slicer → Wonder Bread advertised it → "그 시대가 끝났다") | 24.4 s | queued behind the daily upload limit (ledger) | **81.7 / 82.0** |
+| s3 | 말 만들려다 낙타 만드는 회의 (horse → camel by committee → "안전한 게 제일 위험하다") | 27.9 s | https://youtube.com/shorts/0gXP9tcyHik, scheduled 2026-11-19 16:00 (interim render) | **83.0** |
 
 What the panel moved (each fix lives in `shorts.py` or the plan): the hook title must not give the answer away; the CTA card
 comes after the last line, alone, never over the drawing; one idea per short (s3 lost its second story); a photo per

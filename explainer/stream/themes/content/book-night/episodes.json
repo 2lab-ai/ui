@@ -112,36 +112,43 @@
     "items": [
      {
       "id": "s1",
-      "url": "https://youtube.com/shorts/LztXx76RP8c",
-      "publish": "2026-11-18 13:06 KST (public at once; the live stream was already up)",
-      "length": "0:48",
-      "title": "들판에 보라색 소가 한 마리 있으면? | 보랏빛 소가 온다 #책듣는밤",
-      "hook": "소 100마리 중에 / 왜 1마리만 기억날까",
+      "url": "https://youtube.com/shorts/tcdgyjamzkI",
+      "publish": "2026-11-18 15:35 KST (public at once; the live stream was already up)",
+      "length": "0:47",
+      "title": "소가 풍경이 되는 데 걸리는 시간 | 보랏빛 소가 온다 #책듣는밤",
+      "hook": "소가 풍경이 되는 데 / 걸리는 시간",
       "lines": "c10 c03 c04 c05 c06 c07 c10 c11 c12 c17 c18 g01",
-      "review": "88.7 → 91.3 → 92.3 → 90.7 (uploaded render)"
+      "review": "87.0 (v2 look)"
      },
      {
       "id": "s2",
-      "url": "https://youtube.com/shorts/wIAuwrXHHPQ",
-      "publish": "2026-11-18 22:00 KST (scheduled)",
-      "length": "0:38",
-      "title": "'리마커블'의 반대말이 '아주 좋은'인 이유 | 보랏빛 소가 온다 #책듣는밤",
-      "hook": "'리마커블'의 반대말이 / '아주 좋은'이라고?",
-      "lines": "r09 r10 r11 r12 r13 r14 r15 r16",
-      "review": "84.7 → 86.3 → 89.7 → 86.3 (uploaded render)"
+      "url": null,
+      "publish": "queued: the channel hit its daily upload limit at 15:29; 2026-11-18 22:00 if a slot frees by 21:30, else 2026-11-19 16:00 (s3 takes 22:00)",
+      "length": "0:24",
+      "title": "20년 동안 아무도 안 쓴 식빵 기계 | 보랏빛 소가 온다 #책듣는밤",
+      "hook": "20년 동안 아무도 / 안 쓴 식빵 기계",
+      "lines": "t14 t15 t16 t17 t18 t19",
+      "review": "81.7 / 82.0 (two runs, v2 look)"
      },
      {
       "id": "s3",
-      "url": "https://youtube.com/shorts/vDoSuH1Ly4I",
-      "publish": "2026-11-19 16:00 KST (scheduled)",
-      "length": "0:29",
-      "title": "회의에서 다 같이 고치면 낙타가 나온다 | 보랏빛 소가 온다 #책듣는밤",
-      "hook": "회의로 고친 제품이 / 낙타가 되는 이유",
+      "url": "https://youtube.com/shorts/0gXP9tcyHik",
+      "publish": "2026-11-19 16:00 KST (scheduled; interim v2 render with 0.12 s caption overlaps, replaced by the fixed render if a second slot frees)",
+      "length": "0:28",
+      "title": "말 만들려다 낙타 만드는 회의 | 보랏빛 소가 온다 #책듣는밤",
+      "hook": "말 만들려다 / 낙타 만드는 회의",
       "lines": "x26 x27 x28 x29 x24 x25 g01",
-      "review": "85.3 → 88.3 → 88.3 → 88.7 (uploaded render)"
+      "review": "83.0 (fixed render, v2 look)"
      }
     ],
-    "unused": "VJ-QFTQ8yY4 (first upload of s1 with an end card pointing at the related video; replaced before publishing, private)"
+    "look": "v2 since 2026-11-18 15:30: black frame, two lines of Pretendard Black across the width, one flat yellow word; no band, emoji, gradient or series line (v1 = \"AI slop\", owner)",
+    "replaced": [
+     "LztXx76RP8c v1 s1 (public 13:06 until the remake; private)",
+     "wIAuwrXHHPQ v1 s2 \"리마커블\" (schedule cancelled; private)",
+     "vDoSuH1Ly4I v1 s3 (schedule cancelled; private)",
+     "VJ-QFTQ8yY4 v1 s1 first draft (never public; private)",
+     "CzNbswNNJX4 v2 s1 interim with overlapping captions (public 15:00-15:35; private)"
+    ]
    }
   }
  ]
