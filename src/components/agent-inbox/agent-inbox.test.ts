@@ -2565,3 +2565,275 @@ describe('epic family (0.37.0)', () => {
     );
   });
 });
+
+describe('window controls (0.43.0, data.controls = window)', () => {
+  const winBoard = (extra: Partial<AgentInboxData> = {}, ...cards: InboxCard[]): AgentInboxData => ({
+    columns: columnsByStatus(cards.length ? cards : [WAIT, RUN]),
+    controls: 'window',
+    ...extra,
+  });
+  const ctl = (el: UiAgentInbox, id: string, what: 'min' | 'detail' | 'expand') =>
+    card(el, id).querySelector<HTMLElement>(`[data-win="${what}"]`)!;
+  const events = (el: UiAgentInbox, name: string) => {
+    const fn = vi.fn();
+    el.addEventListener(name, (e) => fn((e as CustomEvent).detail));
+    return fn;
+  };
+
+  it('draws − · title · ★ · ▽ in the head, in that order; the face is no toggle and its text is no button', () => {
+    const el = mount(winBoard({}, { ...WAIT, star: { on: false } }));
+    const c = card(el, 'migrate');
+    const head = c.querySelector('.ib-head')!;
+    const order = Array.from(head.children).map(
+      (n) => n.getAttribute('data-win') ?? (n.classList.contains('ib-star') ? 'star' : n.className),
+    );
+    expect(order).toEqual(['min', 'ib-spark', 'detail', 'star', 'expand']);
+    const face = c.querySelector<HTMLElement>('.ib-face')!;
+    expect(face.hasAttribute('role')).toBe(false);
+    expect(face.hasAttribute('tabindex')).toBe(false);
+    expect(face.hasAttribute('aria-controls')).toBe(false);
+    for (const w of ['min', 'detail', 'expand'] as const) expect(ctl(el, 'migrate', w).tagName).toBe('BUTTON');
+    expect(ctl(el, 'migrate', 'detail').textContent).toBe('Migrate users table');
+    expect(ctl(el, 'migrate', 'detail').getAttribute('title')).toBe('Open detail card');
+    // The caret owns the in-place body.
+    expect(ctl(el, 'migrate', 'expand').getAttribute('aria-controls')).toBe(c.querySelector('.ib-expand')!.id);
+    expect(ctl(el, 'migrate', 'expand').getAttribute('aria-expanded')).toBe('false');
+    expect(ctl(el, 'migrate', 'min').getAttribute('aria-pressed')).toBe('false');
+    // A press on the face (the summary) does nothing.
+    const toggles = events(el, 'ui-toggle');
+    c.querySelector<HTMLElement>('.ib-summary')!.click();
+    face.click();
+    expect(toggles).not.toHaveBeenCalled();
+    expect(c.classList.contains('is-open')).toBe(false);
+  });
+
+  it('▽ opens in place (ui-toggle) without asking for the detail; △ closes; Esc closes and focuses the caret', () => {
+    const el = mount(winBoard());
+    const toggles = events(el, 'ui-toggle');
+    const details = events(el, 'ui-detail');
+    const c = card(el, 'migrate');
+    ctl(el, 'migrate', 'expand').click();
+    expect(toggles).toHaveBeenLastCalledWith({ cardId: 'migrate', expanded: true });
+    expect(details).not.toHaveBeenCalled();
+    expect(c.classList.contains('is-open')).toBe(true);
+    expect(ctl(el, 'migrate', 'expand').getAttribute('aria-expanded')).toBe('true');
+    expect(ctl(el, 'migrate', 'expand').getAttribute('title')).toBe('Collapse');
+    expect(c.querySelector('.ib-expand')!.hasAttribute('inert')).toBe(false);
+    ctl(el, 'migrate', 'expand').click();
+    expect(toggles).toHaveBeenLastCalledWith({ cardId: 'migrate', expanded: false });
+    expect(c.classList.contains('is-open')).toBe(false);
+    ctl(el, 'migrate', 'expand').click();
+    key(c.querySelector('.ib-body')!, 'Escape');
+    expect(c.classList.contains('is-open')).toBe(false);
+    expect(el.shadowRoot!.activeElement).toBe(ctl(el, 'migrate', 'expand'));
+  });
+
+  it('− folds the card to one line (ui-minimize) and ▢ brings it back as it was — open again if it was open', () => {
+    const el = mount(winBoard());
+    const mins = events(el, 'ui-minimize');
+    const c = card(el, 'migrate');
+    ctl(el, 'migrate', 'expand').click();
+    ctl(el, 'migrate', 'min').click();
+    expect(mins).toHaveBeenLastCalledWith({ cardId: 'migrate', minimized: true });
+    expect(c.classList.contains('is-min')).toBe(true);
+    // Folded, the open body is drawn closed and out of reach; the rows under the head too.
+    expect(c.classList.contains('is-open')).toBe(false);
+    expect(c.querySelector('.ib-expand')!.hasAttribute('inert')).toBe(true);
+    expect(c.querySelector('.ib-rest')!.hasAttribute('inert')).toBe(true);
+    expect(ctl(el, 'migrate', 'min').getAttribute('aria-pressed')).toBe('true');
+    expect(ctl(el, 'migrate', 'min').getAttribute('title')).toBe('Restore');
+    expect(ctl(el, 'migrate', 'expand').getAttribute('aria-expanded')).toBe('false');
+    expect(el.isMinimized('migrate')).toBe(true);
+    ctl(el, 'migrate', 'min').click();
+    expect(mins).toHaveBeenLastCalledWith({ cardId: 'migrate', minimized: false });
+    expect(c.classList.contains('is-min')).toBe(false);
+    expect(c.classList.contains('is-open')).toBe(true);
+    expect(c.querySelector('.ib-rest')!.hasAttribute('inert')).toBe(false);
+    // A prevented fold stays put.
+    el.addEventListener('ui-minimize', (e) => e.preventDefault(), { once: true });
+    ctl(el, 'migrate', 'min').click();
+    expect(c.classList.contains('is-min')).toBe(false);
+  });
+
+  it('▽ on one line unfolds and opens in place', () => {
+    const el = mount(winBoard({ minimized: ['migrate'] }));
+    const mins = events(el, 'ui-minimize');
+    const toggles = events(el, 'ui-toggle');
+    const c = card(el, 'migrate');
+    expect(c.classList.contains('is-min')).toBe(true);
+    ctl(el, 'migrate', 'expand').click();
+    expect(mins).toHaveBeenLastCalledWith({ cardId: 'migrate', minimized: false });
+    expect(toggles).toHaveBeenLastCalledWith({ cardId: 'migrate', expanded: true });
+    expect(c.classList.contains('is-min')).toBe(false);
+    expect(c.classList.contains('is-open')).toBe(true);
+  });
+
+  it('the title asks for the detail (ui-detail) and folds the card until restore(); a fold of the person stays', () => {
+    const el = mount(winBoard());
+    const details = events(el, 'ui-detail');
+    const mins = events(el, 'ui-minimize');
+    const c = card(el, 'migrate');
+    ctl(el, 'migrate', 'expand').click();
+    ctl(el, 'migrate', 'detail').click();
+    expect(details).toHaveBeenLastCalledWith({ cardId: 'migrate' });
+    // The fold that comes with a detail is no person's fold: no ui-minimize.
+    expect(mins).not.toHaveBeenCalled();
+    expect(c.classList.contains('is-min')).toBe(true);
+    expect(el.restore('migrate')).toBe(true);
+    // Back as it was: open.
+    expect(c.classList.contains('is-min')).toBe(false);
+    expect(c.classList.contains('is-open')).toBe(true);
+    expect(el.restore('migrate')).toBe(false);
+    // The person's own fold is theirs: a title press on it and a restore leave it folded.
+    ctl(el, 'migrate', 'min').click();
+    ctl(el, 'migrate', 'detail').click();
+    expect(details).toHaveBeenCalledTimes(2);
+    expect(el.restore('migrate')).toBe(false);
+    expect(c.classList.contains('is-min')).toBe(true);
+    // Folded by its title, then unfolded by the person: restore() has nothing to undo.
+    ctl(el, 'notes', 'detail').click();
+    ctl(el, 'notes', 'min').click();
+    expect(el.restore('notes')).toBe(false);
+    expect(card(el, 'notes').classList.contains('is-min')).toBe(false);
+    // A prevented detail leaves the card as it is.
+    el.addEventListener('ui-detail', (e) => e.preventDefault(), { once: true });
+    ctl(el, 'notes', 'detail').click();
+    expect(card(el, 'notes').classList.contains('is-min')).toBe(false);
+  });
+
+  it('setMinimized folds without an event, untilRestore marks it for restore(); unknown ids are no-ops', () => {
+    const el = mount(winBoard());
+    const mins = events(el, 'ui-minimize');
+    expect(el.setMinimized('notes', true, { untilRestore: true })).toBe(true);
+    expect(card(el, 'notes').classList.contains('is-min')).toBe(true);
+    expect(el.setMinimized('notes', true)).toBe(false);
+    expect(el.restore('notes')).toBe(true);
+    expect(el.setMinimized('migrate', true)).toBe(true);
+    expect(el.restore('migrate')).toBe(false);
+    expect(mins).not.toHaveBeenCalled();
+    expect(el.restore('nope')).toBe(false);
+  });
+
+  it('data.current rings its card and marks its title aria-current; the state survives data renders', () => {
+    const el = mount(winBoard({ current: 'notes' }));
+    expect(card(el, 'notes').classList.contains('is-current')).toBe(true);
+    expect(ctl(el, 'notes', 'detail').getAttribute('aria-current')).toBe('true');
+    expect(card(el, 'migrate').classList.contains('is-current')).toBe(false);
+    expect(ctl(el, 'migrate', 'detail').hasAttribute('aria-current')).toBe(false);
+    ctl(el, 'migrate', 'min').click();
+    const caret = ctl(el, 'migrate', 'expand');
+    el.data = winBoard({ current: 'migrate' }, { ...WAIT, summary: 'Changed.' }, RUN);
+    el.renderNow();
+    expect(card(el, 'migrate').classList.contains('is-current')).toBe(true);
+    expect(card(el, 'notes').classList.contains('is-current')).toBe(false);
+    expect(card(el, 'migrate').classList.contains('is-min')).toBe(true);
+    expect(ctl(el, 'migrate', 'min').getAttribute('aria-pressed')).toBe('true');
+    // The face was rewritten (the summary changed); its controls carry their state again.
+    expect(ctl(el, 'migrate', 'expand')).not.toBe(caret);
+  });
+
+  it('the caret hops on the press that opens it, not on the press that closes it, never under reduced motion', () => {
+    const el = mount(winBoard());
+    const caret = () => ctl(el, 'migrate', 'expand');
+    caret().click();
+    expect(caret().classList.contains('is-hop')).toBe(true);
+    expect(caret().querySelectorAll('.ib-dust i')).toHaveLength(5);
+    vi.advanceTimersByTime(800);
+    expect(caret().classList.contains('is-hop')).toBe(false);
+    caret().click();
+    expect(caret().classList.contains('is-hop')).toBe(false);
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+    try {
+      caret().click();
+      expect(card(el, 'migrate').classList.contains('is-open')).toBe(true);
+      expect(caret().classList.contains('is-hop')).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('a card with no body has no caret; a card left the board forgets its fold', () => {
+    // No steps, no buttons and no Open button: nothing to open in place.
+    const el = mount(winBoard({ openLabel: false }, { id: 'bare', title: 'Starting', status: 'running' }, WAIT));
+    expect(card(el, 'bare').querySelector('[data-win="expand"]')).toBeNull();
+    expect(card(el, 'bare').querySelector('[data-win="min"]')).not.toBeNull();
+    ctl(el, 'migrate', 'min').click();
+    el.data = winBoard({ openLabel: false }, { id: 'bare', title: 'Starting', status: 'running' });
+    el.renderNow();
+    vi.advanceTimersByTime(2000);
+    el.data = winBoard({ openLabel: false }, WAIT);
+    el.renderNow();
+    expect(card(el, 'migrate').classList.contains('is-min')).toBe(false);
+  });
+
+  it('without controls nothing changes: the face is the toggle, no window buttons, minimized/current ignored', () => {
+    const el = mount({ columns: columnsByStatus([WAIT]), minimized: ['migrate'], current: 'migrate' });
+    const c = card(el, 'migrate');
+    expect(c.querySelector('[data-win]')).toBeNull();
+    expect(c.querySelector('.ib-rest')).toBeNull();
+    expect(c.querySelector('.ib-face')!.getAttribute('role')).toBe('button');
+    expect(c.classList.contains('is-min')).toBe(false);
+    expect(c.classList.contains('is-current')).toBe(false);
+    // Turned on later, every face is drawn again with its controls.
+    el.data = { columns: columnsByStatus([WAIT]), controls: 'window' };
+    el.renderNow();
+    expect(c.querySelector('[data-win="detail"]')).not.toBeNull();
+    expect(c.querySelector('.ib-face')!.hasAttribute('role')).toBe(false);
+  });
+
+  it('escapes the title in its button and speaks Korean with lang="ko"', () => {
+    const el = mount(winBoard({}, { ...WAIT, title: '<img src=x onerror=alert(1)>' }), { lang: 'ko' });
+    const t = ctl(el, 'migrate', 'detail');
+    expect(t.querySelector('img')).toBeNull();
+    expect(t.textContent).toBe('<img src=x onerror=alert(1)>');
+    expect(t.getAttribute('title')).toBe('상세 카드 열기');
+    expect(ctl(el, 'migrate', 'min').getAttribute('aria-label')).toBe('한 줄로');
+    expect(ctl(el, 'migrate', 'expand').getAttribute('aria-label')).toBe('펼치기');
+    ctl(el, 'migrate', 'min').click();
+    expect(ctl(el, 'migrate', 'min').getAttribute('title')).toBe('원래대로');
+  });
+
+  it('css: hop and dust only move by transform/opacity; hover only on pointer devices; 44px touch targets', () => {
+    const css = monoStyles;
+    for (const name of ['ib-hop', 'ib-hop-shadow', 'ib-dust']) {
+      const m = css.match(new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`));
+      expect(m, name).not.toBeNull();
+      expect(m![1]).not.toMatch(/\b(width|height|top|left|margin[\w-]*|padding[\w-]*|inset[\w-]*)\s*:/);
+    }
+    expect(css).toMatch(
+      /@keyframes ib-hop \{[^@]*100% \{ transform: translateY\(0\) scale\(1\) rotate\(180deg\); \}\n\}/,
+    );
+    expect(css).toMatch(/\.ib-win-caret\[aria-expanded="true"\] \.ib-caret-lift \{ transform: rotate\(180deg\); \}/);
+    expect(css).toMatch(/@media \(hover: hover\) and \(pointer: fine\) \{\s*\.ib-win:hover/);
+    expect(css).toMatch(
+      /@media \(pointer: coarse\), \(max-width: 639px\) \{ \.ib-win::before \{ content: ''; position: absolute; inset: -8px; \} \}/,
+    );
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce\) \{[^@]*\.ib-win-caret\.is-hop \.ib-caret-lift[^{]*\{ animation: none; \}/,
+    );
+  });
+});
+
+describe('window controls — sound (0.43.0)', () => {
+  let spy: SoundSpy;
+  beforeEach(() => {
+    vi.useRealTimers();
+    spy = soundSpy();
+  });
+  afterEach(() => spy.restore());
+  it('a fold, an unfold, a detail and an open each play one cue; a prevented press plays none', async () => {
+    const el = mount({ columns: columnsByStatus([WAIT]), controls: 'window' });
+    const press = (w: string) =>
+      card(el, 'migrate')
+        .querySelector<HTMLElement>(`[data-win="${w}"]`)!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, detail: 1 }));
+    for (const w of ['min', 'min', 'detail', 'expand']) {
+      press(w);
+      await spy.settle();
+    }
+    el.addEventListener('ui-detail', (e) => e.preventDefault(), { once: true });
+    press('detail');
+    await spy.settle();
+    expect(spy.cues()).toEqual(['close', 'open', 'navigate', 'open']);
+  });
+});

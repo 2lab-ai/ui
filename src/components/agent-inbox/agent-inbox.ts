@@ -3,7 +3,9 @@ import { fmtAgo, fmtDuration, fmtDurationIn, fmtInt, fmtUsd } from '../../core/f
 import { esc, escAttr } from '../../core/html';
 import { asModelVendor, MODEL_MAKER_COLOR, modelMarkSvg } from '../../core/model-mark';
 import { OWNER_BADGE_HUES, syncOwnerBadgeOrbit } from '../../core/owner-badge';
-import { styles } from './styles';
+import { HOP_MS, styles } from './styles';
+
+export { HOP_MS };
 
 /** Where a run stands. `waiting` = it needs the person; `idle` = parked (sleeping, archived, never started). */
 export type InboxStatus = 'waiting' | 'running' | 'done' | 'failed' | 'idle';
@@ -305,6 +307,18 @@ export interface AgentInboxData {
   announce?: { needs: number; running: number } | false;
   /** Strings merged over the `lang` table (status words, sub-agents, titles, clock, announcement…). */
   strings?: InboxStringOverrides;
+  /**
+   * 0.43.0 — `'window'`: every card head gets window controls and each control does one thing in every view. The
+   * left button folds the card to its head line (`ui-minimize`; folded it shows ▢ and brings the card back as it
+   * was), the title is a button that asks for the card's detail elsewhere (`ui-detail`; unless prevented the card
+   * folds to one line until `restore()`), and the right caret opens the card in place (`ui-toggle`; ▽ hops, turns
+   * and lands as △). The rest of the face is not a toggle (its text can be selected). Default: the face is the toggle.
+   */
+  controls?: 'window';
+  /** 0.43.0 — card ids that start folded to one line the first time they appear (window controls). */
+  minimized?: string[];
+  /** 0.43.0 — the card whose detail is shown (window controls): an accent ring and `aria-current` on its title. */
+  current?: string;
 }
 
 /** Where cards and heads are drawn (viewport px), from `measure()`; keys are opaque. */
@@ -382,6 +396,11 @@ const STRINGS = {
     childrenShow: 'Show all children',
     childrenHide: 'Hide',
     badgeSelf: '(you)',
+    winMin: 'One line',
+    winDetail: 'Open detail card',
+    winExpand: 'Expand',
+    winRestore: 'Restore',
+    winCollapse: 'Collapse',
   },
   ko: {
     status: {
@@ -423,6 +442,11 @@ const STRINGS = {
     childrenShow: '자식 모두 보기',
     childrenHide: '접기',
     badgeSelf: '(나)',
+    winMin: '한 줄로',
+    winDetail: '상세 카드 열기',
+    winExpand: '펼치기',
+    winRestore: '원래대로',
+    winCollapse: '접기',
   },
 };
 type Strings = InboxStrings;
@@ -511,6 +535,18 @@ const STAR_SVG =
   '<svg viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>';
 const X_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>';
+// 0.43.0 — window controls: − folds the card to its head line (macOS's minimise, Mac OS 8's collapse box), ▢ brings
+// it back, the rounded ▽ opens it in place (turned 180° = △), ⧉ (a side panel) trails the title on hover.
+const MIN_SVG =
+  '<svg class="ib-g-min" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8"/></svg>';
+const RESTORE_SVG =
+  '<svg class="ib-g-restore" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="2"/></svg>';
+const CARET_SVG =
+  '<svg class="ib-caret-g" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.6 5.2h8.8c.8 0 1.3.9.8 1.6l-4.4 5.4c-.4.5-1.2.5-1.6 0L2.8 6.8c-.5-.7 0-1.6.8-1.6z"/></svg>';
+const PEEK_SVG =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="2"/><path d="M9.6 2.8v10.4" /><path d="M11.2 6h1.4M11.2 8h1.4" stroke-linecap="round"/></svg>';
+/** Dust grains thrown when the caret lands (0.43.0). */
+const DUST = 5;
 const AGENTS_SVG =
   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.8"/><circle cx="12" cy="8" r="1.8"/><circle cx="12" cy="13" r="1.8"/><path d="M4 5.3v5.2c0 1.4 1.1 2.5 2.5 2.5h3.7M4 8h6.2"/></svg>';
 
@@ -1186,21 +1222,52 @@ function renderLinks(c: InboxCard, t: Strings): string {
     .join('')}${more > 0 ? `<span class="ib-links-more">+${more}</span>` : ''}</div>`;
 }
 
+/**
+ * The head's window controls (0.43.0). Their state (`aria-pressed` on the fold button, `aria-expanded` /
+ * `aria-controls` on the caret, `aria-current` on the title) is set on the nodes by the element, never written into
+ * this markup — so a toggle never rewrites the face and the caret's hop runs to its end.
+ */
+function renderWinMin(c: InboxCard, t: Strings): string {
+  return `<button type="button" class="ib-win ib-win-min" data-win="min" data-key="${escAttr(`wm:${c.id}`)}" aria-label="${escAttr(
+    t.winMin,
+  )}" title="${escAttr(t.winMin)}" aria-pressed="false">${MIN_SVG}${RESTORE_SVG}</button>`;
+}
+function renderWinTitle(c: InboxCard, t: Strings): string {
+  return `<button type="button" class="ib-title is-detail" data-win="detail" data-key="${escAttr(
+    `wd:${c.id}`,
+  )}" title="${escAttr(t.winDetail)}"><span class="ib-title-text">${esc(
+    c.title,
+  )}</span><span class="ib-peek" aria-hidden="true">${PEEK_SVG}</span></button>`;
+}
+function renderWinCaret(c: InboxCard, t: Strings, hasBody: boolean): string {
+  if (!hasBody) return '';
+  return `<button type="button" class="ib-win ib-win-caret" data-win="expand" data-key="${escAttr(`wx:${c.id}`)}" aria-label="${escAttr(
+    t.winExpand,
+  )}" title="${escAttr(t.winExpand)}" aria-expanded="false"><span class="ib-caret-shadow" aria-hidden="true"></span><span class="ib-caret-lift">${CARET_SVG}</span><span class="ib-dust" aria-hidden="true">${'<i></i>'.repeat(
+    DUST,
+  )}</span></button>`;
+}
+
 function renderFace(
   c: InboxCard,
   t: Strings = STRINGS.en,
   allFollowups = false,
   kidsOpen = false,
   kidsId = '',
+  win: { body: boolean } | null = null,
 ): string {
-  return `<div class="ib-head">${renderLead(c)}<span class="ib-title">${esc(c.title)}</span>${renderBadge(c, t)}${renderStar(
+  const title = win ? renderWinTitle(c, t) : `<span class="ib-title">${esc(c.title)}</span>`;
+  const head = `<div class="ib-head">${win ? renderWinMin(c, t) : ''}${renderLead(c)}${title}${renderBadge(c, t)}${renderStar(
     c,
     t,
-  )}</div>${renderFollowups(c, t, allFollowups)}${renderChildren(c, t, kidsOpen, kidsId)}${faceRows(c)
+  )}${win ? renderWinCaret(c, t, win.body) : ''}</div>`;
+  const rest = `${renderFollowups(c, t, allFollowups)}${renderChildren(c, t, kidsOpen, kidsId)}${faceRows(c)
     .map((r) => renderRow(c, r, t))
     .join('')}<div class="ib-foot"><span class="ib-tag" data-tone="${statusTone(
     statusOf(c),
   )}">${renderStatus(c, t)}</span>${renderMetrics(c, t)}</div>`;
+  // Window controls: everything under the head folds away on one line (a grid row, like the in-place body).
+  return win ? `${head}<div class="ib-rest"><div class="ib-rest-in">${rest}</div></div>` : `${head}${rest}`;
 }
 
 function renderButton(cardId: string, a: InboxAction, primary: boolean): string {
@@ -1265,6 +1332,8 @@ interface Shell {
   parent: string;
   /** The id of its children list (the children toggle's aria-controls, 0.37.0). */
   kids: string;
+  /** It has a body to open in place (the face's or the caret's aria-controls). */
+  hasBody: boolean;
 }
 interface GroupShell {
   el: HTMLElement;
@@ -1344,6 +1413,14 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #cols = new Map<string, ColShell>();
   #order: Record<string, string[]> = Object.create(null);
   #open = new Set<string>();
+  /** 0.43.0 — window controls are on (`data.controls === 'window'`). */
+  #win = false;
+  /** 0.43.0 — cards folded to one line (window controls). A card's `#open` is kept under the fold. */
+  #min = new Set<string>();
+  /** 0.43.0 — folded by their title (`ui-detail`) or `setMinimized(…, { untilRestore })`: `restore()` unfolds them. */
+  #minAuto = new Set<string>();
+  /** 0.43.0 — the card whose detail is shown (`data.current`). */
+  #current = '';
   /** Cards whose follow-up bar shows every line (`+N more` was pressed, 0.34.0). */
   #fuAll = new Set<string>();
   /** The card whose `+N more` was pressed: its first newly shown line takes focus after the render. */
@@ -1371,6 +1448,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #counting = new Map<string, { el: HTMLElement; kind: string; from: number; to: number; t0: number }>();
   #raf = 0;
   #slides = new WeakMap<Element, Animation>();
+  /** A caret's hop in flight (0.43.0): the timer that takes its class off. */
+  #hopTimers = new WeakMap<Element, Timer>();
   /** A glide in flight: its animation, its target (document px) and its starting offset. */
   #glides = new WeakMap<Element, { anim: Animation; x: number; y: number; dx: number; dy: number }>();
   #tCache: { lang: string; over: Record<string, unknown> | null; t: Strings } | null = null;
@@ -1462,10 +1541,46 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const sh = this.#cards.get(id);
     if (!sh) return false;
     // A card with nothing to open is revealed as it is; one the host keeps closed is not.
-    const opens = opts?.open !== false && !this.#open.has(id) && sh.face.hasAttribute('aria-controls');
+    const opens = opts?.open !== false && !this.#open.has(id) && sh.hasBody;
     if (opens && !this.#toggle(id, true)) return false;
     if (opts?.scroll !== false && typeof sh.el.scrollIntoView === 'function') sh.el.scrollIntoView({ block: 'center' });
     return true;
+  }
+
+  /**
+   * 0.43.0 — fold a card to one line, or unfold it, without an event (window controls). `untilRestore` marks the fold
+   * as the host's for a detail it shows: `restore()` undoes it, a press on the card's own controls makes it the
+   * person's. Unfolding clears that mark. Returns true when the card's fold changed.
+   */
+  setMinimized(cardId: string, minimized: boolean, opts: { untilRestore?: boolean } = {}): boolean {
+    const id = String(cardId);
+    const was = this.#min.has(id);
+    if (minimized) {
+      this.#min.add(id);
+      if (!was && opts?.untilRestore === true) this.#minAuto.add(id);
+    } else {
+      this.#min.delete(id);
+      this.#minAuto.delete(id);
+    }
+    const sh = this.#cards.get(id);
+    if (sh && was !== minimized) this.#applyState(sh, id);
+    return was !== minimized;
+  }
+
+  /**
+   * 0.43.0 — the detail of a card folded by its title (or `setMinimized(…, { untilRestore: true })`) is gone: the card
+   * comes back as it was before (its head and rows, open again if it was open). A card the person folded or unfolded
+   * since stays as they left it. Returns true when the card unfolded.
+   */
+  restore(cardId: string): boolean {
+    const id = String(cardId);
+    if (!this.#minAuto.delete(id) || !this.#min.has(id)) return false;
+    return this.setMinimized(id, false);
+  }
+
+  /** 0.43.0 — whether a card is folded to one line now (window controls). */
+  isMinimized(cardId: string): boolean {
+    return this.#min.has(String(cardId));
   }
 
   /**
@@ -1656,6 +1771,12 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       if (col != null && group != null) this.#setGroup(col, group, gh.getAttribute('aria-expanded') !== 'true', e);
       return;
     }
+    const win = target.closest?.('[data-win]');
+    if (win) {
+      const id = this.#cardOf(win);
+      if (id !== null) this.#winPress(id, win.getAttribute('data-win') ?? '', e);
+      return;
+    }
     const face = target.closest?.('.ib-face[role="button"]');
     if (face && !this.#selecting()) {
       const id = this.#cardOf(face);
@@ -1678,7 +1799,64 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const id = li ? li.getAttribute('data-card') : null;
     if (id === null || !this.#open.has(id)) return;
     e.stopPropagation();
-    if (this.#toggle(id, true, e)) this.#cards.get(id)?.face.focus({ preventScroll: true });
+    if (this.#toggle(id, true, e)) this.#focusFace(id);
+  }
+
+  /** After Esc closed a card: its caret (window controls), else its face. */
+  #focusFace(id: string): void {
+    const sh = this.#cards.get(id);
+    if (!sh) return;
+    const caret = this.#win ? sh.face.querySelector<HTMLElement>('[data-win="expand"]') : null;
+    (caret ?? sh.face).focus({ preventScroll: true });
+  }
+
+  /**
+   * A window control (0.43.0). Each does one thing whatever the card shows: `min` folds the card to one line or
+   * brings it back as it was; `detail` (the title) asks for its detail and folds it until `restore()`; `expand` opens
+   * it in place (from one line too) or closes it.
+   */
+  #winPress(id: string, what: string, e: Event): void {
+    const sh = this.#cards.get(id);
+    if (!sh) return;
+    const min = this.#min.has(id);
+    if (what === 'min') {
+      if (!this.emit('ui-minimize', { cardId: id, minimized: !min })) return;
+      this.sound(min ? 'open' : 'close', { emphasis: 'subtle' }, e);
+      this.setMinimized(id, !min);
+      return;
+    }
+    if (what === 'detail') {
+      if (!this.emit('ui-detail', { cardId: id })) return;
+      this.sound('navigate', { emphasis: 'subtle' }, e);
+      if (!min) this.setMinimized(id, true, { untilRestore: true });
+      return;
+    }
+    if (what !== 'expand' || !sh.hasBody) return;
+    if (min) {
+      if (!this.emit('ui-minimize', { cardId: id, minimized: false })) return;
+      this.setMinimized(id, false);
+      if (this.#open.has(id)) this.sound('open', { emphasis: 'subtle' }, e);
+      else if (!this.#toggle(id, false, e)) return;
+      this.#hop(id);
+      return;
+    }
+    const opening = !this.#open.has(id);
+    if (this.#toggle(id, false, e) && opening) this.#hop(id);
+  }
+
+  /** ▽ → △ (0.43.0): the caret hops, grows over its shadow, turns, lands and throws dust. None under reduced motion. */
+  #hop(id: string): void {
+    const caret = this.#cards.get(id)?.face.querySelector<HTMLElement>('[data-win="expand"]');
+    if (!caret || prefersReducedMotion()) return;
+    caret.classList.remove('is-hop');
+    void caret.offsetWidth;
+    caret.classList.add('is-hop');
+    const prev = this.#hopTimers.get(caret);
+    if (prev) clearTimeout(prev);
+    this.#hopTimers.set(
+      caret,
+      setTimeout(() => caret.classList.remove('is-hop'), HOP_MS + 80),
+    );
   }
 
   /**
@@ -1770,7 +1948,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const id = slot.slice(5);
     if (!this.#open.has(id)) return;
     e.stopPropagation();
-    if (this.#toggle(id, true, e)) this.#cards.get(id)?.face.focus({ preventScroll: true });
+    if (this.#toggle(id, true, e)) this.#focusFace(id);
   }
 
   /**
@@ -1779,14 +1957,14 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
    */
   #toggle(id: string, instant: boolean, e?: Event): boolean {
     const sh = this.#cards.get(id);
-    if (!sh || !sh.face.hasAttribute('aria-controls')) return false;
+    if (!sh || !sh.hasBody) return false;
     const open = !this.#open.has(id);
     if (!this.emit('ui-toggle', { cardId: id, expanded: open })) return false;
     if (e) this.sound(open ? 'open' : 'close', { emphasis: 'subtle' }, e);
     if (open) this.#open.add(id);
     else this.#open.delete(id);
     if (instant) sh.el.classList.add('no-motion');
-    this.#applyOpen(sh, open);
+    this.#applyState(sh, id);
     if (instant) {
       void sh.el.offsetHeight;
       sh.el.classList.remove('no-motion');
@@ -1805,10 +1983,39 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     return true;
   }
 
-  #applyOpen(sh: Shell, open: boolean): void {
-    if (sh.el.classList.contains('is-open') !== open) sh.el.classList.toggle('is-open', open);
-    if (sh.face.hasAttribute('aria-controls')) sh.face.setAttribute('aria-expanded', String(open));
+  /**
+   * Draw a card's state on its nodes: open in place (`is-open`), and with window controls (0.43.0) folded to one line
+   * (`is-min` — an open card folded keeps its `#open` and is drawn closed), the current card (`is-current`) and each
+   * control's own state.
+   */
+  #applyState(sh: Shell, id: string): void {
+    const min = this.#win && this.#min.has(id);
+    const open = this.#open.has(id) && !min;
+    flag(sh.el, 'is-open', open);
+    flag(sh.el, 'is-min', min);
+    flag(sh.el, 'is-current', this.#win && this.#current === id);
     sh.expand.toggleAttribute('inert', !open);
+    if (!this.#win) {
+      if (sh.face.hasAttribute('aria-controls')) sh.face.setAttribute('aria-expanded', String(open));
+      return;
+    }
+    const t = this.#t;
+    const set = (el: Element | null, name: string, value: string | null) => {
+      if (!el) return;
+      if (value === null) {
+        if (el.hasAttribute(name)) el.removeAttribute(name);
+      } else if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+    };
+    const fold = sh.face.querySelector('[data-win="min"]');
+    set(fold, 'aria-pressed', String(min));
+    set(fold, 'title', min ? t.winRestore : t.winMin);
+    const caret = sh.face.querySelector('[data-win="expand"]');
+    set(caret, 'aria-expanded', String(open));
+    set(caret, 'aria-controls', sh.expand.id);
+    set(caret, 'title', open ? t.winCollapse : t.winExpand);
+    set(sh.face.querySelector('[data-win="detail"]'), 'aria-current', this.#current === id ? 'true' : null);
+    const rest = sh.face.querySelector('.ib-rest');
+    if (rest) rest.toggleAttribute('inert', min);
   }
 
   // ── Reconciler ──
@@ -1958,6 +2165,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       flip: null,
       parent: '',
       kids: `ib-k${++this.#seq}`,
+      hasBody: false,
     };
   }
 
@@ -2060,6 +2268,16 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const canAnimate = live && typeof HTMLElement.prototype.animate === 'function';
     const openLabel = d?.openLabel === false ? false : typeof d?.openLabel === 'string' ? d.openLabel : t.open;
     const startOpen = new Set((Array.isArray(d?.expanded) ? d.expanded : []).map(String));
+    // 0.43.0 — window controls, the cards that start on one line, the current card.
+    const win = d?.controls === 'window';
+    if (this.#win !== win) {
+      this.#win = win;
+      // Every face is drawn again with (or without) its controls.
+      for (const sh of this.#cards.values()) sh.faceHtml = null;
+    }
+    this.#wrap?.toggleAttribute('data-window', win);
+    const startMin = new Set((Array.isArray(d?.minimized) ? d.minimized : []).map(String));
+    this.#current = win ? str(d?.current) : '';
     const load: InboxLoad = d?.load === 'loading' || d?.load === 'failed' ? d.load : 'ready';
     const ready = load === 'ready';
 
@@ -2179,6 +2397,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
           this.#cards.set(id, sh);
           fresh.add(id);
           if (startOpen.has(id)) this.#open.add(id);
+          if (startMin.has(id)) this.#min.add(id);
         }
         this.#patch(sh, id, all.get(id)!, t, openLabel, live && !reduced);
         sh.col = key;
@@ -2255,7 +2474,11 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     for (const [id, sh] of this.#cards) {
       if (want[id] !== undefined) continue;
       this.#cards.delete(id);
-      if (!all.has(id)) this.#open.delete(id);
+      if (!all.has(id)) {
+        this.#open.delete(id);
+        this.#min.delete(id);
+        this.#minAuto.delete(id);
+      }
       this.#shown.delete(`${id}\u0000tok`);
       this.#shown.delete(`${id}\u0000usd`);
       const from = firstCol.get(id) ?? '';
@@ -2412,7 +2635,19 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     if (this.#fuAll.has(card.id) && cardFollowups(card).length <= FOLLOWUP_MAX_LINES) this.#fuAll.delete(card.id);
     if (this.#kidsOpen.has(id) && !cardChildren(card).length) this.#kidsOpen.delete(id);
-    const face = renderFace(card, t, this.#fuAll.has(card.id), this.#kidsOpen.has(id), sh.kids);
+    // `bodyMode: 'slot'`: the host's light-DOM body is projected here; the slot node itself never changes.
+    const body =
+      card.bodyMode === 'slot'
+        ? `<slot class="ib-slot" name="${escAttr(`body:${id}`)}"></slot>`
+        : renderBody(card, t, openLabel);
+    const face = renderFace(
+      card,
+      t,
+      this.#fuAll.has(card.id),
+      this.#kidsOpen.has(id),
+      sh.kids,
+      this.#win ? { body: !!body } : null,
+    );
     if (sh.faceHtml !== face) {
       sh.face.innerHTML = face;
       sh.faceHtml = face;
@@ -2421,16 +2656,13 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       for (const s of Array.from(sh.face.querySelectorAll<HTMLElement>('.ib-spin'))) s.style.animationDelay = phase;
       this.#countUp(id, sh.face, countUp);
     }
-    // `bodyMode: 'slot'`: the host's light-DOM body is projected here; the slot node itself never changes.
-    const body =
-      card.bodyMode === 'slot'
-        ? `<slot class="ib-slot" name="${escAttr(`body:${id}`)}"></slot>`
-        : renderBody(card, t, openLabel);
     if (sh.bodyHtml !== body) {
       sh.body.innerHTML = body;
       sh.bodyHtml = body;
     }
-    if (body) {
+    sh.hasBody = !!body;
+    // The face is the toggle unless the window controls are on (0.43.0): then the caret is, and the face is inert.
+    if (body && !this.#win) {
       if (sh.face.getAttribute('role') !== 'button') {
         sh.face.setAttribute('role', 'button');
         sh.face.setAttribute('tabindex', '0');
@@ -2438,9 +2670,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       }
     } else if (sh.face.hasAttribute('role')) {
       for (const a of ['role', 'tabindex', 'aria-controls', 'aria-expanded']) sh.face.removeAttribute(a);
-      this.#open.delete(id);
     }
-    this.#applyOpen(sh, this.#open.has(id));
+    if (!body) this.#open.delete(id);
+    this.#applyState(sh, id);
   }
 
   /** Move = translate only, raised while it changes column. Reduced motion: no travel, a fade where it landed. */

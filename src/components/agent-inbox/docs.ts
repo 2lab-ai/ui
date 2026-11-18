@@ -701,6 +701,60 @@ function epicDemo(): HTMLElement {
   return wrap;
 }
 
+/**
+ * 0.43.0 — window controls: − folds a card to one line, the title opens its detail beside the board (here a plain
+ * pane; the card folds until the pane closes), ▽ opens it in place with the hop.
+ */
+function windowDemo(): HTMLElement {
+  const now = Date.now();
+  const cards = boardCards(now).map((c) => ({ ...c, star: { on: c.id === 'notes' } }));
+  let current = '';
+  const el = make({ columns: columnsByStatus(cards), controls: 'window', minimized: ['digest'] });
+  const paint = () => {
+    el.data = { columns: columnsByStatus(cards), controls: 'window', minimized: ['digest'], current };
+  };
+  const pane = document.createElement('aside');
+  pane.style.cssText =
+    'display:none;flex:0 0 260px;padding:14px;border:1px solid var(--ui-border, #ddd);border-radius:12px;font:13px/1.45 system-ui;align-self:flex-start';
+  const said = document.createElement('p');
+  said.style.cssText = 'margin:8px 0 0;font:12px ui-monospace,monospace;opacity:.7';
+  const close = () => {
+    if (current) el.restore(current);
+    current = '';
+    pane.style.display = 'none';
+    paint();
+  };
+  el.addEventListener('ui-detail', (e) => {
+    const { cardId } = (e as CustomEvent<{ cardId: string }>).detail;
+    if (current && current !== cardId) el.restore(current);
+    current = cardId;
+    const c = cards.find((x) => x.id === cardId);
+    pane.innerHTML = '';
+    const h = document.createElement('strong');
+    h.textContent = c?.title ?? cardId;
+    const p = document.createElement('p');
+    p.textContent = 'The detail card. Its board card is on one line until this closes.';
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'Close';
+    b.addEventListener('click', close);
+    pane.append(h, p, b);
+    pane.style.display = 'block';
+    paint();
+  });
+  for (const name of ['ui-detail', 'ui-minimize', 'ui-toggle'])
+    el.addEventListener(name, (e) => {
+      said.textContent = `${name} → ${JSON.stringify((e as CustomEvent).detail)}`;
+    });
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:12px;align-items:flex-start';
+  el.style.flex = '1 1 auto';
+  row.append(el, pane);
+  const wrap = document.createElement('div');
+  wrap.append(row, said);
+  return wrap;
+}
+
 export const doc: ComponentDoc = {
   slug: 'agent-inbox',
   name: 'Agent Inbox',
@@ -953,6 +1007,30 @@ export const doc: ComponentDoc = {
       description: 'Label of the Open button (ui-open); false hides it. Ink when the card has no live primary.',
     },
     {
+      name: 'data.controls',
+      type: "'window'",
+      description:
+        '0.43.0 — window controls on every card head, each doing one thing in every view: − at the left folds the card to its head line (`ui-minimize`; folded it shows ▢, which brings the card back as it was — open again if it was open), the title is a button that asks for the card’s detail elsewhere (`ui-detail`; unless prevented the card folds until `restore()`), and ▽ at the right opens the card in place (`ui-toggle`; it hops, grows over its shadow, turns 180° and lands as △ throwing dust; △ turns back). The rest of the face is no toggle, so its text can be selected. Hover on the title underlines it and slides in a side-panel glyph. Default: the face is the toggle.',
+    },
+    {
+      name: 'data.minimized',
+      type: 'string[]',
+      description:
+        '0.43.0 — card ids that start folded to one line the first time they appear (window controls). Afterwards the person’s presses rule.',
+    },
+    {
+      name: 'data.current',
+      type: 'string',
+      description:
+        '0.43.0 — the card whose detail is shown beside the board (window controls): an accent ring and `aria-current="true"` on its title, and its side-panel glyph stays.',
+    },
+    {
+      name: 'setMinimized(cardId, minimized, { untilRestore? }) / restore(cardId) / isMinimized(cardId)',
+      type: 'methods',
+      description:
+        '0.43.0 — fold or unfold a card without an event. `untilRestore` marks the fold as the host’s for a detail it shows (the title’s own fold is one): `restore(cardId)` undoes only such a fold and returns true when the card unfolded; a press on the card’s own controls in between makes the state the person’s, and `restore` leaves it. `reveal()` opens a folded card’s body under the fold and does not unfold it.',
+    },
+    {
       name: 'view',
       type: "'board' | 'list'",
       description:
@@ -1024,6 +1102,18 @@ export const doc: ComponentDoc = {
         'A child line in an epic’s open children list (`children[]`) was pressed — `cardId` is the epic, `childId` the child’s id. Cancelable. The card does not toggle (nor does the children toggle, which sends nothing).',
     },
     {
+      name: 'ui-minimize',
+      detail: '{ cardId: string; minimized: boolean }',
+      description:
+        '0.43.0 — window controls: − (or ▢) was pressed, or ▽ on a folded card (`minimized: false`). Cancelable. Not sent for the fold that comes with a title press, nor for setMinimized / restore.',
+    },
+    {
+      name: 'ui-detail',
+      detail: '{ cardId: string }',
+      description:
+        '0.43.0 — window controls: the title was pressed — show the card’s detail (a side panel). Cancelable: unless prevented the card folds to one line until `restore(cardId)` (a card already folded stays as it is).',
+    },
+    {
       name: 'ui-group-toggle',
       detail: '{ columnId: string; groupId: string; open: boolean }',
       description:
@@ -1039,6 +1129,7 @@ export const doc: ComponentDoc = {
       'Show the children (focus goes to the first) or hide them — never opens or closes the card',
     ],
     ['Enter / Space on a child line', 'Send ui-child for that child — never opens or closes the card'],
+    ['Tab (window controls)', 'Through each card’s −, title, star and ▽ — the face itself takes no focus'],
     [
       'Esc',
       'Close the open card the focus is in — its own body or the host’s slotted body — and put focus back on it (not from a text field or select)',
@@ -1058,6 +1149,7 @@ export const doc: ComponentDoc = {
     "Families (0.37.0): the connector is aria-hidden and the family mark is colour only — the relationship is also said in words by the epic’s children row (and by a lead the host gives, `{ glyph: 'epic' }`). The mark answers a pointer on hover devices only (a tap leaves none behind) and a keyboard focus while the focus is visible; under forced colours it is an outline in Highlight and the connector GrayText.",
     'The children row (0.37.0) is a toggle button named “Children 4 — Show all children” (“Hide” once open; ko “자식 4 — 자식 모두 보기” / “접기”) with aria-expanded and aria-controls on its list, labelled “Children”, of buttons that read the child’s title then its status word (the dot is aria-hidden). Opening it hands focus to the first child; a child the host drops hands focus to the next one, else the previous one, else the toggle, else the face. Each line is 44px tall on touch.',
     'Attention (0.32.0) is decorative: the waiting is already the status word and the owner the badge’s “(you)”. Its ping is 1.2 s in every 10 s, never a flash (no luminance swing, no more than one a second), stops while the card is open, held while a pointer is over it or a keyboard focus is in it, and is gone under reduced motion.',
+    'Window controls (0.43.0): − is a toggle button named “One line” (ko “한 줄로”) with aria-pressed, its tooltip saying what the next press does (“Restore” once folded); the title is a button named by the title and described by its tooltip “Open detail card”, aria-current on the current card; ▽ is a disclosure named “Expand” with aria-expanded and aria-controls. A folded card’s rows and body are inert. The hop and the dust are transform and opacity only, 560 ms, and none under reduced motion (the caret just turns); the controls are 28px with a 44px hit area on touch.',
     'Sound (opt-in, @2lab.ai/ui/sound): a quiet open / close when the person opens or closes a card or a group (not for reveal()), a tap for an action, a navigate for Open, a softer navigate for a file chip, a follow-up line or a child line (ui-child, 0.37.0); opening or closing an epic’s children list is silent, as “+N more” is. Silent until the page turns sound on.',
   ],
   usage: `<ui-agent-inbox lang="en"></ui-agent-inbox>
@@ -1086,6 +1178,15 @@ export const doc: ComponentDoc = {
         const now = Date.now();
         return make({ columns: columnsByStatus(boardCards(now)), expanded: ['migrate'] });
       },
+    },
+    {
+      id: 'window',
+      title: 'Window controls',
+      description:
+        'data.controls = "window" (0.43.0): − folds a card to one line (▢ brings it back), the title opens its detail beside the board and folds the card until the detail closes, ▽ opens the card in place — it hops, turns and lands as △.',
+      height: 760,
+      frame: false,
+      create: windowDemo,
     },
     {
       id: 'live',
