@@ -61,8 +61,9 @@ function body(p) {
   if (k === 'list') {
     const items = p.items || []; const two = items.length > 5; const right = p.image ? 300 : 44;
     return `${p.image ? img(p.image, 'img main', `right:44px;top:150px;width:236px;height:236px`) : ''}
-    <div class="list${two ? ' two' : ''}" style="left:44px;right:${right}px;top:${p.sub ? 196 : 150}px">${items.map((t, i) => `<div class="it"><span class="no">${i + 1}</span><span class="itx">${marked(t)}</span></div>`).join('')}</div>
-    ${p.sub ? `<div class="sub" style="left:44px;top:146px">${marked(p.sub)}</div>` : ''}`;
+    <div class="lwrap" style="position:absolute;left:44px;right:${right}px;top:146px">
+    <div class="list${two ? ' two' : ''}">${items.map((t, i) => `<div class="it"><span class="no">${i + 1}</span><span class="itx">${marked(t)}</span></div>`).join('')}</div>
+    ${p.sub ? `<div class="sub">${marked(p.sub)}</div>` : ''}</div>`;
   }
   if (k === 'versus') {
     const col = (c, x) => `<div class="vs" style="left:${x}px;width:${Math.round(W / 2) - 90}px"><div class="vlab">${marked(c.label || '')}</div>${img(c.image, 'img vimg')}${lines(c.lines, 'vln')}</div>`;
@@ -82,7 +83,7 @@ function html(p) {
 html,body{margin:0;width:${W}px;height:${H}px;background:#fff;font-family:P,sans-serif;overflow:hidden}
 #head{position:absolute;left:44px;top:34px;right:44px;font-weight:700;font-size:40px;color:#d42a2a;line-height:1.25;word-break:keep-all}
 .img{position:absolute;object-fit:cover;border-radius:6px}
-.txt,.clip,.list,.bigw,.vs,.sub{position:absolute}
+.txt,.clip,.bigw,.vs{position:absolute}
 .src{font-weight:500;font-size:22px;color:#777;line-height:1.35;margin-bottom:22px;word-break:keep-all}
 .ln{font-weight:500;font-size:32px;color:#222;line-height:1.45;margin-bottom:10px;word-break:keep-all}
 .m{font-weight:700;color:#d42a2a}
@@ -96,7 +97,9 @@ html,body{margin:0;width:${W}px;height:${H}px;background:#fff;font-family:P,sans
 .qln{font-weight:500;font-size:34px;color:#222;line-height:1.45;margin-bottom:8px;word-break:keep-all}
 .by{font-weight:500;font-size:20px;color:#888;margin-top:16px}
 .cover{object-fit:contain;background:#f3f3f3;box-shadow:0 4px 14px rgba(0,0,0,.18)}
-.sub{font-weight:500;font-size:24px;color:#777;word-break:keep-all}
+.lwrap{display:flex;flex-direction:column}
+.lwrap .sub{order:-1}
+.sub{font-weight:500;font-size:24px;color:#777;word-break:keep-all;line-height:1.35;margin-bottom:20px}
 .list .it{display:flex;align-items:flex-start;gap:14px;font-weight:500;font-size:30px;color:#222;line-height:1.35;margin-bottom:16px;word-break:keep-all}
 .list.two{columns:2;column-gap:40px}
 .list.two .it{break-inside:avoid;font-size:27px;margin-bottom:14px}
