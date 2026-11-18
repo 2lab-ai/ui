@@ -1,0 +1,79 @@
+# shorts — about-a-minute Shorts (쇼츠) from a stream VOD
+
+One line: 2–3 vertical Shorts of 40–58 s per episode, cut from the live build's whole lines, each built to be watched to the end
+and to send the viewer to the full live stream.
+
+- **Why it is built this way** — `RESEARCH.md` (how the Shorts feed judges a short, the first seconds, the shape of a minute,
+  the ending, the related-video link, the safe zone).
+- **Files** — `shorts.py` (the cut, layout, captions, sound, metadata); the graphics and fonts are the edit's (`edit/cut.py`,
+  `edit/cards.mjs`).
+- **Per episode** — `shorts_plan.py` in the episode folder: one dict per short.
+
+## 1. Make them
+
+```
+python shorts/shorts.py <episode dir> <live build> <out> --plan-only      # lengths only (each must stay under 60 s)
+python shorts/shorts.py <episode dir> <live build> <out> [--only s1]       # ~10 s a short
+```
+
+Out, per short: `short.mp4` (1080x1920, 30 fps, -14 LUFS), `captions_ko.srt`, `meta.json` (title, description, tags, publish
+time, related video, shots, captions, photos), `gfx/` (the cards and the base picture). The render fails if any frame of the
+base picture lacks the stream (`blank_frames`: a shot that starts before its picture shows as a flash of background).
+
+## 2. The plan
+
+```python
+LIVE = 'https://youtu.be/<live VOD>'          # every short's related video and the first link of its description
+SHORTS = [{'id': 's1', 'publish': 'now' | 'YYYY-MM-DD HH:MM',
+           'title': '<YouTube title: the question or the claim, then | book #series>',
+           'hook': '<two short lines on top: what is at stake>',
+           'lines': ['c10', 'c03', ...],      # whole lines, in the order they play; the first one is the spoken hook
+           'hl': {'c07': '그냥 풍경'},         # one phrase per caption in yellow
+           'show': {'c04': (image, label, focus)},  # a photo over that whole line (a blank canvas, the ending's picture)
+           'text': {'c09': '...'},            # caption text when it must differ from the line
+           'end': '<the end card: the open question + where the answer is ▶>',
+           'end_hold': 1.6, 'desc': '...', 'tags': '...'}]
+```
+
+The edit plan's real photos (`BROLL`, `INSERTS`) and canvas punch-ins (`ZOOM`/`Z`) are reused automatically for the lines a
+short contains, so a thing she names shows as its real photo on the word, as in the edit.
+
+## 3. Layout (1080x1920)
+
+| Band | y | What |
+|---|---|---|
+| hook | 288–538 (x 48–888) | series label + the hook in two lines (white, then yellow), the whole short |
+| canvas | 548–1188 | the Paint canvas at 1080:640 (or a punch-in on it), or the real photo (label top left) |
+| captions | 1068–1308 (x 48–888) | big captions over the seam, ≤ 13 characters a line, one phrase yellow; the end card here after the last line |
+| face | 1188–1795 | her face, big (eyes ≈ 1450) |
+| foot | 1780 | the channel name, under the player's own title bar |
+
+Everything that must be read stays inside the Shorts safe zone (`RESEARCH.md` §6).
+
+## 4. Upload and schedule
+
+The schedule (owner, 2026-11-18): short 1 at the same time as the live stream (default 18:00), short 2 at 22:00 the same day,
+short 3 at 16:00 the next day. Each short goes up **private**, then on its edit page:
+
+1. the related video = the live VOD (`related_set.js`). On ep. 1 the channel could not use it: YouTube's advanced features
+   were locked ("2차 영상 인증 실패", retry from 2026-12-18 or appeal). Until then the end card points at the channel home and
+   the description carries the live URL as text with the path (channel name → home → the episode).
+2. Korean captions from `captions_ko.srt`. YouTube may publish an automatic Korean track within minutes; then there is no
+   add button: remove the automatic track (`caps_del_auto.js`, only when the cell says 자동), then add ours (`g_caps_ko.js`),
+   then check the cells (`caps_check.js`).
+3. public now (`vis_set.js`) or scheduled (`sched_any.js`, `<id>|2026. 11. 18.|오후 10:00`).
+
+Scripts: `~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/shorts_upload/` (Aside, run with `run_files.sh`).
+
+## 5. Episode 1 (2026-11-18)
+
+| Short | Idea | Length | Published | Review (3 engines) |
+|---|---|---|---|---|
+| s1 | 들판에 보라색 소가 한 마리 있으면? (hook question → the highway cows → "어떻게 만드냐") | 47.7 s | https://youtube.com/shorts/LztXx76RP8c, public 2026-11-18 13:06 | 88.7 → 91.3 → 92.3 → **90.7** |
+| s2 | '리마커블'의 반대말이 '아주 좋은'? (the plane that landed fine → "이상하기만 하면 되냐") | 37.6 s | https://youtube.com/shorts/wIAuwrXHHPQ, scheduled 2026-11-18 22:00 | 84.7 → 86.3 → 89.7 → **86.3** |
+| s3 | 회의로 고친 제품이 낙타가 되는 이유 (horse → camel → "안전한 게 제일 위험하다" → "어떻게 만드냐") | 28.5 s | https://youtube.com/shorts/vDoSuH1Ly4I, scheduled 2026-11-19 16:00 | 85.3 → 88.3 → 88.3 → **88.7** |
+
+What the panel moved (each fix lives in `shorts.py` or the plan): the hook title must not give the answer away; the CTA card
+comes after the last line, alone, never over the drawing; one idea per short (s3 lost its second story); a photo per
+blank-canvas line and a punch-in on small canvas text; frame 0 carries a caption; captions are drawn over photos. s1's first
+round is not listed: its review script missed the last frame.

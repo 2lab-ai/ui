@@ -293,6 +293,32 @@ def test_edit_music_bed_puts_the_opening_on_the_title_and_the_closing_on_the_end
     assert seg(closed, t_out + 5.0, total) == 0                                                        # the bed does not come back
 
 
+def test_shorts_cut_whole_lines_merge_close_neighbours_and_keep_captions_on_their_lines():
+    """shorts/shorts.py: a short is whole lines; neighbours in source order closer than MERGE stay one shot, a jump back or
+    a long gap is a cut; captions land on the spoken span in output time; captions break at a comma near the middle; an
+    edit punch-in on the canvas is widened to the canvas slot, a punch-in elsewhere falls back to the whole canvas"""
+    sys.path.insert(0, os.path.join(HERE, 'shorts'))
+    import shorts, types
+    V = {'a': ('main', 10.0, 2.0), 'b': ('main', 12.4, 1.0), 'c': ('main', 20.0, 3.0), 'd': ('main', 5.0, 1.0)}
+    segs = shorts.segments(['d', 'a', 'b', 'c'], V)
+    assert [s[2] for s in segs] == [['d'], ['a', 'b'], ['c']]                 # a, b merge (gap 0.08 s); c is far; d came first
+    assert [s[2] for s in shorts.segments(['a', 'b'], V, split=['b'])] == [['a'], ['b']]   # a forced new shot
+    shots, subs, total = shorts.timeline(segs, V)
+    assert abs(total - sum(s[1] - s[0] for s in segs)) < 1e-9 and shots[1]['o0'] == shots[0]['o1']
+    o0, o1, lid = subs[2]
+    assert lid == 'b' and abs(o0 - (shots[1]['o0'] + 12.4 - segs[1][0])) < 1e-9 and abs(o1 - o0 - 1.0) < 1e-9
+    assert shorts.split2('처음 본 소는 신기한데, 백 번째 소는 그냥 풍경이에요.').split('\n')[0].endswith('신기한데,')
+    assert shorts.split2('짧은 말') == '짧은 말'
+    Pe = types.SimpleNamespace(Z={'cows': (100, 290, 960, 540), 'face': (1262, 560, 658, 370)}, ZOOM={'a': 'cows', 'b': 'face'})
+    x, y, w, h = shorts.canvas_box(Pe, 'a')
+    assert (x, w) == (100, 960) and abs(w / h - shorts.W / shorts.SLOT_C[1]) < 0.01 and y >= shorts.CANVAS[1]
+    assert shorts.canvas_box(Pe, 'b') == shorts.BOX and shorts.canvas_box(None, 'a') == shorts.BOX
+    bx, by, bw, bh = shorts.BOX
+    assert abs(bw / bh - shorts.W / shorts.SLOT_C[1]) < 0.01 and by >= shorts.CANVAS[1] and by + bh <= shorts.CANVAS[1] + shorts.CANVAS[3]
+    assert [len(x) <= shorts.CAP_MAX for x, _ in shorts.chunks('갈색 소 한 마리 더 데려다 놓는다고 누가 봐요? 안 보죠.')] == [True, True]
+    assert abs(sum(sh for _, sh in shorts.chunks('갈색 소 한 마리 더 데려다 놓는다고 누가 봐요? 안 보죠.')) - 1) < 1e-9
+
+
 def test_jingle_candidates_write_valid_midi_and_render_when_the_soundfont_is_there():
     """edit/jingles.py: every candidate builds a format-1 MIDI file with notes inside its 5 s; with fluidsynth and the
     SoundFont present, one renders to 5.0 s of 48 kHz stereo at the shared level"""
