@@ -2628,7 +2628,7 @@ describe('window controls (0.43.0, data.controls = window)', () => {
     expect(el.shadowRoot!.activeElement).toBe(ctl(el, 'migrate', 'expand'));
   });
 
-  it('− folds the card to one line (ui-minimize) and ▢ brings it back as it was — open again if it was open', () => {
+  it('− folds the card to one line (ui-minimize) and + brings it back as it was — open again if it was open', () => {
     const el = mount(winBoard());
     const mins = events(el, 'ui-minimize');
     const c = card(el, 'migrate');
@@ -2804,6 +2804,8 @@ describe('window controls (0.43.0, data.controls = window)', () => {
       /@keyframes ib-hop \{[^@]*100% \{ transform: translateY\(0\) scale\(1\) rotate\(180deg\); \}\n\}/,
     );
     expect(css).toMatch(/\.ib-win-caret\[aria-expanded="true"\] \.ib-caret-lift \{ transform: rotate\(180deg\); \}/);
+    // The dust waits out its delay unseen (forwards, not both: no grain sits under the caret before it lands).
+    expect(css).toMatch(/\.ib-win-caret\.is-hop \.ib-dust i \{ animation: ib-dust 320ms [^;]* 392ms forwards; \}/);
     expect(css).toMatch(/@media \(hover: hover\) and \(pointer: fine\) \{\s*\.ib-win:hover/);
     expect(css).toMatch(
       /@media \(pointer: coarse\), \(max-width: 639px\) \{ \.ib-win::before \{ content: ''; position: absolute; inset: -8px; \} \}/,

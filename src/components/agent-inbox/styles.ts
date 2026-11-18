@@ -561,7 +561,8 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-dust i:nth-child(5) { --dx: 12px; --dy: -1px; inline-size: 2px; block-size: 2px; }
 .ib-win-caret.is-hop .ib-caret-lift { animation: ib-hop ${HOP_MS}ms cubic-bezier(0.3, 0.7, 0.4, 1) both; }
 .ib-win-caret.is-hop .ib-caret-shadow { animation: ib-hop-shadow ${HOP_MS}ms ease both; }
-.ib-win-caret.is-hop .ib-dust i { animation: ib-dust 320ms cubic-bezier(0.2, 0.8, 0.3, 1) ${Math.round(HOP_MS * 0.7)}ms both; }
+/* forwards, not both: during its delay a grain keeps its own opacity 0 — no dust sits under the caret before it lands. */
+.ib-win-caret.is-hop .ib-dust i { animation: ib-dust 320ms cubic-bezier(0.2, 0.8, 0.3, 1) ${Math.round(HOP_MS * 0.7)}ms forwards; }
 @keyframes ib-hop {
   0% { transform: translateY(0) scale(1) rotate(0deg); }
   28% { transform: translateY(-7px) scale(1.35) rotate(0deg); filter: drop-shadow(0 4px 3px color-mix(in srgb, var(--ib-text) 30%, transparent)); }
