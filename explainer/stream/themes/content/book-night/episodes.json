@@ -8,8 +8,8 @@
    "date": "2026-11-17",
    "first_stream": true,
    "book": {
-    "url": "pending — 2026-11-18 21:35 KST upload hit the channel's daily upload limit; cron book-ep01-upload-retry retries every 30 min (upload/book_publish.sh) and schedules 2026-11-19 18:00 KST",
-    "publish": "2026-11-19 18:00 KST (scheduled once the upload goes through)",
+    "url": "https://youtu.be/QtzHaqOgT5Q",
+    "publish": "2026-11-19 18:00 KST (scheduled; uploaded 2026-11-19 03:44 KST after the channel daily upload limit blocked 21:35-03:11 on 11-18; cron book-ep01-upload-retry)",
     "length": "30:26",
     "title": "[책듣는밤 1화] 보랏빛 소가 온다 한 권 다 읽어드림 (스트리밍 북) | 세스 고딘",
     "folder": "episodes/01-purple-cow/book",
@@ -21,7 +21,10 @@
     "syllables": 8706,
     "joke_share": "21% of lines (88), 11 laughs",
     "news": "두쫀쿠·탕후루·유행 반감기, 성심당, 다이소, 크래커 배럴, 카카오톡 친구탭, 챗GPT, 케데헌, 포켓몬 카드, 진로이즈백, 지상파 광고 -17% (research_news.md)",
-    "review": "b1 73.3/73.0 → b3 77.3/76.0 → b4 75.7/76.0 → b5 77.3/86.3 (mean 81.8; gemini 68 vs 97 between runs)"
+    "review": "b1 73.3/73.0 → b3 77.3/76.0 → b4 75.7/76.0 → b5 77.3/86.3 (mean 81.8; gemini 68 vs 97 between runs)",
+    "captions": "ko, en",
+    "title_en": "[Book Night #1] Purple Cow by Seth Godin — the whole book in 30 min (Streaming Book)",
+    "thumbnail": "set (thumb_ep01_book_ko); playlist 📖 책듣는밤 | 벽돌책 30분 대신 읽기"
    },
    "book_en": "Purple Cow",
    "author": "세스 고딘 (Seth Godin)",
