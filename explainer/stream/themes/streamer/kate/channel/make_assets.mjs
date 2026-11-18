@@ -117,6 +117,31 @@ const thumbEdit = (lang) => {
   <div class="abs" style="left:46px;top:600px;background:${C.purple};color:#fff;font-weight:800;font-size:44px;padding:6px 22px;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.4)">${T.sub}</div>
   </body>` };
 };
+// ---------------- episode 1 streaming book thumbnail 1280x720: the real purple cow + a stack of prepared pages + "스트리밍 북"
+const thumbBook = (lang) => {
+  const T = lang === 'ko'
+    ? { badge: '책듣는밤 1화', ed: '스트리밍 북', title: '보랏빛 소가 온다', sub: '한 권 다 읽어드림 · 30분', hook: '80%' }
+    : { badge: 'BOOK NIGHT #1', ed: 'STREAMING BOOK', title: 'PURPLE COW', sub: 'The whole book · 30 min', hook: '80%' };
+  return { w: 1280, h: 720, html: `${HEAD}<body style="width:1280px;height:720px;position:relative;background:#1a1426;overflow:hidden">
+  <img class="abs" src="${SRC}purple_cow_field.jpg" style="left:-120px;top:-170px;width:1520px;filter:saturate(1.05)">
+  <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(20,8,40,.94) 0%,rgba(20,8,40,.62) 44%,rgba(20,8,40,.05) 70%)"></div>
+  ${[0, 1, 2].map(i => `<div class="abs" style="left:${50 + i * 40}px;top:${118 + i * 30}px;width:330px;height:200px;background:#fff;border-radius:6px;box-shadow:0 8px 22px rgba(0,0,0,.45);transform:rotate(${-7 + i * 5}deg);padding:16px 18px;box-sizing:border-box">
+    <div style="font-weight:800;font-size:24px;color:#d42a2a;line-height:1.2">${['리마커블의 반대말은?', '안전한 게 제일 위험하다', '가장자리로 가라'][i]}</div>
+    <div style="margin-top:14px;height:10px;width:70%;background:#ddd;border-radius:5px"></div><div style="margin-top:10px;height:10px;width:85%;background:#ddd;border-radius:5px"></div>
+    <div style="margin-top:10px;height:10px;width:55%;background:#f0b4b4;border-radius:5px"></div></div>`).join('')}
+  <img class="abs" src="${SRC}bust_smile_left.png" style="left:900px;top:235px;width:460px">
+  <div class="abs" style="left:1010px;top:40px;transform:rotate(6deg);font-weight:800;font-size:96px;color:#ffe14d;-webkit-text-stroke:3px #111;text-shadow:4px 6px 0 #111">${T.hook}</div>
+  <div class="abs" style="left:40px;top:30px;display:flex;gap:12px">
+    <div style="background:${C.amber};color:${C.night};font-weight:800;font-size:40px;padding:6px 20px;border-radius:10px">${T.badge}</div>
+    <div style="background:${C.purple};color:#fff;font-weight:800;font-size:40px;padding:6px 20px;border-radius:10px">${T.ed}</div>
+  </div>
+  <div class="abs" style="left:40px;top:${lang === 'ko' ? 450 : 430}px;white-space:nowrap;font-weight:800;font-size:${lang === 'ko' ? 100 : 128}px;line-height:1.0;color:#fff;
+       -webkit-text-stroke:3px #2a0f33;text-shadow:6px 8px 0 ${C.purple},0 12px 30px rgba(0,0,0,.6);letter-spacing:${lang === 'ko' ? '-2px' : '2px'}">${T.title}</div>
+  <div class="abs" style="left:46px;top:600px;background:#ffe14d;color:#1a1426;font-weight:800;font-size:44px;padding:6px 22px;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.4)">${T.sub}</div>
+  </body>` };
+};
+A.thumb_ep01_book_ko = () => thumbBook('ko');
+A.thumb_ep01_book_en = () => thumbBook('en');
 A.thumb_ep01_edit_ko = () => thumbEdit('ko');
 A.thumb_ep01_edit_en = () => thumbEdit('en');
 A.thumb_ep01_ko = () => thumb1('ko');

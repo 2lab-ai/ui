@@ -56,6 +56,8 @@ class Builder:
         self.jumps = []        # (t, seconds skipped) edited-VOD jump cuts
         self.images = []       # page URLs of pictures pasted onto the canvas (stage.js loads them before frame 0)
         self.talk_busy = []
+        self.toc_ev = []       # (t, index) the part of the book now being explained (a solo recording's contents panel)
+        self.solo = False      # no audience (streaming theme "solo"): no chat, no donations; the rig never glances at a chat box
 
     # ---------------- voices
     def dur(self, lid):
@@ -244,7 +246,7 @@ class Builder:
         self.hand_t += rng.uniform(0.1, 0.25)
         t = self.click()
         bid = len(self.text_boxes); self.text_boxes[bid] = {'x': x, 'y': y, 'size': size}
-        self.ops.append((t + 0.06, {'op': 'tb_open', 'x': x, 'y': y, 'size': size, 'minw': minw}))
+        self.ops.append((t + 0.06, {'op': 'tb_open', 'x': x, 'y': y, 'size': size, 'minw': minw, 'col': self.color}))   # Paint types in colour 1
         self.hand_t = t + rng.uniform(0.3, 0.5)
         return bid
 
@@ -337,6 +339,10 @@ class Builder:
         return t + 0.12
 
     # ---------------- overlays
+    def chapter(self, i, at=None):
+        """the contents panel lights part i of the beats' TOC (a solo recording, streaming theme studio)"""
+        self.toc_ev.append(((self.t if at is None else at), i))
+
     def msg(self, user, text, dt=0.0, at=None):
         self.chat.append(((self.t if at is None else at) + dt, user, text))
 
@@ -390,7 +396,9 @@ def build(beats_path, audio_dir, outdir, cfg):
     B = Builder(audio_dir)
     B.lip_floor = {role: c.get('lip_floor', 0.82) for role, c in cast.items()}
     B.afk_style = cast['main'].get('afk_style', 'walk'); B.afk_t = AFK_TIMING[B.afk_style]   # beats time the chair/key sounds from B.afk_t
+    solo = B.solo = bool(cfg['streaming'].get('solo'))
     mod.script(B, rng)
+    if solo and (B.chat or B.alerts or B.brb): raise SystemExit('a solo recording (streaming theme %s) has no audience: no chat, donation or BRB' % cfg['streaming']['_id'])
     T = max(B.t, B.hand_t) + mod.TAIL
     N = int(T * FPS)
     # cursor per frame
@@ -519,7 +527,8 @@ def build(beats_path, audio_dir, outdir, cfg):
         return ucol[u]
     r = lambda a: [round(float(x), 3) for x in a]
     tl = {
-        'clock0': mod.CLOCK0, 'viewers': viewers,
+        'clock0': getattr(mod, 'CLOCK0', 0), 'viewers': viewers,
+        'toc': {'items': list(getattr(mod, 'TOC', [])), 'ev': [{'f': int(t * FPS), 'i': i} for t, i in sorted(B.toc_ev)]} if getattr(mod, 'TOC', None) else None,
         'chat': [dict({'f': int(t * FPS), 'u': '', 'c': col(u), 'm': m}, **({'b': BADGE[u][0], 'bc': BADGE[u][1]} if u in BADGE else {})) for t, u, m in sorted(B.chat)],
         'alerts': [{'f0': int(a['t0'] * FPS), 'f1': int(a['t1'] * FPS), 'user': a['user'], 'amt': a['amt'], 'msg': a['msg'], 'em': a['em']} for a in B.alerts],
         'brb': {'f0': int(B.brb[0] * FPS), 'f1': int(B.brb[1] * FPS), 'secs': getattr(mod, 'BRB_SECS', 300)} if B.brb else None,
@@ -538,13 +547,16 @@ def build(beats_path, audio_dir, outdir, cfg):
     mix = {'audio_dir': os.path.abspath(audio_dir), 'sfx': {k: TH.cache_path(v) for k, v in sr['room'].get('sfx', {}).items()},
            'bgm': TH.cache_path(sr['room']['bgm']['file']), 'bgm_db': sr['room']['bgm'].get('db', -27),
            'donation_tts': st.get('donation_tts', {}), 'extra': dict(cast.get('sis', {}).get('whisper', {}), hard_drop=getattr(mod, 'WHISPER_HARD_DROP', []))}
-    review = dict(getattr(mod, 'REVIEW', {}), rubric=st.get('review', []) + sr.get('review', []) + ct.get('review', []),
+    # a solo recording is judged on its own lines: each theme may give 'review_solo' (the live lines score chat, AFK, typing)
+    rk = lambda th: th.get('review_solo', th.get('review', [])) if solo else th.get('review', [])
+    review = dict(getattr(mod, 'REVIEW', {}), rubric=rk(st) + rk(sr) + rk(ct),
                   facts=st.get('review_facts', []) + sr.get('review_facts', []) + ct.get('review_facts', []),
+                  goal=st.get('review_goal', ''), solo=solo,
                   roles={role: c.get('label', role) for role, c in cast.items()}, themes={k: cfg[k]['_id'] for k in TH.KINDS})
     ev = {'T': T, 'jumps': B.jumps, 'voices': B.voices, 'sfx': sorted(B.sfx, key=lambda s: s[0]), 'afk': B.afk, 'brb': B.brb, 'sis': B.sis_win,
           'mix': mix, 'review': review}
     json.dump(ev, open(os.path.join(outdir, 'events.json'), 'w'), ensure_ascii=False, indent=0)
-    print(f'frames {N} ({T:.1f}s), ops {len(ops)}, chat {len(B.chat)}, sfx {len(B.sfx)}, voices {len(B.voices)}')
+    print(f'frames {N} ({T:.1f}s), ops {len(ops)}, chat {len(B.chat)}, sfx {len(B.sfx)}, voices {len(B.voices)}' + (f', parts {len(B.toc_ev)}' if B.toc_ev else ''))
 
 
 if __name__ == '__main__':

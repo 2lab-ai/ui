@@ -147,8 +147,9 @@ ssot_p = os.path.join(B, 'ssot.txt'); note_p = os.path.join(B, 'review_note.txt'
 TODAY = ('SSOT(유저 원문 요구사항): ' + open(ssot_p).read()) if os.path.exists(ssot_p) else ''
 NOTE = open(note_p).read() if os.path.exists(note_p) else ''
 keys_json = '{' + ', '.join(f'"{i + 1}": n' for i in range(len(rub))) + '}'
-PROMPT = f"""당신은 버튜버 방송과 영상 제작을 잘 아는 냉정한 외부 리뷰어입니다. 아래는 방송 다시보기 형식 영상 데모({VER})입니다.
-목표: 보는 사람이 '진짜 버튜버 라이브 영상 녹화본인가?' 하고 의문이 들 정도여야 함. 영상 길이 {T:.0f}초, 1920x1080 30fps.
+# the streaming theme may set the goal (a solo recording is not trying to pass as a live VOD; studio: a dense book explainer)
+GOAL = RV.get('goal') or "아래는 방송 다시보기 형식 영상 데모({ver})입니다.\n목표: 보는 사람이 '진짜 버튜버 라이브 영상 녹화본인가?' 하고 의문이 들 정도여야 함."
+PROMPT = f"""당신은 버튜버 방송과 영상 제작을 잘 아는 냉정한 외부 리뷰어입니다. {GOAL.format(ver=VER)} 영상 길이 {T:.0f}초, 1920x1080 30fps.
 {TODAY}
 
 제공 자료: 아래 이미지들(균등 샘플 시트, 핵심 장면 키프레임, 연속 프레임 스트립, 증거 차트)과 대본 타임라인, 오디오 측정치.
