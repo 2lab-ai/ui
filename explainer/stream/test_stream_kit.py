@@ -309,6 +309,10 @@ def test_shorts_cut_whole_lines_merge_close_neighbours_and_keep_captions_on_thei
     assert lid == 'b' and abs(o0 - (shots[1]['o0'] + 12.4 - segs[1][0])) < 1e-9 and abs(o1 - o0 - 1.0) < 1e-9
     assert shorts.split2('처음 본 소는 신기한데, 백 번째 소는 그냥 풍경이에요.').split('\n')[0].endswith('신기한데,')
     assert shorts.split2('짧은 말') == '짧은 말'
+    caps = shorts.captions([(0.1, 5.0, 'a'), (5.05, 7.0, 'b')], lambda l: '고속도로 옆 들판에 소들이 쭉 있는 거예요. 동화책에 나오는 그런 소.' if l == 'a' else '짧은 말', 8.0)
+    assert caps[0][0] == 0.0 and len(caps) == 3                                       # frame 0 has a caption; the long line is two
+    assert all(a[1] <= b[0] + 1e-9 for a, b in zip(caps, caps[1:]))                   # never two captions at once
+    assert abs(caps[-1][1] - 7.12) < 1e-9                                             # the last one keeps its tail
     Pe = types.SimpleNamespace(Z={'cows': (100, 290, 960, 540), 'face': (1262, 560, 658, 370)}, ZOOM={'a': 'cows', 'b': 'face'})
     x, y, w, h = shorts.canvas_box(Pe, 'a')
     assert (x, w) == (100, 960) and abs(w / h - shorts.W / shorts.SLOT_C[1]) < 0.01 and y >= shorts.CANVAS[1]
@@ -317,6 +321,24 @@ def test_shorts_cut_whole_lines_merge_close_neighbours_and_keep_captions_on_thei
     assert abs(bw / bh - shorts.W / shorts.SLOT_C[1]) < 0.01 and by >= shorts.CANVAS[1] and by + bh <= shorts.CANVAS[1] + shorts.CANVAS[3]
     assert [len(x) <= shorts.CAP_MAX for x, _ in shorts.chunks('갈색 소 한 마리 더 데려다 놓는다고 누가 봐요? 안 보죠.')] == [True, True]
     assert abs(sum(sh for _, sh in shorts.chunks('갈색 소 한 마리 더 데려다 놓는다고 누가 봐요? 안 보죠.')) - 1) < 1e-9
+
+
+def test_shorts_cards_carry_no_ai_template_tells():
+    """shorts/RESEARCH.md §10: the frame is black, the title is plain heavy white type with at most one flat-coloured word,
+    and no card has a gradient, an emoji, a pill or a series line (the owner called v1 'AI slop')"""
+    sys.path.insert(0, os.path.join(HERE, 'shorts'))
+    import shorts, re
+    emoji = re.compile('[\U0001F300-\U0001FAFF\u2600-\u27BF]')
+    cards = [shorts.html_bg(), shorts.html_hook('소가 풍경이 되는 데\n걸리는 시간', '풍경'), shorts.html_hook('리마커블의 반대말', '반대말'),
+             shorts.html_cap('갈색 소 한 마리 더 데려다 놓는다고', 'main', '갈색'), shorts.html_end('풀버전은 채널 홈에서', '채널 홈'),
+             shorts.html_photo('file:///x.jpg', '길가 목장의 소들')]
+    for h in cards:
+        body = h.split('</style>', 1)[1]
+        assert 'gradient' not in body and 'border-radius' not in body and not emoji.search(body), body[:120]
+    assert 'background:#000' in cards[0]
+    hook = cards[1].split('</style>', 1)[1]
+    assert 'text-shadow' not in hook and hook.count('#ffe14d') == 1 and 'font-family:PB' in hook   # one coloured word, no outline
+    assert shorts.fit(['리마커블의 반대말'], 970, 128) > 100                                          # big: it fills the band
 
 
 def test_jingle_candidates_write_valid_midi_and_render_when_the_soundfont_is_there():

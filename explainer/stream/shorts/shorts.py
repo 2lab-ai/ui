@@ -1,12 +1,12 @@
 """Live-stream VOD -> 9:16 Shorts of about a minute (쇼츠), cut from the live build by the episode's shorts_plan.py.
 
 Each short is a list of whole lines from the stream, jump-cut, laid out for a phone (1080x1920):
-  top     the hook title (the first thing read, stays the whole short) over a small series label
+  top     the title: a few words of plain heavy white type on black, one word in one colour (stays the whole short)
   middle  the Paint canvas (or the real photo of the thing she names, from the edit plan's BROLL/INSERTS)
   lower   her face, big
   seam    big captions over her hat, inside the Shorts safe zone
-  end     a pointer to the full live stream (the Short's related-video link goes there)
-Why it is built this way: shorts/RESEARCH.md. The live link itself is set at upload (YouTube's related-video field).
+  end     the last words on screen say where the full live stream is (set like a caption)
+Why it is built this way: shorts/RESEARCH.md (§10: the look, from 56 real clip Shorts). The live link itself is set at upload (YouTube's related-video field).
 
 usage: python shorts.py <episode dir> <live build> <out dir> [--only s1,s2] [--plan-only]
    -> <out>/<id>/short.mp4, captions_ko.srt, meta.json (title, description, publish time)"""
@@ -22,11 +22,13 @@ CANVAS = (94, 262, 1100, 700)        # the Paint canvas on the 1920x1080 live fr
 FACE = (1262, 600, 658, 370)         # her face, a little lower than the edit's 'face' so the hat brim and eyes both fit
 # RESEARCH.md §6: text that must be read stays in x 48..888, y 288..1248 (the player's top icons, right button rail and
 # bottom title bar cover the rest); her eyes may sit down to ~1530
+# real clip Shorts put the title at y ~150-450 (§10); the text itself starts below ~280
 SAFE_X, SAFE_W = 48, 840
-TITLE_Y, TITLE_H = 288, 250          # hook band 288..538
-SLOT_C = (548, 640)                  # canvas slot 548..1188 (full width; the canvas crop is widened to 1080:640)
-SLOT_F = (1188, 607)                 # face slot 1188..1795, her eyes at ~1450
-CAP_Y, CAP_H = 1068, 240             # captions over the seam 1068..1308, in the safe column
+TITLE_Y, TITLE_H = 200, 300          # title band 200..500 on the black frame
+TITLE_X, TITLE_W = 40, 1000          # nearly full width like real clips: the button rail starts far lower, the top icons sit higher
+SLOT_C = (520, 640)                  # canvas slot 520..1160 (full width; the canvas crop is widened to 1080:640)
+SLOT_F = (1160, 607)                 # face slot 1160..1767, her eyes at ~1420
+CAP_Y, CAP_H = 1040, 240             # captions over the seam 1040..1280, in the safe column
 PRE, POST, MERGE = 0.10, 0.22, 0.45  # pad around a line; lines closer than MERGE in the source stay one shot
 CAP_MAX = 26                         # characters on screen at once (2 lines of <= ~13, RESEARCH.md §3); longer lines play as 2 captions
 BOX = (CANVAS[0], CANVAS[1] + (CANVAS[3] - round(CANVAS[2] * SLOT_C[1] / W)) // 2, CANVAS[2], round(CANVAS[2] * SLOT_C[1] / W))   # the whole canvas at the slot's shape
@@ -63,6 +65,21 @@ def chunks(text, n=CAP_MAX):
     return [(x, len(x) / tot) for x, _ in out]
 
 
+def captions(subs, text_of, end, tail=0.12):
+    """[(o0, o1, line, text)] on screen: a long line as consecutive chunks timed by length; the first caption from frame 0
+    (frame 0 is the thumbnail); each held `tail` s past its words but never into the next caption (two captions overlapping
+    for a few frames read as garbage)"""
+    caps = []
+    for o0, o1, lid in subs:
+        t = o0
+        for txt, share in chunks(text_of(lid)):
+            caps.append([0.0 if not caps else t, t + (o1 - o0) * share, lid, txt]); t += (o1 - o0) * share
+    for k, c in enumerate(caps):
+        nxt = caps[k + 1][0] if k + 1 < len(caps) else end
+        c[1] = min(c[1] + tail, nxt, end)
+    return [tuple(c) for c in caps]
+
+
 def split2(text, n=15):
     """a caption on at most two lines, broken at a space near the middle; a space after punctuation wins when it is close
     enough (so '신기한데, / 백 번째 소는' rather than '백 / 번째'); Korean keeps words whole"""
@@ -73,45 +90,55 @@ def split2(text, n=15):
     return text[:cut] + '\n' + text[cut + 1:]
 
 
+# The look of real Korean clip Shorts (RESEARCH.md §10: 56 shorts sampled 2026-11-18): a black frame; the title in plain heavy
+# white type, at most one word in one flat colour; captions white with a black outline. No gradients, glows, emoji, pills or
+# series badges: the owner called the first version (purple gradient, emoji series label, gradient-filled outlined title,
+# emoji pill cards) "AI slop".
+SHEAD = E.HEAD.replace('</style>', '@font-face{font-family:PB;src:url(' + E.FONT + 'Pretendard-Black.woff2);font-weight:900}\n</style>')
+EM = lambda c: 1.0 if '\uac00' <= c <= '\ud7a3' else (0.32 if c == ' ' else 0.6)   # rough glyph widths in em (Hangul, space, other)
+
+
+def fit(lines, width, cap):
+    """the font size at which the widest line fills `width`, at most `cap`"""
+    return int(min(cap, width / max(sum(EM(c) for c in x) for x in lines)))
+
+
 def html_cap(text, who, key=''):
-    fill, line, fam, wt = ('#ffffff', '#3b1a6b', 'P', 'font-weight:900;') if who != 'sis' else ('#ffd6ea', '#7a1f4f', 'JU', '')
+    fam, fill = ('PB', '#ffffff') if who != 'sis' else ('JU', '#ffd6ea')
     body = '<br>'.join(E.hl(x, key) for x in split2(text, 13).split('\n'))
-    return E.HEAD + f"""<body style="width:{SAFE_W}px;height:{CAP_H}px;display:flex;align-items:center;justify-content:center">
-<div style="max-width:{SAFE_W - 10}px;text-align:center;font-family:{fam};{wt}font-size:64px;line-height:1.18;color:{fill};text-shadow:{E.ring(7, line)},0 8px 16px rgba(0,0,0,.5);
+    return SHEAD + f"""<body style="width:{SAFE_W}px;height:{CAP_H}px;display:flex;align-items:center;justify-content:center">
+<div style="max-width:{SAFE_W - 10}px;text-align:center;font-family:{fam};font-weight:900;font-size:62px;line-height:1.2;color:{fill};text-shadow:{E.ring(5, '#000')};
 word-break:keep-all">{body}</div></body>"""
 
 
-def html_hook(hook, series):
-    a, b = (hook.split('\n', 1) + [''])[:2]
-    size = min(84, int((SAFE_W - 30) / max(len(a), len(b), 1)))   # Hangul ~1 em wide: the longer line fits the column
-    return E.HEAD + f"""<body style="width:{SAFE_W}px;height:{TITLE_H}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
-<div style="font-weight:800;font-size:30px;color:#ffb35c;letter-spacing:1px;white-space:nowrap">{E.esc(series)}</div>
-{E.stacked(a, 'BH', size, '#ffffff', '#1d0b3a', 7)}{E.stacked(b, 'BH', size, 'linear-gradient(180deg,#fff27a 10%,#ffb000 90%)', '#1d0b3a', 7) if b else ''}</body>"""
+def html_hook(hook, key=''):
+    """the title: one or two short lines of heavy white type on the black frame, `key` (a word in it) in the accent colour"""
+    lines = hook.split('\n')[:2]
+    size = fit(lines, TITLE_W - 30, 128)
+    body = '<br>'.join(E.hl(x, key) for x in lines)
+    return SHEAD + f"""<body style="width:{TITLE_W}px;height:{TITLE_H}px;display:flex;align-items:center;justify-content:center">
+<div style="font-family:PB;font-weight:900;font-size:{size}px;line-height:1.16;letter-spacing:-2px;color:#fff;text-align:center;white-space:nowrap">{body}</div></body>"""
 
 
 def html_photo(src, label, focus=(0.5, 0.5)):
+    """the real thing in the canvas slot; a plain small label (what the photo is) in white with a black outline"""
     fx, fy = focus
-    lab = f"""<div style="position:absolute;left:24px;top:22px;background:rgba(20,10,40,.82);color:#fff;font-weight:800;font-size:38px;padding:8px 20px;
-border-radius:14px;border:3px solid #ffe14d;white-space:nowrap">{E.esc(label)}</div>""" if label else ''
-    return E.HEAD + f"""<body style="width:{W}px;height:{SLOT_C[1]}px;position:relative;overflow:hidden">
+    lab = f"""<div style="position:absolute;left:22px;top:18px;font-family:PB;font-weight:900;font-size:34px;color:#fff;text-shadow:{E.ring(4, '#000')};
+white-space:nowrap">{E.esc(label)}</div>""" if label else ''
+    return SHEAD + f"""<body style="width:{W}px;height:{SLOT_C[1]}px;position:relative;overflow:hidden">
 <img src="{src}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:{fx * 100:.0f}% {fy * 100:.0f}%">{lab}</body>"""
 
 
-def html_end(text):
-    """the last seconds' card: the open question's answer is in the full live stream, and the link is just below (the
-    related-video link sits under the channel name), so it points down"""
-    size = min(56, int((SAFE_W - 90) / max(1, len(text))))
-    return E.HEAD + f"""<body style="width:{SAFE_W}px;height:200px;display:flex;align-items:center;justify-content:center">
-<div style="background:#ffe14d;color:#1d0b3a;font-family:BH;font-size:{size}px;padding:16px 30px;border-radius:24px;border:6px solid #1d0b3a;
-box-shadow:0 12px 30px rgba(0,0,0,.45);white-space:nowrap">{E.esc(text)} 👇</div></body>"""
+def html_end(text, key=''):
+    """the last words on screen after the last line: where the full stream is, set like a caption (no card, no emoji)"""
+    return html_cap(text, 'main', key)
 
 
-def html_bg(label):
-    return E.HEAD + f"""<body style="width:{W}px;height:{H}px;background:linear-gradient(180deg,#1d0b3a 0%,#140824 45%,#0d0618 100%)">
-<div style="position:absolute;left:0;right:0;top:{H - 140}px;text-align:center;font-weight:700;font-size:30px;color:rgba(255,255,255,.35)">{E.esc(label)}</div></body>"""
+def html_bg():
+    return SHEAD + f"""<body style="width:{W}px;height:{H}px;background:#000"></body>"""
 
 
-def photos(EP, P, lines, V, marks, shots, show=None):
+def photos(EP, P, lines, V, marks, shots, show=None, skip=()):
     """the edit plan's real photos (BROLL, INSERTS) whose line is in this short, placed in the canvas slot at the same word;
     plus the short's own `show` = {line: (image, label, focus)}: a photo over that whole line (a blank canvas there, or the
     picture the ending needs), held through the end card when it is the last line"""
@@ -121,10 +148,11 @@ def photos(EP, P, lines, V, marks, shots, show=None):
             _, t, d = V[lid]
             o0 = sh['o0'] + max(0.0, t - PRE - sh['s0']); o1 = sh['o0'] + min(sh['s1'], t + d + POST) - sh['s0']
             if sh is shots[-1] and lid == sh['lines'][-1]: o1 = 1e6
-            out.append({'img': os.path.join(EP, img), 'label': lab, 'focus': foc, 'o0': o0, 'o1': o1})
+            out.append({'img': os.path.join(EP, img), 'label': lab.replace('📷', '').strip(), 'focus': foc, 'o0': o0, 'o1': o1})
     if not P: return out
     for b in list(getattr(P, 'BROLL', [])) + list(getattr(P, 'INSERTS', [])):
         kind, ref, frac = b['at']
+        if ref in skip: continue   # the short frames this line itself (its own photo or a punch-in)
         if kind == 'line' and ref in lines: _, t, d = V[ref]; ts = t + frac * d
         elif kind == 'mark' and ref in marks: ts = marks[ref] + frac
         else: continue
@@ -132,8 +160,7 @@ def photos(EP, P, lines, V, marks, shots, show=None):
         if not sh: continue
         o0 = sh['o0'] + ts - sh['s0']; o1 = min(o0 + b['dur'], sh['o1'])
         if o1 - o0 < 0.6: continue
-        lab = b.get('label', '')
-        if lab and not lab.startswith('📷'): lab = '📷 ' + lab
+        lab = b.get('label', '').replace('📷', '').strip()   # the edit's labels carry a camera emoji; shorts do not
         out.append({'img': os.path.join(EP, b['image']), 'label': lab, 'focus': b.get('focus', b.get('crop', (0.5, 0.5))), 'o0': o0, 'o1': o1})
     return out
 
@@ -164,7 +191,7 @@ def blank_frames(video):
 def render(S, EP, BD, out, P, Pe, V, L, marks):
     os.makedirs(out, exist_ok=True); G = os.path.join(out, 'gfx'); os.makedirs(G, exist_ok=True)
     segs = segments(S['lines'], V, S.get('split', ())); shots, subs, total = timeline(segs, V)
-    hold = S.get('end_hold', 2.0); total_out = total + hold   # the CTA card alone after the last line, then the end (RESEARCH.md §3-4)
+    hold = S.get('end_hold', 1.4); total_out = total + hold   # the CTA card alone after the last line, then the end (RESEARCH.md §3-4)
     # during the card the stream keeps running (she blinks, breathes) unless she speaks again within it; then the frame holds
     last_t = V[shots[-1]['lines'][-1]][1]
     nxt = min([t for _, t, _ in V.values() if t > last_t] + [1e9])
@@ -175,23 +202,20 @@ def render(S, EP, BD, out, P, Pe, V, L, marks):
     # graphics
     PNG, OV = [], []
     def png(name, html, w, h): p = os.path.join(G, name + '.png'); PNG.append({'out': p, 'w': w, 'h': h, 'html': html}); return p
-    bg = png('bg', html_bg(S.get('foot', '')), W, H)
-    OV.append((png('hook', html_hook(S['hook'], S.get('series', '')), SAFE_W, TITLE_H), SAFE_X, TITLE_Y, 0, total_out))
+    bg = png('bg', html_bg(), W, H)
+    OV.append((png('hook', html_hook(S['hook'], S.get('hook_key', '')), TITLE_W, TITLE_H), TITLE_X, TITLE_Y, 0, total_out))
     # photos first: captions and the end card are drawn over them, never under
-    for k, ph in enumerate(photos(EP, Pe, S['lines'], V, marks, shots, S.get('show'))):
-        OV.append((png(f'photo_{k}', html_photo('file://' + ph['img'], ph['label'], ph['focus']), W, SLOT_C[1]), 0, SLOT_C[0], ph['o0'], min(ph['o1'], total_out)))
-    caps = []   # the first caption is on screen from frame 0 (frame 0 is the thumbnail)
-    for o0, o1, lid in subs:
-        t = o0
-        for txt, share in chunks(S.get('text', {}).get(lid, L[lid]['text'])):
-            caps.append((0.0 if not caps else t, t + (o1 - o0) * share, lid, txt)); t += (o1 - o0) * share
+    for k, ph in enumerate(photos(EP, Pe, S['lines'], V, marks, shots, S.get('show'), S.get('no_broll', ()))):
+        lab = ph['label'] if S.get('photo_labels') else ''   # real clips do not caption their pictures; the spoken line says what it is
+        OV.append((png(f'photo_{k}', html_photo('file://' + ph['img'], lab, ph['focus']), W, SLOT_C[1]), 0, SLOT_C[0], ph['o0'], min(ph['o1'], total_out)))
+    caps = captions(subs, lambda lid: S.get('text', {}).get(lid, L[lid]['text']), total_out)
     for k, (o0, o1, lid, txt) in enumerate(caps):
         key = S.get('hl', {}).get(lid, '')
-        OV.append((png(f'cap_{k}', html_cap(txt, V[lid][0], key if key in txt else ''), SAFE_W, CAP_H), SAFE_X, CAP_Y, o0, min(o1 + 0.12, total_out)))
+        OV.append((png(f'cap_{k}', html_cap(txt, V[lid][0], key if key in txt else ''), SAFE_W, CAP_H), SAFE_X, CAP_Y, o0, o1))
     if S.get('end'):   # RESEARCH.md §4: the CTA in the last seconds; reviewers (ep. 1) asked that it not cover the drawing or
         # the open question, so it comes when the last line has ended, alone in the caption band, and the short ends 1.3 s later
         t_end = subs[-1][1] + 0.1
-        OV.append((png('end', html_end(S['end']), SAFE_W, 200), SAFE_X, CAP_Y + 20, t_end, total_out))
+        OV.append((png('end', html_end(S['end'], S.get('end_key', '')), SAFE_W, CAP_H), SAFE_X, CAP_Y, t_end, total_out))
     spec = os.path.join(G, 'spec.json'); json.dump({'png': PNG, 'clips': []}, open(spec, 'w'))
     E.run(['node', os.path.join(HERE, '..', 'edit', 'cards.mjs'), spec])
     # the picture: one base clip per shot (canvas + face on the background), then the overlays in one pass
