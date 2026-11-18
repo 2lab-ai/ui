@@ -3,7 +3,7 @@
 One line: a 30-minute live VOD from this kit becomes a ~14-minute YouTube edit the way streamers' editors cut theirs —
 a 10-second cold open, a 5-second title card on the channel's jingle, the stream jump-cut to its lines, an end card.
 
-- **Order of the video** — cold open (10 s) → title card + jingle (5 s) → the stream → end card (8 s)
+- **Order of the video** — cold open (10 s) → title card + opening jingle (5 s) → the stream → end card + closing tune (7.5 s)
 - **Files** — `cut.py` (the cut, audio, captions, chapters), `cards.mjs` (HTML → PNG/MP4), `sound.py` (jingle + effects), `review_edit.py` (panel)
 - **Per episode** — `edit_plan.py` in the episode folder decides what is kept, zoomed and captioned
 
@@ -40,7 +40,7 @@ About 6 minutes on an M-series Mac for a 14-minute edit (189 parts encoded 8 at 
 | The book's symbol as a real image | `INSERTS`: the photo the streamer pasted fills the screen for ~3 s with a slow push-in |
 | Music | the live mix without its music (`mix_dry.wav`) is cut, and the stream's BGM runs under the whole edit unbroken, ~19 dB under speech |
 | Chapters | `CHAPTERS` line ids → `chapters_ko.txt` / `chapters_en.txt` with edit timecodes (first line 00:00) |
-| End card | next episode, the episode's photo in a box and a circle where YouTube's end-screen video and subscribe elements go; with `END['clip']` the card is drawn over a muted bonus clip from the stream (14 s) with a handwritten ask |
+| End card | next episode, the episode's photo in a box and a circle where YouTube's end-screen video and subscribe elements go; with `END['clip']` the card is drawn over a muted bonus clip from the stream with a handwritten ask; `END['dur']` (ep. 1: 7.5 s, the closing tune and its ring-out; YouTube's end screen needs 5 s) |
 
 ### The editor's voice (from the reference edits, `RESEARCH.md` §4)
 
@@ -71,8 +71,11 @@ PD / CC0 / CC BY only), or write down why there is none. Ep. 1 missed the auroch
 Dutch Boy's plastic jug in v2, and the owner caught it. One mark per line still holds: a photo card replaces a joke caption on the same
 line (`(폴더폰 저격)` became the flip-phone card's label).
 
-**The jingle.** `JINGLE = '<name>'` picks one of `edit/jingles.py`'s candidates (real instruments, FluidSynth + MuseScore General);
-without it the edit uses `sound.py`'s synthesised tune. `python edit/jingles.py <dir>` renders all of them for the owner to choose.
+**The jingle and the closing tune.** `JINGLE = '<name>'` picks one of `edit/jingles.py`'s candidates (real instruments, FluidSynth + MuseScore General)
+for the title card; without it the edit uses `sound.py`'s synthesised tune. `OUTRO = '<name>'` puts another candidate on the end card:
+it starts with the card's fade-in, the BGM bed fades out in the 0.6 s before it and does not come back (`cut.music_bed`); without it the
+bed swells to the last frame. `python edit/jingles.py <dir>` renders all candidates for the owner to choose; ep. 1 uses the owner's picks,
+no. 13 `funk_clav` (opening) and no. 14 `piano_sting` (closing).
 
 ## 3. Review
 
