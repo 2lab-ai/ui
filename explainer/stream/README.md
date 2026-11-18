@@ -11,6 +11,9 @@ The kit draws a 1080p30 MP4 that should make a viewer wonder whether it is a rea
 
 The `make-streaming-video` skill drives it. It is plain Python and JS outside the npm package, like `explainer/`.
 
+Every stream becomes three uploads (owner, 2026-11-18): the live VOD, the fast edit (`edit/`, 10–30 min) and 2–3 Shorts of
+about a minute (`shorts/`), each Short pointing at the live VOD.
+
 ## Three themes, one engine
 
 ```
@@ -63,6 +66,8 @@ python engine/review.py <build> <lines.json> v1     # optional: 3-engine panel; 
 node engine/portrait.mjs kate main kate.png --expr smile --height 3200 --focus 0.27   # channel art
 python edit/cut.py <episode dir> <build> <edit out> --portrait <bust.png>      # the fast edit (편집본): see edit/README.md
 python edit/review_edit.py <edit out> <episode dir> e1                          # 3-engine panel on the edit rubric
+python shorts/shorts.py <episode dir> <build> <shorts out>                      # 2-3 Shorts (쇼츠): see shorts/README.md
+python shorts/review_shorts.py <shorts out>/<id> e1                             # 3-engine panel on the shorts rubric
 ```
 
 Python: `~/.cache/2lab-explainer-venv` (numpy, scipy, PIL, matplotlib, mlx-whisper). Node: the cache's own `node_modules`.
