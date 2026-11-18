@@ -1,7 +1,8 @@
 """책듣는밤 1화 편집본 — the 30-minute live VOD cut to ~12 minutes with the editing grammar of edit/RESEARCH.md §4, every real thing she
-names shown as its real photo (the reference sweep, edit/README.md §2) and the channel jingle on real instruments (edit/jingles.py).
+names shown as its real photo (the reference sweep, edit/README.md §2) and the channel's opening and closing tunes on real instruments (edit/jingles.py).
 History: v1 (edit_plan_v1.py) was the first public edit; v2 added the reference grammar (unlisted demo); this plan adds the reference
-sweep and the jingle and is the public edit. Both earlier uploads are private.
+sweep and the jingle; the owner then picked the opening (no. 13) and closing (no. 14) tunes, and that render is the public edit.
+Every earlier upload is private.
   A (a streamer's gag edit)   caption voice by tone, state labels over her head, the editor's handwritten asides, corner labels,
                               a punch-in on the live chat when it erupts, follow-the-drawing punch-ins, a result card, a bonus clip under the end card
   B (a calm book channel)     the real thing behind every example, a dark thesis card for the line to keep
@@ -13,11 +14,13 @@ TITLE = {'channel': '지구에서 온 Kate', 'series': '📖 책듣는밤', 'ep'
 # the end card over a bonus clip: her sister peeking in while she is away (muted; reference A ends on a peek-in clip)
 END = {'next': '다음 화', 'next_title': '택배로 온 진짜 벽돌', 'next_sub': '제목은 아직 비밀', 'full': '30분 풀버전 라이브',
        'ask': '구독 · 좋아요 · 알림설정 부탁드려요', 'clip': ['mark', 'sis_in', -0.8], 'clip_zoom': 'peek',
-       'clip_pip': (110, 450, 760), 'dur': 12.0}   # the clip in a window at the left; the right 40% is for YouTube's end-screen elements
+       'clip_pip': (110, 450, 760), 'dur': 7.5}    # the clip in a window at the left; the right 40% is for YouTube's end-screen elements;
+       # 7.5 s = the closing tune (5 s) and its ring-out; the peek is over by 4 s, YouTube's end screen needs 5 s
 
 LIVE = '2026. 11. 17(화) 생방송 내용입니다'
 MAIN_LEAD = 0.35   # air between the jingle and her first word
-JINGLE = 'lofi_keys'   # edit/jingles.py: one of the 14 candidates sent to the owner on 2026-11-18 (swap the name to change it)
+JINGLE = 'funk_clav'   # edit/jingles.py: the owner picked no. 13 of the 14 candidates for the opening (2026-11-18)
+OUTRO = 'piano_sting'  # and no. 14 for the closing: it starts with the end card, the BGM bed fades out under it
 
 # zoom boxes on the 1920x1080 live frame (x, y, w, h), 16:9; a pair of names in ZOOM is a pan (same size)
 Z = {'face': (1262, 560, 658, 370),   # her face only: no strip of white canvas at the left edge

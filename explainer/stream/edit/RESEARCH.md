@@ -184,4 +184,17 @@ The owner's verdict on v2: "오록스 사진이랑 동굴벽화 비롤은 왜 �
 - **Review of the uploaded render** (`final_edit.mp4`, sha256 `0761bb9b…`):
   GPT 86–87, Grok 83–86, gemini-3.8-flash-high 71 → mean **80.3 / 81.0**. The panel asked to label the 1928 slicer against the
   "1912" line (done: "1928년 첫 판매된 빵 절단기") and to make the result card opaque (done).
-- Published as the one public edit: https://youtu.be/BIKMgYKEcoo (11:43). v1 and the v2 demo are private.
+- Published as the one public edit: https://youtu.be/BIKMgYKEcoo (11:43), private since §4.7. v1 and the v2 demo are private.
+
+### 4.7 The owner's picks: an opening and a closing tune (owner, 2026-11-18)
+
+After the 14-candidate sampler the owner answered "13- 오프닝, 14-클로징 ㄱ": no. 13 `funk_clav` on the title card and no. 14
+`piano_sting` as a closing tune. The kit gained `OUTRO` (`cut.music_bed`): the closing tune starts with the end card's fade-in,
+the BGM bed fades out in the 0.6 s before and stays out. The end card went from 12 s to 7.5 s (the tune, 5 s, and its ring-out;
+the sister's peek-in is over by 4 s; YouTube's end screen needs 5 s). Measured on the render: -16.0 LUFS, 698.8 s, the title
+window at -18 to -27 dB, the closing at -21 to -29 dB from 691.5 s, digital silence from 696.8 s.
+
+- **Review of the uploaded render** (`final_edit.mp4`, sha256 `a6eb1eea…`): GPT 85 / 86, Grok 85 / 84, gemini-3.8-flash-high
+  99 / 70 → mean **89.7 / 80.0** (84.9 over both runs). Gemini swung 29 points on the same file again; GPT and Grok stayed within
+  ±1. Recurring asks (long single-line captions, the 1912/1928 slicer pair, fewer effects) are not about the music.
+- Published as the one public edit: https://youtu.be/OQfm8wytqRw (11:39). BIKMgYKEcoo, v1 and the v2 demo are private.

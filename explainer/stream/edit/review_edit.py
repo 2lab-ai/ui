@@ -147,7 +147,7 @@ facts = f"""측정치와 사실(리뷰어는 소리를 못 들음):
 - 원본 라이브 {S.get('source_min', 29.7):.1f}분 → 편집본 {T / 60:.2f}분. 대사 {S['lines_total']}줄 중 {S['lines_kept']}줄 유지(대사 {S['speech_min']:.1f}분), 본편 점프컷 {S['cuts']}개.
 - 콜드 오픈 {E['title'][0]:.2f}초, 타이틀 카드 {E['title'][1] - E['title'][0]:.1f}초, 시그니처 징글 5.0초(타이틀 시작과 동시에 시작, 마지막 0.6초 페이드).
 - 징글: {{JDESC}}. 매 화 같은 곡.
-- 본편 BGM: 원본 방송과 같은 Tokyo Sunset(HoliznaCC0, CC0), 대사보다 약 19dB 낮게 연속 재생(컷마다 끊기지 않게 원본 음악을 빼고 다시 깔았음). 엔드카드에서 커짐.
+{'- 클로징: {ODESC}. 엔드카드가 뜨는 순간 시작(5.0초), 본편 BGM은 그 직전 0.6초 동안 빠짐. 엔드카드 ' + format(E['end'][1] - E['end'][0], '.1f') + '초.' + chr(10) if E.get('outro') else ''}- 본편 BGM: 원본 방송과 같은 Tokyo Sunset(HoliznaCC0, CC0), 대사보다 약 19dB 낮게 연속 재생(컷마다 끊기지 않게 원본 음악을 빼고 다시 깔았음). {'엔드카드에서는 빠지고 클로징 곡으로 바뀜' if E.get('outro') else '엔드카드에서 커짐'}.
 - 효과음(합성): 강조 자막 뿅/딩/뾰잉, 코너 라벨 휙, 콜드 오픈 끝 레코드 스크래치, 타이틀 진입 휙{', 줌인 휙' if S.get('sfx') is None else ''}. 효과음 {len(E['sounds'])}개.
 - 배속 구간(그리기·타이핑): {S['fills'].get('timelapse', 0):.0f}초 분량, ×2~×8, 화면에 ▶▶ 배지. 후원 알림 {S['fills'].get('alert', 0):.0f}초는 원속도 유지.
 - 줌인 컷 {S['zooms']}개, 강조 자막 {S['emph']}개(손글씨 내레이션 {S.get('narr', 0)}개 포함), 채팅 말풍선 {S['chat']}개, 보랏빛 소 사진 인서트 {S['inserts']}개, 실사 B-roll {S.get('broll', 0)}개.
@@ -155,11 +155,11 @@ facts = f"""측정치와 사실(리뷰어는 소리를 못 들음):
 - 최종 라우드니스 {I} (목표 -16 LUFS).
 - 챕터: {' / '.join(E['chapters_ko'])}
 """
-if E.get('jingle'):
+if E.get('jingle') or E.get('outro'):
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import jingles
-    JDESC = '채널 전용 오리지널 곡, 실제 악기 음원(MuseScore General)으로 연주: ' + jingles.CANDIDATES[E['jingle']].__doc__.replace(' — ', ': ')
-else: JDESC = '채널 전용으로 합성한 오리지널 곡(F장조 120bpm, 뮤직박스 리드·패드·베이스·가벼운 드럼, C-F-A-G / F-C 모티프)'
-facts = facts.replace('{JDESC}', JDESC)
+real = lambda n: '채널 전용 오리지널 곡, 실제 악기 음원(MuseScore General)으로 연주: ' + jingles.CANDIDATES[n].__doc__.replace(' — ', ': ')
+JDESC = real(E['jingle']) if E.get('jingle') else '채널 전용으로 합성한 오리지널 곡(F장조 120bpm, 뮤직박스 리드·패드·베이스·가벼운 드럼, C-F-A-G / F-C 모티프)'
+facts = facts.replace('{JDESC}', JDESC).replace('{ODESC}', real(E['outro']) if E.get('outro') else '')
 ssot_p = os.path.join(D, 'ssot.txt'); note_p = os.path.join(D, 'review_note.txt')
 SSOT = ('SSOT(유저 원문 요구사항): ' + open(ssot_p).read()) if os.path.exists(ssot_p) else ''
 NOTE = open(note_p).read() if os.path.exists(note_p) else ''

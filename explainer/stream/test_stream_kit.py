@@ -274,6 +274,25 @@ def test_edit_reference_marks_chat_punch_in_pan_and_head_mapping():
               cut.html_end_over({'next': 'n', 'next_title': 't', 'next_sub': 's', 'full': 'f'}, 'file:///x.jpg')): assert '<body' in h
 
 
+def test_edit_music_bed_puts_the_opening_on_the_title_and_the_closing_on_the_end_card_with_the_bed_out():
+    """cut.music_bed: the opening jingle starts with the title card; without a closing tune the BGM bed swells over the end
+    card; with one, the bed is gone from the closing tune's start and the tune sits there at the opening's level"""
+    sys.path.insert(0, os.path.join(HERE, 'edit'))
+    import cut
+    SR = cut.SR; total, end_d, t_main, t_jing = 30.0, 7.5, 6.0, 1.0; N = int(total * SR)
+    t = np.arange(SR) / SR; bgm = np.stack([np.sin(2 * np.pi * 220 * t)] * 2, 1).astype(np.float32) * 0.3
+    jing = np.full((int(5.0 * SR), 2), 0.5, np.float32); outro = np.full((int(5.0 * SR), 2), -0.5, np.float32)
+    rms = 0.05; seg = lambda m, a, b: np.abs(m[int(a * SR):int(b * SR)]).max()
+    plain = cut.music_bed(N, rms, bgm, t_main, total, end_d, jing, t_jing)
+    assert abs(plain[int(1.5 * SR), 0] - 0.5 * rms * 2.6) < 1e-6 and seg(plain, 0, 0.99) == 0          # the opening, on the title only
+    assert seg(plain, total - end_d + 2, total - end_d + 3) > seg(plain, 10, 11) * 1.2                # the bed swells on the end card
+    t_out = total - end_d + 0.25
+    closed = cut.music_bed(N, rms, bgm, t_main, total, end_d, jing, t_jing, outro, t_out)
+    assert np.allclose(closed[:int((t_out - 0.6) * SR)], plain[:int((t_out - 0.6) * SR)])               # nothing changes before
+    assert np.allclose(closed[int(t_out * SR) + 1:int((t_out + 5.0) * SR) - 1], -0.5 * rms * 2.6)       # only the closing tune
+    assert seg(closed, t_out + 5.0, total) == 0                                                        # the bed does not come back
+
+
 def test_jingle_candidates_write_valid_midi_and_render_when_the_soundfont_is_there():
     """edit/jingles.py: every candidate builds a format-1 MIDI file with notes inside its 5 s; with fluidsynth and the
     SoundFont present, one renders to 5.0 s of 48 kHz stereo at the shared level"""

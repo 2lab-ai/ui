@@ -384,6 +384,30 @@ def read_wav(p):
     return a
 
 
+def music_bed(N, rms, bgm, t_main, total, end_d, jing, t_jing, outro=None, t_outro=None):
+    """the edit's music track (N samples): the opening jingle on the title card; the stream's BGM bed ~19 dB under the voice
+    from the first word; on the end card either the bed swelling to the last frame (no closing tune) or the closing tune at
+    t_outro with the bed faded out under it in the 0.6 s before"""
+    mus = np.zeros((N, 2), np.float32)
+    def put(clip, t, g):
+        i = int(round(t * SR)); j = min(N, i + len(clip))
+        if j > i >= 0: mus[i:j] += clip[:j - i] * g
+    put(jing, t_jing, rms * 2.6)
+    m0 = int(max(0, t_main - 0.25) * SR)
+    loop = np.concatenate([bgm] * (int((N - m0) / len(bgm)) + 2))[:N - m0]
+    g = np.full(N - m0, rms / (float(np.sqrt(np.mean(bgm ** 2))) + 1e-9) * 10 ** (-19 / 20), np.float32)
+    k = int(0.25 * SR); g[:k] *= np.linspace(0, 1, k)
+    if outro is None:
+        e0 = int((total - end_d) * SR) - m0; g[e0:] *= np.linspace(1, 2.2, len(g) - e0)
+        g[-int(0.9 * SR):] *= np.linspace(1, 0, int(0.9 * SR))
+    else:
+        f1 = int(round(t_outro * SR)) - m0; f0 = max(0, f1 - int(0.6 * SR))
+        g[f0:f1] *= np.linspace(1, 0, f1 - f0); g[f1:] = 0
+        put(outro, t_outro, rms * 2.6)
+    mus[m0:] += loop * g[:, None]
+    return mus
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('ep'); ap.add_argument('bd'); ap.add_argument('out')
     ap.add_argument('--plan-only', action='store_true'); ap.add_argument('--jobs', type=int, default=8)
@@ -647,7 +671,7 @@ def main():
     dry = read_wav(os.path.join(a.bd, 'mix_dry.wav'))
     snd_dir = os.path.join(a.out, 'snd'); run([sys.executable, os.path.join(HERE, 'sound.py'), snd_dir])
     SFXW = {n: read_wav(os.path.join(snd_dir, f'sfx_{n}.wav')) for n in ('whoosh', 'pop', 'ding', 'boing', 'scratch', 'whip')}
-    N = int(round(total * SR)); voice = np.zeros((N, 2), np.float32); fx = np.zeros((N, 2), np.float32); mus = np.zeros((N, 2), np.float32)
+    N = int(round(total * SR)); voice = np.zeros((N, 2), np.float32); fx = np.zeros((N, 2), np.float32)
     fade = int(0.004 * SR)
     for p in srcs:
         i0 = int(round(p['o0'] * SR)); n = int(round(p['n'] / FPS * SR))
@@ -667,18 +691,15 @@ def main():
         if j > i and i >= 0: buf[i:j] += clip[:j - i] * g
     for t, name, g in SND:
         if name: put(fx, SFXW[name], t, g * rms * 3.2)
-    jw = os.path.join(snd_dir, 'jingle.wav')
+    jw = os.path.join(snd_dir, 'jingle.wav'); ow = None
+    if getattr(P, 'JINGLE', None) or getattr(P, 'OUTRO', None): sys.path.insert(0, HERE); import jingles
     if getattr(P, 'JINGLE', None):   # the channel's chosen signature tune on real instruments (edit/jingles.py) replaces sound.py's
-        sys.path.insert(0, HERE); import jingles; jingles.render(P.JINGLE, jw)
-    jing = read_wav(jw); put(mus, jing, parts[len(cold)]['o0'], rms * 2.6)
-    bgm = read_wav_any(os.path.join(CACHE, 'bgm', 'tokyo_sunset.mp3'))
-    m0, m1 = int(max(0, t_main - 0.25) * SR), N
-    loop = np.concatenate([bgm] * (int((m1 - m0) / len(bgm)) + 2))[:m1 - m0]
-    brms = float(np.sqrt(np.mean(bgm ** 2))) + 1e-9
-    g = np.full(m1 - m0, rms / brms * 10 ** (-19 / 20), np.float32)
-    e0 = int((total - END_D) * SR) - m0; g[e0:] *= np.linspace(1, 2.2, len(g) - e0)
-    k = int(0.25 * SR); g[:k] *= np.linspace(0, 1, k); g[-int(0.9 * SR):] *= np.linspace(1, 0, int(0.9 * SR))
-    mus[m0:m1] += loop * g[:, None]
+        jingles.render(P.JINGLE, jw)
+    if getattr(P, 'OUTRO', None):    # the closing tune, also one of the candidates, on the end card
+        ow = jingles.render(P.OUTRO, os.path.join(snd_dir, 'outro.wav'))
+    t_outro = parts[-1]['o0'] + 0.25   # with the end card's fade-in
+    mus = music_bed(N, rms, read_wav_any(os.path.join(CACHE, 'bgm', 'tokyo_sunset.mp3')), t_main, total, END_D,
+                    read_wav(jw), parts[len(cold)]['o0'], read_wav(ow) if ow else None, t_outro)
     mix = voice + fx + mus
     mix = mix / max(1e-6, float(np.abs(mix).max())) * 0.9
     wav = os.path.join(a.out, 'mix_edit.wav')
@@ -714,6 +735,7 @@ def main():
            'cold': [{'o0': p['o0'], 'o1': p['o1'], 'lines': p['lines'], 'zoom': p.get('zoom'), 'hold': p.get('hold', 0)} for p in cold],
            'main': [{'o0': p['o0'], 'o1': p['o1'], 's0': p['s0'], 's1': p['s1'], 'speed': p['speed'], 'zoom': p.get('zoom'), 'fill': p.get('fill'), 'lines': p['lines']} for p in main_],
            'subs': subs, 'sub_text': {k: v[0] for k, v in SUBTXT.items()}, 'overlays': [{k: v for k, v in o.items() if k != 'html'} for o in OV], 'sounds': SND, 'jingle_at': parts[len(cold)]['o0'], 'jingle': getattr(P, 'JINGLE', None),
+           'outro': getattr(P, 'OUTRO', None), 'outro_at': t_outro if getattr(P, 'OUTRO', None) else None,
            'stats': {'source_min': C.ev['T'] / 60, 'lines_kept': len(kept), 'lines_total': len(C.V), 'speech_min': speech / 60, 'cuts': cuts, 'fills': fills,
                      'zooms': sum(1 for p in srcs if p.get('zoom') and not p.get('cold')), 'emph': sum(1 for o in OV if o.get('kind') == 'emph'),
                      'chat': sum(1 for o in OV if 'chat_' in o.get('png', '')), 'inserts': len(INS), 'broll': len(BRL),
