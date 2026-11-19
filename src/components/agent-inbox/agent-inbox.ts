@@ -2522,6 +2522,12 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       this.#cols.delete(id);
     }
 
+    // 7½. The clocks, drawn before the board is measured for its moves: a face rewritten above starts with its clocks
+    //     empty, and a clock drawn after the measure that costs its card a line (a foot that wraps once
+    //     "실행 중 · 12분 11초" shows) would grow the card under the glide — every card under it would start a line
+    //     lower and slide back up. A clock up to a second old that crosses a wrap now moves the cards with a glide.
+    this.#tickIn(this.content);
+
     // 8. Enter, move (FLIP), and the status icon's pop where the status changed on screen.
     if (motion) {
       for (const [id, sh] of this.#cards) {
@@ -2632,7 +2638,6 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     //    at the same moment, and a card drawn, rewritten or moved never pings out of step.
     for (const c of Array.from(this.content.querySelectorAll<HTMLElement>('li.ib-card.is-attention')))
       syncOwnerBadgeOrbit(c, ATTENTION_ANIMS);
-    this.#tickIn(this.content);
     this.#syncTick();
     // The first paint with data never animates (a render before any data, or skeletons only, does not count).
     if (d && load !== 'loading') this.#painted = true;
