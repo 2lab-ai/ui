@@ -11,10 +11,10 @@ the designs (whole looks: `data-design="<id>"` tokens + a tone & manner spec in 
 onto the elements and kit, and gives the steps. `site/designs.ts` is a worked dashboard. Designs live in
 `src/core/tokens.json` (`designs.<id>`) and `DESIGNS` in `src/core/tokens.ts`; `src/core/designs.test.ts` guards them.
 
-## Explainer videos
-Asked for an explainer video ("3b1b", "설명 영상", the `make-3b1b` skill)? Use `explainer/` — read `explainer/README.md`. It is
-plain JS + Python outside the TS build and the npm package; theme `mono-black` reads `designs.modern-mono` from
-`src/core/tokens.json` when a project is made, so keep those token names stable.
+## Not here: videos
+This repo is the web UI library only. Video kits (3b1b explainers, docent books, the live-stream videos) live in
+2lab-ai/make-video; never add video tooling or upload workflow here. That repo keeps its own copy of the Modern Mono
+tokens (`explainer/themes/modern-mono.json`), so a token change here does not reach it until it is copied there.
 
 ## Gates (run before every commit)
 ```
