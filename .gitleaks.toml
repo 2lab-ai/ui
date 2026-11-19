@@ -1,0 +1,18 @@
+# gitleaks config: the default rules, plus the synthetic values the docs demos and tests use on purpose.
+# Each allowance names the exact value and the file it lives in, so a real secret anywhere still fails.
+title = "2lab-ai/ui"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "model ids in the compact-breakdown demo are not keys"
+condition = "AND"
+paths = ['''^src/components/compact-breakdown/docs\.ts$''']
+regexes = ['''^claude-[a-z0-9.-]+$''']
+
+[[allowlists]]
+description = "copy-field demo and test: a made-up signing secret and Slack webhook (masked-token demo)"
+condition = "AND"
+paths = ['''^src/components/copy-field/(docs|copy-field\.test)\.ts$''']
+regexes = ['''^whsec_5Kq2vR8mN1xT7bY4cH9eJ3wL6pD0fG2a$''', '''^https://hooks\.slack\.com/services/T0AKY7W2U/B07RQ1C9H/[A-Za-z0-9]{24}$''']

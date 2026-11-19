@@ -1,0 +1,24 @@
+name: Secret scan
+# gitleaks over the whole history on every push to main and every pull request. Known synthetic demo values are
+# allowed in .gitleaks.toml, each by its exact value and file.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (full history)
+        run: >-
+          docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1
+          git --redact --no-banner --exit-code 1 .
