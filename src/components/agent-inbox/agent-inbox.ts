@@ -2675,11 +2675,16 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       // Spinners share one phase, so a rewritten face never makes its ring jump.
       const phase = `-${Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) % 900)}ms`;
       for (const s of Array.from(sh.face.querySelectorAll<HTMLElement>('.ib-spin'))) s.style.animationDelay = phase;
+      // A rewritten face's clocks are drawn now, before the board is measured for its moves: an empty clock filled
+      // only after the measure (the end of render) grows the card under the glide — a foot that wraps once its clock
+      // shows — and every card under it would start a line lower and slide back up.
+      this.#tickIn(sh.face);
       this.#countUp(id, sh.face, countUp);
     }
     if (sh.bodyHtml !== body) {
       sh.body.innerHTML = body;
       sh.bodyHtml = body;
+      this.#tickIn(sh.body);
     }
     sh.hasBody = !!body;
     // The face is the toggle unless the window controls are on (0.43.0): then the caret is, and the face is inert.

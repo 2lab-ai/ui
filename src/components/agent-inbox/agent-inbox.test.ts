@@ -1273,6 +1273,37 @@ describe('host gaps', () => {
       }
     });
 
+    it('a live update that rewrites a face moves no card under it: the face is measured with its clocks drawn', () => {
+      // A stacked column where a running card's clock costs a line: its foot wraps once the clock is drawn (a card is
+      // 80px tall, 103px with its clock). Each card sits under the ones above it, 10px apart.
+      const tall = (li: Element) => 80 + (li.querySelector('.ib-clock')?.textContent ? 23 : 0);
+      const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+        const li = this.closest('li.ib-card');
+        let y = 0;
+        for (const above of li ? Array.from(li.parentElement!.children) : []) {
+          if (above === li) break;
+          y += tall(above) + 10;
+        }
+        const h = li ? tall(li) : 0;
+        return { left: 0, top: y, right: 100, bottom: y + h, width: 100, height: h, x: 0, y } as DOMRect;
+      });
+      const a: InboxCard = { ...RUN, id: 'a', title: 'A' };
+      const b: InboxCard = { ...RUN, id: 'b', title: 'B' };
+      const el = mount({ columns: [{ id: 'running', label: 'Running', cards: [a, b] }] });
+      expect(card(el, 'a').querySelector('.ib-clock')?.textContent).not.toBe('');
+      const anim = spyAnimate();
+      try {
+        // Only A's cost moved: its face is rewritten, nothing changes size.
+        el.data = { columns: [{ id: 'running', label: 'Running', cards: [{ ...a, costUsd: 61.4 }, b] }] };
+        el.renderNow();
+        // B stays where it is drawn: no glide that starts one line lower and slides back up.
+        expect(moves(anim).filter((m) => m.el === card(el, 'b'))).toEqual([]);
+      } finally {
+        anim.mockRestore();
+        rect.mockRestore();
+      }
+    });
+
     it('a card in a group that leaves stops its glide (the group fades out with it)', () => {
       const rect = fakeLayout();
       const el = mount(grouped());
