@@ -1,0 +1,37 @@
+name: Sanitize Gate
+# Full-history forbidden-pattern scan (scripts/sanitize-scan.sh, the script 2lab-ai/soma-work owns; keep the copies
+# byte-identical). The patterns come from secrets and never appear in the repository.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: sanitize-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only: the scan reads the history and reports; it writes nothing.
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    # Forks never get this job: the scan step is handed the pattern secrets while the script it runs is a file a pull
+    # request can rewrite, so a fork PR could print them. pull_request_target is not the fix (it adds a write token).
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Full-history forbidden-pattern scan
+        env:
+          SANITIZE_PATTERNS_SHARED: ${{ secrets.SANITIZE_PATTERNS_SHARED }}
+          SANITIZE_PATTERNS: ${{ secrets.SANITIZE_PATTERNS }}
+        run: bash scripts/sanitize-scan.sh
