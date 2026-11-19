@@ -57,6 +57,8 @@ def stage_config(cfg):
     return {
         'css': [url(st, c) for c in st.get('css', [])] + [url(ct, c) for c in ct.get('css', [])],
         'strings': dict(st.get('strings', {})),
-        'bg': url(sr, sr['room']['background']),
+        'bg': url(st, st['room_still']) if st.get('room_still') else url(sr, sr['room']['background']),
+        # a streaming theme may move the streamer to another room: a looping video behind her (frames in the asset cache)
+        'bg_loop': st.get('room_loop'),
         'models': models,
     }

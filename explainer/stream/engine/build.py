@@ -57,6 +57,8 @@ class Builder:
         self.images = []       # page URLs of pictures pasted onto the canvas (stage.js loads them before frame 0)
         self.talk_busy = []
         self.toc_ev = []       # (t, index) the part of the book now being explained (a solo recording's contents panel)
+        self.toc_items = []    # the beats' TOC (the WordPad contents window edits these lines)
+        self.brolls = []       # real video cutaways (B.broll)
         self.solo = False      # no audience (streaming theme "solo"): no chat, no donations; the rig never glances at a chat box
 
     # ---------------- voices
@@ -363,8 +365,47 @@ class Builder:
 
     # ---------------- overlays
     def chapter(self, i, at=None):
-        """the contents panel lights part i of the beats' TOC (a solo recording, streaming theme studio)"""
-        self.toc_ev.append(((self.t if at is None else at), i))
+        """part i of the beats' TOC starts (a solo recording, streaming theme studio). With a WordPad contents window in the
+        layout she edits it herself: the mouse drags over the part just done and strikes it through, then selects part i and
+        makes it bold, red and highlighted, and clicks the selection away"""
+        t = self.t if at is None else at
+        WP = L.get('wordpad')
+        if not WP or not self.toc_items:
+            self.toc_ev.append((t, i)); return
+        self.hand_at(t)
+        def ln(j):
+            txt = f'{j + 1}. {self.toc_items[j]}'
+            w = sum(WP['fs'] * (0.97 if ord(c) >= 0x1100 else 0.52 if c != ' ' else 0.28) for c in txt)
+            return WP['doc_x'], WP['doc_y'] + WP['lh'] * (j + 0.55), w
+        def select(j):
+            x0, y, w = ln(j)
+            self.move(x0 - rng.uniform(1, 4), y + rng.uniform(-2, 2)); self.hand_t += rng.uniform(0.06, 0.14)
+            t0 = self.hand_t; self.sfx.append((t0, 'mdown', None)); dur = rng.uniform(0.38, 0.6); n = 24
+            for k in range(1, n + 1):
+                u = minjerk(k / n); x = x0 + (w + rng.uniform(4, 14)) * u
+                tt = t0 + dur * k / n; self.samples.append((tt, x + rng.normal(0, .4), y + rng.normal(0, .5)))
+                if k % 3 == 0 or k == n: self.ops.append((tt, {'op': 'wp_sel', 'i': j, 'p': round(u, 3)}))
+            self.cur = [x0 + w, y]; self.sfx.append((t0 + dur + 0.02, 'mup', None)); self.hand_t = t0 + dur + 0.12
+        def press(b):
+            bx, by = WP['btn'][b]
+            self.move(bx + rng.uniform(-3, 3), by + rng.uniform(-3, 3)); self.hand_t += rng.uniform(0.05, 0.12)
+            tc = self.click(); self.ops.append((tc, {'op': 'wp_btn', 'b': b})); self.ops.append((tc + 0.16, {'op': 'wp_btn', 'b': ''}))
+            return tc
+        if i > 0:
+            select(i - 1); tc = press('strike'); self.ops.append((tc + 0.02, {'op': 'wp_fmt', 'i': i - 1, 'cls': 'done'}))
+        select(i); tc = press('bold'); self.ops.append((tc + 0.02, {'op': 'wp_fmt', 'i': i, 'cls': 'cur'}))
+        self.toc_ev.append((tc, i))
+        tc = press('color'); self.ops.append((tc + 0.02, {'op': 'wp_fmt', 'i': i, 'cls': 'cur red'}))
+        if rng.random() < 0.7: tc = press('hl'); self.ops.append((tc + 0.02, {'op': 'wp_fmt', 'i': i, 'cls': 'cur red hl'}))
+        x0, y, w = ln(i)
+        self.move(x0 + w + rng.uniform(30, 60), y + rng.uniform(-3, 3)); tc = self.click(); self.ops.append((tc, {'op': 'wp_sel', 'i': -1}))
+
+    def broll(self, name, dur=3.2, at=None, start=0.0):
+        """a real video clip full screen for a few seconds (≤ 4 s) while she keeps talking: frames from the asset cache
+        (engine/video_frames.py <clip> <name>), dissolved in and out"""
+        meta = json.load(open(os.path.join(TH.CACHE, 'video', name, 'meta.json')))
+        t = self.t if at is None else at
+        self.brolls.append({'t0': t, 'dur': min(dur, 4.0), 'url': f'/cache/video/{name}/', 'n': meta['n'], 'fps': meta['fps'], 'start': start})
 
     def msg(self, user, text, dt=0.0, at=None):
         self.chat.append(((self.t if at is None else at) + dt, user, text))
@@ -420,6 +461,7 @@ def build(beats_path, audio_dir, outdir, cfg):
     B.lip_floor = {role: c.get('lip_floor', 0.82) for role, c in cast.items()}
     B.afk_style = cast['main'].get('afk_style', 'walk'); B.afk_t = AFK_TIMING[B.afk_style]   # beats time the chair/key sounds from B.afk_t
     solo = B.solo = bool(cfg['streaming'].get('solo'))
+    B.toc_items = list(getattr(mod, 'TOC', []))
     mod.script(B, rng)
     if solo and (B.chat or B.alerts or B.brb): raise SystemExit('a solo recording (streaming theme %s) has no audience: no chat, donation or BRB' % cfg['streaming']['_id'])
     T = max(B.t, B.hand_t) + mod.TAIL
@@ -558,6 +600,7 @@ def build(beats_path, audio_dir, outdir, cfg):
         'cursor': {'x': r(cx), 'y': r(cy), 'k': kind},
         'ops': [dict(o, f=int(math.floor(t * FPS))) for t, o in ops],
         'images': B.images,
+        'broll': [{'f0': int(b['t0'] * FPS), 'f1': int((b['t0'] + b['dur']) * FPS), 'url': b['url'], 'n': b['n'], 'fps': b['fps'], 'start': b['start']} for b in B.brolls],
         'main': {'p': {k: r(v) for k, v in PM.items()}, 'dx': r(dx), 'dy': r(dy), 'a': r(alpha), 'sc': r(msc)},
         'sis': {'p': {k: r(v) for k, v in PS.items()}, 'px': r(px_), 'sc': r(sis_sc), 'sy': r(sis_sy), 'mx': r(sis_mx), 'rot': r(sis_rot)},
         'jumps': [{'f': int(round(t * FPS)), 'add': a} for t, a in B.jumps],

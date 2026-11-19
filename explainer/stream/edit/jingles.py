@@ -269,10 +269,42 @@ CANDIDATES = {f.__name__: f for f in (music_box, lofi_keys, marimba_vlog, jazz_t
                                       bossa, baroque, vibes_lounge, funk_clav, piano_sting)}
 
 
+def book_night_open():
+    """책듣는밤 스트리밍 북 오프닝 — a night-library tune: celesta arpeggios over Rhodes 9th chords, slow strings and a bell (D major, 84); the live's funk is for the stream, this one is the book's"""
+    s = Song(84); s.inst(0, 8, 92, 70, 70); s.inst(1, 4, 88, 56, 60); s.inst(2, 49, 70, 64, 80); s.inst(3, 32, 92, 64, 30); s.inst(4, 14, 80, 74, 90)
+    arp = [['D5', 'F#5', 'A5', 'C#6'], ['B4', 'D5', 'F#5', 'A5'], ['G4', 'B4', 'D5', 'F#5']]
+    for k, a in enumerate(arp):
+        for i, x in enumerate(a): s.n(0, x, k * 2 + i * .5, .55, 82 if i == 0 else 66)
+    for at, ch in ((0, ['D3', 'F#3', 'A3', 'C#4', 'E4']), (2, ['B2', 'D3', 'F#3', 'A3', 'C#4']), (4, ['G2', 'B2', 'D3', 'F#3', 'C#4']), (6, ['D3', 'F#3', 'A3', 'B3', 'E4'])):
+        s.chord(1, ch, at, 2.2 if at < 6 else 3.2, 64, strum=.03)
+    s.chord(2, ['D4', 'A4', 'F#5'], 0, 4, 50); s.chord(2, ['D4', 'B4', 'E5'], 4, 5, 48)
+    s.seq(3, [('D2', 0, 1.8), ('B1', 2, 1.8), ('G1', 4, 1.8), ('D2', 6, 2.8)], 84, .95)
+    s.n(4, 'A5', 6, 2.5, 70); s.n(4, 'D6', 6.02, 2.5, 60); s.n(0, 'E6', 6.5, 1.5, 58)
+    return s
+
+
+def book_night_close():
+    """책듣는밤 스트리밍 북 엔딩 — the opening's motif turned down and home: celesta falls over Gmaj7, A13, Dmaj9, strings swell and a last chime (D major, 76, 7.5 s)"""
+    s = Song(76); s.inst(0, 8, 90, 70, 75); s.inst(1, 4, 86, 56, 65); s.inst(2, 49, 72, 64, 85); s.inst(3, 32, 88, 64, 30); s.inst(4, 14, 78, 74, 95)
+    fall = [['A5', 'F#5', 'D5', 'B4'], ['G5', 'E5', 'C#5', 'A4'], ['F#5', 'D5', 'A4', 'F#4']]
+    for k, a in enumerate(fall):
+        for i, x in enumerate(a): s.n(0, x, k * 2 + i * .5, .6, 78 if i == 0 else 60)
+    for at, ch in ((0, ['G2', 'B2', 'D3', 'F#3', 'A3']), (2, ['A2', 'C#3', 'G3', 'B3', 'F#4']), (4, ['D3', 'F#3', 'A3', 'C#4', 'E4'])):
+        s.chord(1, ch, at, 2.2 if at < 4 else 5.0, 60, strum=.04)
+    s.chord(2, ['G3', 'D4', 'B4'], 0, 4, 46); s.chord(2, ['D4', 'A4', 'F#5'], 4, 5.5, 52)
+    s.seq(3, [('G1', 0, 1.8), ('A1', 2, 1.8), ('D2', 4, 4.5)], 80, .95)
+    s.n(4, 'D6', 6.0, 3.0, 66); s.n(0, 'A6', 6.5, 2.0, 50); s.n(0, 'D7', 7.0, 2.0, 44)
+    return s
+
+
+book_night_close.dur = 7.5
+CANDIDATES.update(book_night_open=book_night_open, book_night_close=book_night_close)   # the streaming book's own pair (not the live's)
+
+
 def describe(name): return CANDIDATES[name].__doc__.split(' — ')[0]
 
 
-def render(name, out_wav, sf2=SF2):
+def render(name, out_wav, sf2=SF2, dur=None):
     """MIDI -> FluidSynth -> 5.0 s, faded tail, loudness matched (RMS of the loud part), 48 kHz stereo wav"""
     if not os.path.exists(sf2): raise SystemExit(f'SoundFont missing: {sf2} (run engine/setup_assets.py)')
     with tempfile.TemporaryDirectory() as d:
@@ -281,9 +313,10 @@ def render(name, out_wav, sf2=SF2):
         subprocess.run(['fluidsynth', '-ni', '-q', '-F', raw, '-r', str(SR), '-g', '0.7', '-R', '1', '-C', '1', sf2, mid], check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         w = wave.open(raw); x = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32).reshape(-1, w.getnchannels()) / 32768
-    n = int(DUR * SR); x = np.pad(x, ((0, max(0, n - len(x))), (0, 0)))[:n]
+    dur = dur or getattr(CANDIDATES[name], 'dur', DUR)
+    n = int(dur * SR); x = np.pad(x, ((0, max(0, n - len(x))), (0, 0)))[:n]
     k = int(0.45 * SR); x[-k:] *= (np.linspace(1, 0, k) ** 1.6)[:, None]
-    loud = np.sqrt(np.mean(x[:int(4.0 * SR)] ** 2)) + 1e-9
+    loud = np.sqrt(np.mean(x[:int(min(4.0, dur - 0.5) * SR)] ** 2)) + 1e-9
     x = x * (0.16 / loud)                                       # the same felt level for every candidate
     hot = np.abs(x) > 0.8                                       # a soft knee over 0.8 instead of turning the whole tune down
     x[hot] = np.sign(x[hot]) * (0.8 + 0.18 * np.tanh((np.abs(x[hot]) - 0.8) / 0.18))

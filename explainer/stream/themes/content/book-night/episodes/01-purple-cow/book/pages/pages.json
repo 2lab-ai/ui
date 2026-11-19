@@ -1096,5 +1096,95 @@
 "image": "../../props/broll/purple_cow_book.jpg",
 "foot": "사진: Abdulla Al Muhairi, CC BY 2.0",
 "id": "p72"
+},
+{
+"kind": "big",
+"head": "원 모어 씽",
+"big": "One more thing.",
+"bigsize": 110,
+"image": "../../props/broll/cows_roadside.jpg",
+"lines": [
+"이 책은 **차창 밖 소떼**에서 시작됐다",
+"프랑스 시골길, 감탄 → 20분 뒤 지루함"
+],
+"foot": "사진: qwesy qwesy (via Panoramio), CC BY 3.0",
+"id": "pomt1"
+},
+{
+"kind": "versus",
+"head": "1971년 가을, 다른 창문: 독일의 기차 안",
+"left": {
+"label": "그 전: **밀카**는 1901년부터 보라색 포장",
+"image": "../props/milka_1906.jpg",
+"lines": [
+"공장은 난간부터 커피잔까지 **전부 보라색**"
+]
+},
+"right": {
+"label": "\"밀카 소를 **보라색으로** 하자\"",
+"image": "../props/milka_cow.jpg",
+"lines": [
+"광고회사 영앤루비컴의 **서보 샨도르**",
+"기차 창밖, 풀 뜯는 소를 보다가"
+]
+},
+"foot": "출처: WAZ 2012 (서보 인터뷰), de.wikipedia Milka-Kuh · 그림: Suchard 1906, Public domain / · 사진: Divers, Public domain / Markus Daams, CC BY 2.0",
+"id": "pomt2"
+},
+{
+"kind": "photo",
+"head": "그리고 진짜로 칠했다",
+"image": "../props/paris_milka_cow.jpg",
+"src": "첫 모델: 스위스 시멘탈의 수상 경력 젖소 \"아델하이트\" (사진은 2004년 파리 행사의 칠한 소)",
+"lines": [
+"수의사 입회, **스텐실 + 물에 녹는 보라색**",
+"몇 시간을 칠해도 **꼬리 한 번**이면 벗겨짐",
+"초콜릿 포장의 그 보라색은 독일에서 **밀카의 색** (1995 등록, 2004 대법원)"
+],
+"foot": "출처: WAZ 2012, tvmovie 2025, BGH 2004 · 사진: 97198, Public domain",
+"id": "pomt3"
+},
+{
+"kind": "big",
+"head": "\"독일 아이 셋 중 하나는 소가 보라색인 줄 안다\"?",
+"big": "1%",
+"bigsize": 170,
+"lines": [
+"1997 마르부르크대 조사, 이름부터 **\"보라색 소\"** · 학생 2,541명",
+"소가 보라색이라는 답 **1%** · 오리는 노랗다 **8%**",
+"아이들은 속지 않았다, **기억했을 뿐**"
+],
+"foot": "출처: SDW-NRW \"Studie Lila Kuh\" 1997, Brämer 2010, DIE ZEIT 2007",
+"id": "pomt4"
+},
+{
+"kind": "versus",
+"head": "창문 두 개, 약 30년 차이",
+"left": {
+"label": "**1971** 기차 창문 → 실제로 칠했다",
+"image": "../props/paris_milka_cow.jpg",
+"lines": [
+"서보 샨도르, 밀카"
+]
+},
+"right": {
+"label": "**2003** 차 창문 → 이론을 썼다",
+"image": "../../props/broll/cows_roadside.jpg",
+"lines": [
+"세스 고딘, 보랏빛 소가 온다"
+]
+},
+"foot": "고딘이 밀카를 언급한 기록은 찾을 수 없음 · 사진: 97198, Public domain / qwesy qwesy (via Panoramio), CC BY 3.0",
+"id": "pomt5"
+},
+{
+"kind": "big",
+"head": "오늘의 숙제",
+"big": "내 창밖의 갈색 소는?",
+"bigsize": 84,
+"lines": [
+"그리고 오늘, 무엇을 **보라색으로** 칠할까"
+],
+"id": "pomt6"
 }
 ]

@@ -199,7 +199,7 @@ def test_paste_image_draws_a_served_picture_inside_a_selection_and_drops_it():
 
 def test_studio_is_a_solo_theme_and_the_solo_rubric_of_the_book_composes_to_100():
     cfg = TH.load('studio', 'kate', 'book-night')
-    assert cfg['streaming']['solo'] is True and 'toc' in cfg['layout'] and '{ver}' in cfg['streaming']['review_goal']
+    assert cfg['streaming']['solo'] is True and 'wordpad' in cfg['layout'] and 'pbar' in cfg['layout'] and '{ver}' in cfg['streaming']['review_goal']
     solo = [p for k in TH.KINDS for _, p in cfg[k].get('review_solo', cfg[k].get('review', []))]
     assert sum(solo) == 100
     # no live line leaks into a solo review: chat, donation, AFK and typing are scored only on the live
@@ -265,7 +265,10 @@ def test_solo_page_turns_never_show_a_white_canvas():
         assert not [o for o in tl['ops'] if o['op'] == 'erase']                                          # Ctrl+A, Ctrl+V: never Delete
         sel = max(o['f'] for o in tl['ops'] if o['op'] == 'sel' and o['w'] > 0 and o['f'] < img[1]['f'])
         assert img[1]['f'] - sel <= 0.6 * 30                                                              # the old page stays until the new one lands
-        assert tl['toc']['ev'][1]['f'] == img[1]['f']
+        assert tl['toc']['ev'][1]['f'] >= img[1]['f']                                                     # part 2 is lit by her own edit after the page lands
+        fm = [(o['i'], o['cls']) for o in tl['ops'] if o['op'] == 'wp_fmt']
+        assert (0, 'done') in fm and any(i == 1 and c.startswith('cur') for i, c in fm)                    # WordPad: part 1 struck through, part 2 bold
+        assert any(o['op'] == 'wp_sel' and o['i'] == 1 and o['p'] == 1 for o in tl['ops'])                 # selected by a mouse drag first
 
 
 def test_solo_build_refuses_an_audience():
@@ -496,7 +499,7 @@ def test_jingle_candidates_write_valid_midi_and_render_when_the_soundfont_is_the
         for name, fn in jingles.CANDIDATES.items():
             s = fn(); p = os.path.join(d, name + '.mid'); s.midi(p)
             b = open(p, 'rb').read(); assert b[:4] == b'MThd' and b'MTrk' in b, name
-            beats = jingles.DUR * s.bpm / 60
+            beats = getattr(fn, 'dur', jingles.DUR) * s.bpm / 60
             ons = [at for at, st, _, v in s.ev if st & 0xF0 == 0x90]
             assert ons and min(ons) >= 0 and max(ons) < beats, (name, max(ons), beats)
         if shutil.which('fluidsynth') and os.path.exists(jingles.SF2):

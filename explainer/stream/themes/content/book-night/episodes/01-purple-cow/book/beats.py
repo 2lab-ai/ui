@@ -29,3 +29,24 @@ REVIEW = {
 
 def script(B, rng):
     play(B, rng, HERE)
+
+
+# the upload, cut like the edit (book/assemble.py): cold open from the recording's own lines → the book's title card on its
+# own tune → the recording → the end card on the book's closing tune (never the live's tunes or cards)
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(HERE), '..', '..', '..', '..', '..', 'book'))
+from cards_book import title_html, end_html
+_ART = _os.path.expanduser('~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/book/v2/')
+_BG = 'file://' + _ART + 'card_bg.jpg'
+ASSEMBLY = {
+    'audio': _os.path.expanduser('~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/book/audio'),
+    'cold': [('k090b', None, None),                 # 리마커블의 반대말이 뭘까요. 나쁜 거?  (stop before the answer)
+             ('k153b', None, None),                 # 저자가 만 부를 직접 찍어서 보라색 우유팩에 넣었대요.
+             ('omt05a', None, None)],               # 그리고 진짜로 칠했어요. (the one more thing, teased)
+    'title': {'dur': 5.0, 'tune': 'book_night_open',
+              'html': title_html('책듣는밤', '1화 · 스트리밍 북', '보랏빛 소가 온다', '한 권 다 읽어드림 · 30분', '#b18cff', _BG,
+                                 photo='file://' + _os.path.join(HERE, 'props', 'paris_milka_cow.jpg'), author='세스 고딘 『Purple Cow』')},
+    'end': {'dur': 7.5, 'tune': 'book_night_close',
+            'html': end_html('다음 책듣는밤에서<br>만나요', ['라이브 다시보기 · 편집본 · 쇼츠는 설명란에', '다음 책: 택배로 온 진짜 벽돌'], '#b18cff', _BG,
+                             box_img='file://' + _ART + 'live_frame.jpg', box_label='▶ 1화 라이브 다시보기 (가볍게 30분)')},
+}

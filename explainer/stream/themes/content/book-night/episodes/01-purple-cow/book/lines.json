@@ -2483,14 +2483,14 @@
 {
 "id": "k141a",
 "who": "main",
-"text": "검색량으로 유행 수명을 재 보면 크로플 백육십 일, 탕후루 오십 일, 두쫀쿠는 열흘에서 이십 일.",
+"text": "한 신문이 검색량으로 유행 수명을 재 봤더니 크로플 백육십 일, 탕후루 오십 일, 두쫀쿠는 열흘에서 이십 일이었대요.",
 "dir": "calm, close, explaining",
 "sec": "s66"
 },
 {
 "id": "k141b",
 "who": "main",
-"text": "측정 방식은 다르지만, 책이 말한 몇 년짜리 수명이 요즘 어떤 유행에선 보름까지 줄었다는 거예요.",
+"text": "측정 방식이 책과 달라 그대로 비교할 순 없지만, 요즘 어떤 유행은 보름이면 끝난다는 분석이에요.",
 "dir": "calm, close, explaining",
 "sec": "s66"
 },
@@ -2923,6 +2923,154 @@
 "id": "k164b",
 "who": "main",
 "text": "꼭지가 짧아서 아무 데나 펼쳐도 괜찮아요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt01a",
+"who": "main",
+"text": "그리고 하나 더요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt01b",
+"who": "main",
+"text": "이 책은 차창 밖 소떼에서 시작됐잖아요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt01c",
+"who": "main",
+"text": "프랑스 시골길에서 처음엔 감탄하다가, 이십 분 만에 지루해진 그 소들이요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt02",
+"who": "main",
+"text": "그런데 그보다 약 삼십 년 앞서, 다른 창문에서 같은 생각을 한 사람이 있었어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt03a",
+"who": "main",
+"text": "천구백칠십일 년 가을, 독일의 한 기차 안.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt03b",
+"who": "main",
+"text": "광고회사 영앤루비컴의 아트디렉터 서보 샨도르가 밀카 초콜릿 공장에 다녀오는 길이었어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt04a",
+"who": "main",
+"text": "그 공장은 난간부터 커피잔까지 전부 보라색이었대요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt04b",
+"who": "main",
+"text": "창밖에 풀 뜯는 소들이 보였고, 그가 말했죠.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt04c",
+"who": "main",
+"text": "밀카 소를 보라색으로 하자.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt05a",
+"who": "main",
+"text": "그리고 진짜로 칠했어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt05b",
+"who": "main",
+"text": "스위스 시멘탈의 수상 경력 젖소 아델하이트한테, 수의사가 지켜보는 앞에서 스텐실을 대고 물에 녹는 보라색 페인트를 몇 시간씩 뿌렸대요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt06",
+"who": "main",
+"text": "꼬리 한 번 흔들면 다 벗겨졌고요. 그 보라색, 이제 독일 초콜릿 포장에선 밀카만 쓸 수 있어요.",
+"dir": "calm, close, explaining",
+"tts": "꼬리 한 번 흔들면 다 벗겨졌고요. [laughs softly] 그 보라색, 이제 독일 초콜릿 포장에선 밀카만 쓸 수 있어요.",
+"j": 1
+},
+{
+"id": "omt07",
+"who": "main",
+"text": "혹시 독일 아이 셋 중 하나는 소가 보라색인 줄 안다는 얘기, 들어 보셨어요?",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt08a",
+"who": "main",
+"text": "천구백구십칠 년에 그걸 직접 확인한 연구가 있는데, 연구 이름부터 보라색 소였어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt08b",
+"who": "main",
+"text": "학생 이천오백사십일 명한테 물었더니, 소가 보라색이라는 답은 일 퍼센트였어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt09a",
+"who": "main",
+"text": "오히려 오리가 노랗다는 답이 팔 퍼센트였대요. 아이들은 속지 않았어요.",
+"dir": "calm, close, explaining",
+"j": 1
+},
+{
+"id": "omt09b",
+"who": "main",
+"text": "기억했을 뿐이죠.",
+"dir": "calm, close, explaining",
+"j": 1
+},
+{
+"id": "omt10a",
+"who": "main",
+"text": "고딘이 밀카 얘기를 한 기록은 찾을 수 없어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt10b",
+"who": "main",
+"text": "창문 두 개, 약 삼십 년 차이.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt10c",
+"who": "main",
+"text": "한 사람은 실제로 소를 칠했고, 다른 한 사람은 따로 같은 생각을 이론으로 썼어요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt11",
+"who": "main",
+"text": "리마커블은 더 좋은 소가 아니라, 얘기할 수밖에 없는 소라는 뜻이에요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt12a",
+"who": "main",
+"text": "그러니까 마지막 숙제.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt12b",
+"who": "main",
+"text": "여러분 창밖의 갈색 소는 뭔가요.",
+"dir": "calm, close, explaining"
+},
+{
+"id": "omt12c",
+"who": "main",
+"text": "그리고 오늘, 뭘 보라색으로 칠하시겠어요?",
 "dir": "calm, close, explaining"
 },
 {

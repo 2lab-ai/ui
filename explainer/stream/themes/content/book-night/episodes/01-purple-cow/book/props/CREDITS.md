@@ -4,6 +4,9 @@ All files below are Public Domain, CC0 or CC BY (no SA/NC/ND). Licence, author a
 
 ## Files
 
+- `paris_milka_cow.jpg` — "Paris Milka Cow.jpg" (a real cow spray-painted with lilac spots to promote Milka, in front of the Eiffel Tower, 2004) — 97198 (en.wikipedia) — [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) — https://commons.wikimedia.org/wiki/File:Paris_Milka_Cow.jpg — downscaled to 1200 px
+- `milka_cow.jpg` — "Milka Cow.jpg" (a life-size lilac Milka cow on a purple boat, Hamburg harbour) — Markus Daams — [CC BY 2.0](https://creativecommons.org/licenses/by/2.0) — https://commons.wikimedia.org/wiki/File:Milka_Cow.jpg — downscaled to 1200 px
+- `milka_1906.jpg` — "Milka Suchard 1906" (Suchard poster for Milka chocolate, 1906, a black-and-white cow) — Divers — [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) — https://commons.wikimedia.org/wiki/File:Milka_Suchard_1906_N5566152_JPEG_6_6DM.jpg — kept at 795 px
 - `akihabara.jpg` — "Akihabara Night.jpg" (Chuo-dori main street of Akihabara Electric Town at dusk, anime billboards) — ElHeineken — [CC BY 4.0](https://creativecommons.org/licenses/by/4.0) — https://commons.wikimedia.org/wiki/File:Akihabara_Night.jpg — downscaled to 2000 px
 - `altoids_tin.jpg` — "Altoidstins1.jpg" (a collection of Altoids tins of many flavours and limited editions, including the classic red-and-white Peppermint tin) — User Bindingtheory on en.wikipedia — [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) — https://commons.wikimedia.org/wiki/File:Altoidstins1.jpg — downscaled to 2000 px
 - `ben_jerrys.jpg` — "Ben & Jerry's ice cream at a supermarket.jpg" (Ben & Jerry's ice-cream pints (Cookie Dough etc.) lined up in a supermarket freezer) — Nielsoncaetanosalmeron — [CC BY 4.0](https://creativecommons.org/licenses/by/4.0) — https://commons.wikimedia.org/wiki/File:Ben_%26_Jerry%27s_ice_cream_at_a_supermarket.jpg — downscaled to 2000 px
@@ -54,6 +57,9 @@ All files below are Public Domain, CC0 or CC BY (no SA/NC/ND). Licence, author a
 
 ## Footer credits
 
+- `paris_milka_cow.jpg`: 사진: 97198, Public domain
+- `milka_cow.jpg`: 사진: Markus Daams, CC BY 2.0
+- `milka_1906.jpg`: 그림: Suchard 1906, Public domain
 - `dutchboy_can_crop.jpg`: 사진: Thester11, CC BY 3.0 (잘라냄)
 - `akihabara.jpg`: 사진: ElHeineken, CC BY 4.0
 - `altoids_tin.jpg`: 사진: User Bindingtheory on en.wikipedia, Public domain

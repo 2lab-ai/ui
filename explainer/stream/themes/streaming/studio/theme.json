@@ -1,6 +1,6 @@
 {
  "name": "studio",
- "about": "No audience: the look of a solo recording (the streaming book, book/README.md). No chat, no donations, no viewer count, no BRB banner, no live clock. Where the chat box was, a contents panel lists the parts of today's book and lights the one being explained, with a thin bar for how far the video has gone. Accent #b18cff (a soft purple).",
+ "about": "No audience: the look of a solo recording (the streaming book, book/README.md). No chat, no donations, no viewer count, no BRB banner, no live clock. Top right, a WordPad document holds the book's contents; she edits it herself as the parts go by (strikes the part just done, makes the next one bold, red and highlighted). A thin bar along the very bottom of the video shows how far it has gone, with a tick where each part starts. The room is a different one from the live stream's: an office at night with the city behind her (a looping real video, room_loop).",
  "platform": "none",
  "solo": true,
  "css": [
@@ -8,11 +8,54 @@
  ],
  "strings": {},
  "layout": {
-  "toc": {
+  "wordpad": {
    "x": 1292,
    "y": 28,
    "w": 600,
-   "h": 452
+   "h": 452,
+   "rib_y": 54,
+   "file": "목차.rtf",
+   "font_box": [
+    1300,
+    118
+   ],
+   "size_box": [
+    1424,
+    40
+   ],
+   "fs": 17,
+   "doc_x": 1330,
+   "doc_y": 212,
+   "lh": 27,
+   "btn": {
+    "bold": [
+     1484,
+     109
+    ],
+    "italic": [
+     1512,
+     109
+    ],
+    "under": [
+     1540,
+     109
+    ],
+    "strike": [
+     1572,
+     109
+    ],
+    "color": [
+     1612,
+     109
+    ],
+    "hl": [
+     1646,
+     109
+    ]
+   }
+  },
+  "pbar": {
+   "color": "#b18cff"
   }
  },
  "review_goal": "아래는 버튜버 스트리머가 관객 없이 혼자 녹화한 '스트리밍 북'({ver}) — 책 한 권 전체를 해설하는 영상입니다.\n목표: 책을 실제로 읽었을 때 얻는 지식의 80%를 이 영상 하나로 소화하게 하는 것. 책의 중요한 내용(모든 장, 핵심 개념, 책 속 사례)이 빠짐없이 정확하게 밀도 높게 들어가고, 농담과 과장 20~30%, 실생활 이야기와 최근 뉴스 예시로 지루하지 않아야 함. 타깃은 지식을 얻고 깊이 생각하고 싶은 독자(책을 읽기 전 예습, 읽은 뒤 복습, 읽고 싶게 만들기). 형식 레퍼런스는 슈카월드 본편: 미리 만든 그림판 페이지(빨간 헤드라인, 실사진, 기사, 원문 인용)에 말하면서 손으로 강조. 라이브 녹화본처럼 보일 필요는 없음: 채팅, 후원, 자리비움이 없는 것이 정상.",
@@ -25,5 +68,12 @@
    "화면 구성: 목차 패널이 지금 어느 부분인지 알려 주는가, 라이브 요소(채팅, 후원) 없이 깨끗한가, 배경과 아바타와 그림판의 조화",
    10
   ]
- ]
+ ],
+ "room_loop": {
+  "url": "/cache/video/night_office/",
+  "n": 1575,
+  "fps": 30,
+  "src": "Pixabay #3134 \"City, Night, Lights\" by Life-Of-Vids (Pixabay Content License); frames: engine/video_frames.py <clip> night_office --secs 54 --loop 1.5 --grade night"
+ },
+ "room_still": "cache:video/night_office/f_00001.jpg"
 }
