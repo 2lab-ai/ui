@@ -41,7 +41,6 @@ _BG = 'file://' + _ART + 'card_bg.jpg'
 ASSEMBLY = {
     'audio': _os.path.expanduser('~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/book/audio'),
     'cold': [('k090b', None, None),                 # 리마커블의 반대말이 뭘까요. 나쁜 거?  (stop before the answer)
-             ('k019', '식빵이', None),               # 식빵이 무슨 헬스장이에요 (laugh)
              ('k153b', None, None),                 # 저자가 만 부를 직접 찍어서 보라색 우유팩에 넣었대요.
              ('omt05a', None, None)],               # 그리고 진짜로 칠했어요. (the one more thing, teased)
     'title': {'dur': 5.0, 'tune': 'book_night_open',
