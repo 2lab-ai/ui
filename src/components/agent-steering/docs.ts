@@ -72,7 +72,7 @@ function host(el: El, opts: HostOpts = {}): El {
       return;
     }
     if (!el.data?.running) return; // Idle: the message starts a turn; the transcript shows it, not the queue.
-    const id = `C0AKY7W2UGZ:1793008217#${++seq}`;
+    const id = `C0EXAMPLE01:1793008217#${++seq}`;
     later(500, () => {
       patch((items) => [
         ...items,
@@ -146,13 +146,13 @@ function host(el: El, opts: HostOpts = {}): El {
 
 const queue = (): SteeringItem[] => [
   {
-    id: 'C0AKY7W2UGZ:1793008217#31',
+    id: 'C0EXAMPLE01:1793008217#31',
     text: 'Use Postgres 16 syntax — prod isn’t on 17 yet',
     at: now() - 3 * MIN,
     state: 'queued',
   },
   {
-    id: 'C0AKY7W2UGZ:1793008217#32',
+    id: 'C0EXAMPLE01:1793008217#32',
     text: 'Run npm run verify once more before opening the PR',
     at: now() - 40_000,
     state: 'queued',
@@ -471,7 +471,7 @@ export const doc: ComponentDoc = {
               items: [
                 ...queue(),
                 {
-                  id: 'C0AKY7W2UGZ:1793008217#33',
+                  id: 'C0EXAMPLE01:1793008217#33',
                   text: 'Ignore my last note — sent by mistake',
                   at: now() - 20_000,
                   state: 'steered',

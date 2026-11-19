@@ -139,13 +139,13 @@ function metricSwitch(): HTMLElement {
 
 // UsageReport.byUser (admin view): seven people, the smallest three fold into Other.
 const USERS: BreakdownPart[] = [
-  { key: 'U094E5L4A15', label: 'Zhuge', value: 182.4 },
-  { key: 'U07QX2B9KLM', label: 'Icedac', value: 96.15 },
-  { key: 'U08AA3MZT2P', label: 'Sora Lee', value: 61.03 },
-  { key: 'U08FH7RNE1C', label: 'Minho Park', value: 44.8 },
-  { key: 'U090K2DD4WQ', label: 'Jiyoung Choi', value: 23.6 },
-  { key: 'U091LQ0PZ8E', label: 'Hyunwoo Jang', value: 9.92 },
-  { key: 'U092MM8YX0B', label: 'Dongjin Kim', value: 4.37 },
+  { key: 'U0EXAMPLE01', label: 'Zhuge', value: 182.4 },
+  { key: 'U0EXAMPLE02', label: 'Ivy', value: 96.15 },
+  { key: 'U0EXAMPLE03', label: 'Sora Lee', value: 61.03 },
+  { key: 'U0EXAMPLE04', label: 'Minho Park', value: 44.8 },
+  { key: 'U0EXAMPLE05', label: 'Jiyoung Choi', value: 23.6 },
+  { key: 'U0EXAMPLE06', label: 'Hyunwoo Jang', value: 9.92 },
+  { key: 'U0EXAMPLE07', label: 'Dongjin Kim', value: 4.37 },
 ];
 
 function byUser(): HTMLElement {

@@ -81,7 +81,7 @@ function claude(now: number): AqProvider {
       limited('ai43', 'weekly', now + 7 * H + 22 * M + 30_000),
       limited('ai4', 'weekly', now + D + 18 * H + 4 * M),
       limited('dev1', 'weekly', now + 3 * D + 19 * H + 40 * M, 'Max x5'),
-      { id: 'icedac', name: 'icedac', state: 'paused', reason: 'paused', tier: 'Max x20' },
+      { id: 'icebox', name: 'icebox', state: 'paused', reason: 'paused', tier: 'Max x20' },
       limited('ai6', 'weekly', now + 2 * D + 18 * H + 9 * M),
       limited('ai2', 'weekly', now + 2 * D + 8 * H + 51 * M),
     ],
@@ -130,7 +130,7 @@ function twenty(now: number): AqProvider {
       cool('ai41'),
       cool('info'),
       cool('dev1'),
-      held('icedac', 'paused'),
+      held('icebox', 'paused'),
       cool('ai'),
       cool('ai44'),
       held('z', 'paused'),
@@ -156,7 +156,7 @@ function codex(now: number): AqProvider {
     total: 3.2,
     weekly: 2.4,
     measuredAt: now - 6 * D - 2 * H,
-    accounts: ['ai2', 'icedac', 'ai5', 'ai6', 'ai'].map((n) => ({
+    accounts: ['ai2', 'icebox', 'ai5', 'ai6', 'ai'].map((n) => ({
       ...ok(n, '7d', 0.8, 0.76),
       tier: 'Pro ($200)',
     })),

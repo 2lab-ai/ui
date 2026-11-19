@@ -50,7 +50,7 @@ function claude(over: Partial<AqProvider> = {}): AqProvider {
       { id: 'ai7', name: 'ai7', state: 'available', binding: '5h', tier: 'Max x20', fiveHour: 0.4, weekly: 0.6 },
       { id: 'ai3', name: 'ai3', state: 'available', binding: '7d', fiveHour: 0.9, weekly: 0.5 },
       { id: 'ai43', name: 'ai43', state: 'limited', reason: 'weekly', returnAt: NOW + 7 * H + 22 * M + 30 * S },
-      { id: 'icedac', name: 'icedac', state: 'paused', reason: 'paused' },
+      { id: 'icebox', name: 'icebox', state: 'paused', reason: 'paused' },
     ],
     refills: [
       { at: NOW + 22 * M + 30 * S, cause: '5h', fiveHour: 0.4, weekly: 0, account: 'ai7' },
@@ -93,7 +93,7 @@ function twenty(): AqAccount[] {
     cool('ai41'),
     cool('info'),
     cool('dev1'),
-    held('icedac', 'paused'),
+    held('icebox', 'paused'),
     cool('ai'),
     cool('ai44'),
     held('z', 'paused'),
@@ -426,7 +426,7 @@ describe('<ui-agent-queue> capacity', () => {
     expect(marks[2].textContent).toBe('ai43');
     expect(marks[2].getAttribute('aria-label')).toBe('ai43, weekly limit, back in 7h 22m');
     expect(marks[2].getAttribute('title')).toBe('ai43 · weekly limit · back in 7h 22m');
-    expect(marks[3].getAttribute('title')).toBe('icedac · paused');
+    expect(marks[3].getAttribute('title')).toBe('icebox · paused');
     expect(qa(el, '.aq-stack').map((s) => s.className)).toEqual(['aq-stack is-warn', 'aq-stack is-mute']);
     // The forecast: +0.4 in 22m and +1.0 in 7h 22m sit closer than a label at 840px — one label, the run's sum.
     expect(text(el, '.cap-fc-t')).toBe('Next 7 days');
@@ -945,7 +945,7 @@ describe('keyboard', () => {
     expect(tabs()).toEqual(['-1', '0', '-1', '-1']);
     expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai3');
     qa(el, '.aq-mark')[1].dispatchEvent(key('End'));
-    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('icedac');
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('icebox');
     qa(el, '.aq-mark')[3].dispatchEvent(key('Home'));
     expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai7');
     qa(el, '.aq-mark')[0].dispatchEvent(key('ArrowUp'));
@@ -964,7 +964,7 @@ describe('keyboard', () => {
 
   it('keeps every name on a phone when the strip fits two lines', () => {
     const el = mountAt(390, { now: NOW, providers: [claude()] });
-    expect(names(q(el, '.aq-marks')!)).toEqual(['ai7', 'ai3', 'ai43', 'icedac']);
+    expect(names(q(el, '.aq-marks')!)).toEqual(['ai7', 'ai3', 'ai43', 'icebox']);
     expect(qa(el, '.aq-mark.is-fold')).toHaveLength(0);
   });
 
@@ -980,14 +980,14 @@ describe('keyboard', () => {
       'ai17',
       'limited|cooldown',
       'ai8',
-      'icedac',
+      'icebox',
       'z',
     ]);
     marks[0].focus();
     marks[0].dispatchEvent(key('End'));
     expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('z');
     qa(el, '.aq-mark')[9].dispatchEvent(key('ArrowLeft'));
-    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('icedac');
+    expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('icebox');
     qa(el, '.aq-mark')[6].dispatchEvent(key('ArrowLeft'));
     expect(el.shadowRoot!.activeElement?.getAttribute('data-aid')).toBe('ai17');
     qa(el, '.aq-mark')[5].dispatchEvent(key('Home'));
@@ -1003,7 +1003,7 @@ describe('workers strip (stacks, one icon, two lines)', () => {
       ['limited|weekly', 'ai43 ai17'],
       ['limited|cooldown', 'ai3 ai7 ai15 ai40 ai30 ai41 info dev1 ai ai44 ai16'],
       ['paused|auth', 'ai8'],
-      ['paused|paused', 'icedac z'],
+      ['paused|paused', 'icebox z'],
     ]);
     expect(accountStacks(undefined)).toEqual([]);
   });
@@ -1073,7 +1073,7 @@ describe('workers strip (stacks, one icon, two lines)', () => {
       'ai43 ai17',
       'ai3 ai7 ai15 ai40 ai30 ai41 info dev1 ai ai44 ai16',
       'ai8',
-      'icedac z',
+      'icebox z',
     ]);
     // One icon per stack, on its first badge; no badge says a reason, a countdown or "복귀 약속 없음".
     for (const st of stacks) {
@@ -1109,7 +1109,7 @@ describe('workers strip (stacks, one icon, two lines)', () => {
       'ai43',
       'ai17',
       'ai8',
-      'icedac',
+      'icebox',
       'z',
     ]);
     folds[0].click();
