@@ -506,6 +506,35 @@ def test_jingle_candidates_write_valid_midi_and_render_when_the_soundfont_is_the
             w = jingles.render('lofi_keys', os.path.join(d, 'j.wav'))
             r = wave.open(w); assert r.getframerate() == 48000 and r.getnchannels() == 2 and abs(r.getnframes() / 48000 - 5.0) < 1e-3
 
+
+def test_the_book_cold_open_plan_feeds_every_plan_name_the_edit_engine_reads():
+    """book/assemble.py cuts the streaming book's cold open with edit/cut.py: the edit plan it writes must define every
+    plan name cut.py reads without a default (P.X), and ep. 1's shots must name real takes and real zoom boxes"""
+    import re, importlib.util
+    sys.path.insert(0, os.path.join(HERE, 'book')); sys.path.insert(0, os.path.join(HERE, 'edit'))
+    import assemble, cut
+    src = open(os.path.join(HERE, 'edit', 'cut.py')).read()
+    names = set(re.findall(r"\bP\.([A-Z_]+)", src))   # getattr(P, 'X', default) names have defaults
+    ep = os.path.join(HERE, 'themes', 'content', 'book-night', 'episodes', '01-purple-cow', 'book')
+    spec = importlib.util.spec_from_file_location('beats_ep1_book', os.path.join(ep, 'beats.py')); mod = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, ep); spec.loader.exec_module(mod)
+    C = mod.ASSEMBLY['cold_open']
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 'edit_plan.py'), 'w').write(assemble.EDIT_PLAN)
+        json.dump(C, open(os.path.join(d, 'cold.json'), 'w'), ensure_ascii=False)
+        json.dump(json.load(open(os.path.join(ep, 'lines.json'))), open(os.path.join(d, 'lines.json'), 'w'), ensure_ascii=False)
+        P = cut.load_plan(os.path.join(d, 'edit_plan.py'))
+    missing = sorted(n for n in names if not hasattr(P, n))
+    assert not missing, missing
+    for k in ('channel', 'series', 'ep', 'title', 'sub', 'bg', 'cow'): assert k in P.TITLE, k
+    for k in ('next', 'next_title', 'next_sub', 'full', 'bye'): assert k in P.END, k
+    ids = {l['id'] for l in json.load(open(os.path.join(ep, 'lines.json')))}
+    for sh in C['shots']:
+        lid = sh.get('line') or (sh['at'][1] if sh.get('at', [None])[0] == 'line' else None)
+        assert lid is None or lid in ids, lid
+        assert sh.get('zoom') is None or sh['zoom'] in C['Z'], sh.get('zoom')
+    assert all(len(b) == 4 and abs(b[2] / b[3] - 16 / 9) < 0.02 for b in C['Z'].values())   # punch-ins keep 16:9
+
 if __name__ == '__main__':
     for name, fn in list(globals().items()):
         if name.startswith('test_'): fn(); print('ok', name)
