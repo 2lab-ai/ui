@@ -1290,7 +1290,7 @@ describe('host gaps', () => {
       const a: InboxCard = { ...RUN, id: 'a', title: 'A' };
       const b: InboxCard = { ...RUN, id: 'b', title: 'B' };
       const el = mount({ columns: [{ id: 'running', label: 'Running', cards: [a, b] }] });
-      expect(card(el, 'a').querySelector('.ib-clock')?.textContent).not.toBe('');
+      expect(card(el, 'a').querySelector('.ib-clock')?.textContent).toBeTruthy();
       const anim = spyAnimate();
       try {
         // Only A's cost moved: its face is rewritten, nothing changes size.
