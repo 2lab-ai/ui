@@ -11,3 +11,31 @@
 #toc .ti.on .n{background:#b18cff;color:#1a1328}
 #tocbar{position:absolute;left:18px;right:18px;bottom:10px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
 #tocfill{display:block;height:100%;width:0;background:#b18cff}
+
+/* WordPad (Windows 11): the book's contents, edited live by the streamer */
+#wp{background:#f3f3f3;border-radius:8px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.3);color:#1b1b1b;font-family:Pret,sans-serif}
+#wp .wtitle{position:absolute;left:0;right:0;top:0;height:30px;background:#eef0f4;display:flex;align-items:center;font-size:12.5px;color:#222}
+#wp .wtitle svg{width:16px;height:16px;margin:0 9px 0 12px}
+#wp .wwb{position:absolute;right:0;top:0;height:100%;display:flex}
+#wp .wwb span{width:40px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#333}
+#wp .wtabs{position:absolute;left:0;right:0;top:30px;height:24px;background:#f9f9fb;display:flex;gap:18px;padding-left:14px;align-items:center;font-size:12.5px;color:#333}
+#wp .wtabs .on{color:#1a5fb4;border-bottom:2px solid #1a5fb4;padding-bottom:2px}
+#wp .wrib{position:absolute;left:0;right:0;top:54px;height:54px;background:#f9f9fb;border-bottom:1px solid #dcdcdc}
+#wp .wdd{position:absolute;top:11px;height:22px;border:1px solid #c9c9c9;border-radius:3px;background:#fff;font-size:12.5px;line-height:22px;padding-left:6px;box-sizing:border-box;color:#222}
+#wp .wdd::after{content:'▾';position:absolute;right:5px;font-size:10px;color:#666}
+#wp .wbtn{position:absolute;width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#222;font-family:Pret,serif}
+#wp .wbtn.on{background:#cfe0f5;box-shadow:inset 0 0 0 1px #9dbde6}
+#wp .wbtn s{font-size:12px}
+#wp .wbtn .ac{border-bottom:4px solid #ed1c24;line-height:1}
+#wp .wbtn .ahl{background:linear-gradient(transparent 70%,#fff200 70%);font-size:13px}
+#wp .wruler{position:absolute;left:0;right:0;top:108px;height:16px;background:#fbfbfb;border-bottom:1px solid #e3e3e3;background-image:repeating-linear-gradient(90deg,#bbb 0 1px,transparent 1px 12px);background-size:12px 4px;background-repeat:repeat-x;background-position:0 11px}
+#wp .wdoc{position:absolute;left:0;right:0;top:124px;bottom:0;background:#e6e6e6}
+#wp .wpage{position:absolute;left:14px;right:14px;top:8px;bottom:-20px;background:#fff;box-shadow:0 0 0 1px #d6d6d6}
+#wp .wl{position:absolute;white-space:nowrap;font-size:17px;color:#111;line-height:1.25;margin-left:-14px;margin-top:-132px}
+#wp .wl span{position:relative}
+#wp .wh{font-weight:800;font-size:19px;color:#111}
+#wp .wsel{position:absolute;left:-1px;top:-1px;bottom:-1px;width:0;background:rgba(0,120,215,.32);display:block}
+#wp .wl.cur{font-weight:800}
+#wp .wl.red span{color:#ed1c24}
+#wp .wl.hl span{background:#fff200}
+#wp .wl.done span{text-decoration:line-through;color:#8a8a8a}

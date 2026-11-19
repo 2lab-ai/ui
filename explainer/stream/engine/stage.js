@@ -113,6 +113,27 @@ async function applyTheme() {
     TL.toc.items.forEach((t, i) => { const d = el('div', 'ti', `<span class="n">${i + 1}</span><span class="tt"></span>`); d.querySelector('.tt').textContent = t; $('toclist').appendChild(d); });
   }
 }
+// a WordPad document with the book's contents, edited by her own mouse (Builder.chapter: wp_sel / wp_btn / wp_fmt ops)
+function buildWordpad() {
+  const W = L.wordpad; if (!W || !TL.toc) return;
+  const wp = $('wp'); Object.assign(wp.style, { display: 'block', left: px(W.x), top: px(W.y), width: px(W.w), height: px(W.h) });
+  const rx = x => px(x - W.x), ry = y => px(y - W.y);
+  wp.innerHTML = `<div class="wtitle"><svg viewBox="0 0 16 16"><rect x="2" y="1" width="12" height="14" fill="#2b7cd3"/><rect x="4" y="4" width="8" height="1.4" fill="#fff"/><rect x="4" y="7" width="8" height="1.4" fill="#fff"/><rect x="4" y="10" width="5" height="1.4" fill="#fff"/></svg><span>${esc(W.file || '목차.rtf')} - 워드패드</span><div class="wwb"><span>&#x2014;</span><span>&#x25A2;</span><span>&#x2715;</span></div></div>
+    <div class="wtabs"><span>파일</span><span class="on">홈</span><span>보기</span></div><div class="wrib"></div><div class="wruler"></div><div class="wdoc"><div class="wpage"></div></div>`;
+  const rib = wp.querySelector('.wrib');
+  rib.insertAdjacentHTML('beforeend', `<span class="wdd" style="left:${rx(W.font_box[0])};width:${px(W.font_box[1])}">맑은 고딕</span><span class="wdd" style="left:${rx(W.size_box[0])};width:${px(W.size_box[1])}">${W.fs}</span>`);
+  const BTN = { bold: '<b>가</b>', italic: '<i>가</i>', under: '<u>가</u>', strike: '<s>abc</s>', color: '<span class="ac">가</span>', hl: '<span class="ahl">ab</span>' };
+  for (const k in W.btn) rib.insertAdjacentHTML('beforeend', `<span class="wbtn" id="wpb_${k}" style="left:${rx(W.btn[k][0] - 14)};top:${px(W.btn[k][1] - W.y - W.rib_y - 14)}">${BTN[k] || k}</span>`);
+  const page = wp.querySelector('.wpage');
+  page.insertAdjacentHTML('beforeend', `<div class="wl wh" style="left:${rx(W.doc_x)};top:${ry(W.doc_y - W.lh * 1.35)}"><span>${esc(W.head || TL.stage.title || '')}</span></div>`);
+  TL.toc.items.forEach((t, i) => page.insertAdjacentHTML('beforeend', `<div class="wl" id="wpl_${i}" style="left:${rx(W.doc_x)};top:${ry(W.doc_y + W.lh * i)};font-size:${px(W.fs)}"><i class="wsel"></i><span>${i + 1}. ${esc(t)}</span></div>`));
+}
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+function buildPbar() {
+  if (!L.pbar || !TL.toc) return;
+  const P = $('pbar'); P.style.display = 'block'; $('pfill').style.background = L.pbar.color || '#b18cff';
+  for (const e of TL.toc.ev) if (e.f > 0) { const b = document.createElement('b'); b.style.left = (100 * e.f / TL.frames).toFixed(3) + '%'; P.appendChild(b); }
+}
 let tocCur = -2;
 function renderToc(f) {
   if (!TL.toc || !L.toc) return;
@@ -125,6 +146,7 @@ window.setup = async function (layout, timeline) {
   L = layout; TL = timeline;
   buildUI();
   await applyTheme();
+  buildWordpad(); buildPbar();
   const MD = TL.stage.models;
   app = new PIXI.Application({ view: $('pixi'), width: 1920, height: 1080, backgroundAlpha: 0, autoStart: false, preserveDrawingBuffer: true, antialias: true });
   mainM = await loadModel(MD.main.model);
@@ -161,6 +183,13 @@ function applyOps(f) {
 }
 let tbState = null; const undoStack = []; const IMGS = {};
 function doOp(o) {
+  if (o.op === 'wp_sel') {
+    document.querySelectorAll('#wp .wsel').forEach(e => { e.style.width = '0px'; });
+    if (o.i >= 0) { const l = $('wpl_' + o.i); if (l) { const w = l.querySelector('span').offsetWidth; l.querySelector('.wsel').style.width = px(Math.round(w * o.p) + 2); } }
+    return;
+  }
+  if (o.op === 'wp_btn') { document.querySelectorAll('#wp .wbtn.on').forEach(e => e.classList.remove('on')); if (o.b) { const e = $('wpb_' + o.b); if (e) e.classList.add('on'); } return; }
+  if (o.op === 'wp_fmt') { const l = $('wpl_' + o.i); if (l) l.className = 'wl ' + o.cls; return; }
   if (o.op === 'seg') {
     actx.strokeStyle = o.c || '#000'; actx.lineWidth = o.w || 4; actx.lineCap = 'round'; actx.lineJoin = 'round';
     actx.beginPath(); actx.moveTo(o.pts[0][0], o.pts[0][1]);
@@ -216,9 +245,22 @@ function renderChat(f) {
   if (n > 0) { const last = list.lastChild; const p = Math.min(1, (f - ms[n - 1].f) / 5); const h = last ? last.offsetHeight + 7 : 0; list.style.transform = `translateY(${(1 - p) * h}px)`; last && (last.style.opacity = String(Math.min(1, p * 1.5))); }
 }
 
+let bgIdx = -1, brIdx = '';
+function frameImg(im, url, cur) { if (cur === url) return null; im.src = url; return im.decode().catch(() => null); }
 window.renderFrame = function (f) {
   const fps = L.fps;
   applyOps(f);
+  const wait = [];
+  if (L.pbar && TL.toc) $('pfill').style.width = (100 * f / Math.max(1, TL.frames - 1)).toFixed(3) + '%';
+  const BL = TL.stage.bg_loop;
+  if (BL) { const i = Math.floor(f * BL.fps / fps) % BL.n; if (i !== bgIdx) { bgIdx = i; const u = `${BL.url}f_${String(i + 1).padStart(5, '0')}.jpg`; const im = $('bg'); im.src = u; wait.push(im.decode().catch(() => null)); } }
+  const br = (TL.broll || []).find(b => f >= b.f0 && f < b.f1); const BR = $('broll');
+  if (br) {
+    const i = Math.min(br.n - 1, Math.floor(br.start * br.fps + (f - br.f0) * br.fps / fps)); const u = `${br.url}f_${String(i + 1).padStart(5, '0')}.jpg`;
+    if (u !== brIdx) { brIdx = u; BR.src = u; wait.push(BR.decode().catch(() => null)); }
+    BR.style.display = 'block'; BR.style.opacity = String(Math.min(1, (f - br.f0) / 6, (br.f1 - f) / 6));
+    BR.style.transform = `scale(${(1 + 0.04 * (f - br.f0) / Math.max(1, br.f1 - br.f0)).toFixed(4)})`;
+  } else BR.style.display = 'none';
   // text caret blink (530 ms like Windows)
   const c = Math.floor(f / fps * 1000 / 530) % 2 === 0; if (c !== caretOn) { caretOn = c; renderTB(); }
   // cursor
@@ -261,6 +303,7 @@ window.renderFrame = function (f) {
     SH.style.left = (sisBox.x - 360) + 'px'; SH.style.top = (L.sis.neckY - 420) + 'px';
   }
   app.renderer.render(app.stage);
+  return wait.length ? Promise.all(wait) : undefined;
 };
 // warm-up seek: replay ops and step physics without rendering screenshots
 window.seek = function (f0, warm) {

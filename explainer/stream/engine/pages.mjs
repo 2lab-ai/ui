@@ -14,7 +14,9 @@
 //     big     : one "big" number or word in the middle, "lines" under it
 //     blank   : the headline only; the rest is free for a hand drawing (labels: [{x, y, text}] typed beforehand, e.g. axis names)
 //   out: <id>.png (the page, canvas size) and <id>.boxes.json {"head", "image", "images": [...], "items": [...],
-//        "big", "free", "marks": [{"text", "x", "y", "w", "h"}]} — boxes in page px = canvas px when pasted at (0, 0, w, h)
+//        "big", "free", "marks": [{"text", "x", "y", "w", "h", "rects": [one per text line]}]} — page px = canvas px at (0, 0, w, h)
+// Only what Paint itself can make: text in a font, a size, a colour, bold, a yellow text background; rectangles; pasted
+// pictures with square corners. No badges, rounded corners, shadows or rotated boxes.
 // In beats.py: B.clear_canvas(); B.paste_image('content/.../pages/out/p1.png', 0, 0, 1100, 700); then mark with
 //   engine/marks.py: underline(B, boxes['marks'][0]), circle(B, boxes['big']), arrow(B, (x0, y0), (x1, y1)), cross(B, box)
 import { createRequire } from 'module';
@@ -25,6 +27,7 @@ const CACHE = process.env.STREAM_CACHE || path.join(process.env.HOME, '.cache', 
 const require = createRequire(path.join(CACHE, 'node', 'package.json'));
 const { chromium } = require('playwright');
 const FONT = 'file://' + path.join(CACHE, 'fonts', 'pretendard') + '/';
+const FONT2 = 'file://' + path.join(CACHE, 'fonts', 'edit') + '/';   // display, serif and pen fonts (a Korean PC has their like)
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? Number(args[i + 1]) : d; };
@@ -36,7 +39,8 @@ const base = path.dirname(path.resolve(specPath));
 fs.mkdirSync(outDir, { recursive: true });
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-const marked = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b class="m">$1</b>');
+// **x** = bold in colour (red), ==x== = text-tool background fill (yellow, Paint's opaque text box): only what Paint's text tool can do
+const marked = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b class="m">$1</b>').replace(/==(.+?)==/g, '<span class="hl">$1</span>');
 const src = f => `file://${path.resolve(base, f)}`;
 const img = (f, cls = 'img', style = '') => f ? `<img class="${cls}" src="${src(f)}" style="${style}">` : '';
 const lines = (ls, cls = 'ln') => (ls || []).map(l => `<div class="${cls}">${marked(l)}</div>`).join('');
@@ -62,7 +66,7 @@ function body(p) {
     const items = p.items || []; const two = items.length > 5; const right = p.image ? 300 : 44;
     return `${p.image ? img(p.image, 'img main', `right:44px;top:150px;width:236px;height:236px`) : ''}
     <div class="lwrap" style="position:absolute;left:44px;right:${right}px;top:146px">
-    <div class="list${two ? ' two' : ''}">${items.map((t, i) => `<div class="it"><span class="no">${i + 1}</span><span class="itx">${marked(t)}</span></div>`).join('')}</div>
+    <div class="list${two ? ' two' : ''}">${items.map((t, i) => `<div class="it"><span class="no">${i + 1}.</span><span class="itx">${marked(t)}</span></div>`).join('')}</div>
     ${p.sub ? `<div class="sub">${marked(p.sub)}</div>` : ''}</div>`;
   }
   if (k === 'versus') {
@@ -76,43 +80,49 @@ function body(p) {
 }
 
 function html(p) {
+  const hf = p.headfont || ['B', 'P', 'B', 'S'][[...p.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 4];
   return `<meta charset="utf-8"><style>
+@font-face{font-family:B;src:url(${FONT2}BlackHanSans-Regular.ttf)}
+@font-face{font-family:S;src:url(${FONT2}NanumMyeongjo-ExtraBold.ttf)}
 @font-face{font-family:P;src:url(${FONT}Pretendard-Medium.woff2);font-weight:500}
 @font-face{font-family:P;src:url(${FONT}Pretendard-Bold.woff2);font-weight:700}
 @font-face{font-family:P;src:url(${FONT}Pretendard-ExtraBold.woff2);font-weight:800}
 html,body{margin:0;width:${W}px;height:${H}px;background:#fff;font-family:P,sans-serif;overflow:hidden}
-#head{position:absolute;left:44px;top:34px;right:44px;font-weight:700;font-size:40px;color:#d42a2a;line-height:1.25;word-break:keep-all}
-.img{position:absolute;object-fit:cover;border-radius:6px}
+#head{position:absolute;left:44px;top:34px;right:44px;font-family:${hf === 'P' ? 'P' : hf};font-weight:${hf === 'P' ? 800 : 400};font-size:${hf === 'S' ? 38 : 41}px;color:${hf === 'S' ? '#000' : '#ed1c24'};line-height:1.25;word-break:keep-all}
+#head .m{color:${hf === 'S' ? '#ed1c24' : '#000'}}
+.img{position:absolute;object-fit:cover}
+.hl{background:#fff200}
 .txt,.clip,.bigw,.vs{position:absolute}
 .src{font-weight:500;font-size:22px;color:#777;line-height:1.35;margin-bottom:22px;word-break:keep-all}
 .ln{font-weight:500;font-size:32px;color:#222;line-height:1.45;margin-bottom:10px;word-break:keep-all}
-.m{font-weight:700;color:#d42a2a}
-.clip{background:#f6f5f1;border:1px solid #e2dfd6;box-shadow:0 3px 10px rgba(0,0,0,.12);padding:22px 26px 18px;transform:rotate(-0.6deg)}
+.m{font-weight:700;color:#ed1c24}
+.clip{background:#f6f5f1;border:1px solid #c8c8c8;padding:22px 26px 18px}
 .mast{display:flex;justify-content:space-between;font-weight:700;font-size:19px;color:#555;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:14px}
 .mast .outlet{color:#1d3d7a}
 .atitle{font-weight:700;font-size:33px;color:#111;line-height:1.3;margin-bottom:14px;word-break:keep-all}
 .aln{font-weight:500;font-size:24px;color:#333;line-height:1.5;margin-bottom:6px;word-break:keep-all}
-.qm{font-weight:800;font-size:90px;color:#b18cff;line-height:.6;height:44px}
+.qm{font-family:S;font-size:90px;color:#a349a4;line-height:.6;height:44px}
 .en{font-weight:500;font-size:23px;color:#888;font-style:italic;line-height:1.4;margin-bottom:18px}
-.qln{font-weight:500;font-size:34px;color:#222;line-height:1.45;margin-bottom:8px;word-break:keep-all}
+.qln{font-family:S;font-size:33px;color:#222;line-height:1.5;margin-bottom:8px;word-break:keep-all}
+.qln .m{font-family:S;font-weight:400}
 .by{font-weight:500;font-size:20px;color:#888;margin-top:16px}
-.cover{object-fit:contain;background:#f3f3f3;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.cover{object-fit:contain;background:#fff;border:1px solid #c8c8c8}
 .lwrap{display:flex;flex-direction:column}
 .lab{position:absolute;font-weight:600;font-size:28px;color:#333;white-space:nowrap}
 .lwrap .sub{order:-1}
 .sub{font-weight:500;font-size:24px;color:#777;word-break:keep-all;line-height:1.35;margin-bottom:20px}
-.list .it{display:flex;align-items:flex-start;gap:14px;font-weight:500;font-size:30px;color:#222;line-height:1.35;margin-bottom:16px;word-break:keep-all}
+.list .it{display:flex;align-items:flex-start;gap:10px;font-weight:500;font-size:30px;color:#222;line-height:1.35;margin-bottom:16px;word-break:keep-all}
 .list.two{columns:2;column-gap:40px}
 .list.two .it{break-inside:avoid;font-size:27px;margin-bottom:14px}
-.list .no{flex:0 0 40px;height:40px;border-radius:50%;background:#d42a2a;color:#fff;font-weight:800;font-size:22px;display:flex;align-items:center;justify-content:center;margin-top:-1px}
+.list .no{flex:0 0 auto;min-width:34px;font-weight:800;color:#3f48cc}
 .vs{top:146px;bottom:${p.foot ? 46 : 20}px}
 .vlab{font-weight:700;font-size:28px;color:#222;margin-bottom:10px;word-break:keep-all}
 .vimg{position:relative;display:block;width:100%;height:300px}
 .vln{font-weight:500;font-size:24px;color:#333;line-height:1.4;margin-top:10px;word-break:keep-all}
-.varrow{position:absolute;left:${Math.round(W / 2) - 26}px;top:300px;font-weight:800;font-size:56px;color:#d42a2a}
+.varrow{position:absolute;left:${Math.round(W / 2) - 26}px;top:300px;font-family:B;font-size:56px;color:#ed1c24}
 .bigw{top:150px;text-align:center}
-.big{font-weight:800;font-size:${p.bigsize || 150}px;color:#d42a2a;line-height:1.1;margin:30px 0 24px;word-break:keep-all}
-.big .m{font-weight:800}
+.big{font-family:B;font-size:${p.bigsize || 150}px;color:#ed1c24;line-height:1.1;margin:30px 0 24px;word-break:keep-all}
+.big .m{font-family:B;font-weight:400}
 .bln{font-weight:500;font-size:32px;color:#222;line-height:1.45;margin-bottom:8px;word-break:keep-all}
 #foot{position:absolute;left:44px;right:44px;bottom:14px;font-weight:500;font-size:16px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style><div id="head"><span id="headt">${marked(p.head || '')}</span></div>${body(p)}${p.foot ? `<div id="foot">${esc(p.foot)}</div>` : ''}`;
@@ -131,9 +141,11 @@ for (const p of pages) {
   const boxes = await page.evaluate(() => {
     const b = el => { if (!el) return null; const r = el.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; };
     const q = s => [...document.querySelectorAll(s)];
+    const rs = el => [...el.getClientRects()].filter(r => r.width > 2).map(r => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }));
+    const lb = el => ({ ...b(el), rects: rs(el) });
     return { head: b(document.getElementById('headt')), image: b(document.querySelector('.img.main')), images: q('.img').map(b),
-             items: q('.it .itx').map(b), big: b(document.querySelector('.bigt')), title: b(document.querySelector('.att')),
-             free: b(document.getElementById('free')), marks: q('.m').map(el => ({ text: el.textContent, ...b(el) })) };
+             items: q('.it .itx').map(lb), big: b(document.querySelector('.bigt')), title: b(document.querySelector('.att')),
+             free: b(document.getElementById('free')), marks: q('.m').map(el => ({ text: el.textContent, ...lb(el) })) };
   });
   // nothing may run off the page: every text block inside the canvas
   const over = await page.evaluate((H) => [...document.querySelectorAll('.ln,.aln,.qln,.it,.vln,.bln,.atitle,#head,.big')].filter(e => e.getBoundingClientRect().bottom > H - 4).map(e => e.textContent.slice(0, 30)), H);

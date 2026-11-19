@@ -9,7 +9,7 @@ script.py defines
     SECTIONS = [('part', 'section of the book', 'key'), ...]   every section of the book, in the book's order
     PAGES    = {'p01': {page spec for engine/pages.mjs}, ...}
     SEQ      = [('part', i) | ('page', 'p01') | ('pause', s) | ('think', s) |
-                (text, {opts}) ...]        a line; opts: say, dir, tts, j (1 = joke / exaggeration / aside, smiles unless expr), sec (section key), id (for a line added later),
+                (text, {opts}) ...]        a line; opts: say, dir, tts, j (1 = joke / exaggeration / aside, smiles unless expr), sec (section key), id (for a line added later), broll=(clip, secs, at 0..1),
                                            gaze ('cam' | 'screen' | 'think' | 'down'), expr, gap, m (marks, below)
     marks: ('u', i[, frac]) underline marks[i]   ('uu', i) double   ('c', i) circle   ('x', i) cross   ('s', i) strike
            ('bx', i) box        ('h',) underline the headline     ('cb',) circle the big number   ('ci'|'ui'|'ti'|'xi', i) item i
@@ -98,7 +98,7 @@ def compile_script(path):
                     loc = (f - edges[i]) / max(1e-6, edges[i + 1] - edges[i])
                     mine.append((mk[:-1] if isinstance(mk[-1], float) and 0 <= mk[-1] <= 1 else mk) + [round(min(0.95, loc), 3)])
             last = i == len(parts_t) - 1
-            story.append({'ev': 'line', 'id': lid, 'page': page, 'm': mine, 'gaze': o.get('gaze', 'cam'),
+            story.append({'ev': 'line', 'id': lid, 'page': page, 'm': mine, 'gaze': o.get('gaze', 'cam'), 'broll': o.get('broll') if i == 0 else None,
                           'expr': o.get('expr') or ('smile' if o.get('j') else None), 'gap': o.get('gap', 0.35) if last else 0.3})
     os.makedirs(os.path.join(d, 'pages'), exist_ok=True)
     # a picture that is not there yet (still being licensed) drops out of its page instead of failing the page build
@@ -210,6 +210,9 @@ def play(B, rng, book_dir, first_at=1.2):
             at = max(B.t, min_next)
             t0, t1 = B.say(ev['id'], gap=ev['gap'], gaze=ev['gaze'], expr=ev['expr'], at=at)
             last_end = t1
+            if ev.get('broll'):   # (clip name, seconds ≤ 4, where in the line 0..1): a real video cutaway while she talks
+                name, dur, fr = (list(ev['broll']) + [0.15])[:3]
+                B.broll(name, dur, at=t0 + (t1 - t0) * fr)
             if not ev['m'] and ev['gaze'] in (None, 'cam') and rng.random() < 0.65:   # reads the next point off the page, then back to camera
                 B.gaze.append((t0 + 0.1, t0 + min(rng.uniform(1.0, 2.0), 0.5 * (t1 - t0)), 'screen', 'main'))
             for m_ in re.finditer(r'\[(laughs[^\]]*)\]', L.get('tts') or ''):
