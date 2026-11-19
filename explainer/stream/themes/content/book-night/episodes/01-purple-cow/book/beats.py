@@ -40,13 +40,20 @@ _ART = _os.path.expanduser('~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/
 _BG = 'file://' + _ART + 'card_bg.jpg'
 ASSEMBLY = {
     'audio': _os.path.expanduser('~/2lab.ai/ARTIFACTS/stream/book-night-01-purple-cow/book/audio'),
-    'cold': [('k090b', None, None),                 # 리마커블의 반대말이 뭘까요. 나쁜 거?  (stop before the answer)
-             ('k153b', None, None),                 # 저자가 만 부를 직접 찍어서 보라색 우유팩에 넣었대요.
-             ('omt05a', None, None)],               # 그리고 진짜로 칠했어요. (the one more thing, teased)
+    # the cold open, cut by the edit engine (edit/cut.py COLD_OPEN): three open questions, each stopped before its answer,
+    # punched in so the page never gives the answer away, then a freeze on the evidence with a gag caption and a record scratch
+    'cold_open': {'len': 9.2, 'bg': _ART + 'card_bg.jpg',
+                  'Z': {'face': (1376, 590, 480, 270),    # her face and hat (the page beside her shows the answers)
+                        'cow': (118, 545, 480, 270)},     # the photo slot on the left of the page: the 1906 drawing, then the painted cow
+                  'shots': [{'line': 'k090b', 'cut': 2.05, 'zoom': 'face', 'text': '리마커블의 반대말이 뭘까요?'},
+                            {'line': 'omt07', 'from': 0.38, 'cut': 3.95, 'zoom': 'face', 'text': '독일 아이 셋 중 하나는 소가 보라색인 줄 안다?'},
+                            {'line': 'omt05a', 'zoom': 'cow', 'pre': 0.1},   # "그리고 진짜로 칠했어요" while the page turns to the real painted cow
+                            {'at': ['line', 'omt05a', 1.0], 'dur': 0.1, 'hold': 'fill', 'zoom': 'cow', 'mute': True,
+                             'caption': {'text': '실화', 'style': 'gag', 'x': 960, 'y': 170, 'at': 0.25, 'sfx': 'boing'}, 'end_sfx': 'scratch'}]},
     'title': {'dur': 5.0, 'tune': 'book_night_open',
               'html': title_html('책듣는밤', '1화 · 스트리밍 북', '보랏빛 소가 온다', '한 권 다 읽어드림 · 30분', '#b18cff', _BG,
                                  photo='file://' + _os.path.join(HERE, 'props', 'paris_milka_cow.jpg'), author='세스 고딘 『Purple Cow』')},
     'end': {'dur': 7.5, 'tune': 'book_night_close',
-            'html': end_html('다음 책듣는밤에서<br>만나요', ['라이브 다시보기 · 편집본 · 쇼츠는 설명란에', '다음 책: 택배로 온 진짜 벽돌'], '#b18cff', _BG,
+            'html': end_html('다음 책듣는밤에서<br>만나요', ['라이브 다시보기는 설명란에', '다음 책: 택배로 온 진짜 벽돌'], '#b18cff', _BG,
                              box_img='file://' + _ART + 'live_frame.jpg', box_label='▶ 1화 라이브 다시보기 (가볍게 30분)')},
 }

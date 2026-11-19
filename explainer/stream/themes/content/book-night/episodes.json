@@ -8,9 +8,9 @@
    "date": "2026-11-17",
    "first_stream": true,
    "book": {
-    "url": "https://youtu.be/Fb9gdsGivMQ",
-    "publish": "2026-11-19 18:00 KST (scheduled 12:24 KST). v2 after the owner notes of 2026-11-19 replaces v1 https://youtu.be/QtzHaqOgT5Q (set private, not deleted)",
-    "length": "32:43 (10.2 s cold open + 5 s title + 32:20 recording + 7.5 s end card)",
+    "url": "https://youtu.be/_yCiz6gpEfo",
+    "publish": "2026-11-19 18:00 KST (scheduled 13:48 KST). v3: the cold open cut by the edit engine and a lean description; replaces v2 https://youtu.be/Fb9gdsGivMQ and v1 https://youtu.be/QtzHaqOgT5Q (both private, not deleted)",
+    "length": "32:42 (9.2 s cold open + 5 s title + 32:20 recording + 7.5 s end card)",
     "title": "[책듣는밤 1화] 보랏빛 소가 온다 한 권 다 읽어드림 (스트리밍 북) | 세스 고딘",
     "folder": "episodes/01-purple-cow/book",
     "script": "episodes/01-purple-cow/book/script.py",
@@ -27,7 +27,13 @@
     "thumbnail": "set (upload_v2/thumb.png, one Paint page in a yellow frame); playlist 📖 책듣는밤 | 벽돌책 30분 대신 읽기",
     "identity": "night office over a real city loop, WordPad contents edited by hand, 12 px progress bar, book_night_open/close tunes, its own title/end cards, Paint-page cover",
     "broll": "cows, supermarket, times_square, tv_remote, queue, salt_pans (≤ 4 s each; Pixabay, Mixkit, Pexels)",
-    "one_more_thing": "Milka purple cow: 1971 train window → a real cow painted; the 1997 Lila Kuh study (1%) vs the kids-think-cows-are-purple myth; two windows ~30 years apart"
+    "one_more_thing": "Milka purple cow: 1971 train window → a real cow painted; the 1997 Lila Kuh study (1%) vs the kids-think-cows-are-purple myth; two windows ~30 years apart",
+    "cold_open": "edit/cut.py COLD_OPEN: '리마커블의 반대말이 뭘까요?' (face) → '독일 아이 셋 중 하나는 소가 보라색인 줄 안다?' (face) → '그리고 진짜로 칠했어요' (the 1906 drawing turns into the painted cow) → freeze '실화' + record scratch",
+    "description": "365 characters: two lines, 11 chapters, the live link, credits on screen, 3 hashtags (v2 had ~3,500)",
+    "history": [
+     "v1 QtzHaqOgT5Q (30:26, private)",
+     "v2 Fb9gdsGivMQ (owner notes 0-7, private)"
+    ]
    },
    "book_en": "Purple Cow",
    "author": "세스 고딘 (Seth Godin)",

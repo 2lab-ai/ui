@@ -4,7 +4,7 @@ the book never share a tune or a card: the book has its own pair (edit/jingles.p
 usage: python book/assemble.py <build dir> <episode book dir> <out dir>
   reads the beats' ASSEMBLY = {'cold': [(line id, from_word, to_word | None), ...], 'title': {...}, 'end': {...}}
   -> <out>/upload.mp4 (1080p30, -16 LUFS), offset.txt (seconds added before the recording: shift chapters and captions)"""
-import importlib.util, json, os, subprocess, sys, tempfile
+import importlib.util, json, os, re, shutil, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__)); KIT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(KIT, 'edit')); sys.path.insert(0, os.path.join(KIT, 'engine'))
@@ -40,6 +40,39 @@ def span(ev, audio, lid, w0=None, w1=None):
     return max(0, a - 0.12), b + 0.22
 
 
+EDIT_PLAN = """# written by book/assemble.py: only the cold open of this plan is used; the rest keeps edit/cut.py running
+import json as _j, os as _o
+_C = _j.load(open(_o.path.join(_o.path.dirname(_o.path.abspath(__file__)), 'cold.json')))
+COLD_OPEN, COLD_LEN, Z, HEAD = _C['shots'], _C.get('len', 10.0), _C['Z'], tuple(_C.get('head', (1600, 640)))
+TONE, HL = _C.get('tone', {}), _C.get('hl', {})
+_ids = [l['id'] for l in _j.load(open(_o.path.join(_o.path.dirname(_o.path.abspath(__file__)), 'lines.json')))]
+DROP = set(_ids[1:])
+TITLE = {'channel': '', 'series': '', 'ep': '', 'title': '', 'sub': '', 'bg': _C['bg'], 'cow': [0.5, 0.5, 0.01, 0.01]}
+END = {'next': '', 'next_title': '', 'next_sub': '', 'full': '', 'ask': '', 'bye': '', 'dur': 1.0}
+ZOOM, EMPH, CHAT, JUMP_CARDS, CORNERS, STATE, BROLL, INSERTS, CHATZOOM = {}, {}, {}, {}, {}, [], [], [], []
+CHAPTERS, CHAPTERS_EN, LIVE, MAIN_LEAD, JINGLE, OUTRO = [(_ids[0], '')], [''], None, 0.0, None, None
+"""
+
+
+def cold_by_edit(C, bdir, ep, tmp):
+    """the cold open cut by the edit engine itself (edit/cut.py) from this recording, so the book's first 10 s use the same
+    emphasis as the edit: punch-ins on her face or the picture, a caption per line, a freeze with a gag caption, a record
+    scratch and a whip into the title. C = {'shots': COLD_OPEN, 'len', 'Z': zoom boxes in the recording's frame, 'bg'}."""
+    d = os.path.join(tmp, 'cold_ep'); os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, 'edit_plan.py'), 'w').write(EDIT_PLAN)
+    json.dump(C, open(os.path.join(d, 'cold.json'), 'w'), ensure_ascii=False)
+    shutil.copy(os.path.join(ep, 'lines.json'), os.path.join(d, 'lines.json'))
+    o = os.path.join(tmp, 'cold_cut')
+    r = subprocess.run([sys.executable, os.path.join(KIT, 'edit', 'cut.py'), d, bdir, o], capture_output=True, text=True)
+    if r.returncode: raise SystemExit('edit/cut.py failed:\n' + r.stdout[-2000:] + r.stderr[-2000:])
+    m = re.search(r'cold ([0-9.]+)s', r.stdout); n = float(m.group(1))
+    src = next(os.path.join(o, f) for f in ('final_edit.mp4', 'edit.mp4', 'final.mp4') if os.path.exists(os.path.join(o, f)))
+    cold = os.path.join(tmp, 'cold_edit.mp4')
+    sh('ffmpeg', '-y', '-loglevel', 'error', '-i', src, '-t', f'{n:.3f}', '-af', f'afade=t=out:st={n - 0.05:.3f}:d=0.05', *enc(), cold)
+    print('cold open by edit/cut.py', f'{n:.2f}s')
+    return cold
+
+
 def main():
     bdir, ep, out = sys.argv[1:4]; os.makedirs(out, exist_ok=True)
     spec = importlib.util.spec_from_file_location('beats', os.path.join(ep, 'beats.py')); mod = importlib.util.module_from_spec(spec)
@@ -49,8 +82,11 @@ def main():
     main_mp4 = os.path.join(bdir, 'final.mp4')
     with tempfile.TemporaryDirectory() as tmp:
         parts = []
-        # 1. cold open: whole words from the recording itself, hard cuts with a 3-frame dip
-        for k, c in enumerate(A['cold']):
+        # 1. cold open. 'cold_open' = the edit's grammar (edit/cut.py COLD_OPEN: punch-ins, captions, a freeze, a record scratch);
+        #    the older 'cold' list = whole words from the recording, hard cuts with a 3-frame dip
+        if A.get('cold_open'):
+            parts.append(cold_by_edit(A['cold_open'], bdir, ep, tmp))
+        for k, c in enumerate(A.get('cold', []) if not A.get('cold_open') else []):
             a, b = span(ev, audio, *c)
             o = os.path.join(tmp, f'cold_{k}.mp4')
             sh('ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{a:.3f}', '-t', f'{b - a:.3f}', '-i', main_mp4,
