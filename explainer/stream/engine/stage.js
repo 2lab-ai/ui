@@ -258,7 +258,7 @@ window.renderFrame = function (f) {
   if (br) {
     const i = Math.min(br.n - 1, Math.floor(br.start * br.fps + (f - br.f0) * br.fps / fps)); const u = `${br.url}f_${String(i + 1).padStart(5, '0')}.jpg`;
     if (u !== brIdx) { brIdx = u; BR.src = u; wait.push(BR.decode().catch(() => null)); }
-    BR.style.display = 'block'; BR.style.opacity = String(Math.min(1, (f - br.f0) / 6, (br.f1 - f) / 6));
+    BR.style.display = 'block'; BR.style.opacity = String(Math.min(1, (f - br.f0 + 1) / 2, (br.f1 - f) / 2));
     BR.style.transform = `scale(${(1 + 0.04 * (f - br.f0) / Math.max(1, br.f1 - br.f0)).toFixed(4)})`;
   } else BR.style.display = 'none';
   // text caret blink (530 ms like Windows)
