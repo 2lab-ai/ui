@@ -42,8 +42,8 @@ def end_html(title, lines, accent, bg, box_img=None, box_label=''):
 <div class="a" id="bl" style="left:200px;top:820px;font-weight:800;font-size:34px;color:#fff">{box_label}</div>""" if box_img else ''
     ls = ''.join(f'<div style="margin-bottom:18px">{l}</div>' for l in lines)
     return HEAD + f"""<div id="bg" style="background-image:url('{bg}')"></div><div id="vig"></div>{box}
-<div class="a" id="t" style="left:1180px;top:300px;font-family:T;font-size:84px;line-height:1.15;color:#fff;width:640px">{title}</div>
-<div class="a" id="l" style="left:1184px;top:560px;font-weight:600;font-size:36px;line-height:1.35;color:rgba(255,255,255,.82);width:640px">{ls}</div>
+<div class="a" id="t" style="left:1180px;top:290px;font-family:T;font-size:68px;line-height:1.2;color:#fff;width:680px;word-break:keep-all">{title}</div>
+<div class="a" id="l" style="left:1184px;top:500px;font-weight:600;font-size:34px;line-height:1.35;color:rgba(255,255,255,.82);width:680px;word-break:keep-all">{ls}</div>
 <div class="a" id="sc" style="left:1184px;top:820px;width:150px;height:150px;border-radius:50%;border:5px solid {accent};box-sizing:border-box"></div>
 <div class="a" id="st" style="left:1360px;top:868px;font-weight:800;font-size:38px;color:{accent}">구독</div>
 <script>{_ease()}

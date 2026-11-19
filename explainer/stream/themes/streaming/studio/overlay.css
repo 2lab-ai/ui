@@ -39,3 +39,12 @@
 #wp .wl.red span{color:#ed1c24}
 #wp .wl.hl span{background:#fff200}
 #wp .wl.done span{text-decoration:line-through;color:#8a8a8a}
+
+/* the room: an office at night, the city through the window (the loop is the view; this is the glass, the frame and the desk) */
+#bg{filter:saturate(1.05) brightness(.95)}
+#bgshade{background:
+  linear-gradient(180deg, #121318 0 16px, rgba(0,0,0,0) 16px),
+  linear-gradient(90deg, rgba(0,0,0,0) 0 1266px, #17181e 1266px 1294px, rgba(255,255,255,.06) 1294px 1296px, rgba(0,0,0,0) 1296px 1898px, #17181e 1898px),
+  linear-gradient(180deg, rgba(0,0,0,0) 0 628px, #17181e 628px 646px, rgba(255,255,255,.05) 646px 648px, rgba(0,0,0,0) 648px 1004px, #26262c 1004px 1010px, #1a1a1f 1010px),
+  linear-gradient(115deg, rgba(255,255,255,0) 40%, rgba(190,210,255,.055) 52%, rgba(255,255,255,0) 60%),
+  radial-gradient(ellipse at 70% 55%, rgba(0,0,0,0) 35%, rgba(4,6,14,.45) 100%)}

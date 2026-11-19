@@ -68,5 +68,12 @@
    "화면 구성: 목차 패널이 지금 어느 부분인지 알려 주는가, 라이브 요소(채팅, 후원) 없이 깨끗한가, 배경과 아바타와 그림판의 조화",
    10
   ]
- ]
+ ],
+ "room_loop": {
+  "url": "/cache/video/night_office/",
+  "n": 1575,
+  "fps": 30,
+  "src": "Pixabay #3134 \"City, Night, Lights\" by Life-Of-Vids (Pixabay Content License); frames: engine/video_frames.py <clip> night_office --secs 54 --loop 1.5 --grade night"
+ },
+ "room_still": "cache:video/night_office/f_00001.jpg"
 }

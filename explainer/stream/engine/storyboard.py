@@ -98,7 +98,12 @@ def compile_script(path):
                     loc = (f - edges[i]) / max(1e-6, edges[i + 1] - edges[i])
                     mine.append((mk[:-1] if isinstance(mk[-1], float) and 0 <= mk[-1] <= 1 else mk) + [round(min(0.95, loc), 3)])
             last = i == len(parts_t) - 1
-            story.append({'ev': 'line', 'id': lid, 'page': page, 'm': mine, 'gaze': o.get('gaze', 'cam'), 'broll': o.get('broll') if i == 0 else None,
+            br = None
+            if o.get('broll'):   # the cutaway lands in the sentence its fraction falls in (like a mark)
+                fb = (list(o['broll']) + [0.15])[2]
+                if edges[i] <= fb < edges[i + 1] or (i == len(parts_t) - 1 and fb >= edges[-1]):
+                    br = [o['broll'][0], o['broll'][1], round((fb - edges[i]) / max(1e-6, edges[i + 1] - edges[i]), 3)]
+            story.append({'ev': 'line', 'id': lid, 'page': page, 'm': mine, 'gaze': o.get('gaze', 'cam'), 'broll': br,
                           'expr': o.get('expr') or ('smile' if o.get('j') else None), 'gap': o.get('gap', 0.35) if last else 0.3})
     os.makedirs(os.path.join(d, 'pages'), exist_ok=True)
     # a picture that is not there yet (still being licensed) drops out of its page instead of failing the page build
