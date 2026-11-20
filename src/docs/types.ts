@@ -40,9 +40,10 @@ export interface ComponentDoc {
   reference: { name: string; url: string };
   /**
    * Group in the sidebar. Pages are the parts of the pages around an app (settings, memory, sign-in); Primitives are
-   * the building blocks (menus, dialogs, tabs …) the components share.
+   * the building blocks (menus, dialogs, tabs …) the components share; Effects are the light, colour and motion a
+   * surface wears (a wave between two states, a beam on a border, a glow that follows a voice).
    */
-  group: 'Components' | 'Screens' | 'Pages' | 'Primitives';
+  group: 'Components' | 'Screens' | 'Pages' | 'Primitives' | 'Effects';
   props: PropDoc[];
   events: EventDoc[];
   keyboard: Array<[keys: string, action: string]>;

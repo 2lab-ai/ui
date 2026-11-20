@@ -51,6 +51,21 @@ npm run consumer-check  # pack → install → NodeNext and node10 typecheck, ev
   blocks the components and the dashboard share. Reuse `src/core/popover.ts` (anchored overlays), `src/core/roving.ts`
   (roving tabindex) and glyphs from `src/icons/icons.ts` (`icon(name)`) instead of drawing new ones. Light-DOM styling
   for hosts lives in `src/kit/kit.ts` (`ui-kit.css`): tokens and `color-mix()` only, no hex / rgba literals.
+- Effects (`group: 'Effects'` in docs) are the light, colour and motion a surface wears: a wave between two states, a
+  beam on a border, a glow that follows a voice, metal, a loader that becomes the picture. Most are ports of MIT
+  libraries (name the source in `licenses/` and in the file headers). Their contract, on top of the one above:
+  - The element wraps or decorates the host's own markup (a slot, or `for` / an anchor element): it never takes over
+    the host's semantics. Decorative by default (`aria-hidden` on its canvas); a meaningful state (a voice level, a
+    loader) keeps a text equivalent (`role="status"`, `aria-busy`, a label).
+  - No frames while idle, off screen (`IntersectionObserver`) or in a hidden tab; the animation loop stops itself.
+  - WebGL: one context per element, created on first need, released on disconnect (`WEBGL_lose_context`) and on
+    long idle; a lost context or no WebGL 2 falls back to a CSS rendering (or nothing, for a pure flourish) — never an
+    exception. happy-dom has no WebGL: tests cover the fallback, the pure helpers (engine maths exported) and the
+    element's lifecycle; a real-browser check (Chromium) is the receipt for the picture.
+  - Reduced motion (`prefers-reduced-motion`, plus a `motion` attribute `'system' | 'reduce' | 'full'`): a still
+    frame or a crossfade, no travel.
+  - Engines ported from React keep their maths nearly verbatim under `src/components/<slug>/engine/`; React state and
+    refs become the element's fields; hooks become `connectedCallback` / `disconnectedCallback` and observers.
 - Sound (`src/sound/`): a user action that went through plays one cue with `this.sound(cue, options, event)` — after the
   `emit` was not prevented and only when state changed; never from render, hover, timers, streams or data the app set
   (toasts are the one code-driven exception). Navigation is the one prevented-emit exception: a host cancels
