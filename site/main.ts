@@ -71,6 +71,7 @@ function shell(active: string, body: string): string {
   const comps = DOCS.filter((d) => d.group === 'Components');
   const pages = DOCS.filter((d) => d.group === 'Pages');
   const prims = DOCS.filter((d) => d.group === 'Primitives');
+  const effects = DOCS.filter((d) => d.group === 'Effects');
   return `<header class="top">
   <button class="icon-btn menu-btn" id="menu" aria-label="Menu">${ICON.menu}</button>
   <a class="brand" href="${at('/')}" data-link><img src="${at('favicon.svg')}" alt="" />2lab<span>/ui</span></a>
@@ -94,6 +95,7 @@ function shell(active: string, body: string): string {
     ${pages.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
     <h4>Primitives</h4>
     ${prims.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}
+    ${effects.length ? `<h4>Effects</h4>\n    ${effects.map((d) => link(`/components/${d.slug}`, esc(d.name))).join('')}` : ''}
   </aside>
   <main id="main" tabindex="-1"><div class="page">${body}
     <div class="foot">@2lab.ai/ui v${esc(pkg.version)} · Web Components, zero runtime dependencies · built from the soma-work dashboard · interaction patterns studied from <a href="https://www.affectui.com" target="_blank" rel="noopener">affectUI</a> (no code or assets copied)</div>
@@ -110,6 +112,7 @@ const GROUP_LABEL: Record<ComponentDoc['group'], string> = {
   Components: 'Component',
   Pages: 'Page part',
   Primitives: 'Primitive',
+  Effects: 'Effect',
 };
 
 function homePage(): string {

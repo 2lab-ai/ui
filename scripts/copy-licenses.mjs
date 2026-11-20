@@ -1,12 +1,12 @@
 // After the lib build: dist/THIRD_PARTY_NOTICES.md — the MIT notices of code bundled into dist (Cuelume, in
 // dist/sound-cuelume.js) or ported from (Morphin UI's sound policy, in dist/sound.js and the elements; bencho.dev's
-// free blocks, in six elements).
+// free blocks, in six elements; Libraries.dev, in the effects; Paper Shaders, in the liquid metal effect).
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const read = (f) => readFileSync(new URL(`../licenses/${f}`, import.meta.url), 'utf8').trim();
 const out = `# Third-party notices
 
-@2lab.ai/ui is UNLICENSED. It bundles or adapts the following MIT-licensed work.
+@2lab.ai/ui is UNLICENSED. It bundles or adapts the following MIT-licensed work (and one Apache-2.0 shader).
 
 ## Cuelume 0.2.8 — https://github.com/danielwh2/cuelume
 
@@ -33,6 +33,31 @@ node), \`ui-image-compare\` (Image compare) and \`ui-ascii-wake\` (ASCII wake). 
 
 \`\`\`
 ${read('bencho.LICENSE')}
+\`\`\`
+
+## Libraries.dev — https://github.com/Jakubantalik/Libraries.dev
+
+The effects (\`group: 'Effects'\`) are ported from its MIT-licensed React libraries (https://libraries.dev): the
+distortion wave (\`distortion-waves\`), the border beam (\`border-beam\`), the thinking orb (\`thinking-orbs\`), gooey
+(\`liquid-gooey\`), the voice glow (\`voice-glow\`), the voice ring (\`voice-ring\`), magnetic UI (\`magnetkit\`'s field
+and bridge client — no model file), liquid metal (\`metal-fx\`), the image reveal (\`img-fx\`, redrawn without three.js)
+and bot avatars (\`bot-avatars\`). No Pro preset, Studio export or model file (Libraries.dev Model License) is included.
+
+\`\`\`
+${read('librariesdev.LICENSE')}
+\`\`\`
+
+## Paper Shaders 0.0.80 — https://github.com/paper-design/shaders
+
+The liquid metal effect (\`ui-metal\`) inlines Paper Shaders' \`liquidMetal\` fragment shader and its sizing vertex
+shader, unmodified, under the Apache License 2.0.
+
+\`\`\`
+${read('paper-shaders.NOTICE')}
+\`\`\`
+
+\`\`\`
+${read('paper-shaders.LICENSE')}
 \`\`\`
 `;
 writeFileSync(new URL('../dist/THIRD_PARTY_NOTICES.md', import.meta.url), out);
