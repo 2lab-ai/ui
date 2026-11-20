@@ -5,8 +5,8 @@ import { designById } from '../../core/tokens';
 
 /**
  * Light or dark substrate for an element, the way the library resolves it: a pinned theme first; then the nearest
- * ancestor — across shadow boundaries — that says so (`data-design` → its scheme, `data-theme="dark|light"`, or the
- * Tailwind / shadcn `dark` / `light` class); then the element's own `--text` token (light ink → a dark page, which
+ * ancestor — across shadow boundaries — that says so (`data-design` → its scheme, `data-theme="dark|light"`, a `ui-*`
+ * element's own `theme` attribute, or the Tailwind / shadcn `dark` / `light` class); then the element's own `--text` token (light ink → a dark page, which
  * also carries `prefers-color-scheme` and page tokens); last the OS setting.
  */
 export type Substrate = 'dark' | 'light';
@@ -28,6 +28,9 @@ export function ancestorSubstrate(el: Element | null): Substrate | null {
     }
     const theme = node.getAttribute('data-theme');
     if (theme === 'dark' || theme === 'light') return theme;
+    // A library element pinned with its own `theme` attribute (its tokens follow it, so the ink does too).
+    const pin = node.localName.startsWith('ui-') ? node.getAttribute('theme') : null;
+    if (pin === 'dark' || pin === 'light') return pin;
     if (node.classList?.contains('dark')) return 'dark';
     if (node.classList?.contains('light')) return 'light';
   }

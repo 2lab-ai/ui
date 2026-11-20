@@ -106,7 +106,7 @@ export const doc: ComponentDoc = {
   description:
     'A loader with nine verbs, each its own hand-tuned animation of a depth-shaded dotted sphere: working (particles on tilted orbits), searching (a scan meridian sweeps a globe), solving (bands scramble, then click back solved), listening (a waveform rolls through the rings), connecting (a constellation wires itself), weaving (three strands plait around the sphere), composing (an undulating sash), breathing (a ring slowly morphing — “Thinking…”) and shaping (a dotted outline: circle → triangle → square). Three tuned sizes — 64 for an avatar, 32 for a compact avatar, 20 for inline text — each its own design, not a scale. One plain 2D canvas: no WebGL, no filters, the same pixels everywhere. Every orb reads one shared clock so a page of them stays in phase; the loop stops offscreen, in a hidden tab and when paused. Light ink on a dark page, dark ink on a light one, following the page live; `color` tints the ink with its depth ramp intact.',
   usedIn:
-    'soma-work dashboard: the live run’s status line and the conversation’s “agent is …” row (20, decorative beside the words), the agent avatar while a turn streams (64), and the task list rows of running tasks.',
+    'soma-work dashboard: the conversation’s writing row — `<ui-ai-answer>`’s `activity`, fed by `orbStateForTool(lastTool)` (20, decorative beside the words) — plus the live run’s status line, the agent avatar while a turn streams (64), and the task list rows of running tasks.',
   reference: { name: 'Libraries.dev — Thinking Orbs', url: 'https://libraries.dev/orbs' },
   group: 'Effects',
   props: [
@@ -191,6 +191,18 @@ export const doc: ComponentDoc = {
       type: 'read-only',
       description:
         'What it draws with now (clamped), the label it announces, the substrate it resolved, and whether the frame loop is scheduled.',
+    },
+    {
+      name: 'orbStateForTool(toolName) · ORB_TOOL_STATES · ORB_THINKING_STATE',
+      type: '(toolName: string) => ThinkingOrbState',
+      description:
+        'An agent’s last tool → the state that pictures it (any case, trimmed): Read · Grep · Glob · LS · NotebookRead · WebSearch · WebFetch → searching; Edit · Write · MultiEdit · NotebookEdit → composing; Bash · BashOutput · KillShell → working; Task · Agent → weaving; TodoWrite → shaping; mcp__* → connecting; anything else, or no tool → breathing (ORB_THINKING_STATE, “Thinking…”). `<ui-ai-answer>`’s writing row and `<ui-conversation>`’s pending row take it as `activity`.',
+    },
+    {
+      name: 'orbStateOf · orbCanDraw',
+      type: 'helpers',
+      description:
+        'A state name (any case) or a fallback; whether an orb can draw here (the element is defined and a 2D canvas exists) — hosts keep a plain mark when it cannot.',
     },
     {
       name: 'orbOptions · orbPlan · orbFit · orbSizeOf · orbParseTint · resolveOrbPreset · ORB_MODE_FRAMES · ORB_PRESETS · orbScaleCounts · orbScaleRadii · orbCountDots · orbFinalizeFrame · orbMakeProj · orbPaintFrame …',

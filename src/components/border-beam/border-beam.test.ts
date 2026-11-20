@@ -500,6 +500,17 @@ describe('substrate', () => {
     outer.removeAttribute('data-design');
     outer.removeAttribute('data-theme');
     expect(ancestorSubstrate(inner)).toBeNull();
+    // A library element pinned with its own theme attribute (its tokens follow it); a plain element's is not ours.
+    const pinned = document.createElement('ui-composer');
+    pinned.setAttribute('theme', 'light');
+    const kid = document.createElement('i');
+    pinned.append(kid);
+    outer.append(pinned);
+    expect(ancestorSubstrate(kid)).toBe('light');
+    pinned.setAttribute('theme', 'auto');
+    expect(ancestorSubstrate(kid)).toBeNull();
+    host.setAttribute('theme', 'dark');
+    expect(ancestorSubstrate(inner)).toBeNull();
     expect(composedContains(outer, inner)).toBe(true);
     expect(composedContains(inner, outer)).toBe(false);
   });

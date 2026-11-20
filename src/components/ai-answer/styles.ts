@@ -47,11 +47,13 @@ ${mdDocCss}
 .ans-took { font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (hover: hover) and (pointer: fine) { .ans-btn:hover { border-color: var(--ib-muted); } }
 
-/* Writing (D12): a sweep over the words + a pulsing run-colour dot. */
+/* Writing (D12): a sweep over the words, led by the agent's thinking orb (the pulsing run-colour dot where none can draw). */
 .ans-foot.is-writing { min-height: 41px; }
 .ans-writing { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .ans-shimmer { color: transparent; background: linear-gradient(90deg, var(--text-tertiary) 38%, var(--text) 50%, var(--text-tertiary) 62%) 100% 0 / 300% 100% no-repeat; -webkit-background-clip: text; background-clip: text; animation: ans-sweep 1.6s linear infinite; }
 .ans-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--st-run); animation: ans-pulse 1s ease-in-out infinite; }
+/* The agent's orb leads the words; its ring sits on the text's edge and the row keeps its height. */
+.ans-orb { flex: none; width: 20px; height: 20px; margin: -2px 0 -2px -2px; }
 
 /* Loading · empty · failed (D13). */
 .ans-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0; font-size: 12px; color: var(--text-tertiary); }

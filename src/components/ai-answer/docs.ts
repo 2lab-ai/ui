@@ -1,5 +1,6 @@
 import type { ComponentDoc } from '../../docs/types';
 import './ai-answer';
+import { ORB_TOOL_STATES, orbStateForTool, type ThinkingOrbState } from '../thinking-orb/thinking-orb';
 import type { AiAnswerData, UiAiAnswer } from './ai-answer';
 
 function make(data: AiAnswerData, attrs: Record<string, string> = {}): UiAiAnswer {
@@ -79,6 +80,25 @@ function streaming(): UiAiAnswer {
   return el;
 }
 
+/** The writing row for each state an agent's last tool picks — the tools that pick it under each. */
+function activities(lang = ''): HTMLElement {
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:12px';
+  const tools = new Map<ThinkingOrbState, string[]>();
+  for (const [tool, state] of Object.entries(ORB_TOOL_STATES)) tools.set(state, [...(tools.get(state) ?? []), tool]);
+  tools.set('connecting', ['mcp__*']);
+  tools.set(orbStateForTool(''), ['anything else', 'no tool']);
+  for (const [state, names] of tools) {
+    const cell = document.createElement('div');
+    const note = document.createElement('p');
+    note.style.cssText = 'margin:6px 2px 0;font-size:11.5px;line-height:1.4;color:var(--ui-text-tertiary)';
+    note.textContent = `${state} · ${names.join(', ')}`;
+    cell.append(make({ markdown: '', streaming: true, activity: state }, lang ? { lang } : {}), note);
+    grid.append(cell);
+  }
+  return grid;
+}
+
 /** “Try again” loads, then shows the answer. */
 function deferred(): UiAiAnswer {
   const el = make({ markdown: '', deferred: true, title: 'Why did the run stop?' });
@@ -131,6 +151,13 @@ export const doc: ComponentDoc = {
       default: 'false',
       description:
         "More text is coming: renders the text so far, replaces the footer with the writing row, sets aria-busy. With no text yet (`markdown: ''`) only the writing row is drawn — no label, no body, no footer rule.",
+    },
+    {
+      name: 'data.activity',
+      type: 'ThinkingOrbState',
+      default: "'breathing'",
+      description:
+        'What the agent is doing while it writes: the writing row leads with a 20px decorative `<ui-thinking-orb>` in that state (searching, composing, working, weaving, shaping, connecting …). Map an agent’s last tool with `orbStateForTool` (the table is in Thinking Orb). Unknown names: breathing (“Thinking…”). Where no orb can draw (no 2D canvas) the row keeps its pulsing dot.',
     },
     {
       name: 'data.loading',
@@ -221,7 +248,8 @@ export const doc: ComponentDoc = {
     'The card is a section named by its label (“Answer · 3 links”); the link row is an ordered list named “3 links in this answer”.',
     'Each chip is a link named “Link n: title (site)”; a card’s name is its visible site, number and title, its tooltip the URL.',
     'Copy results are read by a polite status region (“Copied the answer and 3 links”); the button label changes in place.',
-    'While streaming or loading the card is aria-busy; the pulsing dot is aria-hidden.',
+    'While streaming or loading the card is aria-busy; the writing words say it, and the thinking orb beside them (or the pulsing dot where no orb can draw) is decorative — aria-hidden, no role of its own.',
+    'Reduced motion: the orb shows its own still frame.',
     'Reduced motion: no entry fade or pop, the sweep and pulse stop (the writing text turns static), the row jumps instead of gliding.',
     'Coarse pointers: buttons are 44px, chips are never truncated and get a 10px-taller hit area.',
     'Sound (opt-in, @2lab.ai/ui/sound): a soft success when a copy lands, a tap for Try again and Load answer, a navigate when the user follows a link. Silent until the page turns sound on.',
@@ -230,7 +258,7 @@ export const doc: ComponentDoc = {
 <script type="module">
   import '@2lab.ai/ui/ai-answer';
   const el = document.querySelector('ui-ai-answer');
-  el.data = { markdown: '', streaming: true };
+  el.data = { markdown: '', streaming: true, activity: orbStateForTool(lastTool) }; // import from '@2lab.ai/ui/thinking-orb'
   for await (const chunk of stream) el.data = { markdown: (text += chunk), streaming: true };
   el.data = { markdown: text, responseMs: Date.now() - askedAt,
               linkTitles: { 'https://github.com/o/r/pull/9': 'feat: model picker' } };
@@ -264,6 +292,23 @@ export const doc: ComponentDoc = {
       height: 140,
       frame: false,
       create: () => make({ markdown: '', streaming: true }),
+    },
+    {
+      id: 'activity',
+      title: 'Writing: what the agent is doing',
+      description:
+        'data.activity draws the writing row’s thinking orb: one per state, with the agent tools that pick it (orbStateForTool). No activity: breathing — “Thinking…”.',
+      height: 360,
+      frame: false,
+      create: () => activities(),
+    },
+    {
+      id: 'activity-ko',
+      title: '작성 중 — 에이전트가 하는 일 (lang="ko")',
+      description: 'The same rows with lang="ko": the words are Korean, the orbs are the same.',
+      height: 360,
+      frame: false,
+      create: () => activities('ko'),
     },
     {
       id: 'stream',

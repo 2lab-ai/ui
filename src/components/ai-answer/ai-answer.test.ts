@@ -507,6 +507,84 @@ describe('<ui-ai-answer>', () => {
   });
 });
 
+describe('the writing row’s thinking orb', () => {
+  /** A canvas that can draw: the orb's 2D context, recording nothing. */
+  function canDraw(): void {
+    const ctx = new Proxy({}, { get: (_, k) => (k === 'canvas' ? undefined : () => {}), set: () => true });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ctx as never);
+    // No frame loop in these tests: the orb draws once and waits.
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+  }
+  afterEach(() => vi.unstubAllGlobals());
+  const orbOf = (el: UiAiAnswer) => q(el, 'ui-thinking-orb');
+
+  it('leads the words with a decorative 20px orb — breathing (“Thinking…”) by default — instead of the dot', () => {
+    canDraw();
+    const el = mount({ markdown: '', streaming: true });
+    const orb = orbOf(el)!;
+    expect(orb).not.toBeNull();
+    expect(orb.getAttribute('size')).toBe('20');
+    expect(orb.hasAttribute('decorative')).toBe(true);
+    expect(orb.getAttribute('state')).toBe('breathing');
+    expect(q(el, '.ans-dot')).toBeNull();
+    expect(q(el, '.ans-writing')?.firstElementChild).toBe(orb);
+    // The words stay the text; the card stays busy; the orb says nothing itself.
+    expect(q(el, '.ans-shimmer')?.textContent).toBe('Writing the answer');
+    expect(q(el, '.ans-card')?.getAttribute('aria-busy')).toBe('true');
+    (orb as unknown as { renderNow(): void }).renderNow();
+    const box = orb.shadowRoot!.querySelector('.orb')!;
+    expect(box.getAttribute('aria-hidden')).toBe('true');
+    expect(box.getAttribute('role')).toBeNull();
+  });
+
+  it('activity picks the state; unknown names and markup fall back to breathing', () => {
+    canDraw();
+    for (const s of ['searching', 'composing', 'working', 'weaving', 'shaping', 'connecting'] as const) {
+      const el = mount({ markdown: '', streaming: true, activity: s });
+      expect(orbOf(el)?.getAttribute('state')).toBe(s);
+    }
+    const odd = mount({ markdown: '', streaming: true, activity: `x" onload="alert(1)${XSS}` as never });
+    expect(orbOf(odd)?.getAttribute('state')).toBe('breathing');
+    expect(q(odd, 'img')).toBeNull();
+    expect(orbOf(odd)?.hasAttribute('onload')).toBe(false);
+  });
+
+  it('streams with text: the orb moves to the footer; done: no orb, Copy is back', () => {
+    canDraw();
+    const el = mount({ markdown: 'Reading the repo', streaming: true, activity: 'searching' });
+    expect(q(el, '.ans-foot.is-writing ui-thinking-orb')?.getAttribute('state')).toBe('searching');
+    el.data = { markdown: 'Reading the repo — done.', activity: 'searching' };
+    el.renderNow();
+    expect(orbOf(el)).toBeNull();
+    expect(q(el, '.ans-copy')).not.toBeNull();
+  });
+
+  it('lang="ko": the Korean words beside the same orb', () => {
+    canDraw();
+    const el = mount({ markdown: '', streaming: true, activity: 'composing' }, { lang: 'ko' });
+    expect(q(el, '.ans-shimmer')?.textContent).toBe('응답 작성 중');
+    expect(orbOf(el)?.getAttribute('state')).toBe('composing');
+  });
+
+  it('no canvas to draw on (no 2D context, or it throws): the pulsing dot, as before — never an error', () => {
+    const el = mount({ markdown: '', streaming: true, activity: 'searching' });
+    expect(orbOf(el)).toBeNull();
+    expect(q(el, '.ans-dot')?.getAttribute('aria-hidden')).toBe('true');
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
+      throw new Error('no canvas');
+    });
+    const broken = mount({ markdown: '', streaming: true });
+    expect(orbOf(broken)).toBeNull();
+    expect(q(broken, '.ans-dot')).not.toBeNull();
+  });
+
+  it('the row’s styles: the orb keeps the row’s height; reduced motion stops the dot (the orb stills itself)', () => {
+    const css = (UiAiAnswerCtor().styles as string[]).join('\n');
+    expect(css).toMatch(/\.ans-orb \{[^}]*width: 20px; height: 20px; margin: -2px 0 -2px -2px;/);
+    expect(css).toMatch(/prefers-reduced-motion: reduce\)[^@]*\.ans-dot/);
+  });
+});
+
 describe('sound', () => {
   let spy: SoundSpy;
   beforeEach(() => {

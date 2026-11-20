@@ -11,6 +11,8 @@ import { composedContains, resolveSubstrate, type Substrate } from './theme';
 export type { ModeOpts } from './engine/profiles';
 export type { ModeFrame, OrbSize, OrbState } from './engine/types';
 
+/** One of the nine states (the orb's own name for `OrbState`). */
+export type ThinkingOrbState = OrbState;
 export type ThinkingOrbTheme = 'auto' | 'dark' | 'light';
 /** `system` follows prefers-reduced-motion · `reduce` always the still frame · `full` always moves. */
 export type ThinkingOrbMotion = 'system' | 'reduce' | 'full';
@@ -100,6 +102,75 @@ export const STRINGS: Readonly<Record<ThinkingOrbLang, Readonly<Record<OrbState,
 
 /** The instant a still orb shows (upstream's reduced-motion frame). */
 export const STILL_T = 0.6;
+
+/**
+ * The neutral state when nothing more is known about what the agent is doing: breathing — a ring slowly morphing,
+ * labelled “Thinking…” (upstream's own word for it). The element's own default stays upstream's `working`.
+ */
+export const ORB_THINKING_STATE: OrbState = 'breathing';
+
+/** A state name (any case, trimmed), or `fallback` (the thinking state) for anything else. */
+export function orbStateOf(v: unknown, fallback: OrbState = ORB_THINKING_STATE): OrbState {
+  const s = String(v ?? '')
+    .trim()
+    .toLowerCase();
+  return (ORB_STATES as readonly string[]).includes(s) ? (s as OrbState) : fallback;
+}
+
+/**
+ * An agent's tool → the orb state that pictures it. Reading and looking things up search; editing composes; a shell
+ * works; handing work to another agent weaves; planning the todo list shapes. `mcp__*` tools connect (see
+ * `orbStateForTool`); anything else is the thinking state.
+ */
+export const ORB_TOOL_STATES: Readonly<Record<string, OrbState>> = Object.freeze({
+  Read: 'searching',
+  Grep: 'searching',
+  Glob: 'searching',
+  LS: 'searching',
+  NotebookRead: 'searching',
+  WebSearch: 'searching',
+  WebFetch: 'searching',
+  Edit: 'composing',
+  Write: 'composing',
+  MultiEdit: 'composing',
+  NotebookEdit: 'composing',
+  Bash: 'working',
+  BashOutput: 'working',
+  KillShell: 'working',
+  Task: 'weaving',
+  Agent: 'weaving',
+  TodoWrite: 'shaping',
+});
+
+const TOOL_STATES_LOWER: ReadonlyMap<string, OrbState> = new Map(
+  Object.entries(ORB_TOOL_STATES).map(([k, v]) => [k.toLowerCase(), v]),
+);
+
+/**
+ * The orb state for an agent's last tool: the `ORB_TOOL_STATES` table (any case, trimmed), `connecting` for an MCP
+ * tool (`mcp__server__tool`), else `ORB_THINKING_STATE` — also for an empty or missing name.
+ */
+export function orbStateForTool(toolName: string): OrbState {
+  const name = String(toolName ?? '')
+    .trim()
+    .toLowerCase();
+  if (!name) return ORB_THINKING_STATE;
+  if (name.startsWith('mcp__')) return 'connecting';
+  return TOOL_STATES_LOWER.get(name) ?? ORB_THINKING_STATE;
+}
+
+/**
+ * Whether an orb can draw here: the element is defined and a 2D canvas context is available. Hosts that show the
+ * orb (`<ui-ai-answer>`'s writing row) keep their plain mark when it cannot. Never throws.
+ */
+export function orbCanDraw(): boolean {
+  try {
+    if (typeof customElements === 'undefined' || !customElements.get('ui-thinking-orb')) return false;
+    return !!document.createElement('canvas').getContext('2d');
+  } catch {
+    return false;
+  }
+}
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 

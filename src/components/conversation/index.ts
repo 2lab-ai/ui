@@ -4,6 +4,7 @@ export type {
   ConversationData,
   ConversationLang,
   ConversationLoadDetail,
+  ConversationPending,
   ConversationRetryDetail,
   ConversationSelectDetail,
   ConversationStrings,

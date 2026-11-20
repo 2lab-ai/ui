@@ -104,6 +104,20 @@ describe('logic', () => {
     expect(normalizeTurns('nope', false)).toEqual({ regular: [], pending: null });
   });
 
+  it('the writing row from data.pending: true as before, { activity } carries what the agent is doing', () => {
+    expect(normalizeTurns([], true).pending).toEqual({ id: PENDING_KEY, role: 'pending' });
+    expect(normalizeTurns([], { activity: 'searching' }).pending).toEqual({
+      id: PENDING_KEY,
+      role: 'pending',
+      activity: 'searching',
+    });
+    expect(normalizeTurns([], {}).pending).toEqual({ id: PENDING_KEY, role: 'pending' });
+    expect(normalizeTurns([], null).pending).toBeNull();
+    // A { role: 'pending' } turn keeps its own activity and wins over data.pending.
+    const own = normalizeTurns([{ id: 'p', role: 'pending', activity: 'composing' }], { activity: 'working' });
+    expect(own.pending).toEqual({ id: 'p', role: 'pending', activity: 'composing' });
+  });
+
   it('plans a turn list by id: first page, history, live, between, removed, another conversation', () => {
     expect(planTurns([], ['a', 'b'])).toMatchObject({ first: true, reset: false, append: ['a', 'b'] });
     expect(planTurns(['c', 'd'], ['a', 'b', 'c', 'd', 'e'])).toMatchObject({
@@ -339,6 +353,36 @@ describe('<ui-conversation> rendering', () => {
     el.renderNow();
     expect(keys(el)).toEqual(['u1', 'a1', 'a2']);
     expect(node(el, 'a2').dataset.role).toBe('assistant');
+  });
+
+  it('passes the writing row’s activity to its answer: true stays as before, { activity } and a pending turn carry it', () => {
+    const el = mount({ turns: [USER], pending: true });
+    expect(answerOf(el, PENDING_KEY).data).toEqual({ markdown: '', streaming: true, animate: false });
+    el.data = { turns: [USER], pending: { activity: 'searching' } };
+    el.renderNow();
+    // Same row (same key): the answer it carries now knows what the agent does.
+    expect(keys(el)).toEqual(['u1', PENDING_KEY]);
+    expect(answerOf(el, PENDING_KEY).data).toEqual({
+      markdown: '',
+      streaming: true,
+      animate: false,
+      activity: 'searching',
+    });
+    el.data = { turns: [USER], pending: { activity: 'composing' } };
+    el.renderNow();
+    expect(answerOf(el, PENDING_KEY).data?.activity).toBe('composing');
+    el.data = { turns: [USER], pending: true };
+    el.renderNow();
+    expect(answerOf(el, PENDING_KEY).data).not.toHaveProperty('activity');
+    el.data = { turns: [USER, { id: 'a2', role: 'pending', activity: 'connecting' }] };
+    el.renderNow();
+    expect(answerOf(el, 'a2').data?.activity).toBe('connecting');
+    // lang="ko": the writing words in Korean beside the orb's row.
+    const ko = mount({ turns: [USER], pending: { activity: 'working' } }, { lang: 'ko' });
+    const ans = answerOf(ko, PENDING_KEY);
+    expect(ans.getAttribute('lang')).toBe('ko');
+    ans.renderNow();
+    expect(ans.shadowRoot?.querySelector('.ans-shimmer')?.textContent).toBe('응답 작성 중');
   });
 
   it('shows skeleton turns while the first page loads, then the empty text', () => {

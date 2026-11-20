@@ -7,13 +7,19 @@ import { MODE_DRAWS, MODE_FRAMES } from './engine/registry';
 import type { OrbState } from './engine/types';
 import { GOLDEN, GOLDEN_RESOLVED, GOLDEN_TIMES } from './fixtures';
 import { styles } from './styles';
+import { ancestorSubstrate } from './theme';
 import {
   ORB_SIZES,
   ORB_STATES,
+  ORB_THINKING_STATE,
+  ORB_TOOL_STATES,
+  orbCanDraw,
   orbFit,
   orbOptions,
   orbPlan,
   orbSizeOf,
+  orbStateForTool,
+  orbStateOf,
   parseTint,
   STILL_T,
   STRINGS,
@@ -383,6 +389,78 @@ describe('helpers', () => {
     expect(orbFit(56, 56, 64)).toEqual({ scale: 0.875, x: 0, y: 0 });
     expect(orbFit(100, 40, 20)).toEqual({ scale: 2, x: 30, y: 0 });
     expect(orbFit(0, 40, 20)).toEqual({ scale: 1, x: 0, y: 0 });
+  });
+});
+
+describe('an agent’s tool → a state', () => {
+  it('the table: reading searches, editing composes, the shell works, sub-agents weave, todos shape', () => {
+    const want: Record<string, string> = {
+      Read: 'searching',
+      Grep: 'searching',
+      Glob: 'searching',
+      WebSearch: 'searching',
+      WebFetch: 'searching',
+      Edit: 'composing',
+      Write: 'composing',
+      MultiEdit: 'composing',
+      NotebookEdit: 'composing',
+      Bash: 'working',
+      Task: 'weaving',
+      Agent: 'weaving',
+      TodoWrite: 'shaping',
+    };
+    for (const [tool, state] of Object.entries(want)) expect(orbStateForTool(tool), tool).toBe(state);
+    // Every state the table names is a real one.
+    for (const state of Object.values(ORB_TOOL_STATES)) expect(ORB_STATES).toContain(state);
+    expect(Object.isFrozen(ORB_TOOL_STATES)).toBe(true);
+  });
+
+  it('MCP tools connect; any case and spaces; anything else — or nothing — is the thinking state', () => {
+    expect(orbStateForTool('mcp__github__create_pull_request')).toBe('connecting');
+    expect(orbStateForTool('MCP__slack__send')).toBe('connecting');
+    expect(orbStateForTool(' read ')).toBe('searching');
+    expect(orbStateForTool('BASH')).toBe('working');
+    expect(ORB_THINKING_STATE).toBe('breathing');
+    for (const other of ['', '   ', 'SomethingNew', 'constructor', '__proto__', 'mcp_single', 'toString'])
+      expect(orbStateForTool(other), other).toBe('breathing');
+    expect(orbStateForTool(undefined as never)).toBe('breathing');
+    expect(orbStateForTool(null as never)).toBe('breathing');
+    expect(STRINGS.en[orbStateForTool('')]).toBe('Thinking…');
+    expect(STRINGS.ko[orbStateForTool('')]).toBe('생각 중…');
+  });
+
+  it('orbStateOf: a state name in any case, else the fallback', () => {
+    expect(orbStateOf('Searching')).toBe('searching');
+    expect(orbStateOf('nope')).toBe('breathing');
+    expect(orbStateOf(undefined, 'working')).toBe('working');
+    expect(orbStateOf('<b>')).toBe('breathing');
+  });
+
+  it('orbCanDraw: the element is defined and a 2D context exists; never throws', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null);
+    expect(orbCanDraw()).toBe(false);
+    paintSpy();
+    expect(orbCanDraw()).toBe(true);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(orbCanDraw()).toBe(false);
+  });
+
+  it('a library element above it pinned with theme="dark|light" sets the substrate (its tokens follow it)', () => {
+    const host = document.createElement('ui-ai-answer');
+    host.setAttribute('theme', 'dark');
+    const inner = document.createElement('span');
+    host.append(inner);
+    document.body.append(host);
+    expect(ancestorSubstrate(inner)).toBe('dark');
+    // Only on ui-* elements: a plain element's theme attribute is not the library's.
+    const div = document.createElement('div');
+    div.setAttribute('theme', 'dark');
+    const leaf = document.createElement('span');
+    div.append(leaf);
+    document.body.append(div);
+    expect(ancestorSubstrate(leaf)).toBeNull();
   });
 });
 
