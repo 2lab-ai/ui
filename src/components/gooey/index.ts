@@ -1,0 +1,17 @@
+export { gooFilterMarkup, gooIntercept, sanitizeFilterMarkup, splitShadows } from './engine/filter';
+export type { BlobBox, CornerRadii } from './engine/geometry';
+export { measureRadius, normalizeRadius, offsetTo, roundedRectPath } from './engine/geometry';
+export type { CardGeom, ImageMeltOptions } from './engine/image-melt';
+export { easeToward, IMAGE_MELT_DEFAULTS, meltPairMarkup, meltProximity } from './engine/image-melt';
+export type { BlendConfig, EvolveOptions, ItemDynamics, MoveOptions } from './engine/observer';
+export { EVOLVE_DEFAULTS, MOVE_DEFAULTS, ObserveEngine } from './engine/observer';
+export type { ShadowLayer } from './engine/shadow';
+export { parseShadow } from './engine/shadow';
+export type { ResolvedTransition, SpringConfig, Transition, TransitionPreset } from './engine/spring';
+export { easingFunction, presets, resolveTransition } from './engine/spring';
+export type { BendTuning, DissolveOptions, LiquidEffect, MorphTuning, MoveTuning } from './engine/tuning';
+export { mapBend, mapDissolve, mapMorphSprings, mapMove, zeta } from './engine/tuning';
+export type { GooeyData, GooeyMotion, GooeyOptions } from './gooey';
+export { GOOEY_SHADOW, gooeyOptions, UiGooey } from './gooey';
+export type { GooeyItemAttrs, GooeyItemData, GooeyItemPlan, MeltPlan, MirrorPlan, ObservePlan } from './item';
+export { effectOf, gooeyItemPlan, transitionOf, UiGooeyItem } from './item';
