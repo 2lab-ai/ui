@@ -3,6 +3,7 @@ import { fmtAgo, fmtDuration, fmtDurationIn, fmtInt, fmtUsd } from '../../core/f
 import { esc, escAttr } from '../../core/html';
 import { asModelVendor, MODEL_MAKER_COLOR, modelMarkSvg } from '../../core/model-mark';
 import { OWNER_BADGE_HUES, syncOwnerBadgeOrbit } from '../../core/owner-badge';
+import '../border-beam/border-beam';
 import { HOP_MS, styles } from './styles';
 
 type StatusWaveModule = typeof import('../distortion-wave/status-wave');
@@ -303,6 +304,12 @@ export interface InboxCard {
    * the page cannot hold plays its quiet one); the status icon's pop stays either way.
    */
   wave?: InboxWave;
+  /**
+   * 0.44.0 — a beam of light rides the card's border (`ui-border-beam`, md, the colourful variant): the card is on its
+   * way — a launch that has not become a session yet. Decorative (the status word says it); under reduced motion it
+   * rests as a still glow. Use it for one or two cards at a time, never a column.
+   */
+  beam?: boolean;
   /** The one decision this viewer can make here — the card's single ink button. */
   primary?: InboxAction;
   /** Secondary buttons (outline), left of the primary. */
@@ -2726,6 +2733,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     const attention = card.attention === true;
     if (sh.el.classList.contains('is-attention') !== attention) sh.el.classList.toggle('is-attention', attention);
+    this.#beam(sh, card.beam === true);
     // 0.37.0 — its epic: a card is never its own.
     const parent = str(card.parent) === id ? '' : str(card.parent);
     if (sh.parent !== parent) {
@@ -2855,6 +2863,29 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
         if (run.emphasis === 'loud') this.#loudAt.set(id, Date.now());
       })
       .catch(() => {});
+  }
+
+  /**
+   * 0.44.0 — the card's border beam (InboxCard.beam): a `<ui-border-beam>` laid over the card as its first child,
+   * filling it (`.ib-beam`), around an empty box with the card's corners — the beam's light is on the border only and
+   * it takes no pointer. Kept while the card carries `beam`, taken off when it stops.
+   */
+  #beam(sh: Shell, on: boolean): void {
+    const have = sh.el.querySelector(':scope > .ib-beam');
+    if (on === !!have) return;
+    if (!on) {
+      have?.remove();
+      return;
+    }
+    const beam = document.createElement('ui-border-beam');
+    beam.className = 'ib-beam';
+    beam.setAttribute('aria-hidden', 'true');
+    beam.setAttribute('size', 'md');
+    beam.setAttribute('color-variant', 'colorful');
+    const box = document.createElement('div');
+    box.className = 'ib-beam-box';
+    beam.append(box);
+    sh.el.prepend(beam);
   }
 
   /** Ends a card's running wave (it left the board, or the board left the page). */

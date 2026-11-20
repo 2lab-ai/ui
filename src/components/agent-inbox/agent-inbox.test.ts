@@ -3120,3 +3120,32 @@ describe('status waves (0.44.0)', () => {
     spy.mockRestore();
   });
 });
+
+describe('border beam (0.44.0)', () => {
+  it('a card that carries beam gets one ui-border-beam over it (md, colourful, aria-hidden, no pointer); it goes when the field does', () => {
+    const el = mount(board({ ...RUN, beam: true }, DONE));
+    const li = card(el, 'notes');
+    const beams = li.querySelectorAll(':scope > ui-border-beam.ib-beam');
+    expect(beams.length).toBe(1);
+    const b = beams[0] as HTMLElement;
+    expect(li.firstElementChild).toBe(b);
+    expect(b.getAttribute('size')).toBe('md');
+    expect(b.getAttribute('color-variant')).toBe('colorful');
+    expect(b.getAttribute('aria-hidden')).toBe('true');
+    expect(b.querySelector('.ib-beam-box')).not.toBeNull();
+    expect(card(el, 'digest').querySelector('ui-border-beam')).toBeNull();
+    el.data = board({ ...RUN, beam: true, summary: 'next' }, DONE);
+    el.renderNow();
+    expect(li.querySelectorAll(':scope > ui-border-beam').length).toBe(1); // kept, not redrawn
+    expect(li.firstElementChild).toBe(b);
+    el.data = board(RUN, DONE);
+    el.renderNow();
+    expect(li.querySelector('ui-border-beam')).toBeNull();
+  });
+
+  it('styles: the beam fills the card, takes no pointer, follows its corners', () => {
+    const css = monoStyles.replace(/\s+/g, ' ');
+    expect(css).toContain('.ib-beam { position: absolute; inset: -1px; z-index: 0; pointer-events: none;');
+    expect(css).toContain('.ib-beam::part(beam) { height: 100%;');
+  });
+});

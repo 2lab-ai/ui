@@ -969,6 +969,12 @@ export const doc: ComponentDoc = {
       description: 'Model name at the left of the open card’s button row.',
     },
     {
+      name: 'data.columns[].cards[].beam',
+      type: 'boolean',
+      description:
+        '0.44.0 — a beam of light rides the card’s border (ui-border-beam, md, colourful): the card is on its way — a launch that is not a session yet. Decorative (aria-hidden, no pointer; the status word says it); a still glow under reduced motion. One or two cards at a time, never a column.',
+    },
+    {
       name: 'data.columns[].cards[].wave',
       type: '"loud" | "quiet"',
       description:
