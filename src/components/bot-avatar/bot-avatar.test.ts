@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DESIGNS } from '../../core/tokens';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import {
   type BotAvatarData,
   botAvatarBody,
   botAvatarColor,
   botAvatarFor,
+  botAvatarOutlineKey,
+  botAvatarSurface,
   botAvatarSvg,
   type UiBotAvatar,
 } from './bot-avatar';
@@ -504,8 +507,104 @@ describe('options', () => {
     const heart = 'M50 88C50 88 12 64 12 38Z';
     const o = mount({}, { path: heart }).options;
     expect(o.path).toBe(heart);
-    expect(o.outlineKey).toMatch(/^path:/);
+    expect(o.outlineKey).toBe(botAvatarOutlineKey(heart));
     expect(mount().options.outlineKey).toBe('clover');
+  });
+});
+
+describe('botAvatarOutlineKey', () => {
+  it('keys a path by its full 32-bit hash and length: same path, same key; 2000 same-length paths, 2000 keys', () => {
+    const heart = 'M50 88C50 88 12 64 12 38Z';
+    expect(botAvatarOutlineKey(heart)).toBe(botAvatarOutlineKey(`${heart}`));
+    expect(botAvatarOutlineKey(heart)).toMatch(/^path:[0-9a-z]+:25$/);
+    // A 0–999 seed (the old key) must collide here — 2000 paths in 1000 buckets — the full hash does not.
+    const paths = Array.from({ length: 2000 }, (_, i) => `M${String(i).padStart(4, '0')} 0L50 50Z`);
+    expect(new Set(paths.map((d) => d.length)).size).toBe(1);
+    expect(new Set(paths.map(botAvatarOutlineKey)).size).toBe(2000);
+    const a = mount({}, { path: paths[0] }).options.outlineKey;
+    const b = mount({}, { path: paths[1] }).options.outlineKey;
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('botAvatarSurface', () => {
+  function tree(outer: Record<string, string>, inner: Record<string, string> = {}, cls = ''): HTMLElement {
+    const top = document.createElement('div');
+    for (const [k, v] of Object.entries(outer)) top.setAttribute(k, v);
+    const mid = document.createElement('div');
+    for (const [k, v] of Object.entries(inner)) mid.setAttribute(k, v);
+    if (cls) mid.className = cls;
+    const host = document.createElement('div');
+    const leaf = document.createElement('span');
+    host.attachShadow({ mode: 'open' }).append(leaf);
+    mid.append(host);
+    top.append(mid);
+    document.body.append(top);
+    return leaf;
+  }
+
+  it('a pinned theme wins', () => {
+    expect(botAvatarSurface(tree({ 'data-theme': 'dark' }), 'light')).toBe('light');
+    expect(botAvatarSurface(tree({ 'data-theme': 'light' }), 'dark')).toBe('dark');
+  });
+
+  it('walks up through shadow roots: data-design (its scheme), data-theme dark|light, a ui-* theme, the classes', () => {
+    const design = DESIGNS[0];
+    expect(botAvatarSurface(tree({ 'data-design': design.id, 'data-theme': 'light' }))).toBe(design.scheme);
+    expect(botAvatarSurface(tree({ 'data-theme': 'dark' }))).toBe('dark');
+    // A data-theme that is neither (or an unknown design) does not stop the walk.
+    expect(botAvatarSurface(tree({ 'data-theme': 'light' }, { 'data-theme': 'sepia', 'data-design': 'nope' }))).toBe(
+      'light',
+    );
+    expect(botAvatarSurface(tree({ 'data-theme': 'light' }, {}, 'dark'))).toBe('dark');
+    expect(botAvatarSurface(tree({}, {}, 'light'))).toBe('light');
+    const pinnedUi = document.createElement('ui-bot-avatar');
+    pinnedUi.setAttribute('theme', 'dark');
+    document.body.append(pinnedUi);
+    expect(botAvatarSurface(pinnedUi)).toBe('dark');
+  });
+
+  it('with nothing above, the --text token, then the system', () => {
+    let dark = true;
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q.includes('prefers-color-scheme: dark') ? dark : false,
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const leaf = tree({});
+    expect(botAvatarSurface(leaf)).toBe('dark');
+    dark = false;
+    expect(botAvatarSurface(leaf)).toBe('light');
+    (leaf as HTMLElement).style.setProperty('--text', '#f4f4f5');
+    expect(botAvatarSurface(leaf)).toBe('dark');
+    (leaf as HTMLElement).style.setProperty('--text', 'rgb(20, 20, 24)');
+    dark = true;
+    expect(botAvatarSurface(leaf)).toBe('light');
+  });
+});
+
+describe('path cache', () => {
+  it('reuses an outline, and stays bounded: old custom paths are dropped, recent ones kept', () => {
+    paint();
+    const made = new Map<string, number>();
+    class Counting extends FakePath2D {
+      constructor(d?: string) {
+        super(d);
+        if (d) made.set(d, (made.get(d) ?? 0) + 1);
+      }
+    }
+    vi.stubGlobal('Path2D', Counting);
+    const path = (i: number) => `M${i} 0L50 50L0 50Z`;
+    mount({ shading: 'crisp' }, { path: path(0) });
+    mount({ shading: 'crisp' }, { path: path(0) });
+    expect(made.get(path(0))).toBe(1);
+    for (let i = 1; i <= 60; i++) mount({ shading: 'crisp' }, { path: path(i) });
+    document.body.innerHTML = '';
+    mount({ shading: 'crisp' }, { path: path(60) });
+    expect(made.get(path(60))).toBe(1);
+    mount({ shading: 'crisp' }, { path: path(0) });
+    expect(made.get(path(0))).toBe(2);
   });
 });
 
@@ -613,21 +712,63 @@ describe('canvas', () => {
     expect(el.running).toBe(false);
   });
 
-  it('a click hops (with a subtle tap), not when interactive="false", paused or still', async () => {
+  it('a click asks with a cancelable ui-poke, then hops with a subtle tap', async () => {
     paint();
+    const hop = vi.spyOn(index.BotAvatarSim.prototype, 'poke');
     const spy: SoundSpy = soundSpy();
     try {
       const el = mount({ shading: 'crisp' });
+      const seen: CustomEvent[] = [];
+      document.addEventListener('ui-poke', (e) => seen.push(e as CustomEvent), { once: true });
       el.click();
       await spy.settle();
-      expect(spy.cues()).toEqual(['tap']);
-      const others: Array<Record<string, string>> = [{ interactive: 'false' }, { paused: '' }, { motion: 'reduce' }];
-      for (const attrs of others) {
-        mount({ shading: 'crisp', ...attrs }).click();
-      }
-      await spy.settle();
+      expect(seen).toHaveLength(1);
+      expect(seen[0].detail).toEqual({});
+      expect([seen[0].bubbles, seen[0].composed, seen[0].cancelable]).toEqual([true, true, true]);
+      expect(hop).toHaveBeenCalledTimes(1);
       expect(spy.cues()).toEqual(['tap']);
     } finally {
+      spy.restore();
+    }
+  });
+
+  it('prevented, a poke neither hops nor sounds', async () => {
+    paint();
+    const hop = vi.spyOn(index.BotAvatarSim.prototype, 'poke');
+    const spy: SoundSpy = soundSpy();
+    try {
+      const el = mount({ shading: 'crisp' });
+      el.addEventListener('ui-poke', (e) => e.preventDefault());
+      el.click();
+      await spy.settle();
+      expect(hop).not.toHaveBeenCalled();
+      expect(spy.calls).toEqual([]);
+    } finally {
+      spy.restore();
+    }
+  });
+
+  it('decorative: it hops but plays nothing; not interactive, paused or still: no event, no hop, no sound', async () => {
+    paint();
+    const hop = vi.spyOn(index.BotAvatarSim.prototype, 'poke');
+    const spy: SoundSpy = soundSpy();
+    let pokes = 0;
+    const count = () => pokes++;
+    document.addEventListener('ui-poke', count);
+    try {
+      mount({ shading: 'crisp', decorative: '' }).click();
+      await spy.settle();
+      expect([pokes, hop.mock.calls.length, spy.calls.length]).toEqual([1, 1, 0]);
+      const others: Array<Record<string, string>> = [{ interactive: 'false' }, { paused: '' }, { motion: 'reduce' }];
+      for (const attrs of others) mount({ shading: 'crisp', ...attrs }).click();
+      await spy.settle();
+      expect([pokes, hop.mock.calls.length, spy.calls.length]).toEqual([1, 1, 0]);
+      // poke() from code hops without asking and without a sound.
+      mount({ shading: 'crisp' }).poke();
+      await spy.settle();
+      expect([pokes, hop.mock.calls.length, spy.calls.length]).toEqual([1, 2, 0]);
+    } finally {
+      document.removeEventListener('ui-poke', count);
       spy.restore();
     }
   });

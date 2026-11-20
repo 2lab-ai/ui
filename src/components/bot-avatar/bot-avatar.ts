@@ -1,5 +1,6 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { attrs, escAttr } from '../../core/html';
+import { designById } from '../../core/tokens';
 import { autoInk, parseColor, richer, shade } from './engine/color';
 import { type DrawConfig, draw, LIGHT_DEFAULTS, OVERSCAN, RISE } from './engine/draw';
 import { type JumpConfig, type Pose, restPose, Sim } from './engine/engine';
@@ -286,6 +287,55 @@ export function botAvatarFor(name: unknown): BotAvatarPick {
   };
 }
 
+/**
+ * The material caches' key for a custom outline (the engine keys its baked form, pile and draw state by it): the
+ * path's full 32-bit FNV-1a hash and its length, so two different paths share a bake only on a true 32-bit collision.
+ */
+export function botAvatarOutlineKey(path: string): string {
+  return `path:${fnv(path).toString(36)}:${path.length}`;
+}
+
+/** The element above `node`: its parent, or the host of the shadow root it sits in. */
+function above(node: Element): Element | null {
+  if (node.parentElement) return node.parentElement;
+  const root = node.getRootNode?.();
+  return root && 'host' in root ? ((root as ShadowRoot).host ?? null) : null;
+}
+
+/** Whether a CSS colour is light ink (r·.299 + g·.587 + b·.114 > 128) — hex or rgb(); null when it cannot tell. */
+function lightInk(color: string): boolean | null {
+  const c = parseColor(color);
+  return c ? c[0] * 0.299 + c[1] * 0.587 + c[2] * 0.114 > 128 : null;
+}
+
+/**
+ * The surface an element sits on, the way the library resolves it (as border-beam and thinking-orb do): `pinned`
+ * 'dark' / 'light' first; then the nearest ancestor — the element itself included, across shadow roots — that says
+ * so (`data-design` → its scheme, `data-theme="dark|light"`, a `ui-*` element's own `theme`, the `dark` / `light`
+ * class); then the element's `--text` token (light ink → a dark page); last `prefers-color-scheme`.
+ */
+export function botAvatarSurface(el: Element, pinned?: unknown): 'dark' | 'light' {
+  if (pinned === 'dark' || pinned === 'light') return pinned;
+  for (let node: Element | null = el; node; node = above(node)) {
+    const design = node.getAttribute('data-design');
+    const d = design ? designById(design) : undefined;
+    if (d) return d.scheme;
+    const theme = node.getAttribute('data-theme');
+    if (theme === 'dark' || theme === 'light') return theme;
+    const pin = node.localName.startsWith('ui-') ? node.getAttribute('theme') : null;
+    if (pin === 'dark' || pin === 'light') return pin;
+    if (node.classList?.contains('dark')) return 'dark';
+    if (node.classList?.contains('light')) return 'light';
+  }
+  try {
+    const light = lightInk(getComputedStyle(el).getPropertyValue('--text').trim());
+    if (light !== null) return light ? 'dark' : 'light';
+  } catch {
+    // Not styled (detached, or no CSSOM): the system decides.
+  }
+  return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 /** The body colour drawn: the picked colour through brightness and saturation (the React component's sum). */
 export function botAvatarBody(color: string, brightness: number, saturation: number): string {
   /* past 1.5 the colour itself is as saturated as it goes for most of the palette: the rest deepens it and makes
@@ -361,10 +411,13 @@ function showReady(): void {
   for (const w of all) w.show();
 }
 
+/* the outlines made, by their path data — custom paths too, so it is bounded as the engine's forms are */
 const pathCache = new Map<string, Path2D>();
+const PATH_CACHE_MAX = 48;
 function bodyPath(d: string): Path2D {
   let p = pathCache.get(d);
   if (!p) {
+    if (pathCache.size >= PATH_CACHE_MAX) pathCache.clear();
     p = new Path2D(d);
     pathCache.set(d, p);
   }
@@ -544,7 +597,7 @@ export class UiBotAvatar extends UiElement<BotAvatarData> {
     return {
       shape,
       path,
-      outlineKey: path ? `path:${hashSeed(path)}:${path.length}` : shape,
+      outlineKey: path ? botAvatarOutlineKey(path) : shape,
       face: pick(d.face ?? a('face'), ['eyes', 'mouth'] as const, preset.face),
       state,
       size: num(d.size ?? a('size'), 12, 512, 64),
@@ -1013,21 +1066,7 @@ export class UiBotAvatar extends UiElement<BotAvatarData> {
 
   /* the surface: the theme set, else an ancestor's say (through shadow roots), else the system's */
   #theme(): 'dark' | 'light' {
-    const t = this.#o.theme;
-    if (t !== 'auto') return t;
-    let node: Element | null = this;
-    while (node) {
-      const host: Element | null = node.closest('[data-theme], .dark, .light');
-      if (host) {
-        const v = host.getAttribute('data-theme');
-        if (v === 'dark' || v === 'light') return v;
-        if (host.classList.contains('dark')) return 'dark';
-        if (host.classList.contains('light')) return 'light';
-      }
-      const root = node.getRootNode();
-      node = root instanceof ShadowRoot ? root.host : null;
-    }
-    return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    return botAvatarSurface(this, this.#o.theme);
   }
 
   // ── The loop: only while connected, animated, not reduced, on screen ──────────────────────────────────────────
@@ -1083,12 +1122,14 @@ export class UiBotAvatar extends UiElement<BotAvatarData> {
 
   // ── Input and page signals ─────────────────────────────────────────────────
 
+  /* A click on an interactive avatar that can hop asks first (`ui-poke`, cancelable): prevented, nothing happens;
+     else it hops, and — unless it is decorative — plays a subtle tap. */
   #onClick = (e: MouseEvent): void => {
-    if (!this.#o.interactive || !this.#sim) return;
     const o = this.#o;
-    if (o.frozen || o.pose || this.#reduced || this.#fallback) return;
+    if (!o.interactive || !this.#sim || o.frozen || o.pose || this.#reduced || this.#fallback) return;
+    if (!this.emit('ui-poke', {})) return;
     this.#sim.poke();
-    this.sound('tap', { emphasis: 'subtle' }, e);
+    if (!(this.data?.decorative ?? this.hasAttribute('decorative'))) this.sound('tap', { emphasis: 'subtle' }, e);
   };
 
   #onMotion = (): void => {

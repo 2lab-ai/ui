@@ -6,7 +6,15 @@ export type {
   BotAvatarPick,
   BotAvatarTheme,
 } from './bot-avatar';
-export { botAvatarBody, botAvatarColor, botAvatarFor, botAvatarSvg, UiBotAvatar } from './bot-avatar';
+export {
+  botAvatarBody,
+  botAvatarColor,
+  botAvatarFor,
+  botAvatarOutlineKey,
+  botAvatarSurface,
+  botAvatarSvg,
+  UiBotAvatar,
+} from './bot-avatar';
 export { autoInk as botAvatarInk } from './engine/color';
 export { draw as drawBotAvatarFrame, OVERSCAN as BOT_AVATAR_OVERSCAN, RISE as BOT_AVATAR_RISE } from './engine/draw';
 export type { Pose as BotAvatarPose } from './engine/engine';

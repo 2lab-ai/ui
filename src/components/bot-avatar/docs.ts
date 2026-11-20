@@ -284,7 +284,7 @@ export const doc: ComponentDoc = {
       type: 'attribute / data.theme: "auto" | "dark" | "light"',
       default: '"auto"',
       description:
-        'The surface it sits on, for the whirl’s colour (white on dark, black on light). auto reads the nearest data-theme (through shadow roots), then prefers-color-scheme.',
+        'The surface it sits on, for the whirl’s colour (white on dark, black on light). auto follows the page — the nearest data-design / data-theme / .dark|.light above it (through shadow roots), else the --text token, else the OS — read on each render.',
     },
     {
       name: 'lang',
@@ -352,22 +352,29 @@ export const doc: ComponentDoc = {
         'A stable face for an agent or a model: the same name (trimmed, any case) always gives the same shape, palette colour and blink seed. el.data = { ...botAvatarFor(agent.name), state }. Not in bot-avatars, which seeds only the blink timing from the React id.',
     },
     {
-      name: 'botAvatarSvg(options) · botAvatarColor · botAvatarBody',
+      name: 'botAvatarSvg(options) · botAvatarColor · botAvatarBody · botAvatarOutlineKey · botAvatarSurface',
       type: 'helpers',
       description:
-        'Pure: the still SVG the element shows without a canvas (escaped, for a static or server-drawn avatar); a colour the engine can shade (or a shape’s palette colour); the body colour after brightness and saturation.',
+        'Pure: the still SVG the element shows without a canvas (escaped, for a static or server-drawn avatar); a colour the engine can shade (or a shape’s palette colour); the body colour after brightness and saturation; the material caches’ key for a custom path (its full 32-bit hash and length); the surface (dark / light) an element sits on.',
     },
   ],
-  events: [],
+  events: [
+    {
+      name: 'ui-poke',
+      detail: '{}',
+      description:
+        'A click on an interactive avatar that can hop (not paused, held, reduced or in the still fallback), before it hops. Cancelable: preventDefault() and it neither hops nor plays a sound. poke() from code does not emit.',
+    },
+  ],
   keyboard: [],
   a11y: [
     'role="img" named by label and the state — “Release captain, working” — or “AI agent avatar, idle” by default (lang="ko": “AI 에이전트 아바타, 대기 중”). A state change renames it in place; the canvas itself is aria-hidden.',
     '`decorative` hides it (aria-hidden="true", no role): the right choice in a roster or a message where the agent’s name and status are written beside it.',
-    'Not focusable and no keyboard path: the click hop is play, carrying no information. The click is the host element’s own, so the overscanned canvas never covers a neighbour’s target.',
+    'Not focusable and no keyboard path: the click hop is play, carrying no information. The click is the host element’s own, so the overscanned canvas never covers a neighbour’s target; it asks first with a cancelable ui-poke.',
     'Reduced motion (prefers-reduced-motion, or motion="reduce"): the state’s still pose, no loop, no hop; the fade-in is instant.',
     'No idle CPU: all avatars share one frame loop; an avatar joins it only while it animates (not paused, motion not reduced) and is on screen, and the loop stops while none does and in a hidden tab. A disconnected avatar leaves the loop, drops its observers and bake waits, and lets its canvas’s backing store go.',
     'Without a 2D canvas (or should the engine ever fail) a still SVG of the shape, its colour and its resting face stands in — never an error.',
-    'Sound (opt-in, @2lab.ai/ui/sound): a click that makes it hop plays a subtle tap; state changes the app makes are silent.',
+    'Sound (opt-in, @2lab.ai/ui/sound): a click that goes through (ui-poke not prevented) and makes it hop plays a subtle tap — not on a decorative or non-interactive avatar; poke() from code and the state changes the app makes are silent.',
   ],
   usage: `<ui-bot-avatar shape="clover" state="working" label="Release captain"></ui-bot-avatar>
 <ui-bot-avatar shape="ghost" state="sleeping" size="32" decorative></ui-bot-avatar>
