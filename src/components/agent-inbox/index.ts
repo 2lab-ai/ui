@@ -23,6 +23,7 @@ export type {
   InboxStrings,
   InboxTldr,
   InboxTone,
+  InboxWave,
   LaneHold,
 } from './agent-inbox';
 export {
@@ -47,4 +48,8 @@ export {
   TLDR_MAX_LINES,
   tldrLines,
   UiAgentInbox,
+  WAVE_BURST,
+  WAVE_CUE_MS,
+  WAVE_LOUD_COOLDOWN_MS,
+  WAVE_STAGGER_MS,
 } from './agent-inbox';

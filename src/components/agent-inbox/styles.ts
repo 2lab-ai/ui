@@ -122,6 +122,8 @@ export const styles = `
 .ib-card[data-status="idle"] .ib-title { color: var(--ib-text-2); font-weight: 500; }
 .ib-card[data-status="idle"] .ib-summary { color: var(--ib-muted); }
 .ib-card.is-flying { z-index: 5; box-shadow: var(--ib-shadow-raised); }
+/* 0.44.0 — the reduced-motion stand-in for a status wave: the border in the status colour for a moment, no movement. */
+.ib-card.is-cue { border-color: var(--st-color); transition: border-color 300ms ease; }
 .ib-card.is-exiting { position: absolute; z-index: 1; pointer-events: none; }
 .ib-face { display: block; padding: 12px 14px; border-radius: 11px; container: ibface / inline-size; }
 .ib-face[role="button"] { cursor: pointer; }
@@ -431,7 +433,7 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 }
 /* Held while the person is on it — a keyboard focus inside (a mouse press leaves the face focused but not
    focus-visible, so a card clicked closed pings again), or a move between columns; hover below, pointers only. */
-.ib-card.is-attention:not(.is-open):is(:has(:focus-visible), .is-flying)::after { visibility: hidden; }
+.ib-card.is-attention:not(.is-open):is(:has(:focus-visible), .is-flying, .is-waving)::after { visibility: hidden; }
 .ib-card.is-attention:not(.is-open) .ib-tag[data-tone="wait"] { background: var(--ib-text); color: var(--ib-card); }
 .ib-card.is-attention:not(.is-open) .ib-tag[data-tone="wait"] .ib-tag-icon { color: currentColor; }
 @keyframes ib-attn-ping {

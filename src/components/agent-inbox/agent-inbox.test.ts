@@ -15,8 +15,15 @@ import {
   placeHolds,
   statusTone,
   type UiAgentInbox,
+  WAVE_CUE_MS,
+  WAVE_LOUD_COOLDOWN_MS,
+  WAVE_STAGGER_MS,
 } from './agent-inbox';
 import { styles as monoStyles } from './styles';
+
+// 0.44.0 — the status wave's module is loaded by the board on the first wave; here it is a spy.
+const waveSpy = vi.hoisted(() => ({ play: vi.fn() }));
+vi.mock('../distortion-wave/status-wave', () => ({ playStatusWave: waveSpy.play }));
 
 const NOW = Date.UTC(2026, 9, 27, 9, 0, 0);
 const MIN = 60_000;
@@ -2078,7 +2085,7 @@ describe('attention (0.32.0) — a collapsed card that waits on the viewer', () 
     // focus, not any focus (a face clicked closed keeps the focus — its ping must come back).
     expect(css).not.toMatch(/\.ib-card\.is-attention[^{]*:focus-within/);
     expect(css).toMatch(
-      /\.ib-card\.is-attention:not\(\.is-open\):is\(:has\(:focus-visible\), \.is-flying\)::after \{ visibility: hidden; \}/,
+      /\.ib-card\.is-attention:not\(\.is-open\):is\(:has\(:focus-visible\), \.is-flying, \.is-waving\)::after \{ visibility: hidden; \}/,
     );
     const hoverBlock = /@media \(hover: hover\) and \(pointer: fine\) \{(.*?)\} \/\* 44px/.exec(css)?.[1] ?? '';
     expect(hoverBlock).toContain('.ib-card.is-attention:not(.is-open):hover::after { visibility: hidden; }');
@@ -2953,5 +2960,112 @@ describe('window controls — sound (0.43.0)', () => {
     press('detail');
     await spy.settle();
     expect(spy.cues()).toEqual(['close', 'open', 'navigate', 'open']);
+  });
+});
+
+describe('status waves (0.44.0)', () => {
+  const anim = () =>
+    vi
+      .spyOn(HTMLElement.prototype, 'animate')
+      .mockImplementation(() => ({ cancel() {}, onfinish: null, oncancel: null }) as unknown as Animation);
+  beforeEach(() => waveSpy.play.mockReset());
+
+  it('a card that carries wave plays one when its status changes on screen — with its emphasis, from, to and card', async () => {
+    const spy = anim();
+    const el = mount(board({ ...RUN, wave: 'loud' }, { ...DONE, wave: 'quiet' }));
+    expect(waveSpy.play).not.toHaveBeenCalled(); // never on the first paint
+    el.data = board({ ...RUN, status: 'waiting', wave: 'loud' }, { ...DONE, wave: 'quiet' });
+    el.renderNow();
+    await vi.dynamicImportSettled();
+    await Promise.resolve();
+    expect(waveSpy.play).toHaveBeenCalledTimes(1);
+    const req = waveSpy.play.mock.calls[0][0];
+    expect(req).toMatchObject({ emphasis: 'loud', from: 'running', to: 'waiting' });
+    expect(req.card).toBe(card(el, 'notes'));
+    spy.mockRestore();
+  });
+
+  it('a burst (more than WAVE_BURST changes at once) is a sync: quiet, needs-you and failed only, at most WAVE_BURST', async () => {
+    const spy = anim();
+    const cards = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ ...RUN, id, title: id, wave: 'loud' as const }));
+    const el = mount(board(...cards));
+    const next = ['waiting', 'failed', 'done', 'waiting', 'done'] as const;
+    el.data = board(...cards.map((c, i) => ({ ...c, status: next[i] })));
+    el.renderNow();
+    vi.advanceTimersByTime(5 * WAVE_STAGGER_MS);
+    await vi.dynamicImportSettled();
+    await Promise.resolve();
+    const reqs = waveSpy.play.mock.calls.map((c) => c[0]);
+    expect(reqs.length).toBe(3);
+    expect(reqs.every((r) => r.emphasis === 'quiet')).toBe(true);
+    expect(reqs.map((r) => r.to)).toEqual(['waiting', 'waiting', 'failed']);
+    spy.mockRestore();
+  });
+
+  it('a loud card waves loudly once per WAVE_LOUD_COOLDOWN_MS; a change inside it plays the quiet wave', async () => {
+    const spy = anim();
+    const el = mount(board({ ...RUN, wave: 'loud' }));
+    const settle = async () => {
+      await vi.dynamicImportSettled();
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+    el.data = board({ ...RUN, status: 'waiting', wave: 'loud' });
+    el.renderNow();
+    await settle();
+    vi.advanceTimersByTime(10_000);
+    vi.setSystemTime(NOW + 10_000);
+    el.data = board({ ...RUN, status: 'running', wave: 'loud' });
+    el.renderNow();
+    await settle();
+    vi.setSystemTime(NOW + 10_000 + WAVE_LOUD_COOLDOWN_MS);
+    el.data = board({ ...RUN, status: 'done', wave: 'loud' });
+    el.renderNow();
+    await settle();
+    expect(waveSpy.play.mock.calls.map((c) => c[0].emphasis)).toEqual(['loud', 'quiet', 'loud']);
+    spy.mockRestore();
+  });
+
+  it('under reduced motion: no wave, the border takes the status colour for WAVE_CUE_MS', async () => {
+    const spy = anim();
+    const mm = window.matchMedia;
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes('reduce'),
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+    })) as unknown as typeof window.matchMedia;
+    const el = mount(board({ ...RUN, wave: 'quiet' }));
+    el.data = board({ ...RUN, status: 'waiting', wave: 'quiet' });
+    el.renderNow();
+    expect(card(el, 'notes').classList.contains('is-cue')).toBe(true);
+    vi.advanceTimersByTime(WAVE_CUE_MS + 10);
+    expect(card(el, 'notes').classList.contains('is-cue')).toBe(false);
+    await vi.dynamicImportSettled();
+    expect(waveSpy.play).not.toHaveBeenCalled();
+    window.matchMedia = mm;
+    spy.mockRestore();
+  });
+
+  it('no wave without the field, without a change, or under reduced motion', async () => {
+    const spy = anim();
+    const el = mount(board(RUN, { ...DONE, wave: 'quiet' }));
+    el.data = board({ ...RUN, status: 'done' }, { ...DONE, wave: 'quiet' });
+    el.renderNow();
+    await vi.dynamicImportSettled();
+    expect(waveSpy.play).not.toHaveBeenCalled();
+    const mm = window.matchMedia;
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes('reduce'),
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+    })) as unknown as typeof window.matchMedia;
+    el.data = board({ ...RUN, status: 'done' }, { ...DONE, status: 'failed', wave: 'quiet' });
+    el.renderNow();
+    await vi.dynamicImportSettled();
+    expect(waveSpy.play).not.toHaveBeenCalled();
+    window.matchMedia = mm;
+    spy.mockRestore();
   });
 });

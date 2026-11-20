@@ -968,6 +968,12 @@ export const doc: ComponentDoc = {
       type: 'string',
       description: 'Model name at the left of the open card’s button row.',
     },
+    {
+      name: 'data.columns[].cards[].wave',
+      type: '"loud" | "quiet"',
+      description:
+        '0.44.0 — a change of status plays a distortion wave over the card (ui-distortion-wave’s engine, fetched when the board first holds a waving card): a ring out of the status mark in the new status’s colour. loud is an event — the card bent through a lens, dots, the edge lit while it glides (needs you, done and running laced with the full spectrum; failed in its red alone), 1.2–2.5 s; quiet is the colour alone, 1.1–1.4 s, none for a card put to sleep. Never on the first paint, in a hidden tab, for a card less than half on screen; at most 4 waves at once (2 loud). A burst (more than 3 changes in one data) waves only needs-you and failed cards, quietly; a loud card waves loudly once in 30 s (a change inside plays its quiet wave). Without it, no wave.',
+    },
     { name: 'data.expanded', type: 'string[]', description: 'Card ids that start open the first time they appear.' },
     {
       name: 'data.load',
@@ -1137,6 +1143,7 @@ export const doc: ComponentDoc = {
   ],
   a11y: [
     'Each column is a <section> labelled by its name and count (“Needs you 2”); cards are a list.',
+    'Status waves (card wave, 0.44.0) are aria-hidden decoration over a change the tag, the column and the live region already state; under reduced motion there is no wave — the card’s border takes the status colour for 1.2 s instead (no movement). Each wave is under 2.5 s (WCAG 2.2.2).',
     'A card face is a button with aria-expanded and aria-controls; a closed card’s details are inert.',
     'A polite live region says “N need you, M running” — the first sentence at once, then only changes, a burst within 1 s said once; a single card’s change is named first.',
     'Status is icon + word + colour, never colour alone; the tag text is ≥ 4.5:1 on its tint in both themes.',

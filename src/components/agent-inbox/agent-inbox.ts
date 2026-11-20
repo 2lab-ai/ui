@@ -5,10 +5,47 @@ import { asModelVendor, MODEL_MAKER_COLOR, modelMarkSvg } from '../../core/model
 import { OWNER_BADGE_HUES, syncOwnerBadgeOrbit } from '../../core/owner-badge';
 import { HOP_MS, styles } from './styles';
 
+type StatusWaveModule = typeof import('../distortion-wave/status-wave');
+let statusWaveModule: Promise<StatusWaveModule> | null = null;
+/** The status wave's module (with the wave engine), loaded once on the first wave a board plays. */
+function loadStatusWave(): Promise<StatusWaveModule> {
+  if (!statusWaveModule) statusWaveModule = import('../distortion-wave/status-wave');
+  return statusWaveModule;
+}
+/** A status change that waves, collected in a render (0.44.0). */
+interface WaveAsk {
+  id: string;
+  sh: Shell;
+  emphasis: InboxWave;
+  from: InboxStatus | '';
+  to: InboxStatus;
+}
+/** More status changes than this in one data is a burst (a reconnect, a snapshot): quiet, needs-you and failed only. */
+export const WAVE_BURST = 3;
+/** A loud card waves loudly at most once in this long; a change inside it plays the quiet wave. */
+export const WAVE_LOUD_COOLDOWN_MS = 30_000;
+/** Waves of one render start this far apart, the most important first. */
+export const WAVE_STAGGER_MS = 150;
+/** How long the reduced-motion cue (the border in the status colour) stays. */
+export const WAVE_CUE_MS = 1200;
+const WAVE_RANK: readonly InboxStatus[] = ['waiting', 'failed', 'done', 'running', 'idle'];
+let statusWavePrefetch = false;
+/** A board with a waving card fetches the module when the browser is idle, so its first wave starts on time. */
+function prefetchStatusWave(): void {
+  if (statusWaveModule || statusWavePrefetch) return;
+  statusWavePrefetch = true;
+  const go = () => void loadStatusWave().catch(() => {});
+  const w = globalThis as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => number };
+  if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(go, { timeout: 2000 });
+  else setTimeout(go, 200);
+}
+
 export { HOP_MS };
 
 /** Where a run stands. `waiting` = it needs the person; `idle` = parked (sleeping, archived, never started). */
 export type InboxStatus = 'waiting' | 'running' | 'done' | 'failed' | 'idle';
+/** How a card's change of status is marked by the distortion wave (0.44.0): an event, or a glance. */
+export type InboxWave = 'loud' | 'quiet';
 
 /** A button in an open card. A string `disabled` keeps it visible and says why it cannot be pressed. */
 export interface InboxAction {
@@ -251,6 +288,14 @@ export interface InboxCard {
   links?: readonly InboxLink[];
   /** Model (agent) name, shown at the left of the open card's button row. */
   model?: string;
+  /**
+   * 0.44.0 — a change of status plays a distortion wave over the card (`ui-distortion-wave`'s engine, loaded on the
+   * first wave): `loud` is an event — a ring from the status mark that bends the card, throws dots and leaves colour
+   * on the edges; `quiet` is the same ring in the new status's colour alone, gone before the card moves. Without it,
+   * no wave. Never on the first paint, under reduced motion, in a hidden tab, for a card off screen, or past three
+   * waves at once (a loud one displaces a quiet one); the status icon's pop stays either way.
+   */
+  wave?: InboxWave;
   /** The one decision this viewer can make here — the card's single ink button. */
   primary?: InboxAction;
   /** Secondary buttons (outline), left of the primary. */
@@ -1454,6 +1499,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #lastStatus = new Map<string, InboxStatus>();
   #seq = 0;
   #painted = false;
+  /** 0.44.0 — when each card last waved loudly (card id → epoch ms). */
+  #loudAt = new Map<string, number>();
   #holdTimer: Timer | undefined;
   #tickTimer: ReturnType<typeof setInterval> | undefined;
   #announceTimer: Timer | undefined;
@@ -2343,6 +2390,14 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     this.#closedHome = closedHome;
 
+    // 0.44.0 — a card that waves: have the wave's module ready before its first change of status.
+    if (!statusWaveModule)
+      for (const c of all.values())
+        if (c.wave === 'loud' || c.wave === 'quiet') {
+          prefetchStatusWave();
+          break;
+        }
+
     // 2. Status changes since the last data — said once, before any hold.
     const changes: InboxCard[] = [];
     const nextStatus = new Map<string, InboxStatus>();
@@ -2529,6 +2584,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     this.#tickIn(this.content);
 
     // 8. Enter, move (FLIP), and the status icon's pop where the status changed on screen.
+    // 0.44.0 — and the cards whose change of status waves (InboxCard.wave), played after the loop.
+    const waves: WaveAsk[] = [];
     if (motion) {
       for (const [id, sh] of this.#cards) {
         if (fresh.has(id)) {
@@ -2544,14 +2601,19 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
           continue;
         }
         const prev = firstStatus.get(id);
-        if (!reduced && prev && prev !== sh.status)
-          sh.face.querySelector('.ib-tag-icon')?.animate(
-            [
-              { opacity: 0, transform: 'scale(0.6)' },
-              { opacity: 1, transform: 'scale(1)' },
-            ],
-            { duration: motion.move, easing: motion.easeOut },
-          );
+        if (prev && prev !== sh.status) {
+          if (!reduced)
+            sh.face.querySelector('.ib-tag-icon')?.animate(
+              [
+                { opacity: 0, transform: 'scale(0.6)' },
+                { opacity: 1, transform: 'scale(1)' },
+              ],
+              { duration: motion.move, easing: motion.easeOut },
+            );
+          const wave = all.get(id)?.wave;
+          if ((wave === 'loud' || wave === 'quiet') && sh.status)
+            waves.push({ id, sh, emphasis: wave, from: prev as InboxStatus, to: sh.status });
+        }
         const a = first.get(id);
         if (!a) continue;
         const wasFlying = sh.el.classList.contains('is-flying');
@@ -2575,6 +2637,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
           el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.fade, easing: motion.easeOut });
       }
     }
+
+    if (waves.length) this.#waves(waves, reduced, now);
 
     // 9. Announce (once the board is certified, unless the host mutes it), keep focus, start the clocks.
     if (d && ready && d.announce !== false) {
@@ -2699,6 +2763,77 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     }
     if (!body) this.#open.delete(id);
     this.#applyState(sh, id);
+  }
+
+  /**
+   * 0.44.0 — the status waves of one render (InboxCard.wave). Which ones play, and how loud, is the board's call:
+   * - a burst (more than WAVE_BURST changes in one data, a reconnect or a snapshot) is a sync, not news — no loud
+   *   wave, only the cards that now need someone or failed, quietly, at most WAVE_BURST;
+   * - a loud card waves loudly at most once per WAVE_LOUD_COOLDOWN_MS; a change inside that plays its quiet wave;
+   * - the most important changes first (needs you, failed, done, running, parked), WAVE_STAGGER_MS apart;
+   * - under reduced motion no wave: the card's border takes the status colour for a moment (a colour, no movement),
+   *   for the changes that ask something of the reader and for loud cards.
+   */
+  #waves(asks: WaveAsk[], reduced: boolean, now: number): void {
+    const burst = asks.length > WAVE_BURST;
+    const rank = (to: InboxStatus) => WAVE_RANK.indexOf(to);
+    const list = asks
+      .filter((a) => !burst || a.to === 'waiting' || a.to === 'failed')
+      .sort((a, b) => rank(a.to) - rank(b.to))
+      .slice(0, burst ? WAVE_BURST : asks.length);
+    if (reduced) {
+      for (const a of list)
+        if (a.emphasis === 'loud' || a.to === 'waiting' || a.to === 'failed') this.#cue(a.sh.el, WAVE_CUE_MS);
+      return;
+    }
+    list.forEach((a, i) => {
+      let emphasis: InboxWave = burst ? 'quiet' : a.emphasis;
+      if (emphasis === 'loud') {
+        const last = this.#loudAt.get(a.id);
+        if (last !== undefined && now - last < WAVE_LOUD_COOLDOWN_MS) emphasis = 'quiet';
+        else this.#loudAt.set(a.id, now);
+      }
+      const go = () => this.#wave(a.sh, emphasis, a.from, a.to);
+      if (i === 0) go();
+      else setTimeout(go, i * WAVE_STAGGER_MS);
+    });
+  }
+
+  /** A still cue: the card's border in its status colour, then back (reduced motion). */
+  #cue(el: HTMLElement, ms: number): void {
+    el.classList.add('is-cue');
+    setTimeout(() => el.classList.remove('is-cue'), ms);
+  }
+
+  /**
+   * One status wave over a card. The engine is a module of its own, fetched when the browser is idle once the board
+   * holds a waving card (or on the first wave), so a board that never waves never loads it. It opens from the status
+   * mark the face shows (the dot of a one-line card, else the status icon) and goes once it has run (its canvas and
+   * context released). While it runs the card is `is-waving` (the attention ping waits).
+   */
+  #wave(sh: Shell, emphasis: InboxWave, from: InboxStatus | '', to: InboxStatus): void {
+    const el = sh.el;
+    loadStatusWave()
+      .then((m) => {
+        if (!el.isConnected || sh.status !== to) return;
+        const marks = [sh.face.querySelector('.ib-min-st'), sh.face.querySelector('.ib-tag-icon')];
+        const source =
+          marks.find((mark) => {
+            const r = mark?.getBoundingClientRect();
+            return !!r && r.width > 0 && r.height > 0;
+          }) ?? null;
+        const run = m.playStatusWave({
+          card: el,
+          source,
+          emphasis,
+          from,
+          to,
+          folded: el.classList.contains('is-min'),
+          onDone: () => el.classList.remove('is-waving'),
+        });
+        if (run) el.classList.add('is-waving');
+      })
+      .catch(() => {});
   }
 
   /** Move = translate only, raised while it changes column. Reduced motion: no travel, a fade where it landed. */
