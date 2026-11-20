@@ -164,7 +164,7 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'frame',
-      type: 'data.frame: (size, t, opts) => OrbFrame',
+      type: 'data.frame: (size, t, opts) => ThinkingOrbFrame',
       description:
         'Escape hatch: your own geometry, built from the exported parts (orbMakeProj, orbFibDir, orbFinalizeFrame …). The painter, theme, tint, pause and offscreen handling stay the element’s. A throwing frame draws nothing.',
     },

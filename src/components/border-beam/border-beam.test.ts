@@ -30,6 +30,7 @@ import {
   STILL_ANGLE,
   splitPropertyRules,
   stillCss,
+  unclipCss,
 } from './sheet';
 import { styles } from './styles';
 import { ancestorSubstrate, colorIsLight, composedContains, resolveSubstrate } from './theme';
@@ -436,7 +437,7 @@ describe('sheet', () => {
 
   it('run is the engine as written; still adds a pose and a crossfade; full is immune to reduced motion', () => {
     const md = opts();
-    expect(beamSheet(md, 'run').css).toBe(splitPropertyRules(generateBeamCSS(md)).css);
+    expect(beamSheet(md, 'run').css).toBe(splitPropertyRules(generateBeamCSS(md)).css + unclipCss(md));
     const still = beamSheet(md, 'still').css;
     expect(still).toContain(`--beam-angle-ui: ${STILL_ANGLE}deg`);
     expect(still).toContain('[data-beam="ui"][data-still][data-active] { animation: beam-fade-in-ui 0.6s');
@@ -458,6 +459,29 @@ describe('sheet', () => {
     expect(fullMd).toMatch(/beam-fade-in-ui 0\.6s ease forwards !important;/);
     expect(fullMd).toMatch(/animation: beam-hue-shift-ui 12s ease-in-out infinite !important;/);
     expect(fullMd).not.toContain('!important !important');
+  });
+
+  it('the wrapper never clips the slotted element (its focus ring, its shadow); the layers clip themselves', () => {
+    for (const size of ['md', 'sm', 'line', 'pulse-inner'] as const) {
+      const o = opts({ size, borderRadius: 20 });
+      const { css } = beamSheet(o, 'run');
+      // The engine's overflow: hidden comes first; the port's overflow: visible after it, at the same specificity.
+      expect(css.indexOf('overflow: hidden')).toBeGreaterThan(-1);
+      expect(css.lastIndexOf('[data-beam="ui"] { overflow: visible; }')).toBeGreaterThan(
+        css.indexOf('overflow: hidden'),
+      );
+      expect(css).toContain(
+        '[data-beam="ui"]::before, [data-beam="ui"]::after, [data-beam="ui"] [data-beam-bloom] { clip-path: inset(0 round 20px); }',
+      );
+      // Every layer the engine draws already clips to that same box: the picture does not change.
+      expect(generateBeamCSS(o).match(/clip-path: inset\(0 round 20px\)/g)?.length).toBeGreaterThanOrEqual(3);
+      expect(beamSheet(o, 'still').css).toContain('overflow: visible');
+      expect(beamSheet(o, 'full').css).toContain('overflow: visible');
+    }
+    // pulse-outside blooms past the edge: no clip added, and it never clipped.
+    const out = opts({ size: 'pulse-outside' });
+    expect(unclipCss(out)).toBe('');
+    expect(beamSheet(out).css).not.toContain('overflow: hidden');
   });
 
   it('extra css follows the sheet with {id} filled in', () => {
@@ -766,6 +790,17 @@ describe('<ui-border-beam>', () => {
     vi.stubGlobal('CSS', undefined);
     const el = mount({ size: 'line' });
     expect(sheet(el)).toContain('beam-travel-ui');
+  });
+
+  it('the slotted element’s focus ring is not cut: the wrapper’s last overflow word is visible', () => {
+    const btn = document.createElement('button');
+    btn.textContent = 'Stop the run';
+    for (const size of ['sm', 'md', 'line', 'pulse-inner'] as const) {
+      const el = mount({ size }, {}, btn.cloneNode(true) as HTMLElement);
+      const css = sheet(el);
+      const last = [...css.matchAll(/\[data-beam="ui"\] \{[^}]*overflow: (\w+)/g)].at(-1)?.[1];
+      expect(last, size).toBe('visible');
+    }
   });
 
   it('the shadow keeps its nodes across renders (no restart of the running animations)', () => {

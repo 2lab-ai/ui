@@ -42,6 +42,7 @@ export {
   STILL_ANGLE as BEAM_STILL_ANGLE,
   splitPropertyRules as beamSplitPropertyRules,
   stillCss as beamStillCss,
+  unclipCss as beamUnclipCss,
 } from './sheet';
 export {
   ancestorSubstrate as beamAncestorSubstrate,

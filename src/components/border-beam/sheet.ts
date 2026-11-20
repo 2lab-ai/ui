@@ -108,10 +108,25 @@ ${at}::before, ${at}::after, ${at} [data-beam-bloom] { animation: none !importan
   return css;
 }
 
+/**
+ * The wrapper never clips: upstream's `overflow: hidden` on it (every size but pulse-outside) cut the slotted
+ * element's focus ring and shadow. Each beam layer clips itself to the rounded box instead — the same clip the
+ * engine already gives every layer, so the picture does not change. pulse-outside blooms outward and keeps its own.
+ */
+export function unclipCss(o: GenerateStylesOptions): string {
+  if (o.size === 'pulse-outside') return '';
+  const at = `[data-beam="${o.id}"]`;
+  return `
+/* Port: the slotted element's focus ring and shadow stay whole; the beam layers clip themselves. */
+${at} { overflow: visible; }
+${at}::before, ${at}::after, ${at} [data-beam-bloom] { clip-path: inset(0 round ${o.borderRadius}px); }
+`;
+}
+
 /** The finished sheet for one element: the engine's CSS without its `@property` blocks, adjusted for the motion mode. */
 export function beamSheet(o: GenerateStylesOptions, mode: BeamSheetMode = 'run', extra = ''): BeamSheet {
   const split = splitPropertyRules(generateBeamCSS(o));
-  let css = split.css;
+  let css = split.css + unclipCss(o);
   if (mode === 'full') css = css.replace(REDUCED_BLOCK, '').replace(ANIMATION_DECL, '$1 !important;');
   else if (mode === 'still') css += stillCss(o);
   if (extra) css += `\n${String(extra).split('{id}').join(o.id)}`;

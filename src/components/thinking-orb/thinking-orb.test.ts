@@ -6,6 +6,8 @@ import { countDots, scaleCounts, scaleRadii } from './engine/profiles';
 import { MODE_DRAWS, MODE_FRAMES } from './engine/registry';
 import type { OrbState } from './engine/types';
 import { GOLDEN, GOLDEN_RESOLVED, GOLDEN_TIMES } from './fixtures';
+import type { ThinkingOrbFrame, ThinkingOrbTint } from './index';
+import * as orbIndex from './index';
 import { styles } from './styles';
 import { ancestorSubstrate } from './theme';
 import {
@@ -660,6 +662,22 @@ describe('<ui-thinking-orb>', () => {
     el.data = { state: 'solving', size: 32 };
     el.renderNow();
     expect(el.shadowRoot!.querySelector('canvas')).toBe(c);
+  });
+});
+
+describe('package names', () => {
+  it('the index prefixes every engine name; the frame and tint types are ThinkingOrbFrame / ThinkingOrbTint', () => {
+    // Typed through the index (tsc checks this file): voice-ring exports OrbFrame / OrbTint, and the package root
+    // re-exports every component with export *.
+    const tint: ThinkingOrbTint = { r: 1, g: 2, b: 3 };
+    const frame: ThinkingOrbFrame = { dots: [{ x: 0, y: 0, z: 0, r: 1, white: 0 }], lines: [] };
+    expect(tint.r + frame.dots.length).toBe(2);
+    const names = Object.keys(orbIndex);
+    expect(names).toEqual(
+      expect.arrayContaining(['UiThinkingOrb', 'orbStateForTool', 'ORB_MODE_FRAMES', 'resolveOrbPreset']),
+    );
+    for (const generic of ['MODE_FRAMES', 'lerp', 'hashD', 'paintFrame', 'resolvePreset', 'STRINGS', 'parseTint'])
+      expect(names).not.toContain(generic);
   });
 });
 
