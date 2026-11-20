@@ -469,12 +469,12 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'options / running / engine / wake()',
-      type: 'GooeyOptions / boolean / ObserveEngine | null / method',
+      type: 'GooeyOptions / boolean / GooeyEngine | null / method',
       description:
         'What it draws with now (clamped), whether a loop is scheduled, the engine (raw escape hatch), and a manual wake after WAAPI moves.',
     },
     {
-      name: 'gooFilterMarkup · splitShadows · parseShadow · sanitizeFilterMarkup · resolveTransition · easingFunction · mapMove · mapBend · mapMorphSprings · mapDissolve · meltPairMarkup · roundedRectPath · gooeyItemPlan',
+      name: 'gooFilterMarkup · gooeySplitShadows · gooeyParseShadow · sanitizeGooeyFilter · gooeyResolveTransition · gooeyEasing · gooeyMapMove · gooeyMapBend · gooeyMapMorphSprings · gooeyMapDissolve · gooeyMeltPairMarkup · gooeyRoundedRectPath · gooeyItemPlan',
       type: 'helpers',
       description:
         'Pure: the filter chain, the GPU / svg shadow split, the box-shadow parser, the spring compiler and easing evaluator, the knob mappings, the melt svg, the blob path and an item’s plan.',

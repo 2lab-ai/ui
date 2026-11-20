@@ -6,7 +6,7 @@
  * https://libraries.dev/gooey). Changes in the port: the Vite HMR guard is gone; frames are measured in the group's
  * layout px (a scaled ancestor no longer misplaces the blobs); `setActive(false)` parks the loop and the safety tick
  * while the group is off screen or the tab is hidden; the evolve lead's velocity smoothing runs on the wall clock
- * (the same 0.7 per frame at 60fps).
+ * (the same 0.7 per frame at 60fps); the 300ms safety check parks after ~10s of stillness until the next wake.
  */
 import { measureRadius } from './geometry';
 
@@ -312,6 +312,9 @@ interface MeltRefs {
   } | null;
 }
 
+/** Still safety checks (300ms apart) before the check itself parks: ~10s. */
+const IDLE_CHECKS = 33;
+
 /** How many stacked layers approximate the gradient. */
 const MELT_LAYERS = 3;
 
@@ -542,6 +545,8 @@ export class ObserveEngine {
   private removeListeners: Array<() => void> = [];
   /** False while the group is off screen or the tab is hidden: no frames, no safety tick. */
   private active = true;
+  /** Safety checks in a row that found nothing moving; past IDLE_CHECKS the tick stops until the next wake. */
+  private idleChecks = 0;
 
   constructor(private getGroup: () => HTMLElement | null) {}
 
@@ -666,6 +671,9 @@ export class ObserveEngine {
 
   wake = (): void => {
     this.clean = 0;
+    this.idleChecks = 0;
+    // A wake restarts the safety tick after a long stillness parked it.
+    if (this.sourcesReady && this.active && !this.interval && this.items.size > 0) this.startTick();
     if (this.awake || this.items.size === 0 || !this.active) return;
     this.awake = true;
     this.raf = requestAnimationFrame(this.loop);
@@ -2201,11 +2209,24 @@ export class ObserveEngine {
     if (this.active) this.startTick();
   }
 
-  /** Safety net for motion the wake sources can't see (e.g. WAAPI): a cheap silent check 3x/second while asleep. */
+  /** Safety net for motion the wake sources can't see (e.g. WAAPI): a cheap silent check 3x/second while asleep —
+   *  for ~10s after the last movement or wake, then it parks too (a host animating with WAAPI after a long stillness
+   *  calls the group's `wake()`). */
   private startTick(): void {
     if (this.interval) clearInterval(this.interval);
+    this.idleChecks = 0;
     this.interval = setInterval(() => {
-      if (!this.awake && this.measureAll()) this.wake();
+      if (this.awake) return;
+      if (this.measureAll()) this.wake();
+      else if (++this.idleChecks > IDLE_CHECKS && this.interval) {
+        clearInterval(this.interval);
+        this.interval = null;
+      }
     }, 300);
+  }
+
+  /** True while the 300ms safety check is scheduled. */
+  get ticking(): boolean {
+    return this.interval !== null;
   }
 }

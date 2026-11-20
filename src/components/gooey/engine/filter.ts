@@ -170,10 +170,75 @@ export function splitShadows(
 
 const SAFE_REF = /^#[\w-]+$/;
 
+/** The attributes a filter primitive (or its feFunc* / light children) may carry; everything else is dropped. */
+const FE_ATTRS = new Set(
+  [
+    'in',
+    'in2',
+    'result',
+    'x',
+    'y',
+    'z',
+    'width',
+    'height',
+    'stdDeviation',
+    'edgeMode',
+    'type',
+    'values',
+    'operator',
+    'k1',
+    'k2',
+    'k3',
+    'k4',
+    'radius',
+    'dx',
+    'dy',
+    'scale',
+    'xChannelSelector',
+    'yChannelSelector',
+    'baseFrequency',
+    'numOctaves',
+    'seed',
+    'stitchTiles',
+    'flood-color',
+    'flood-opacity',
+    'lighting-color',
+    'surfaceScale',
+    'diffuseConstant',
+    'specularConstant',
+    'specularExponent',
+    'kernelUnitLength',
+    'order',
+    'kernelMatrix',
+    'divisor',
+    'bias',
+    'targetX',
+    'targetY',
+    'preserveAlpha',
+    'azimuth',
+    'elevation',
+    'pointsAtX',
+    'pointsAtY',
+    'pointsAtZ',
+    'limitingConeAngle',
+    'mode',
+    'tableValues',
+    'slope',
+    'intercept',
+    'amplitude',
+    'exponent',
+    'offset',
+    'preserveAspectRatio',
+    'color-interpolation-filters',
+    'href',
+  ].map((a) => a.toLowerCase()),
+);
+
 /**
- * The `filter` escape hatch, made safe to put in the shadow root: only filter primitives (`fe*` elements) survive,
- * no event handler attribute (`on*`), no `style`, and an `href` only when it points inside the document (`#id`).
- * Returns the cleaned markup.
+ * The `filter` escape hatch, made safe to put in the shadow root: only filter primitives (`fe*` elements, with their
+ * feFunc* / feMergeNode / light children) survive, each keeping only the attributes primitives take — no event
+ * handler, no `style`, no value that reaches out with `url(…)`, and an `href` only when it points inside the document
+ * (`#id`). Returns the cleaned markup.
  */
 export function sanitizeFilterMarkup(markup: string): string {
   if (typeof document === 'undefined') return '';
@@ -188,10 +253,10 @@ export function sanitizeFilterMarkup(markup: string): string {
     }
     for (const at of Array.from(el.attributes)) {
       const name = at.name.toLowerCase();
+      const value = at.value.trim();
+      const isHref = name === 'href' || name === 'xlink:href';
       const bad =
-        name.startsWith('on') ||
-        name === 'style' ||
-        ((name === 'href' || name.endsWith(':href')) && !SAFE_REF.test(at.value.trim()));
+        (!FE_ATTRS.has(name) && name !== 'xlink:href') || /url\s*\(/i.test(value) || (isHref && !SAFE_REF.test(value));
       if (bad) el.removeAttribute(at.name);
     }
   }

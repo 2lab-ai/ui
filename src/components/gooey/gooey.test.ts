@@ -244,6 +244,17 @@ describe('filter markup', () => {
     expect(splitShadows([], 6, 24)).toEqual({ svg: [], css: '', pad: 42 });
   });
 
+  it('the custom filter keeps only the attributes primitives take, and none that reaches out with url()', () => {
+    const out = sanitizeFilterMarkup(
+      '<feFlood flood-color="url(#paint)" flood-opacity="0.5" fill="url(https://x.test/p.svg)" mask="url(#m)" data-x="1" result="f"/>' +
+        '<feComponentTransfer><feFuncA type="table" tableValues="0 1" clip-path="url(#c)"/></feComponentTransfer>',
+    );
+    expect(out).toContain('flood-opacity="0.5"');
+    expect(out).toContain('result="f"');
+    expect(out).toContain('tableValues="0 1"');
+    expect(out).not.toMatch(/url\(|fill=|mask=|data-x|clip-path/);
+  });
+
   it('the custom filter keeps primitives only: no script, handlers, style or outside href', () => {
     const out = sanitizeFilterMarkup(
       `<feGaussianBlur stdDeviation="4" onload="alert(1)" style="x"/><feImage href="https://x.test/a.png"/><feImage href="#local"/><a href="javascript:alert(1)">x</a>${XSS}<script>alert(1)</script>`,
@@ -657,6 +668,47 @@ describe('<ui-gooey-item>', () => {
     expect(g.shadowRoot!.querySelector('.gy-melt svg')).toBeNull();
   });
 
+  it('melt: only the painted pair is transparent — a lone, a third or an unsafe one keeps its own pixels', () => {
+    const card = (src: string) => {
+      const d = document.createElement('div');
+      const img = document.createElement('img');
+      img.src = src;
+      d.append(img);
+      return d;
+    };
+    const a = card('https://example.test/a.png');
+    const { g, items } = mount({}, [{ data: { effect: 'melt' }, child: a }]);
+    // Alone: nothing paints it, so it stays.
+    expect(a.style.opacity).toBe('');
+    const add = (child: HTMLElement, data: GooeyItemData = { effect: 'melt' }) => {
+      const it = document.createElement('ui-gooey-item');
+      it.data = data;
+      it.append(child);
+      g.append(it);
+      it.renderNow();
+      return it;
+    };
+    const b = card('https://example.test/b.png');
+    add(b);
+    expect(a.style.opacity).toBe('0');
+    expect(b.style.opacity).toBe('0');
+    const c = card('https://example.test/c.png');
+    const third = add(c);
+    expect(c.style.opacity).toBe('');
+    // The first leaves: it is restored, and the third joins the pair.
+    items[0].remove();
+    expect(a.style.opacity).toBe('');
+    expect(c.style.opacity).toBe('0');
+    third.remove();
+    expect(c.style.opacity).toBe('');
+    expect(b.style.opacity).toBe('');
+    // A source the melt cannot draw never joins (and never vanishes).
+    const bad = document.createElement('div');
+    add(bad, { effect: 'melt', melt: { src: 'javascript:alert(1)' } });
+    add(card('https://example.test/d.png'));
+    expect(bad.style.opacity).toBe('');
+  });
+
   it('an item outside a group does nothing and throws nothing', () => {
     const it0 = document.createElement('ui-gooey-item');
     it0.append(document.createElement('span'));
@@ -670,16 +722,35 @@ describe('<ui-gooey-item>', () => {
     const { g } = mount({}, [
       { data: { effect: 'melt', melt: { src: `"><script>alert(1)</script>` } }, child: d },
       { data: { effect: 'melt', melt: { src: 'javascript:alert(1)' } }, child: document.createElement('div') },
+      { data: { effect: 'melt', melt: { src: 'https://example.test/n.png' } }, child: document.createElement('div') },
     ]);
     step();
     const root = g.shadowRoot!;
     expect(root.querySelector('script')).toBeNull();
+    // The script-looking one is an (escaped) relative URL; the javascript: one never joined the pair.
     const hrefs = Array.from(root.querySelectorAll('image')).map((i) => i.getAttribute('href'));
-    expect(hrefs).toEqual(['"><script>alert(1)</script>', '']);
+    expect(hrefs).toEqual(['"><script>alert(1)</script>', 'https://example.test/n.png']);
+    expect(root.innerHTML).not.toContain('javascript:');
   });
 });
 
 describe('lifecycle', () => {
+  it('the 300ms safety check parks after ~10s of stillness; any wake brings it back', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { g } = mount({}, [{ data: { effect: 'move' }, child: document.createElement('div') }]);
+    settle();
+    const engine = g.engine!;
+    expect(engine.ticking).toBe(true);
+    const measure = vi.spyOn(engine as unknown as { measureAll: () => boolean }, 'measureAll');
+    vi.advanceTimersByTime(300 * 40);
+    expect(engine.ticking).toBe(false);
+    const calls = measure.mock.calls.length;
+    vi.advanceTimersByTime(30000);
+    expect(measure.mock.calls.length).toBe(calls);
+    g.wake();
+    expect(engine.ticking).toBe(true);
+  });
+
   it('off screen and in a hidden tab the loops park; back on screen they resume', () => {
     const { g } = mount({}, [{ data: { effect: 'move' }, child: document.createElement('div') }]);
     expect(g.running).toBe(true);
@@ -726,6 +797,23 @@ describe('lifecycle', () => {
   it('a group defined late still finds its blobs layer for items rendered early', () => {
     const { g } = mount({}, [{ data: {} }, { data: {} }]);
     expect(portal(g).querySelectorAll('rect')).toHaveLength(2);
+  });
+});
+
+describe('package surface', () => {
+  it('exports only prefixed names (the root re-exports every component)', async () => {
+    const api = await import('./index');
+    const generic = [
+      'presets',
+      'Transition',
+      'parseShadow',
+      'easingFunction',
+      'resolveTransition',
+      'zeta',
+      'ObserveEngine',
+    ];
+    for (const n of generic) expect(Object.hasOwn(api, n)).toBe(false);
+    for (const n of Object.keys(api)) expect(n).toMatch(/goo|Goo|GOO/);
   });
 });
 

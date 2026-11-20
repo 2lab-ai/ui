@@ -1,4 +1,5 @@
 import { define, UiElement } from '../../core/element';
+import { safeSrc } from '../../core/html';
 import { GOOEY, type GooeyContext, isGooeyHost } from './context';
 import {
   type BlobBox,
@@ -663,14 +664,29 @@ export class UiGooeyItem extends UiElement<GooeyItemData> {
     this.#unmelt = null;
     this.#meltKey = key;
     this.#meltTarget = target;
-    if (!target || !img) return;
-    // The DOM element stays for layout + interaction; the svg paints it.
+    // A source the melt cannot draw (not http(s), relative, blob: or a base64 raster) never joins: its card stays.
+    if (!target || !img || !safeSrc(img)) return;
+    // The DOM element stays for layout + interaction; the svg paints it — but only while it is one of the painted pair
+    // (the first two melt items). A lone melt item, a third one, or one whose partner left keeps its own pixels.
     const prevOpacity = target.style.opacity;
-    target.style.opacity = '0';
-    const unregister = ctx.imageMelt.register({ el: target, src: img, opts: plan.opts });
+    const entry = { el: target, src: img, opts: plan.opts };
+    const registry = ctx.imageMelt;
+    let hidden = false;
+    const sync = () => {
+      const pair = registry.entries().slice(0, 2);
+      const painted = pair.length === 2 && pair.includes(entry);
+      if (painted === hidden) return;
+      hidden = painted;
+      target.style.opacity = painted ? '0' : prevOpacity;
+    };
+    const off = registry.subscribe(sync);
+    const unregister = registry.register(entry);
+    sync();
     this.#unmelt = () => {
-      target.style.opacity = prevOpacity;
+      off();
       unregister();
+      if (hidden) target.style.opacity = prevOpacity;
+      hidden = false;
     };
   }
 }
