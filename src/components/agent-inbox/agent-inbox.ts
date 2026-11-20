@@ -9,7 +9,13 @@ type StatusWaveModule = typeof import('../distortion-wave/status-wave');
 let statusWaveModule: Promise<StatusWaveModule> | null = null;
 /** The status wave's module (with the wave engine), loaded once on the first wave a board plays. */
 function loadStatusWave(): Promise<StatusWaveModule> {
-  if (!statusWaveModule) statusWaveModule = import('../distortion-wave/status-wave');
+  if (!statusWaveModule)
+    statusWaveModule = import('../distortion-wave/status-wave').catch((err: unknown) => {
+      // A failed fetch is not kept: the next wave asks again.
+      statusWaveModule = null;
+      statusWavePrefetch = false;
+      throw err;
+    });
   return statusWaveModule;
 }
 /** A status change that waves, collected in a render (0.44.0). */
@@ -292,8 +298,9 @@ export interface InboxCard {
    * 0.44.0 — a change of status plays a distortion wave over the card (`ui-distortion-wave`'s engine, loaded on the
    * first wave): `loud` is an event — a ring from the status mark that bends the card, throws dots and leaves colour
    * on the edges; `quiet` is the same ring in the new status's colour alone, gone before the card moves. Without it,
-   * no wave. Never on the first paint, under reduced motion, in a hidden tab, for a card off screen, or past three
-   * waves at once (a loud one displaces a quiet one); the status icon's pop stays either way.
+   * no wave. Never on the first paint, under reduced motion (the border takes the status colour for a moment
+   * instead), in a hidden tab, for a card less than half on screen, or past four waves at once (two loud: a loud one
+   * the page cannot hold plays its quiet one); the status icon's pop stays either way.
    */
   wave?: InboxWave;
   /** The one decision this viewer can make here — the card's single ink button. */
@@ -1499,8 +1506,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #lastStatus = new Map<string, InboxStatus>();
   #seq = 0;
   #painted = false;
-  /** 0.44.0 — when each card last waved loudly (card id → epoch ms). */
+  /** 0.44.0 — when each card last waved loudly (card id → epoch ms), and the waves running now. */
   #loudAt = new Map<string, number>();
+  #waving = new Map<string, { readonly card: HTMLElement; cancel(): void }>();
   #holdTimer: Timer | undefined;
   #tickTimer: ReturnType<typeof setInterval> | undefined;
   #announceTimer: Timer | undefined;
@@ -1577,6 +1585,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     this.#counting.clear();
     // A hold cannot outlive the element: on reconnect every card is drawn where its data puts it.
     this.#holds = Object.create(null);
+    // Nor can a wave: its canvas and context go with the board.
+    for (const id of Array.from(this.#waving.keys())) this.#stopWave(id);
   }
 
   /** The board is reconciled by `update()` (keyed, persistent nodes); there is no single markup string. */
@@ -2562,6 +2572,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
         sh.el.removeAttribute('data-card');
         continue;
       }
+      this.#stopWave(id);
       this.#exit(sh, first.get(id), slots[from] ? motion : null);
     }
     for (const [k, { g, section }] of staleGroups)
@@ -2791,9 +2802,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       if (emphasis === 'loud') {
         const last = this.#loudAt.get(a.id);
         if (last !== undefined && now - last < WAVE_LOUD_COOLDOWN_MS) emphasis = 'quiet';
-        else this.#loudAt.set(a.id, now);
       }
-      const go = () => this.#wave(a.sh, emphasis, a.from, a.to);
+      const go = () => this.#wave(a.id, a.sh, emphasis, a.from, a.to);
       if (i === 0) go();
       else setTimeout(go, i * WAVE_STAGGER_MS);
     });
@@ -2811,29 +2821,48 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
    * mark the face shows (the dot of a one-line card, else the status icon) and goes once it has run (its canvas and
    * context released). While it runs the card is `is-waving` (the attention ping waits).
    */
-  #wave(sh: Shell, emphasis: InboxWave, from: InboxStatus | '', to: InboxStatus): void {
+  #wave(id: string, sh: Shell, emphasis: InboxWave, from: InboxStatus | '', to: InboxStatus): void {
     const el = sh.el;
     loadStatusWave()
       .then((m) => {
-        if (!el.isConnected || sh.status !== to) return;
+        if (!el.isConnected || !this.isConnected || sh.status !== to || this.#cards.get(id) !== sh) return;
         const marks = [sh.face.querySelector('.ib-min-st'), sh.face.querySelector('.ib-tag-icon')];
         const source =
           marks.find((mark) => {
             const r = mark?.getBoundingClientRect();
             return !!r && r.width > 0 && r.height > 0;
           }) ?? null;
-        const run = m.playStatusWave({
-          card: el,
-          source,
-          emphasis,
-          from,
-          to,
-          folded: el.classList.contains('is-min'),
-          onDone: () => el.classList.remove('is-waving'),
-        });
-        if (run) el.classList.add('is-waving');
+        const play = (e: InboxWave) =>
+          m.playStatusWave({
+            card: el,
+            source,
+            emphasis: e,
+            from,
+            to,
+            folded: el.classList.contains('is-min'),
+            onDone: () => {
+              el.classList.remove('is-waving');
+              if (this.#waving.get(id)?.card === el) this.#waving.delete(id);
+            },
+          });
+        // A loud wave the page cannot hold now (two already out) plays its quiet one rather than none.
+        let run = play(emphasis);
+        if (!run && emphasis === 'loud') run = play('quiet');
+        if (!run) return;
+        el.classList.add('is-waving');
+        this.#waving.set(id, run);
+        // The cool-down starts from a loud wave that played, not from one that was asked for.
+        if (run.emphasis === 'loud') this.#loudAt.set(id, Date.now());
       })
       .catch(() => {});
+  }
+
+  /** Ends a card's running wave (it left the board, or the board left the page). */
+  #stopWave(id: string): void {
+    const run = this.#waving.get(id);
+    if (!run) return;
+    this.#waving.delete(id);
+    run.cancel();
   }
 
   /** Move = translate only, raised while it changes column. Reduced motion: no travel, a fade where it landed. */

@@ -1,6 +1,15 @@
 import { prefersReducedMotion } from '../../core/element';
 import { WaveController, type WaveOptions, type WaveStyleInput } from './engine/controller';
-import { hexToRgb, PALETTES, type Palette, type RGB, singlePalette } from './engine/model';
+import {
+  defaultStyle,
+  duration,
+  hexToRgb,
+  PALETTES,
+  type Palette,
+  type RGB,
+  singlePalette,
+  type WaveStyle,
+} from './engine/model';
 
 /**
  * A status wave: one run of the distortion wave over a card whose status just changed, then gone (its canvas and
@@ -432,24 +441,27 @@ export function playStatusWave(req: StatusWaveRequest): StatusWaveRun | null {
     req.onDone?.();
   };
   const run: StatusWaveRun = { card, emphasis, cancel: end };
-  try {
-    ctl = new WaveController(card, card, null);
-  } catch {
-    return null;
-  }
   // A one-view wave toggles its view's layer (opacity, pointer events, inert, aria-hidden): here the view is the
   // card itself, so what the host set on it is put back after the engine's first and last touch.
   const kept = keepLayer(card);
   restore = kept;
-  RUNS.set(card, run);
   opts.onFinish = () => {
     kept();
     end();
   };
-  ctl.update(opts);
-  ctl.play({ source: req.source?.isConnected ? req.source : undefined });
-  kept();
+  RUNS.set(card, run);
   // The engine finishes on its own; this is the backstop for a run the browser never draws (a throttled tab).
-  backstop = setTimeout(end, 4000);
+  const total = duration({ ...defaultStyle(opts.type ?? 'center'), ...(opts.waveStyle as Partial<WaveStyle>) });
+  backstop = setTimeout(end, Math.max(0, total) * 1000 + 1500);
+  try {
+    ctl = new WaveController(card, card, null);
+    ctl.update(opts);
+    ctl.play({ source: req.source?.isConnected ? req.source : undefined });
+  } catch {
+    // No context, a shader the driver refuses: no wave, and nothing left behind (never an exception for the host).
+    end();
+    return null;
+  }
+  kept();
   return run;
 }

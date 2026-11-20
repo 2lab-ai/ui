@@ -335,6 +335,54 @@ describe('<ui-distortion-wave>', () => {
     await expect(el.prepare()).resolves.toBeUndefined();
   });
 
+  it('a change to a slotted view marks that layer, so the next wave pictures it afresh', async () => {
+    const el = mount(
+      '<div id="r">review</div><div slot="revealed"><b id="tx">TX-?</b></div><button slot="overlay">Go</button>',
+    );
+    const a = el.shadowRoot!.querySelector<HTMLElement>('[data-dw-layer="content"]')!;
+    const b = el.shadowRoot!.querySelector<HTMLElement>('[data-dw-layer="revealed"]')!;
+    el.querySelector('#tx')!.textContent = 'TX-48211';
+    await vi.waitFor(() => expect(b.hasAttribute('data-dw-changed')).toBe(true));
+    expect(a.hasAttribute('data-dw-changed')).toBe(false);
+    el.querySelector('#r')!.setAttribute('title', 'x');
+    await vi.waitFor(() => expect(a.hasAttribute('data-dw-changed')).toBe(true));
+    const before = b.getAttribute('data-dw-changed');
+    el.querySelector('button')!.textContent = 'Sent';
+    await new Promise((r) => setTimeout(r, 10));
+    expect(b.getAttribute('data-dw-changed')).toBe(before); // the overlay is not pictured
+  });
+
+  it('no context until a wave asks (prewarm off by default)', () => {
+    const el = mount();
+    el.data = {};
+    el.renderNow();
+    expect(el.shadowRoot!.querySelector('canvas')).toBeNull();
+  });
+
+  it('a renderer that throws never reaches the host: the status wave ends and leaves nothing', async () => {
+    const card = onScreenCard('throws');
+    const proto = HTMLCanvasElement.prototype as unknown as { getContext: (...a: unknown[]) => unknown };
+    const real = proto.getContext;
+    proto.getContext = () => {
+      throw new Error('driver refused');
+    };
+    const done = vi.fn();
+    let run: ReturnType<typeof playStatusWave> = null;
+    expect(() => {
+      run = playStatusWave({ card, emphasis: 'loud', to: 'done', onDone: done });
+    }).not.toThrow();
+    proto.getContext = real;
+    expect(run).toBeNull();
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(statusWavesRunning()).toBe(0);
+    const el = mount('<div>a</div><div slot="revealed">b</div>');
+    proto.getContext = () => {
+      throw new Error('driver refused');
+    };
+    expect(() => el.play()).not.toThrow();
+    proto.getContext = real;
+  });
+
   it('disconnecting destroys the engine; connecting again makes a new one', () => {
     const el = mount();
     const first = el.controller;

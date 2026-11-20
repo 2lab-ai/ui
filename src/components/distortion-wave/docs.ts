@@ -252,8 +252,9 @@ export const doc: ComponentDoc = {
     {
       name: 'data.prewarm',
       type: 'boolean',
-      default: 'true',
-      description: 'Take the first picture when the browser is idle after connecting.',
+      default: 'false',
+      description:
+        'Make the WebGL context and take the first picture when the browser is idle after connecting, so the first wave has its lens from the start. Off by default: the context is made when the first wave asks (browsers allow ~16 per page).',
     },
     {
       name: 'motion',

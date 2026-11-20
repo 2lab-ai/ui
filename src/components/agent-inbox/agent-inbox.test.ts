@@ -2968,7 +2968,14 @@ describe('status waves (0.44.0)', () => {
     vi
       .spyOn(HTMLElement.prototype, 'animate')
       .mockImplementation(() => ({ cancel() {}, onfinish: null, oncancel: null }) as unknown as Animation);
-  beforeEach(() => waveSpy.play.mockReset());
+  beforeEach(() => {
+    waveSpy.play.mockReset();
+    waveSpy.play.mockImplementation((req: { card: HTMLElement; emphasis: string }) => ({
+      card: req.card,
+      emphasis: req.emphasis,
+      cancel() {},
+    }));
+  });
 
   it('a card that carries wave plays one when its status changes on screen — with its emphasis, from, to and card', async () => {
     const spy = anim();
@@ -3044,6 +3051,50 @@ describe('status waves (0.44.0)', () => {
     await vi.dynamicImportSettled();
     expect(waveSpy.play).not.toHaveBeenCalled();
     window.matchMedia = mm;
+    spy.mockRestore();
+  });
+
+  it('a loud wave the page cannot hold plays its quiet one; the cool-down starts only from a loud wave that played', async () => {
+    const spy = anim();
+    waveSpy.play.mockImplementation((req: { card: HTMLElement; emphasis: string }) =>
+      req.emphasis === 'loud' ? null : { card: req.card, emphasis: req.emphasis, cancel() {} },
+    );
+    const el = mount(board({ ...RUN, wave: 'loud' }));
+    el.data = board({ ...RUN, status: 'waiting', wave: 'loud' });
+    el.renderNow();
+    await vi.dynamicImportSettled();
+    await Promise.resolve();
+    expect(waveSpy.play.mock.calls.map((c) => c[0].emphasis)).toEqual(['loud', 'quiet']);
+    // No loud wave played, so the next change asks for loud again.
+    waveSpy.play.mockClear();
+    el.data = board({ ...RUN, status: 'running', wave: 'loud' });
+    el.renderNow();
+    await vi.dynamicImportSettled();
+    await Promise.resolve();
+    expect(waveSpy.play.mock.calls[0][0].emphasis).toBe('loud');
+    spy.mockRestore();
+  });
+
+  it('a card that leaves the board, or a board that leaves the page, ends its wave', async () => {
+    const spy = anim();
+    const cancel = vi.fn();
+    waveSpy.play.mockImplementation((req: { card: HTMLElement; emphasis: string }) => ({
+      card: req.card,
+      emphasis: req.emphasis,
+      cancel,
+    }));
+    const el = mount(board({ ...RUN, wave: 'quiet' }, { ...DONE, wave: 'quiet' }));
+    el.data = board({ ...RUN, status: 'waiting', wave: 'quiet' }, { ...DONE, status: 'failed', wave: 'quiet' });
+    el.renderNow();
+    vi.advanceTimersByTime(WAVE_STAGGER_MS);
+    await vi.dynamicImportSettled();
+    await Promise.resolve();
+    expect(waveSpy.play).toHaveBeenCalledTimes(2);
+    el.data = board({ ...DONE, status: 'failed', wave: 'quiet' });
+    el.renderNow();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    el.remove();
+    expect(cancel).toHaveBeenCalledTimes(2);
     spy.mockRestore();
   });
 

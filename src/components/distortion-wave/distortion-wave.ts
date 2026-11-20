@@ -50,7 +50,8 @@ export interface DistortionWaveData {
   capture?: boolean | CaptureFunction;
   /** Whether the picture follows the views while the wave is out (`true`), also during CSS animations, or never. */
   live?: boolean | 'animations';
-  /** Take the first picture when the browser is idle after connecting. Default true. */
+  /** Make the context and take the first picture when the browser is idle after connecting, so the first wave starts
+   *  with its lens. Default false: the context is made when the first wave asks. */
   prewarm?: boolean;
   /** Canvas pixels per CSS pixel. Default: the display's. */
   resolution?: number;
@@ -92,6 +93,8 @@ export class UiDistortionWave extends UiElement<DistortionWaveData> {
   #b: HTMLElement | null = null;
   #stage: HTMLElement | null = null;
   #revealedSlot: HTMLSlotElement | null = null;
+  #watch: MutationObserver | null = null;
+  #stamp = 0;
   /** The `revealed` attribute has been used: its absence then means the first view. */
   #revealedAttr = false;
 
@@ -107,8 +110,48 @@ export class UiDistortionWave extends UiElement<DistortionWaveData> {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
-    this.#ctl?.destroy();
+    this.#watch?.disconnect();
+    this.#watch = null;
+    this.#safe(() => this.#ctl?.destroy());
     this.#ctl = null;
+  }
+
+  /** The engine never throws at the host: no context, a shader the driver refuses — no wave. */
+  #safe<T>(fn: () => T): T | undefined {
+    try {
+      return fn();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * The views are the host's light DOM, which the engine's own observer (on the stage inside the shadow root) never
+   * sees: a change there marks the layer it is slotted into, so the next wave takes a fresh picture of it.
+   */
+  #observeViews(): void {
+    if (this.#watch || typeof MutationObserver !== 'function') return;
+    this.#watch = new MutationObserver((records) => {
+      let a = false;
+      let b = false;
+      for (const r of records) {
+        let top: Node | null = r.target;
+        while (top && top.parentNode !== this) top = top.parentNode;
+        const slot = top && top.nodeType === 1 ? (top as Element).getAttribute('slot') : null;
+        if (slot === 'overlay') continue;
+        if (slot === 'revealed') b = true;
+        else a = true;
+      }
+      if (a) this.#touch(this.#a);
+      if (b) this.#touch(this.#b);
+    });
+    this.#watch.observe(this, { subtree: true, childList: true, attributes: true, characterData: true });
+  }
+
+  #touch(layer: HTMLElement | null): void {
+    if (!layer) return;
+    this.#stamp = (this.#stamp + 1) % 1e9;
+    layer.setAttribute('data-dw-changed', String(this.#stamp));
   }
 
   /** The engine behind the element (for benches), or null while disconnected. */
@@ -123,22 +166,26 @@ export class UiDistortionWave extends UiElement<DistortionWaveData> {
     const opts: PlayOptions = {};
     if (options && 'source' in options) opts.source = this.#source(options.source);
     if (options && 'focus' in options) opts.focus = options.focus ?? null;
-    ctl.play(opts);
+    this.#safe(() => ctl.play(opts));
   }
 
   /** Runs it back to the first view. */
   reverse(): void {
-    this.#ensure()?.reverse();
+    this.#safe(() => this.#ensure()?.reverse());
   }
 
   /** Straight back to the first view, with no wave. */
   reset(): void {
-    this.#ensure()?.reset();
+    this.#safe(() => this.#ensure()?.reset());
   }
 
   /** Pictures the views now, so the next wave starts with its lens. */
   async prepare(): Promise<void> {
-    await this.#ensure()?.prepare();
+    try {
+      await this.#ensure()?.prepare();
+    } catch {
+      // No picture: the wave runs without its lens.
+    }
   }
 
   protected render(): string {
@@ -156,7 +203,9 @@ export class UiDistortionWave extends UiElement<DistortionWaveData> {
       this.#revealedSlot?.addEventListener('slotchange', () => this.#syncLayers());
     }
     this.#syncLayers();
-    this.#ensure()?.update(this.#options());
+    this.#observeViews();
+    const ctl = this.#ensure();
+    if (ctl) this.#safe(() => ctl.update(this.#options()));
   }
 
   /** Whether the host gave a second view. */
@@ -218,7 +267,9 @@ export class UiDistortionWave extends UiElement<DistortionWaveData> {
     if (d.scrub !== undefined) o.scrub = d.scrub;
     if (d.capture !== undefined) o.capture = d.capture;
     if (d.live !== undefined) o.live = d.live;
-    if (d.prewarm !== undefined) o.prewarm = d.prewarm;
+    // A context on first need (the effects contract): the first picture is taken when a wave asks, unless the host
+    // asks for it at idle.
+    o.prewarm = d.prewarm === true;
     if (d.resolution !== undefined) o.resolution = d.resolution;
     return o;
   }
