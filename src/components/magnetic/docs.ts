@@ -260,18 +260,18 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'calibrate(spots?) / zero()',
-      type: '→ { promise: Promise<CalibrationFit | null>, cancel() } / () => void',
+      type: '→ { promise: Promise<MagnetCalibrationFit | null>, cancel() } / () => void',
       description:
         'Headless calibration through the open bridge: hold the magnet still over five spots (fractions of the viewport); each step leaves as ui-calibration. zero() takes a new zero on the phone.',
     },
     {
       name: 'bridge / bridgeState / field / options / running',
-      type: 'MagnetBridge / BridgeState / MagneticField / MagneticOptions / boolean (read-only)',
+      type: 'MagnetBridge / MagnetBridgeState / MagneticField / MagneticOptions / boolean (read-only)',
       description:
         'The bridge client (addFrameListener for every reading), its state, the physics, what it pulls with now, and whether the loop is scheduled.',
     },
     {
-      name: 'MagneticField · fitCalibration · runCalibration · pointerFrame · parseFrame · parseGesture · bridgeMessage',
+      name: 'MagneticField · MagnetParticle · fitMagnetCalibration · runMagnetCalibration · calibrateMagnet · magnetPointerFrame · parseMagnetFrame · parseMagnetGesture · parseMagnetHello · magnetBridgeMessage',
       type: 'helpers',
       description:
         'The physics on its own (for canvas or anything else), the dipole fit, the transport-free calibration, the pointer’s frame and the app’s message parsers.',

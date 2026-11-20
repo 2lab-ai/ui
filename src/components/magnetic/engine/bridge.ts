@@ -67,6 +67,26 @@ export function parseGesture(d: Record<string, unknown>): MagnetGesture | null {
   return null;
 }
 
+const pair = (v: unknown): [number, number] | null => {
+  const p = pt(v);
+  return p ? [p.x, p.y] : null;
+};
+
+/** The app's `model-hello` (the model's view of the screen and the magnet), or null when its screen size is not two
+ *  numbers — a malformed hello must never reach the calibration or the physics. */
+export function parseHello(d: Record<string, unknown>): ModelHello | null {
+  const screenDp = pair(d.screenDp);
+  if (!screenDp || !(screenDp[0] > 0 && screenDp[1] > 0)) return null;
+  return {
+    screenDp,
+    grabStage: num(d.grabStage),
+    face: d.face === 1 || d.face === -1 ? d.face : null,
+    strength: typeof d.strength === 'number' && Number.isFinite(d.strength) ? d.strength : null,
+    sensorDp: pair(d.sensorDp) ?? [0, 0],
+    model: !!d.model,
+  };
+}
+
 export class MagnetBridge {
   frame: MagnetFrame | null = null;
   hello: ModelHello | null = null;
@@ -83,6 +103,8 @@ export class MagnetBridge {
   private ws: BridgeSocket | null = null;
   private touchOffset: Pt | null = null;
   private opened = false;
+  /** Settles the connect() in flight — close() must be able to end it, since it detaches the socket first. */
+  private pending: ((ok: boolean) => void) | null = null;
 
   constructor(private readonly createSocket: (url: string) => BridgeSocket = (url) => new WebSocket(url)) {}
 
@@ -139,8 +161,10 @@ export class MagnetBridge {
       const done = (ok: boolean) => {
         if (settled) return;
         settled = true;
+        if (this.pending === done) this.pending = null;
         resolve(ok);
       };
+      this.pending = done;
       let ws: BridgeSocket;
       try {
         ws = this.createSocket(BRIDGE_URL);
@@ -182,6 +206,11 @@ export class MagnetBridge {
       // Already closing.
     }
     this.set('closed');
+    // A session closed while it was still connecting: its connect() resolves false (its socket's own close event is
+    // ignored now that it is detached).
+    const pending = this.pending;
+    this.pending = null;
+    pending?.(false);
   }
 
   private drop() {
@@ -241,7 +270,9 @@ export class MagnetBridge {
       this.onGesture?.(g);
       for (const l of this.gestureListeners) l(g);
     } else if (d.type === 'model-hello') {
-      this.hello = d as unknown as ModelHello;
+      const h = parseHello(d);
+      if (!h) return;
+      this.hello = h;
       this.emitState();
     } else if (d.type === 'hello') {
       this.device = `${String(d.manufacturer ?? '')} ${String(d.model ?? '')}`.trim();

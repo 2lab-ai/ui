@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { doc } from './docs';
-import { BRIDGE_URL, type BridgeSocket, MagnetBridge, parseFrame, parseGesture } from './engine/bridge';
+import { BRIDGE_URL, type BridgeSocket, MagnetBridge, parseFrame, parseGesture, parseHello } from './engine/bridge';
 import { type CalibrationIO, type CalibrationState, DEFAULT_SPOTS, runCalibration } from './engine/calibration';
 import { MagneticField, Particle } from './engine/field';
 import { type CalibrationSpot, fitCalibration } from './engine/fit';
@@ -534,6 +534,34 @@ describe('MagnetBridge', () => {
     expect(d.state).toBe('closed');
   });
 
+  it('a malformed model-hello is ignored; a good one is kept to its shape', async () => {
+    const b = new MagnetBridge((url) => new FakeSocket(url));
+    const p = b.connect();
+    const ws = FakeSocket.all[0];
+    ws.open();
+    await p;
+    const seen = vi.fn();
+    b.addStateListener(seen);
+    ws.message({ type: 'model-hello', screenDp: 'big', grabStage: 2, face: 1 });
+    ws.message({ type: 'model-hello', screenDp: [0, 800] });
+    expect(b.hello).toBeNull();
+    expect(seen).not.toHaveBeenCalled();
+    ws.message({ type: 'model-hello', screenDp: [400, 800], grabStage: 'x', face: 7, strength: 'y', sensorDp: null });
+    expect(b.hello).toEqual({
+      screenDp: [400, 800],
+      grabStage: 0,
+      face: null,
+      strength: null,
+      sensorDp: [0, 0],
+      model: false,
+    });
+    expect(b.calibrated).toBe(false);
+    expect(parseHello({ screenDp: [400, 800], face: -1, grabStage: 2, model: 1 })).toMatchObject({
+      face: -1,
+      model: true,
+    });
+  });
+
   it('the touch listener (the page’s screen offset) lives only while connected', async () => {
     const add = vi.spyOn(window, 'addEventListener');
     const remove = vi.spyOn(window, 'removeEventListener');
@@ -591,16 +619,37 @@ describe('<ui-magnetic>', () => {
     expect(m.running).toBe(false);
   });
 
-  it('holding the magnet does not select text; letting go restores selecting', () => {
-    mount();
-    press('pointerdown', 430, 50);
-    const sel = new Event('selectstart', { cancelable: true });
-    document.dispatchEvent(sel);
-    expect(sel.defaultPrevented).toBe(true);
+  it('holding the magnet on the element does not select its text — never in a field, never beside it', () => {
+    const { m, a } = mount();
+    const input = document.createElement('input');
+    m.append(input);
+    const select = (target: EventTarget) => {
+      const ev = new Event('selectstart', { cancelable: true, bubbles: true, composed: true });
+      target.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    };
+    const down = (target: EventTarget, x: number, y: number) =>
+      target.dispatchEvent(new PointerEvent('pointerdown', { clientX: x, clientY: y, bubbles: true, composed: true }));
+    // A press on a body inside the host: its text is not selected while held.
+    down(a, 40, 30);
+    expect(m.running).toBe(true);
+    expect(select(a)).toBe(true);
+    expect(select(input)).toBe(false);
+    press('pointerup', 40, 30);
+    expect(select(a)).toBe(false);
+    // A press in a field inside it: selecting there stays the person's.
+    down(input, 40, 80);
+    expect(select(input)).toBe(false);
+    expect(select(a)).toBe(false);
+    press('pointerup', 40, 80);
+    // A press beside it (still within reach) pulls, but the page's selection is left alone.
+    const outside = document.createElement('p');
+    document.body.append(outside);
+    down(outside, 430, 50);
+    expect(m.running).toBe(true);
+    expect(select(outside)).toBe(false);
+    expect(select(a)).toBe(false);
     press('pointerup', 430, 50);
-    const after = new Event('selectstart', { cancelable: true });
-    document.dispatchEvent(after);
-    expect(after.defaultPrevented).toBe(false);
   });
 
   it('reduced motion (system or motion="reduce") and disabled: no pull at all; motion="full" overrides', () => {
@@ -724,6 +773,51 @@ describe('<ui-magnetic>', () => {
     expect(b.style.transform).toBe('');
   });
 
+  it('disconnect() while still connecting settles connect() with false and closes', async () => {
+    const { m } = mount();
+    const states: string[] = [];
+    m.addEventListener('ui-bridge-change', (e) => states.push((e as CustomEvent<MagnetBridgeChange>).detail.state));
+    const p = m.connect();
+    expect(m.bridgeState).toBe('connecting');
+    m.disconnect();
+    expect(await p).toBe(false);
+    expect(m.bridgeState).toBe('closed');
+    expect(FakeSocket.all[0].closed).toBe(true);
+    // The late close event of the detached socket changes nothing; a new connect() works.
+    FakeSocket.all[0].drop();
+    expect(states).toEqual(['connecting', 'closed']);
+    const q = m.connect();
+    FakeSocket.all[1].open();
+    expect(await q).toBe(true);
+  });
+
+  it('losing the bridge mid-calibration cancels it: the promise settles, its tick stops, the pointer pulls again', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { m, b } = mount();
+    const p = m.connect();
+    const ws = FakeSocket.all[0];
+    ws.open();
+    await p;
+    const steps: CalibrationState[] = [];
+    m.addEventListener('ui-calibration', (e) => steps.push((e as CustomEvent<CalibrationState>).detail));
+    const run = m.calibrate();
+    expect(steps[0].phase).toBe('zeroing');
+    ws.drop();
+    expect(m.bridgeState).toBe('closed');
+    expect(await run.promise).toBeNull();
+    expect(steps.at(-1)!.phase).toBe('cancelled');
+    const seen = steps.length;
+    vi.advanceTimersByTime(3000);
+    expect(steps.length).toBe(seen);
+    expect(m.shadowRoot!.querySelector('[role="status"]')!.textContent).toBe('Magnet Bridge disconnected.');
+    // Not stuck relaxing: the pointer plays the magnet again.
+    settle();
+    press('pointerdown', 430, 50);
+    for (let i = 0; i < 40; i++) step();
+    expect(tx(b).x).toBeGreaterThan(1);
+    press('pointerup', 430, 50);
+  });
+
   it('an unreachable bridge is an error, said in Korean with lang="ko"', async () => {
     const { m } = mount({}, { lang: 'ko' });
     const p = m.connect();
@@ -785,6 +879,25 @@ describe('<ui-magnetic>', () => {
     await flush();
     expect(again.bridgeState).toBe('closed');
     expect(ws.closed).toBe(true);
+  });
+});
+
+describe('package surface', () => {
+  it('exports only prefixed names (the root re-exports every component)', async () => {
+    const api = await import('./index');
+    const generic = [
+      'Particle',
+      'Box',
+      'Pt',
+      'calibrate',
+      'fitCalibration',
+      'parseFrame',
+      'DEFAULT_SPOTS',
+      'BRIDGE_URL',
+    ];
+    for (const n of generic) expect(Object.hasOwn(api, n)).toBe(false);
+    for (const n of Object.keys(api)) expect(n).toMatch(/magnet|Magnet|MAGNET/);
+    expect(api.MagnetParticle).toBe(Particle);
   });
 });
 

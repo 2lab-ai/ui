@@ -88,6 +88,13 @@ const STRINGS = {
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+/** A node where selecting text is the point: a form field or editable content. */
+function editable(node: EventTarget | undefined): boolean {
+  if (!(node instanceof Element)) return false;
+  if ((node as HTMLElement).isContentEditable) return true;
+  return !!node.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
+}
+
 /** Seconds the magnet must be gone before the bodies return on their strings alone. */
 const RELAX_AFTER = 0.3;
 
@@ -559,8 +566,11 @@ export class UiMagnetic extends UiElement<MagneticData> {
     if (outsideDistance(at, box) > this.field.farBand) return;
     this.#held = true;
     this.#at = at;
-    // Holding the magnet is not selecting text.
-    document.addEventListener('selectstart', this.#noSelect);
+    // Holding the magnet on the element is not selecting its text — but only there, never in an editable field, and
+    // a press beside it leaves the page's selection alone.
+    if (e.composedPath().includes(this) && !editable(e.composedPath()[0])) {
+      this.addEventListener('selectstart', this.#noSelect);
+    }
     addEventListener('pointermove', this.#onMove, { passive: true });
     addEventListener('pointerup', this.#onUp);
     addEventListener('pointercancel', this.#onUp);
@@ -568,7 +578,7 @@ export class UiMagnetic extends UiElement<MagneticData> {
   };
 
   #noSelect = (e: Event): void => {
-    e.preventDefault();
+    if (!editable(e.composedPath()[0])) e.preventDefault();
   };
 
   #onMove = (e: PointerEvent): void => {
@@ -582,7 +592,7 @@ export class UiMagnetic extends UiElement<MagneticData> {
   /** The magnet leaves: the loop runs on until every body is back. */
   #release(): void {
     this.#held = false;
-    document.removeEventListener('selectstart', this.#noSelect);
+    this.removeEventListener('selectstart', this.#noSelect);
     removeEventListener('pointermove', this.#onMove);
     removeEventListener('pointerup', this.#onUp);
     removeEventListener('pointercancel', this.#onUp);
@@ -609,6 +619,13 @@ export class UiMagnetic extends UiElement<MagneticData> {
       version: b.version,
       calibrated: b.calibrated,
     };
+    // A bridge that is no longer open ends a calibration in flight (its frames stopped): otherwise its promise and
+    // its 300ms tick would wait forever and the pull would stay paused.
+    if (b.state !== 'open' && this.#calibrating) {
+      const run = this.#calibrating;
+      this.#calibrating = null;
+      run.cancel();
+    }
     this.notify('ui-bridge-change', detail);
     this.#say(this.#bridgeLine());
     if (b.state === 'open') this.#release();
