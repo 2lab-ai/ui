@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const read = (f) => readFileSync(new URL(`../licenses/${f}`, import.meta.url), 'utf8').trim();
 const out = `# Third-party notices
 
-@2lab.ai/ui is UNLICENSED. It bundles or adapts the following MIT-licensed work.
+@2lab.ai/ui is UNLICENSED. It bundles or adapts the following MIT-licensed work (and one Apache-2.0 shader).
 
 ## Cuelume 0.2.8 — https://github.com/danielwh2/cuelume
 
