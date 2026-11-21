@@ -63,7 +63,7 @@ interface LensGl {
   u: Record<string, WebGLUniformLocation | null>;
 }
 
-function makeLens(onLost: () => void): LensGl | null {
+function makeLens(onLost: (canvas: HTMLCanvasElement) => void): LensGl | null {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   let gl: WebGL2RenderingContext | null = null;
@@ -73,9 +73,11 @@ function makeLens(onLost: () => void): LensGl | null {
     gl = null;
   }
   if (!gl) return null;
+  // The lens's own `release()` loses the context on purpose, and the event for it arrives later: the owner tells a
+  // loss on the canvas it holds now from one on a canvas it already let go (see EdgeLens).
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
-    onLost();
+    onLost(canvas);
   });
   const compile = (type: number, src: string) => {
     const sh = gl.createShader(type);
@@ -116,28 +118,33 @@ function makeLens(onLost: () => void): LensGl | null {
 
 /**
  * One element's lens: a WebGL 2 context created the first time its orb presses on an edge, released with
- * `release()` (on disconnect, and when the element's loop stops). Without WebGL 2, or after a lost context, it
- * stays off and the orb is left as painted — never an exception.
+ * `release()` (on disconnect, and when the element's loop stops) and created again on the next press after that.
+ * Without WebGL 2 it stays off for good; a context lost while held turns it off until the next `release()` (the next
+ * stop and start) — and the loss event of a context this lens released itself is ignored. The orb is then left as
+ * painted — never an exception.
  */
 export class EdgeLens {
   #gl: LensGl | null = null;
-  /** No WebGL 2 here, or the context was lost: the lens stays off. */
+  /** No WebGL 2 here: the lens stays off. */
   #off = false;
+  /** The context held was lost (not by `release()`): off until the next release. */
+  #lost = false;
 
   /** Whether a context is held now. */
   get active(): boolean {
     return this.#gl != null;
   }
 
-  /** Whether the lens has given up (no WebGL 2, or a lost context). */
+  /** Whether the lens is off: no WebGL 2, or the context it held was lost (until the next release). */
   get unavailable(): boolean {
-    return this.#off;
+    return this.#off || this.#lost;
   }
 
   /** Let the context go (WEBGL_lose_context); the next press creates a new one. */
   release(): void {
     const l = this.#gl;
     this.#gl = null;
+    this.#lost = false;
     if (!l) return;
     try {
       l.gl.getExtension('WEBGL_lose_context')?.loseContext();
@@ -148,17 +155,21 @@ export class EdgeLens {
     l.canvas.height = 1;
   }
 
+  /** A context was lost: only the one held now counts — a released canvas's late event is ignored. */
+  readonly #onLost = (canvas: HTMLCanvasElement) => {
+    if (this.#gl?.canvas !== canvas) return;
+    this.#gl = null;
+    this.#lost = true;
+  };
+
   /**
    * Refract what `ctx` already holds where the orb meets the edge — `side` (−1 left, 1 right) at `x` — through `L`,
    * all in the context's current coordinates. Returns false when it could not (no WebGL 2, a lost context).
    */
   draw(ctx: CanvasRenderingContext2D, side: number, x: number, L: OrbLens): boolean {
-    if (this.#off) return false;
+    if (this.#off || this.#lost) return false;
     if (!this.#gl) {
-      this.#gl = makeLens(() => {
-        this.#off = true;
-        this.#gl = null;
-      });
+      this.#gl = makeLens(this.#onLost);
       if (!this.#gl) {
         this.#off = true;
         return false;
@@ -166,8 +177,8 @@ export class EdgeLens {
     }
     const { gl, canvas, source, tex, u } = this.#gl;
     if (gl.isContextLost()) {
-      this.#off = true;
       this.#gl = null;
+      this.#lost = true;
       return false;
     }
     const m = ctx.getTransform();

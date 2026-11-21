@@ -1,18 +1,16 @@
+// The package-root names: every one carries Voice / voice / VOICE_, so `export *` from the root never meets another
+// effect's names.
 export {
-  bandPower,
-  createStereoSide,
-  estimateSide,
-  type SideEstimate,
-  type SideOptions,
-  type StereoSideOptions,
-  type StereoSideReader,
+  createVoiceStereoSide,
+  estimateVoiceSide,
   type VoiceSide,
+  type VoiceSideEstimate,
+  type VoiceSideOptions,
+  type VoiceStereoSideOptions,
+  type VoiceStereoSideReader,
 } from './engine/stereo';
 export {
-  angleText,
-  leanFor,
-  litDots,
-  percent,
+  leanFor as voiceLeanForSide,
   readVoicePosition,
   UiVoicePosition,
   type VoiceDistance,

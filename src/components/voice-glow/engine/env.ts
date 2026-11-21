@@ -130,3 +130,23 @@ export class EnvWatch {
 export function pageHidden(): boolean {
   return typeof document !== 'undefined' && document.visibilityState === 'hidden';
 }
+
+const failedFrames = new WeakSet<object>();
+
+/**
+ * Run one frame's work for `owner`. A throw — a host's getter or frame function, a canvas that cannot draw — is
+ * logged once per owner and swallowed, so the frame loop goes on (and the next frame tries again). True when the
+ * work ran through.
+ */
+export function runFrame(owner: object, tag: string, work: () => void): boolean {
+  try {
+    work();
+    return true;
+  } catch (err) {
+    if (!failedFrames.has(owner)) {
+      failedFrames.add(owner);
+      if (typeof console !== 'undefined') console.error(`<${tag}>: a frame failed; the loop goes on.`, err);
+    }
+    return false;
+  }
+}

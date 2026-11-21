@@ -1,8 +1,14 @@
 import { define, UiElement } from '../../core/element';
 import { readLevel, type VoiceLevelSource } from './engine/audio';
 import { parseRgb, toTriple } from './engine/color';
-import { type VoiceGlowConfig, VoiceGlowDriver, type VoiceGlowGather, type VoiceGlowLayers } from './engine/driver';
-import { EnvWatch, hostIsDark, motionOf, motionReduced, pageHidden, type VoiceMotion } from './engine/env';
+import {
+  type VoiceGlowConfig,
+  VoiceGlowDriver,
+  type VoiceGlowGather,
+  type VoiceGlowLayers,
+  type VoiceGlowTick,
+} from './engine/driver';
+import { EnvWatch, hostIsDark, motionOf, motionReduced, pageHidden, runFrame, type VoiceMotion } from './engine/env';
 import type { PixelPort } from './engine/pixel';
 import {
   pixelDomeDefault,
@@ -736,7 +742,12 @@ export class UiVoiceGlow extends UiElement<VoiceGlowData> {
     const d = this.#driver;
     const frame = this.#frame;
     if (!d || !frame) return;
-    const t = d.tick(ts);
+    // A throwing frame (a host's getter, a canvas that cannot draw) is logged once; the loop, and the fade, go on.
+    const out: { t: VoiceGlowTick | null } = { t: null };
+    runFrame(this, 'ui-voice-glow', () => {
+      out.t = d.tick(ts);
+    });
+    const t = out.t ?? { painted: true, level: d.s.level, fade: d.s.fade };
     if (t.painted) {
       this.#needsPaint = false;
       this.#shown = t.level;

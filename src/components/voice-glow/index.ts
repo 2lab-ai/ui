@@ -1,63 +1,30 @@
+// The package-root names: every one carries Voice / voice / VOICE_, so `export *` from the root never meets another
+// effect's names. The engine's own (verbatim) names stay inside engine/.
 export {
-  type AnalyserLease,
-  acquireAnalyser,
-  acquireSource,
-  audioHolds,
-  bandAverage,
-  clamp01,
+  audioHolds as voiceAudioHolds,
+  audioResumePending as voiceAudioResumePending,
   demoVoiceLevel,
-  followLevel,
-  isAudioSupported,
-  readLevel,
-  releaseAudioContext,
-  retainAudioContext,
-  rms,
-  type SourceLease,
-  shapeLevel,
+  followLevel as followVoiceLevel,
+  isAudioSupported as isVoiceAudioSupported,
+  readLevel as readVoiceLevel,
+  shapeLevel as shapeVoiceLevel,
   type VoiceLevelSource,
 } from './engine/audio';
-export { parseRgb, toRgb, toTriple } from './engine/color';
+export type { VoiceGlowConfig, VoiceGlowGather } from './engine/driver';
+export type { VoiceMotion } from './engine/env';
 export {
-  bandClips,
-  bandPoints,
-  bell,
-  cornerLift,
-  edgeEnvelope,
-  glowShape,
-  hueDrift,
-  paintedRadius,
-  pingPong,
-  tailLift,
-  type VoiceGlowConfig,
-  type VoiceGlowGather,
-  wrapX,
-} from './engine/driver';
-export { hostIsDark, isLightColor, motionOf, motionReduced, type VoiceMotion } from './engine/env';
-export {
-  pixelDomeDefault,
-  pixelDustDefault,
-  pixelGlowDefault,
   resolveVoiceDefaults,
-  resolveVoiceStyle,
   type VoiceGeometry,
   type VoiceGlowLook,
   type VoiceGlowType,
-  voiceDefaults,
-  voiceTypePresets,
-  voiceTypeStyle,
+  voiceDefaults as VOICE_GLOW_DEFAULTS,
+  voiceTypePresets as VOICE_GLOW_TYPE_PRESETS,
 } from './engine/presets';
 export {
-  BAND_COLORS,
   generateVoiceGlowCss,
-  LOBE_SPACING,
-  LOBE_SPAN,
-  lobeColors,
-  themePresets,
   VOICE_GLOW_PALETTES,
   type VoiceGlowPalette,
-  type VoiceLobe,
-  voiceLobes,
-  voicePalettes,
+  voicePalettes as VOICE_GLOW_PALETTE_COLORS,
 } from './engine/styles';
 export {
   resolveVoiceGlow,

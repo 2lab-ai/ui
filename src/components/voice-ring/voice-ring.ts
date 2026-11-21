@@ -1,7 +1,15 @@
 import { define, UiElement } from '../../core/element';
 import { type AnalyserLease, acquireAnalyser, readLevel, type VoiceLevelSource } from '../voice-glow/engine/audio';
 import { parseRgb } from '../voice-glow/engine/color';
-import { EnvWatch, hostIsDark, motionOf, motionReduced, pageHidden, type VoiceMotion } from '../voice-glow/engine/env';
+import {
+  EnvWatch,
+  hostIsDark,
+  motionOf,
+  motionReduced,
+  pageHidden,
+  runFrame,
+  type VoiceMotion,
+} from '../voice-glow/engine/env';
 import { bendFrame, bendRadius, bendReach } from './engine/bend';
 import type { OrbColors } from './engine/colors';
 import {
@@ -383,7 +391,8 @@ export class UiVoiceRing extends UiElement<VoiceRingData> {
       });
       this.#io.observe(this);
     }
-    this.#openAudio();
+    // back on the page after a first render: listen again if the state does (the first render syncs it otherwise)
+    if (this.#box) this.#syncAudio();
   }
 
   override disconnectedCallback(): void {
@@ -418,7 +427,7 @@ export class UiVoiceRing extends UiElement<VoiceRingData> {
     if ((value ?? null) === this.#stream) return;
     this.#closeAudio();
     this.#stream = value ?? null;
-    this.#openAudio();
+    // the next render opens an analyser on it — if the state listens
     this.requestRender();
   }
 
@@ -477,6 +486,16 @@ export class UiVoiceRing extends UiElement<VoiceRingData> {
 
   get #lang(): VoiceRingLang {
     return this.getAttribute('lang') === 'ko' ? 'ko' : 'en';
+  }
+
+  /**
+   * The analyser exists only while the ring listens: connected, with a stream, in `listening` or `speaking`. Idle and
+   * processing ignore the source, so their analyser (and with the last one the shared AudioContext) is let go.
+   */
+  #syncAudio(): void {
+    const hears = this.#r.state === 'listening' || this.#r.state === 'speaking';
+    if (this.isConnected && this.#stream && hears) this.#openAudio();
+    else this.#closeAudio();
   }
 
   #openAudio(): void {
@@ -558,10 +577,14 @@ export class UiVoiceRing extends UiElement<VoiceRingData> {
     box.style.setProperty('--vr-size', `${this.#r.size}px`);
     this.#layout();
     this.#listenPointer(this.#r.bend > 0 && !this.#reduced);
+    this.#syncAudio();
     if (!this.#wantsLoop()) this.#stop();
-    // one frame now, so a change shows at once — and a paused or reduced-motion ring is this still frame
-    this.#step(performance.now());
     this.#start();
+    // one frame now, so a change shows at once — and a paused or reduced-motion ring is this still frame
+    const now = performance.now();
+    runFrame(this, 'ui-voice-ring', () => this.#step(now));
+    // a still frame may have pressed on an edge: no loop holds the lens's context afterwards
+    if (!this.#running) this.#lens.release();
     this.updated();
   }
 
@@ -625,7 +648,8 @@ export class UiVoiceRing extends UiElement<VoiceRingData> {
     this.#raf = requestAnimationFrame(this.#loop);
     if (now - this.#lastPaint < FRAME_MS) return;
     this.#lastPaint = now;
-    this.#step(now);
+    // a throwing frame (a host's frame function, a canvas that cannot draw) is logged once; the loop goes on
+    runFrame(this, 'ui-voice-ring', () => this.#step(now));
   };
 
   /** The room from the ring's box to the edges of the viewport (or the bounds element), every half second. */

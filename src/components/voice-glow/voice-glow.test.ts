@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as positionApi from '../voice-position/index';
+import * as ringApi from '../voice-ring/index';
 import { doc } from './docs';
 import {
   acquireAnalyser,
   acquireSource,
   audioHolds,
+  audioResumePending,
   bandAverage,
   demoVoiceLevel,
   followLevel,
@@ -37,6 +40,7 @@ import {
 } from './engine/presets';
 import { generateVoiceGlowCss, LOBE_SPAN, lobeColors, voiceLobes, voicePalettes } from './engine/styles';
 import { type Clock, FakeAudioContext, FakeIO, fakeStream, stubAudio, stubCanvas, stubFrames, XSS } from './fixtures';
+import * as glowApi from './index';
 import { resolveVoiceGlow, type UiVoiceGlow, type VoiceGlowData, voiceGlowPalette, voiceGlowType } from './voice-glow';
 
 let clock: Clock;
@@ -178,6 +182,81 @@ describe('audio leases', () => {
     const c = acquireSource(s)!;
     expect(FakeAudioContext.all).toHaveLength(2);
     c.release();
+  });
+});
+
+describe('audio: a refused resume', () => {
+  class Suspended extends FakeAudioContext {
+    refuse = true;
+    resumes = 0;
+    constructor() {
+      super();
+      this.state = 'suspended';
+    }
+    override resume(): Promise<void> {
+      this.resumes++;
+      if (this.refuse) return Promise.reject(new Error('NotAllowedError'));
+      this.state = 'running';
+      return Promise.resolve();
+    }
+  }
+  const flush = async () => {
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+  };
+
+  it('waits for the next user gesture, retries on each, and stops listening for gestures once running', async () => {
+    FakeAudioContext.all = [];
+    vi.stubGlobal('AudioContext', Suspended);
+    const lease = acquireAnalyser(fakeStream())!;
+    const ctx = FakeAudioContext.all[0] as Suspended;
+    await flush();
+    expect(ctx.resumes).toBe(1);
+    expect(audioResumePending()).toBe(true);
+    document.dispatchEvent(new Event('keydown'));
+    await flush();
+    expect(ctx.resumes).toBe(2);
+    expect(audioResumePending()).toBe(true);
+    ctx.refuse = false;
+    document.dispatchEvent(new Event('pointerdown'));
+    await flush();
+    expect(ctx.state).toBe('running');
+    expect(audioResumePending()).toBe(false);
+    document.dispatchEvent(new Event('pointerdown'));
+    expect(ctx.resumes).toBe(3);
+    lease.release();
+  });
+
+  it('the last release closes the context and stops waiting for a gesture', async () => {
+    FakeAudioContext.all = [];
+    vi.stubGlobal('AudioContext', Suspended);
+    const lease = acquireAnalyser(fakeStream())!;
+    await flush();
+    expect(audioResumePending()).toBe(true);
+    lease.release();
+    expect(audioResumePending()).toBe(false);
+    expect(FakeAudioContext.all[0].closed).toBe(1);
+  });
+});
+
+describe('package-root names', () => {
+  it('every name the three elements export carries Voice / voice / VOICE_, and none is exported twice', () => {
+    const names = [...Object.keys(glowApi), ...Object.keys(ringApi), ...Object.keys(positionApi)];
+    expect(names.length).toBeGreaterThan(30);
+    for (const n of names) expect([n, /voice/i.test(n)]).toEqual([n, true]);
+    expect(new Set(names).size).toBe(names.length);
+    for (const generic of [
+      'PRESETS',
+      'OrbFrame',
+      'Dot',
+      'makeProj',
+      'radiusScale',
+      'paintFrame',
+      'clamp01',
+      'parseRgb',
+    ]) {
+      expect(names).not.toContain(generic);
+    }
+    expect(ringApi.VOICE_RING_PRESETS.aura.lean?.move).toBe(0.21);
   });
 });
 
@@ -643,7 +722,7 @@ describe('<ui-voice-glow>', () => {
     expect(clock.frames.size).toBe(0);
   });
 
-  it('listening off releases the analyser once faded; a new stream swaps the lease', () => {
+  it('listening off releases the analyser at once (it exists only while listening); a new stream swaps the lease', () => {
     stubAudio();
     const a = fakeStream();
     const b = fakeStream();
@@ -656,9 +735,48 @@ describe('<ui-voice-glow>', () => {
     expect(FakeAudioContext.all[0].closed).toBe(1);
     el.listening = false;
     el.renderNow();
+    // released before the fade-out ends: nothing is analysed while the glow is not listening
+    expect(audioHolds()).toBe(0);
+    expect(el.running).toBe(true);
     clock.settle();
     expect(audioHolds()).toBe(0);
+    // listening again opens a new one
+    el.listening = true;
+    el.renderNow();
+    expect(audioHolds()).toBe(1);
+    el.remove();
+    expect(audioHolds()).toBe(0);
     expect(a.tracks[0].stopped + b.tracks[0].stopped).toBe(0);
+  });
+
+  it('a stream set while not listening opens nothing until listening starts', () => {
+    stubAudio();
+    const el = mount({}, { stream: fakeStream() });
+    expect(audioHolds()).toBe(0);
+    expect(FakeAudioContext.all).toHaveLength(0);
+    el.listening = true;
+    el.renderNow();
+    expect(audioHolds()).toBe(1);
+  });
+
+  it('a frame that throws is logged once and the loop goes on', () => {
+    const { ctx } = stubCanvas();
+    ctx.setTransform = () => {
+      throw new Error('canvas gone');
+    };
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const el = mount({ listening: '', level: '0.7' });
+    Object.defineProperty(frame(el), 'clientWidth', { value: 360, configurable: true });
+    Object.defineProperty(frame(el), 'clientHeight', { value: 110, configurable: true });
+    for (let i = 0; i < 20; i++) clock.step(17);
+    expect(el.running).toBe(true);
+    expect(clock.frames.size).toBe(1);
+    expect(err).toHaveBeenCalledTimes(1);
+    // the fade still completes and the loop still ends when listening does
+    el.listening = false;
+    el.renderNow();
+    clock.settle();
+    expect(el.running).toBe(false);
   });
 
   it('draws the band on its canvas where a 2D context exists', () => {

@@ -459,7 +459,7 @@ export class VoiceGlowDriver {
     this.#freq = null;
   }
 
-  /** Turn the effect on (fade in, start analysing) or off (fade out; the analyser closes once it has). */
+  /** Turn the effect on (fade in, start analysing) or off (fade out; the analyser closes at once). */
   setOn(on: boolean, still = false): void {
     if (on === this.on) return;
     this.on = on;
@@ -468,6 +468,9 @@ export class VoiceGlowDriver {
       this.s.level = 0;
       this.s.bands = [0, 0, 0];
       this.#openAudio();
+    } else {
+      // The analyser exists only while listening: the fade-out settles on its own envelope.
+      this.releaseAudio();
     }
     if (still) this.s.fade = on ? 1 : 0;
     // A fresh start must not integrate the gap.

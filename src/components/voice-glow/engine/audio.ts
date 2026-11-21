@@ -64,8 +64,73 @@ export function retainAudioContext(): AudioContext | null {
     sources = new WeakMap();
   }
   holds += 1;
-  if (context.state === 'suspended') quietly(() => context?.resume());
+  if (context.state === 'suspended') resumeContext(context);
   return context;
+}
+
+/** The events that count as a user gesture for the autoplay policy. */
+const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
+let gestureArmed = false;
+
+/**
+ * Resume a suspended context. A browser refuses `resume()` outside a user gesture (the autoplay policy): then the
+ * next gesture anywhere on the page tries again, until the context runs or is closed.
+ */
+function resumeContext(ctx: AudioContext): void {
+  let pending: Promise<void> | undefined;
+  try {
+    pending = ctx.resume() as Promise<void> | undefined;
+  } catch {
+    armGesture();
+    return;
+  }
+  if (!pending || typeof pending.then !== 'function') {
+    if (ctx.state !== 'running') armGesture();
+    return;
+  }
+  pending.then(
+    () => {
+      if (ctx.state !== 'running' && ctx.state !== 'closed') armGesture();
+    },
+    () => armGesture(),
+  );
+}
+
+function onGesture(): void {
+  const ctx = context;
+  if (!ctx || ctx.state === 'closed' || ctx.state === 'running') {
+    disarmGesture();
+    return;
+  }
+  // Inside the gesture now: a resume here is allowed. Stay armed until it has taken.
+  try {
+    const pending = ctx.resume() as Promise<void> | undefined;
+    pending?.then?.(
+      () => {
+        if (ctx.state === 'running') disarmGesture();
+      },
+      () => {},
+    );
+  } catch {
+    /* refused again: the next gesture tries */
+  }
+}
+
+function armGesture(): void {
+  if (gestureArmed || typeof document === 'undefined') return;
+  gestureArmed = true;
+  for (const type of GESTURES) document.addEventListener(type, onGesture, true);
+}
+
+function disarmGesture(): void {
+  if (!gestureArmed || typeof document === 'undefined') return;
+  gestureArmed = false;
+  for (const type of GESTURES) document.removeEventListener(type, onGesture, true);
+}
+
+/** Whether a refused resume is waiting for the next user gesture. */
+export function audioResumePending(): boolean {
+  return gestureArmed;
 }
 
 /** Let go of one hold on the shared context; the last one closes it. */
@@ -76,6 +141,7 @@ export function releaseAudioContext(): void {
   const closing = context;
   context = null;
   sources = new WeakMap();
+  disarmGesture();
   quietly(() => closing.close());
 }
 

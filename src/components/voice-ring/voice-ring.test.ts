@@ -363,6 +363,104 @@ describe('engine: the edge lens', () => {
   });
 });
 
+/** A WebGL 2 stand-in per canvas: losing it (WEBGL_lose_context) fires `webglcontextlost` on that canvas, as a
+ *  browser does; `lost` makes a context report itself lost. 2D contexts come from `ctx2d` (or a bare one). */
+function stubWebGL2(ctx2d?: Record<string, unknown>) {
+  const made: HTMLCanvasElement[] = [];
+  const state = { lost: false, loses: 0 };
+  const glFor = (canvas: HTMLCanvasElement) =>
+    new Proxy(
+      {
+        getExtension: (n: string) =>
+          n === 'WEBGL_lose_context'
+            ? {
+                loseContext: () => {
+                  state.loses++;
+                  canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+                },
+              }
+            : null,
+        getProgramParameter: () => true,
+        isContextLost: () => state.lost,
+        createShader: () => ({}),
+        createProgram: () => ({}),
+        createBuffer: () => ({}),
+        createTexture: () => ({}),
+        getAttribLocation: () => 0,
+        getUniformLocation: () => ({}),
+      } as Record<string, unknown>,
+      { get: (t, k) => (k in t ? t[k as string] : typeof k === 'string' && /^[A-Z_0-9]+$/.test(k) ? 1 : () => {}) },
+    );
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement, kind) {
+    if (kind === 'webgl2') {
+      made.push(this);
+      return glFor(this) as unknown as WebGL2RenderingContext;
+    }
+    if (ctx2d) {
+      (ctx2d.canvas as { width: number; height: number }).width = this.width;
+      (ctx2d.canvas as { width: number; height: number }).height = this.height;
+      return ctx2d as unknown as CanvasRenderingContext2D;
+    }
+    return { clearRect() {}, drawImage() {} } as unknown as CanvasRenderingContext2D;
+  } as HTMLCanvasElement['getContext']);
+  return { made, state };
+}
+
+const LENS = { zone: 50, gap: 4, flare: 0.1, split: 2, blur: 2, cy: 100 };
+function lensCtx(): CanvasRenderingContext2D {
+  return {
+    getTransform: () => ({ a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 }),
+    canvas: { width: 400, height: 400 },
+    save() {},
+    restore() {},
+    setTransform() {},
+    beginPath() {},
+    rect() {},
+    clip() {},
+    drawImage() {},
+    globalCompositeOperation: 'source-over',
+  } as unknown as CanvasRenderingContext2D;
+}
+
+describe('engine: the lens across stop and start', () => {
+  it('its own release is not a loss: the late event of a released canvas is ignored, the next press re-acquires', () => {
+    const gl = stubWebGL2();
+    const lens = new EdgeLens();
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(true);
+    lens.release();
+    expect(gl.state.loses).toBe(1);
+    expect(lens.unavailable).toBe(false);
+    expect(lens.active).toBe(false);
+    // the next start: a new context on a new canvas
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(true);
+    expect(lens.active).toBe(true);
+    expect(gl.made).toHaveLength(2);
+    // a late loss event from the first (released) canvas changes nothing
+    gl.made[0].dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+    expect(lens.active).toBe(true);
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(true);
+  });
+
+  it('a real loss of the held context turns it off until the next release, then it works again', () => {
+    const gl = stubWebGL2();
+    const lens = new EdgeLens();
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(true);
+    gl.made[0].dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+    expect(lens.active).toBe(false);
+    expect(lens.unavailable).toBe(true);
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(false);
+    lens.release();
+    expect(lens.unavailable).toBe(false);
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(true);
+    // a context that reports itself lost mid-draw: off until the next release too
+    gl.state.lost = true;
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(false);
+    gl.state.lost = false;
+    lens.release();
+    expect(lens.draw(lensCtx(), 1, 180, LENS)).toBe(true);
+  });
+});
+
 // ── The element ────────────────────────────────────────────────────────────────────────────────────────────────
 
 describe('resolve', () => {
@@ -590,6 +688,77 @@ describe('<ui-voice-ring>', () => {
       for (let i = 0; i < 5; i++) clock.step(17);
     }).not.toThrow();
     expect(el.running).toBe(true);
+  });
+
+  it('the edge lens works again after a stop and a start', () => {
+    const { ctx } = stubCanvas();
+    stubWebGL2(ctx);
+    const bounds = document.createElement('div');
+    document.body.append(bounds);
+    const el = mount(
+      { size: '100' },
+      { level: 0.8, direction: 1, holdDirection: true, directionBounds: bounds, directionMove: 2 },
+    );
+    for (let i = 0; i < 120; i++) clock.step(17);
+    expect(el.lensActive).toBe(true);
+    // stop: the context is let go …
+    el.paused = true;
+    el.renderNow();
+    expect(el.running).toBe(false);
+    expect(el.lensActive).toBe(false);
+    // … and the next start presses again and re-acquires one
+    el.paused = false;
+    el.renderNow();
+    for (let i = 0; i < 30; i++) clock.step(17);
+    expect(el.lensActive).toBe(true);
+    // off screen and back: the same
+    const io = FakeIO.all.find((o) => o.targets.includes(el))!;
+    io.fire(false);
+    expect(el.lensActive).toBe(false);
+    io.fire(true);
+    for (let i = 0; i < 30; i++) clock.step(17);
+    expect(el.lensActive).toBe(true);
+  });
+
+  it('a throwing frame function is logged once and the loop goes on', () => {
+    stubCanvas();
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const el = mount(
+      {},
+      {
+        level: 0.5,
+        frame: () => {
+          throw new Error('bad frame');
+        },
+      },
+    );
+    expect(el.running).toBe(true);
+    for (let i = 0; i < 10; i++) clock.step(17);
+    expect(el.running).toBe(true);
+    expect(clock.frames.size).toBe(1);
+    expect(err).toHaveBeenCalledTimes(1);
+  });
+
+  it('the analyser exists only while the ring listens (listening, speaking); idle and processing let it go', () => {
+    stubCanvas();
+    stubAudio();
+    const s = fakeStream();
+    const el = mount({ state: 'idle' }, { stream: s });
+    expect(audioHolds()).toBe(0);
+    expect(FakeAudioContext.all).toHaveLength(0);
+    el.state = 'listening';
+    el.renderNow();
+    expect(audioHolds()).toBe(1);
+    el.state = 'processing';
+    el.renderNow();
+    expect(audioHolds()).toBe(0);
+    expect(FakeAudioContext.all[0].closed).toBe(1);
+    el.state = 'speaking';
+    el.renderNow();
+    expect(audioHolds()).toBe(1);
+    el.remove();
+    expect(audioHolds()).toBe(0);
+    expect(s.tracks[0].stopped).toBe(0);
   });
 
   it('disconnect stops the loop and the observer', () => {

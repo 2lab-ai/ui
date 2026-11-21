@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { audioHolds } from '../voice-glow/engine/audio';
 import { type Clock, FakeAudioContext, fakeStream, stubAudio, stubFrames, XSS } from '../voice-glow/fixtures';
 import { doc } from './docs';
-import { bandPower, createStereoSide, estimateSide } from './engine/stereo';
+import { createVoiceStereoSide, estimateVoiceSide, voiceBandPower } from './engine/stereo';
 import {
   angleText,
   leanFor,
@@ -43,49 +43,61 @@ const settle = () => clock.settle(200);
 
 describe('the stereo estimate (not the model)', () => {
   it('equal levels read front; a louder channel reads its side, surer the bigger the difference', () => {
-    const f = estimateSide(0.1, 0.1)!;
+    const f = estimateVoiceSide(0.1, 0.1)!;
     expect(f.side).toBe('front');
     expect(f.ild).toBeCloseTo(0, 6);
     expect(f.confidence).toBeCloseTo(1, 6);
-    const r = estimateSide(0.05, 0.1)!;
+    const r = estimateVoiceSide(0.05, 0.1)!;
     expect(r.side).toBe('right');
     expect(r.ild).toBeCloseTo(6.02, 1);
     expect(r.pan).toBeGreaterThan(0);
-    const l = estimateSide(0.3, 0.05)!;
+    const l = estimateVoiceSide(0.3, 0.05)!;
     expect(l.side).toBe('left');
     expect(l.pan).toBeLessThan(0);
     expect(l.confidence).toBeGreaterThan(r.confidence);
     expect(l.confidence).toBeLessThanOrEqual(1);
-    expect(estimateSide(0.1, 0.11)!.side).toBe('front');
+    expect(estimateVoiceSide(0.1, 0.11)!.side).toBe('front');
+  });
+
+  it('options that are not finite numbers take their defaults — NaN never reaches the estimate', () => {
+    const plain = estimateVoiceSide(0.05, 0.1)!;
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, '3' as unknown as number]) {
+      const est = estimateVoiceSide(0.05, 0.1, { deadband: bad, full: bad, floor: bad })!;
+      expect(est).toEqual(plain);
+      expect(Number.isFinite(est.pan) && Number.isFinite(est.confidence)).toBe(true);
+    }
+    expect(estimateVoiceSide(0.0001, 0.0001, { floor: Number.NaN })).toBeNull();
   });
 
   it('silence and bad input have no side', () => {
-    expect(estimateSide(0, 0)).toBeNull();
-    expect(estimateSide(0.001, 0.0015)).toBeNull();
-    expect(estimateSide(Number.NaN, 0.1)).toBeNull();
-    expect(estimateSide(-1, 0.1)).toBeNull();
-    expect(estimateSide(0.001, 0.0015, { floor: 0 })).not.toBeNull();
+    expect(estimateVoiceSide(0, 0)).toBeNull();
+    expect(estimateVoiceSide(0.001, 0.0015)).toBeNull();
+    expect(estimateVoiceSide(Number.NaN, 0.1)).toBeNull();
+    expect(estimateVoiceSide(-1, 0.1)).toBeNull();
+    expect(estimateVoiceSide(0.001, 0.0015, { floor: 0 })).not.toBeNull();
   });
 
   it('options: a wider dead band, a closer full side', () => {
-    expect(estimateSide(0.05, 0.1, { deadband: 8 })!.side).toBe('front');
-    expect(estimateSide(0.05, 0.1, { full: 6 })!.confidence).toBeGreaterThan(estimateSide(0.05, 0.1)!.confidence);
+    expect(estimateVoiceSide(0.05, 0.1, { deadband: 8 })!.side).toBe('front');
+    expect(estimateVoiceSide(0.05, 0.1, { full: 6 })!.confidence).toBeGreaterThan(
+      estimateVoiceSide(0.05, 0.1)!.confidence,
+    );
   });
 
-  it('bandPower: dB bins to mean linear power over a band', () => {
+  it('voiceBandPower: dB bins to mean linear power over a band', () => {
     const db = new Float32Array(1024).fill(Number.NEGATIVE_INFINITY);
     db.fill(-20, 40, 180);
     // 48 kHz / 2048 → 23.4375 Hz a bin: 1–4 kHz reads bins 42…171
-    expect(bandPower(db, 23.4375, 1000, 4000)).toBeCloseTo(0.01, 6);
-    expect(bandPower(db, 0, 1000, 4000)).toBe(0);
-    expect(bandPower(new Float32Array(0), 23.4, 1000, 4000)).toBe(0);
+    expect(voiceBandPower(db, 23.4375, 1000, 4000)).toBeCloseTo(0.01, 6);
+    expect(voiceBandPower(db, 0, 1000, 4000)).toBe(0);
+    expect(voiceBandPower(new Float32Array(0), 23.4, 1000, 4000)).toBe(0);
   });
 
-  it('createStereoSide: a splitter and two analysers on the shared source; release closes, tracks stay', () => {
-    expect(createStereoSide(fakeStream())).toBeNull();
+  it('createVoiceStereoSide: a splitter and two analysers on the shared source; release closes, tracks stay', () => {
+    expect(createVoiceStereoSide(fakeStream())).toBeNull();
     stubAudio();
     const s = fakeStream();
-    const reader = createStereoSide(s)!;
+    const reader = createVoiceStereoSide(s)!;
     expect(reader).not.toBeNull();
     const ctx = FakeAudioContext.all[0];
     expect(ctx.splitters).toHaveLength(1);
@@ -206,6 +218,35 @@ describe('<ui-voice-position>', () => {
     expect(q(el, '[data-v="side"]').textContent).toBe('Detecting');
     expect(q(el, '[data-v="side"]').hasAttribute('data-pending')).toBe(true);
     expect(q(el, '[data-m="side"] .pct').textContent).toBe('··%');
+  });
+
+  it('the live region speaks only when the side or the distance changes, not with every confidence', async () => {
+    const el = mount({}, { side: 'left', distance: 'near', sideConfidence: 0.8, distanceConfidence: 0.7 });
+    const region = q(el, '[role="status"]');
+    const first = region.textContent;
+    expect(first).toBe('Voice from the left (80%); near, < 70 cm (70%).');
+    let writes = 0;
+    new MutationObserver(() => writes++).observe(region, { childList: true, characterData: true, subtree: true });
+    const node = region.firstChild;
+    for (let i = 0; i < 30; i++) {
+      el.data = { side: 'left', distance: 'near', sideConfidence: 0.5 + i / 100, distanceConfidence: 0.9 - i / 100 };
+      el.renderNow();
+    }
+    await Promise.resolve();
+    expect(writes).toBe(0);
+    expect(region.textContent).toBe(first);
+    expect(region.firstChild).toBe(node);
+    // the readout's own numbers still follow
+    settle();
+    expect(q(el, '[data-m="side"] .pct').textContent).toBe('79%');
+    el.data = { side: 'right', distance: 'near', sideConfidence: 0.9, distanceConfidence: 0.7 };
+    el.renderNow();
+    expect(region.textContent).toBe('Voice from the right (90%); near, < 70 cm (70%).');
+    el.data = { side: 'right', distance: 'far', sideConfidence: 0.9, distanceConfidence: 0.6 };
+    el.renderNow();
+    expect(region.textContent).toBe('Voice from the right (90%); far, ≥ 70 cm (60%).');
+    await Promise.resolve();
+    expect(writes).toBeGreaterThan(0);
   });
 
   it('attributes work too', () => {

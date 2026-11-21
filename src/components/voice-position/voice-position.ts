@@ -165,7 +165,7 @@ export function litDots(v: number): number {
  *
  * Data-driven: the host sets `{ side, distance, sideConfidence, distanceConfidence }` from any detector. The Voice
  * position model behind the Libraries.dev tile (`VoicePosition.mfxl`, iOS, Libraries.dev Model License) is not
- * shipped or downloaded; `createStereoSide()` (exported beside this) is a plain level-difference estimate for hosts
+ * shipped or downloaded; `createVoiceStereoSide()` (exported beside this) is a plain level-difference estimate for hosts
  * with a stereo microphone. The ring is a composed `<ui-voice-ring>` (its lean is voice-ring's `lean.ts`), held toward
  * the committed side until the next reading.
  *
@@ -357,7 +357,23 @@ export class UiVoicePosition extends UiElement<VoicePositionData> {
     this.#meter(q('[data-m="side"]'), r.sideConfidence);
     this.#meter(q('[data-m="distance"]'), r.distanceConfidence);
 
-    // The text equivalent: one sentence, said when it changes.
+    // The text equivalent: one sentence, said only when the side or the distance changes — a detector's confidence
+    // moves with every estimate, and a live region rewritten that often is noise. The confidence it carries is the
+    // one at the change.
+    const said = `${this.#lang}|${r.side ?? ''}|${r.distance ?? ''}`;
+    if (said !== this.#saidKey) {
+      this.#saidKey = said;
+      q('[role="status"]').textContent = this.#sentence(r);
+    }
+    this.#still();
+    this.updated();
+  }
+
+  #saidKey = '';
+
+  /** The sentence for a reading: side, then distance, each with how sure. */
+  #sentence(r: VoicePositionReading): string {
+    const t = STRINGS[this.#lang];
     const pct = (v: number) => (v > 0 ? ` (${percent(v)})` : '');
     let sentence: string = t.none;
     if (r.side) {
@@ -369,10 +385,7 @@ export class UiVoicePosition extends UiElement<VoicePositionData> {
         sentence += `; ${t.distanceSentence(t.distances[r.distance], t.ranges[r.distance], pct(r.distanceConfidence))}`;
       sentence += '.';
     }
-    const status = q('[role="status"]');
-    if (status.textContent !== sentence) status.textContent = sentence;
-    this.#still();
-    this.updated();
+    return sentence;
   }
 
   #still(): void {

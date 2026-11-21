@@ -239,7 +239,7 @@ export const doc: ComponentDoc = {
       name: 'stream',
       type: 'property / data.stream: MediaStream | null',
       description:
-        'A stream the host opened (its own getUserMedia from a click). The element opens an analyser on it (shared with any other voice element on the same stream), closes it on disconnect, and never stops the tracks.',
+        'A stream the host opened (its own getUserMedia from a click). The element opens an analyser on it (shared with any other voice element on the same stream) only while it listens — `listening` or `speaking`; idle, processing and disconnect let it go — and never stops the tracks.',
     },
     {
       name: 'analyser',

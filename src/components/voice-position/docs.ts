@@ -1,7 +1,7 @@
 import type { ComponentDoc } from '../../docs/types';
 import { icon } from '../../icons/icons';
 import { demoVoiceLevel } from '../voice-glow/engine/audio';
-import { createStereoSide, type StereoSideReader } from './engine/stereo';
+import { createVoiceStereoSide, type VoiceStereoSideReader } from './engine/stereo';
 import './voice-position';
 import type { UiVoicePosition, VoiceDistance, VoicePositionData, VoiceSide } from './voice-position';
 
@@ -116,7 +116,7 @@ function manual(): HTMLElement {
 /** A stereo microphone, read with the plain level-difference estimate (not the model). */
 function stereo(): HTMLElement {
   const el = tile({ level: 0 });
-  let reader: StereoSideReader | null = null;
+  let reader: VoiceStereoSideReader | null = null;
   let stream: MediaStream | null = null;
   let raf = 0;
   const note = document.createElement('p');
@@ -156,7 +156,7 @@ function stereo(): HTMLElement {
     }
     go.setAttribute('aria-pressed', 'true');
     el.stream = stream;
-    reader = createStereoSide(stream);
+    reader = createVoiceStereoSide(stream);
     if (!reader) {
       note.textContent = 'This browser can’t analyse audio.';
       return;
@@ -180,7 +180,7 @@ export const doc: ComponentDoc = {
   summary:
     'Where is the voice coming from, and how far? — the voice ring leans toward the speaker (left, front, right), the bar grows when they are far, and a readout says the side and the distance and how sure each is.',
   description:
-    'The Libraries.dev Voice position tile as an element: a voice screen with `<ui-voice-ring>` inside (composed, not copied — its lean is voice-ring’s), leaning toward the side the voice comes from and held there until the next reading; the composer bar under it grows for a far voice; a marker locks onto the source beside the screen with a signal line; and a readout gives DIRECTION and DISTANCE, each with a dotted confidence meter and a percentage, decoding into place as they change. It is data-driven: set `{ side, distance, sideConfidence, distanceConfidence }` from any detector. The on-device model behind the original (VoicePosition.mfxl, iOS, Libraries.dev Model License) is not shipped or downloaded; `createStereoSide()` is exported for hosts with a stereo microphone — a plain level-difference estimate, clearly not the model.',
+    'The Libraries.dev Voice position tile as an element: a voice screen with `<ui-voice-ring>` inside (composed, not copied — its lean is voice-ring’s), leaning toward the side the voice comes from and held there until the next reading; the composer bar under it grows for a far voice; a marker locks onto the source beside the screen with a signal line; and a readout gives DIRECTION and DISTANCE, each with a dotted confidence meter and a percentage, decoding into place as they change. It is data-driven: set `{ side, distance, sideConfidence, distanceConfidence }` from any detector. The on-device model behind the original (VoicePosition.mfxl, iOS, Libraries.dev Model License) is not shipped or downloaded; `createVoiceStereoSide()` is exported for hosts with a stereo microphone — a plain level-difference estimate, clearly not the model.',
   usedIn:
     'Not yet in the dashboard. Natural home: a voice session with several people in the room (a meeting-room client), beside the voice ring, fed by the client’s speaker detector.',
   reference: { name: 'Libraries.dev — Voice position', url: 'https://libraries.dev/voice-position' },
@@ -229,16 +229,16 @@ export const doc: ComponentDoc = {
         'Passed to the ring; motion="reduce" stops the signal line, the transitions and the decoding; paused holds everything.',
     },
     {
-      name: 'createStereoSide(stream, options?)',
-      type: '(MediaStream) => { read(): SideEstimate | null; release() } | null',
+      name: 'createVoiceStereoSide(stream, options?)',
+      type: '(MediaStream) => { read(): VoiceSideEstimate | null; release() } | null',
       description:
-        'For a stereo microphone the host opened (channelCount: 2): source → ChannelSplitter → two analysers; read() gives { side, pan, confidence, ild } from the level difference over 1–4 kHz, eased over 0.3 s, or null in silence or on a mono input. An estimate, not the model. estimateSide(left, right) is its pure core.',
+        'For a stereo microphone the host opened (channelCount: 2): source → ChannelSplitter → two analysers; read() gives { side, pan, confidence, ild } from the level difference over 1–4 kHz, eased over 0.3 s, or null in silence or on a mono input. An estimate, not the model. estimateVoiceSide(left, right) is its pure core.',
     },
   ],
   events: [],
   keyboard: [['—', 'Nothing to focus: the tile reports; it takes no input.']],
   a11y: [
-    'One polite role="status" sentence is the text equivalent — “Voice from the left (86%); near, < 70 cm (74%).” / “왼쪽에서 들리는 목소리 (86%); 가까움, 70 cm 미만 (74%).” — said when the reading changes. The drawn stage and readout are aria-hidden; the ring inside is decorative.',
+    'One polite role="status" sentence is the text equivalent, rewritten only when the side or the distance changes (a confidence that moves is not announced) — “Voice from the left (86%); near, < 70 cm (74%).” / “왼쪽에서 들리는 목소리 (86%); 가까움, 70 cm 미만 (74%).” — said when the reading changes. The drawn stage and readout are aria-hidden; the ring inside is decorative.',
     'Reduced motion (prefers-reduced-motion or motion="reduce"): the signal line stands still, the bar and the marker jump instead of easing, values appear without decoding, and the ring holds its clocks.',
     'Off screen or in a hidden tab the ring stops drawing and the CSS loops pause.',
     'It never requests the microphone and never loads a model: the host supplies the readings (and, for the ring, the level or the stream it opened).',
@@ -247,7 +247,7 @@ export const doc: ComponentDoc = {
 
 <script type="module">
   import '@2lab.ai/ui';
-  import { createStereoSide } from '@2lab.ai/ui/voice-position';
+  import { createVoiceStereoSide } from '@2lab.ai/ui/voice-position';
   const tile = document.querySelector('ui-voice-position');
 
   // From your own detector:
@@ -258,7 +258,7 @@ export const doc: ComponentDoc = {
   // …or a plain estimate from a stereo microphone you opened:
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 2 } });
   tile.stream = stream;
-  const side = createStereoSide(stream);
+  const side = createVoiceStereoSide(stream);
   (function loop() {
     const est = side?.read();
     if (est) tile.data = { ...tile.data, side: est.side, sideConfidence: est.confidence };
@@ -286,7 +286,7 @@ export const doc: ComponentDoc = {
       id: 'stereo',
       title: 'Stereo estimate',
       description:
-        'createStereoSide() on a stereo microphone the page opens from this click — the level difference between the channels, not the model.',
+        'createVoiceStereoSide() on a stereo microphone the page opens from this click — the level difference between the channels, not the model.',
       height: 540,
       create: stereo,
     },
