@@ -1,5 +1,6 @@
 export type {
   AuthAccount,
+  AuthBrandMetalPreset,
   AuthCardData,
   AuthConfirm,
   AuthConfirmDetail,
@@ -12,6 +13,7 @@ export type {
   AuthStrings,
 } from './auth-card';
 export {
+  authBrandMetal,
   authCardCss,
   authCardHtml,
   authCardMarkup,
