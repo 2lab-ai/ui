@@ -64,6 +64,11 @@ export interface VoiceGlowData {
   gather?: VoiceGlowGatherSource;
   /** What the live region says while listening, instead of “Listening”. */
   label?: string;
+  /**
+   * Nothing to announce: the live region stays silent (no role, no text). For a glow whose state something else
+   * already says — a recorder's own label and clock (the attribute `decorative` too).
+   */
+  decorative?: boolean;
   /** Called every frame with the smoothed level the glow shows. */
   onLevel?: (level: number) => void;
   /** The dither's pixels fly into this element as listening ends, and out of it as it starts. */
@@ -393,7 +398,19 @@ export function resolveVoiceGlow(
 export class UiVoiceGlow extends UiElement<VoiceGlowData> {
   static override styles = [styles];
   static get observedAttributes(): string[] {
-    return ['listening', 'paused', 'level', 'type', 'look', 'palette', 'motion', 'theme', 'lang', 'label'];
+    return [
+      'listening',
+      'paused',
+      'level',
+      'type',
+      'look',
+      'palette',
+      'motion',
+      'theme',
+      'lang',
+      'label',
+      'decorative',
+    ];
   }
 
   #driver: VoiceGlowDriver | null = null;
@@ -640,9 +657,19 @@ export class UiVoiceGlow extends UiElement<VoiceGlowData> {
     const on = this.listening;
     if (on !== driver.on) this.#turn(on, r);
     frame.toggleAttribute('data-on', driver.visible);
+    const decorative = (this.data?.decorative ?? this.hasAttribute('decorative')) === true;
     const label = String(this.data?.label ?? this.getAttribute('label') ?? '').trim();
-    const said = on ? label || STRINGS[this.#lang].listening : '';
-    if (this.#status && this.#status.textContent !== said) this.#status.textContent = said;
+    const said = on && !decorative ? label || STRINGS[this.#lang].listening : '';
+    if (this.#status) {
+      if (decorative) {
+        this.#status.removeAttribute('role');
+        this.#status.removeAttribute('aria-live');
+      } else {
+        this.#status.setAttribute('role', 'status');
+        this.#status.setAttribute('aria-live', 'polite');
+      }
+      if (this.#status.textContent !== said) this.#status.textContent = said;
+    }
     this.#kick(true);
     this.updated();
   }

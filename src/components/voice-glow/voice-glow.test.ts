@@ -692,6 +692,22 @@ describe('<ui-voice-glow>', () => {
     expect(own.shadowRoot!.querySelector('img')).toBeNull();
   });
 
+  it('decorative (attribute or data): the live region stays silent, with no role', () => {
+    const el = mount({ listening: '', decorative: '' });
+    const region = el.shadowRoot!.querySelector<HTMLElement>('.sr-only')!;
+    expect(region.hasAttribute('role')).toBe(false);
+    expect(region.hasAttribute('aria-live')).toBe(false);
+    expect(region.textContent).toBe('');
+    el.removeAttribute('decorative');
+    el.renderNow();
+    expect(region.getAttribute('role')).toBe('status');
+    expect(region.textContent).toBe('Listening');
+    el.data = { decorative: true };
+    el.renderNow();
+    expect(region.textContent).toBe('');
+    expect(el.running).toBe(true);
+  });
+
   it('a stream without Web Audio falls back to the level, and never throws', () => {
     const s = fakeStream();
     const el = mount({ listening: '' });

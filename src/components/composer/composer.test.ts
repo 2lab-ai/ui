@@ -247,6 +247,7 @@ describe('logic', () => {
       attach: true,
       image: true,
       voice: true,
+      recordGlow: true,
       camera: '',
       progress: null,
       busy: false,
@@ -1441,6 +1442,141 @@ describe('<ui-composer> voice recorder', () => {
     await tick();
     expect(rec.map((r) => r.state)).toEqual(['start', 'cancel']);
     expect(el.files).toHaveLength(0);
+  });
+});
+
+describe('<ui-composer> voice glow while recording', () => {
+  /** The glow laid over the card, if any. */
+  const glow = (el: UiComposer) =>
+    q<HTMLElement & { level: unknown; listening: boolean }>(el, '.cp-card > ui-voice-glow');
+  /** Every AudioContext built, whoever built it. */
+  let contexts = 0;
+  class CountingAudioContext extends FakeAudioContext {
+    constructor() {
+      super();
+      contexts++;
+    }
+  }
+
+  it('the card wears a decorative <ui-voice-glow> while a note records, fed by the meter’s own level', async () => {
+    contexts = 0;
+    const gum = stubMic();
+    vi.stubGlobal('AudioContext', CountingAudioContext);
+    const el = mount();
+    expect(glow(el)).toBeNull();
+    await startRec(el);
+    const g = glow(el)!;
+    expect(g).toBeTruthy();
+    expect(g.hasAttribute('listening')).toBe(true);
+    expect(g.getAttribute('type')).toBe('default');
+    expect(g.getAttribute('look')).toBe('glow');
+    expect(g.hasAttribute('decorative')).toBe(true);
+    expect(g.getAttribute('aria-hidden')).toBe('true');
+    expect(g.shadowRoot!.querySelector('.sr-only')!.hasAttribute('role')).toBe(false);
+    // the getter is the composer's level: once the meter reads a full swing, so does the glow's source
+    expect(typeof g.level).toBe('function');
+    const level = q(el, '.cp-level')!;
+    await until(() => level.getAttribute('style') === 'transform:scaleX(1.000)');
+    expect((g.level as () => number)()).toBe(1);
+    // no second microphone, no second AudioContext: the composer's one of each
+    expect(gum).toHaveBeenCalledTimes(1);
+    expect(contexts).toBe(1);
+    // the recorder still says the state
+    expect(q(el, '.cp-rec')!.getAttribute('aria-label')).toBe('Recording');
+    act(el, 'rec-cancel')!.click();
+    expect(contexts).toBe(1);
+  });
+
+  it('Done: the glow fades out (listening off), then is removed when it reports the fade done; its events stay inside', async () => {
+    stubMic();
+    const el = mount();
+    const outside: string[] = [];
+    document.addEventListener('ui-voice-deactivate', () => outside.push('deactivate'));
+    await startRec(el);
+    const g = glow(el)!;
+    act(el, 'rec-done')!.click();
+    expect(glow(el)).toBe(g);
+    expect(g.hasAttribute('listening')).toBe(false);
+    g.dispatchEvent(
+      new CustomEvent('ui-voice-deactivate', { bubbles: true, composed: true, detail: { listening: false } }),
+    );
+    expect(glow(el)).toBeNull();
+    expect(outside).toEqual([]);
+    await tick();
+  });
+
+  it('Cancel and Escape fade it out and remove it; a glow that never reports is dropped after its linger', async () => {
+    stubMic();
+    const el = mount();
+    await startRec(el);
+    act(el, 'rec-cancel')!.click();
+    expect(glow(el)!.hasAttribute('listening')).toBe(false);
+    await until(() => glow(el) === null, 200);
+    expect(glow(el)).toBeNull();
+    await startRec(el);
+    expect(glow(el)!.hasAttribute('listening')).toBe(true);
+    key(act(el, 'rec-done')!, 'Escape');
+    expect(glow(el)!.hasAttribute('listening')).toBe(false);
+    await until(() => glow(el) === null, 200);
+    expect(glow(el)).toBeNull();
+  });
+
+  it('a new note while the last glow still fades brings the same glow back', async () => {
+    stubMic();
+    // No frames: the fade-out cannot finish between the two notes, however slow the machine.
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const el = mount();
+    await startRec(el);
+    const g = glow(el)!;
+    act(el, 'rec-done')!.click();
+    await tick();
+    await startRec(el);
+    expect(glow(el)).toBe(g);
+    expect(g.hasAttribute('listening')).toBe(true);
+    // its late fade report changes nothing while recording
+    g.dispatchEvent(new CustomEvent('ui-voice-deactivate'));
+    expect(glow(el)).toBe(g);
+    act(el, 'rec-cancel')!.click();
+  });
+
+  it('an error never shows it; disconnecting removes it at once; disabling fades it out', async () => {
+    stubMic({ fail: Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' }) });
+    const denied = mount();
+    await startRec(denied);
+    expect(glow(denied)).toBeNull();
+    vi.unstubAllGlobals();
+    stubMic();
+    const el = mount();
+    await startRec(el);
+    expect(glow(el)).toBeTruthy();
+    set(el, { disabled: true });
+    expect(glow(el)!.hasAttribute('listening')).toBe(false);
+    set(el, { disabled: false });
+    await startRec(el);
+    expect(glow(el)!.hasAttribute('listening')).toBe(true);
+    el.remove();
+    expect(el.shadowRoot!.querySelector('ui-voice-glow')).toBeNull();
+    document.body.append(el);
+    el.renderNow();
+    expect(glow(el)).toBeNull();
+  });
+
+  it('data.recordGlow: false keeps the plain card; the composer’s theme pins the glow’s', async () => {
+    stubMic();
+    const off = mount({ recordGlow: false });
+    await startRec(off);
+    expect(q(off, '.cp-rec')).toBeTruthy();
+    expect(glow(off)).toBeNull();
+    act(off, 'rec-cancel')!.click();
+    const dark = mount({}, { theme: 'dark' });
+    await startRec(dark);
+    expect(glow(dark)!.getAttribute('theme')).toBe('dark');
+    act(dark, 'rec-cancel')!.click();
+    const plain = mount();
+    await startRec(plain);
+    expect(glow(plain)!.hasAttribute('theme')).toBe(false);
+    act(plain, 'rec-cancel')!.click();
   });
 });
 

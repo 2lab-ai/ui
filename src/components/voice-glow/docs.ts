@@ -352,6 +352,12 @@ export const doc: ComponentDoc = {
       description: 'What the live region says while listening, instead of “Listening” / “듣는 중”.',
     },
     {
+      name: 'decorative',
+      type: 'boolean attribute / data.decorative',
+      description:
+        'The live region stays silent (no role, no text) — for a glow whose state the host already says, as <ui-composer>’s recorder does with its label and clock.',
+    },
+    {
       name: 'data.onLevel / shownLevel',
       type: '(level: number) => void / read-only number',
       description: 'The smoothed level the glow shows, every frame — for a meter or for pacing a transcript.',
@@ -378,7 +384,7 @@ export const doc: ComponentDoc = {
   keyboard: [['—', 'The glow takes no focus and no pointer; the wrapped input keeps its own keyboard.']],
   a11y: [
     'Every layer is decorative: aria-hidden canvases and empty boxes with pointer-events: none — the wrapped content keeps its semantics, focus and clicks.',
-    'The meaningful state has a text equivalent: a polite role="status" says “Listening” (data.label to change it; “듣는 중” with lang="ko") while the glow is on, and nothing when it is off.',
+    'The meaningful state has a text equivalent: a polite role="status" says “Listening” (data.label to change it; “듣는 중” with lang="ko") while the glow is on, and nothing when it is off. `decorative` silences it where the host already says the state.',
     'Reduced motion (prefers-reduced-motion, or motion="reduce"): no breathing, flow, hue drift, distortion or magnet; the fade and the level response stay.',
     'No frames while off, paused and painted, off screen (IntersectionObserver) or in a hidden tab.',
     'It never requests the microphone: the host calls getUserMedia from its own click and owns the tracks.',

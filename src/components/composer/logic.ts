@@ -75,6 +75,11 @@ export interface ComposerData {
   progress?: number;
   /** A recording stops (and is kept) at this length. Default 10 min. */
   maxRecordMs?: number;
+  /**
+   * While a voice note records, the field card wears a `<ui-voice-glow>` that rises with the level the recorder
+   * already measures (no second microphone, no second AudioContext). Default on; `false` keeps the plain card.
+   */
+  recordGlow?: boolean;
   /** Extra host tools → `ui-tool`. */
   tools?: ComposerTool[];
   /** Text on the send button (e.g. “Start task”). Without it the button is a 32px arrow-up icon named “Send”. */
@@ -183,6 +188,8 @@ export interface ComposerSettings {
   attach: boolean;
   image: boolean;
   voice: boolean;
+  /** The voice glow on the card while a note records. */
+  recordGlow: boolean;
   /** The camera tool's `capture` ('' = no camera tool). */
   camera: '' | 'environment' | 'user';
   /** 0–1, or null without progress. */
@@ -212,6 +219,7 @@ export function composerSettings(d: ComposerData | null | undefined): ComposerSe
     attach: o.attach !== false,
     image: o.image !== false,
     voice: o.voice !== false,
+    recordGlow: o.recordGlow !== false,
     camera: o.camera === 'user' ? 'user' : o.camera === true || o.camera === 'environment' ? 'environment' : '',
     progress:
       o.progress === null || o.progress === undefined || !Number.isFinite(Number(o.progress))

@@ -258,6 +258,13 @@ export const doc: ComponentDoc = {
       description: 'A recording stops and is kept at this length.',
     },
     {
+      name: 'data.recordGlow',
+      type: 'boolean',
+      default: 'true',
+      description:
+        'While a voice note records, the card wears a <ui-voice-glow> (the chat-input type, the glow look) that rises with the level the recorder already measures — no second microphone, no second AudioContext. It fades out on Done, Cancel, Esc or a disabled composer and is removed after its fade (at once when the composer leaves the page). Its theme is the composer’s; under reduced motion it is the glow’s still version. `false` keeps the plain card.',
+    },
+    {
       name: 'data.tools',
       type: 'Array<{ id; label; icon?; showLabel?; pressed?; disabled? }>',
       description:
@@ -404,6 +411,7 @@ export const doc: ComponentDoc = {
     'The mode switch is a button with role="switch" and aria-checked, named by data.mode.label (also its tooltip); its short text is aria-hidden, so the name holds when narrow cards hide it. Day and night differ in position and glyph, not colour alone.',
     'A control in slot="end" keeps its own name and keys; it is in the row’s tab order before the mode switch and Send.',
     'Recording moves focus to Done; the recorder row is a group named “Recording” with a role="timer" clock; ending it returns focus to the field.',
+    'The voice glow on the card while recording (data.recordGlow) is decorative: aria-hidden, its live region silent, pointer-events none — the recorder’s label and clock carry the state. Reduced motion: no breathing, flow or hue drift; it still answers the level and fades in and out.',
     'Touch: every control is 44px under (pointer: coarse); the field uses 16px text so iOS does not zoom. The camera tool (data.camera) shows only there.',
     'Upload progress (data.progress) is a role="progressbar" named “Uploading” with aria-valuenow in percent.',
     'Trigger menus: the field carries aria-autocomplete="list", aria-expanded, aria-controls and aria-activedescendant (focus never leaves the field); the list is a role="listbox" named by the trigger’s label, its rows role="option" with aria-selected, grouped in role="group" sections; the number of matches is announced in the polite status region. Pressing a row never takes focus from the field.',
