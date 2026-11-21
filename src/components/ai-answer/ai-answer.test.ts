@@ -632,3 +632,29 @@ describe('sound', () => {
     expect(spy.calls).toEqual([]);
   });
 });
+
+describe('the writing row keeps its orb across re-renders', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+  it('a streamed chunk does not replace the orb on screen; a new activity sets its state', () => {
+    const ctx = new Proxy({}, { get: (_, k) => (k === 'canvas' ? undefined : () => {}), set: () => true });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ctx as never);
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    const el = document.createElement('ui-ai-answer');
+    document.body.append(el);
+    el.data = { markdown: '', streaming: true, activity: 'searching' };
+    el.renderNow();
+    const first = el.shadowRoot!.querySelector('ui-thinking-orb.ans-orb');
+    expect(first).not.toBeNull();
+    el.data = { markdown: 'Reading', streaming: true, activity: 'searching' };
+    el.renderNow();
+    el.data = { markdown: 'Reading the file', streaming: true, activity: 'composing' };
+    el.renderNow();
+    const now = el.shadowRoot!.querySelector('ui-thinking-orb.ans-orb');
+    expect(now).toBe(first);
+    expect(now!.getAttribute('state')).toBe('composing');
+    el.remove();
+  });
+});

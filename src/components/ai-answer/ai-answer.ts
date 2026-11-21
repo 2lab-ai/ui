@@ -401,9 +401,18 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
   protected override update(): void {
     // A streaming re-render must not throw the link row back to its start.
     const left = this.$('.ans-srcs')?.scrollLeft ?? 0;
+    // Nor restart the writing row's orb: the one on screen is kept (a new state is set on it), so each streamed
+    // chunk does not draw a fresh orb from its first frame.
+    const orb = this.$('ui-thinking-orb.ans-orb');
     super.update();
     const row = this.$('.ans-srcs');
     if (row && left) row.scrollLeft = left;
+    const fresh = this.$('ui-thinking-orb.ans-orb');
+    if (orb && fresh && orb !== fresh) {
+      const state = fresh.getAttribute('state');
+      if (state && orb.getAttribute('state') !== state) orb.setAttribute('state', state);
+      fresh.replaceWith(orb);
+    }
   }
 
   protected render(): string {
