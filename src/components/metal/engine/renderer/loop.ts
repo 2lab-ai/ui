@@ -7,7 +7,7 @@
  * the next need; a renderer that cannot be (re)created reports through `setRendererState` instead of throwing.
  */
 import { hexToRgba } from '../color';
-import { FRAME_INTERVAL_MS, GLOW_SKIP_FRAMES, IDLE_RELEASE_MS } from '../perfConfig';
+import { CONTEXT_RECOVERY_MS, FRAME_INTERVAL_MS, GLOW_SKIP_FRAMES, IDLE_RELEASE_MS } from '../perfConfig';
 import type { PresetMode } from '../presets';
 import {
   CANONICAL_PILL_H,
@@ -27,6 +27,7 @@ import {
   presetModeFor,
   pruneFrames,
   SHARED,
+  setContextLostCallback,
   setContextRestoredCallback,
   setRendererState,
   teardownSharedRenderer,
@@ -36,19 +37,66 @@ import { ensureGlowPixels } from './sampling';
 
 // Restart the animation loop when the browser restores the GL context.
 setContextRestoredCallback(() => {
+  cancelRecovery();
   if (SHARED && INSTANCES.size > 0 && SHARED.pausedAtMs === null) {
     startSharedLoop();
   }
 });
 
+// ─── Lost context ─────────────────────────────────────────────────────────
+// The context-lost handler (core.ts) prevents the default, so the browser may restore it — then the pipeline is
+// rebuilt in place. A browser that never does would leave every element on its fallback for good: after
+// `CONTEXT_RECOVERY_MS` the lost context is released and a fresh one made (retrying, with back-off, while that fails).
+
+let recoveryTimer: ReturnType<typeof setTimeout> | 0 = 0;
+let recoveryTries = 0;
+
+function cancelRecovery(): void {
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = 0;
+  recoveryTries = 0;
+}
+
+function scheduleRecovery(): void {
+  if (recoveryTimer || INSTANCES.size === 0) return;
+  const wait = CONTEXT_RECOVERY_MS * 2 ** Math.min(recoveryTries, 5);
+  recoveryTimer = setTimeout(() => {
+    recoveryTimer = 0;
+    if (INSTANCES.size === 0) return;
+    if (SHARED && !SHARED.contextLost) {
+      recoveryTries = 0;
+      return;
+    }
+    recoveryTries++;
+    // Release the dead context (its objects are gone already) and make a new one on the spot.
+    teardownSharedRenderer();
+    try {
+      ensureSharedRenderer();
+      recoveryTries = 0;
+      kickSharedLoop();
+    } catch {
+      setRendererState(false);
+      scheduleRecovery();
+    }
+  }, wait);
+}
+
+setContextLostCallback(() => {
+  stopSharedLoop();
+  scheduleRecovery();
+});
+
 function onVisibility(): void {
-  if (!SHARED || SHARED.pausedAtMs !== null || SHARED.contextLost) return;
   if (document.hidden) {
+    if (!SHARED || SHARED.pausedAtMs !== null || SHARED.contextLost) return;
     stopSharedLoop();
     scheduleIdleRelease();
-  } else if (INSTANCES.size > 0) {
-    startSharedLoop();
+    return;
   }
+  // Back in view: start again — re-creating the context if it was released while the tab was hidden (a hidden tab
+  // past IDLE_RELEASE_MS) — so every registered element moves again.
+  if (SHARED && (SHARED.pausedAtMs !== null || SHARED.contextLost)) return;
+  kickSharedLoop();
 }
 
 let docListening = false;
@@ -95,6 +143,7 @@ export function kickSharedLoop(): void {
       ensureSharedRenderer();
     } catch {
       setRendererState(false);
+      scheduleRecovery();
       return;
     }
   }
@@ -182,6 +231,7 @@ export function destroyInstance(inst: MetalFxInstance): void {
   if (INSTANCES.size === 0) {
     stopSharedLoop();
     cancelIdleRelease();
+    cancelRecovery();
     teardownSharedRenderer();
     listenToDocument(false);
     lastFrameMs = 0;
@@ -485,7 +535,38 @@ function freezeFrame(inst: MetalFxInstance): HTMLCanvasElement | null {
   return fc;
 }
 
-function copyShaderToInstance(inst: MetalFxInstance): void {
+/**
+ * Composite one instance. A host's mask (or a deform) that throws leaves nothing half-set: the mask's own state is
+ * restored in a `finally`, then the context is reset — any unbalanced `save()` popped, transform, alpha and
+ * composite back to their defaults — and the canvas cleared (an empty instance, never the unmasked sheet). The other
+ * instances in the frame still draw. Returns whether it composited.
+ */
+function copyShaderToInstance(inst: MetalFxInstance): boolean {
+  try {
+    compositeInstance(inst);
+    return true;
+  } catch {
+    resetContext(inst);
+    return false;
+  }
+}
+
+/** Put an instance's 2D context back to its defaults and clear it. */
+export function resetContext(inst: MetalFxInstance): void {
+  const ctx = inst.ctx;
+  try {
+    // restore() on an empty stack is a no-op, so popping a few levels is safe whatever threw where.
+    for (let i = 0; i < 8; i++) ctx.restore();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, inst.canvas.width, inst.canvas.height);
+  } catch {
+    /* a context that cannot even reset draws nothing */
+  }
+}
+
+function compositeInstance(inst: MetalFxInstance): void {
   // A paused instance composites from its frozen frame — a bend or a resize
   // must not pull in the live shader, or the "paused" ring plays on hover.
   // (The frozen frame also outlives a released renderer.)
@@ -544,11 +625,15 @@ function copyShaderToInstance(inst: MetalFxInstance): void {
       }
     }
     ctx.save();
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.fillStyle = '#000';
-    inst.mask(ctx, dw, dh, dpr);
-    ctx.restore();
-    ctx.globalCompositeOperation = 'source-over';
+    try {
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.fillStyle = '#000';
+      inst.mask(ctx, dw, dh, dpr);
+    } finally {
+      // A mask that throws must not leave the context saved and in destination-in for the next composite.
+      ctx.restore();
+      ctx.globalCompositeOperation = 'source-over';
+    }
   } else if (!deform) {
     if (alpha < 1) ctx.globalAlpha = alpha;
     ctx.drawImage(src, sx, sy, srcW, srcH, 0, 0, dw, dh);

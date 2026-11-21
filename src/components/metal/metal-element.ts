@@ -606,9 +606,14 @@ export abstract class MetalElement<D extends MetalCommonData> extends UiElement<
     const g = c.getContext('2d');
     if (!g) return {};
     g.fillStyle = '#fff';
-    s.mask(g, c.width, c.height, dpr);
-    const d = g.getImageData(0, 0, c.width, c.height).data;
-    return { samplePoints: metalMaskPoints(d, c.width, c.height, dpr), maskDataUrl: c.toDataURL('image/png') };
+    try {
+      s.mask(g, c.width, c.height, dpr);
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      return { samplePoints: metalMaskPoints(d, c.width, c.height, dpr), maskDataUrl: c.toDataURL('image/png') };
+    } catch {
+      // A mask that throws gives the glow nothing to sit on (the composite draws nothing either).
+      return { samplePoints: [], maskDataUrl: undefined };
+    }
   }
 
   #rebuildGlow(s: MetalSettings, box: Box): void {

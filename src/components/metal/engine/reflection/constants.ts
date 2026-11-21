@@ -5,6 +5,7 @@
  * Verbatim from `Image loader/index.html` L5851-5915. Shared across
  * the observer, geometry, and paint modules.
  */
+import type { SavedInline } from '../inlineStyle';
 import type { MetalFxInstance } from '../renderer/core';
 
 export const RANGE_PX = 12;
@@ -43,8 +44,11 @@ export interface ReflectionTarget {
   cornerRadius: number;
   hairlineWidth: number;
   hairlineOuterCssPx: number;
-  appliedPositionRelative: boolean;
-  appliedIsolation: boolean;
+  /** What the target's inline `position` / `isolation` were before the engine set them (null: untouched). */
+  savedPosition: SavedInline | null;
+  savedIsolation: SavedInline | null;
+  /** The target carried `data-metal-fx-reflect-host` already (then it stays). */
+  hadHostAttr: boolean;
   resizeObserver: ResizeObserver | null;
   mutationObserver: MutationObserver | null;
   /** Where the occluder listens to the pointer (the anchor's and target's common ancestor). */

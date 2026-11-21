@@ -1,4 +1,4 @@
-/* Ported from metal-fx 2.0.11 `src/engine/perfConfig.ts` (MIT, © Jakub Antalik — https://libraries.dev/metal). Added: IDLE_RELEASE_MS. */
+/* Ported from metal-fx 2.0.11 `src/engine/perfConfig.ts` (MIT, © Jakub Antalik — https://libraries.dev/metal). Added: IDLE_RELEASE_MS, CONTEXT_RECOVERY_MS. */
 // ─── Frame rates ──────────────────────────────────────────────────────────
 
 // Main render loop: shader + canvas compositing. 66ms ≈ 15fps.
@@ -24,6 +24,10 @@ export const PERIM_SAMPLES = 16;
 // With nothing to draw for this long (everything paused, off screen or in a hidden tab), the WebGL context is
 // released; the next element that needs a fresh frame creates it again. Added in the port.
 export const IDLE_RELEASE_MS = 10_000;
+
+// A lost context the browser has not restored after this long is released and a fresh one made (doubling, up to
+// 32×, while that fails). Added in the port.
+export const CONTEXT_RECOVERY_MS = 2_000;
 
 // ─── GL canvas ────────────────────────────────────────────────────────────
 

@@ -267,7 +267,8 @@ export const doc: ComponentDoc = {
     'Reduced motion (prefers-reduced-motion, or motion="reduce"): one still frame — no flow, no halo travel, no bend, no pointer light.',
     'Forced colours: no painted metal; the wrapped control gets a ButtonText edge back.',
     'No frames while idle: off screen (IntersectionObserver), in a hidden tab, while paused or reduced; the pointer is read only while it is over the element. One WebGL context for the page, released with the last element or after 10 s idle.',
-    'Without WebGL2 (or after a lost context) the wrapped element shows as it is, with a CSS metallic ring — nothing is lost and nothing throws.',
+    'Without WebGL2 (or while a lost context is being recovered) the wrapped element shows as it is, with a CSS metallic ring — nothing is lost and nothing throws. A lost context is rebuilt when the browser restores it, or released and re-made after 2 s.',
+    'One WebGL2 context is shared by every metal element on the page (<ui-metal>, <ui-metal-text>, <ui-metal-badge>): one context, not one each; each element still stops its own frames and draws its own preset.',
   ],
   usage: `<ui-metal variant="circle" inner-shadow bend>
   <button type="button" aria-label="Send">↑</button>

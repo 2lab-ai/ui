@@ -204,6 +204,13 @@ export function setContextRestoredCallback(cb: (() => void) | null): void {
   _onContextRestored = cb;
 }
 
+// Called when the browser takes the context away; the loop uses it to stop and to start a recovery (re-create the
+// context itself if the browser never restores it).
+let _onContextLost: (() => void) | null = null;
+export function setContextLostCallback(cb: (() => void) | null): void {
+  _onContextLost = cb;
+}
+
 /** Whether the renderer can draw: false after a lost context or a failed (re)creation, true again once it can. */
 type RendererListener = (ok: boolean) => void;
 const rendererListeners = new Set<RendererListener>();
@@ -399,6 +406,7 @@ export function ensureSharedRenderer(): SharedRenderer {
     if (SHARED && SHARED.gl === gl) {
       SHARED.contextLost = true;
       setRendererState(false);
+      _onContextLost?.();
     }
   };
   const onContextRestored = () => {

@@ -12,6 +12,8 @@ import { textMaskDataUrl } from '../textMask';
  */
 export function metalTextReflection(el: HTMLElement): () => void {
   // Tells the engine to light this as letterforms, not as a chip: mirrored metal only, no rim stroke / border highlight.
+  // A host that marked the target itself keeps its mark on cleanup.
+  const hadMark = el.hasAttribute('data-metal-fx-text');
   el.setAttribute('data-metal-fx-text', '');
   let raf = 0;
   let disposed = false;
@@ -73,6 +75,6 @@ export function metalTextReflection(el: HTMLElement): () => void {
     if (raf) cancelAnimationFrame(raf);
     ro?.disconnect();
     mo?.disconnect();
-    el.removeAttribute('data-metal-fx-text');
+    if (!hadMark) el.removeAttribute('data-metal-fx-text');
   };
 }

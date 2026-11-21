@@ -2,8 +2,11 @@
    Changed in the port: the nodes put into a target carry their styles inline (the React library injected a page-wide
    stylesheet; this library adds none), and the occluder listens to the pointer only inside the nearest common ancestor
    of the metal element and its target (the React library listened on the whole document). `removeReflectionTarget`
-   takes the anchor, so one element cannot remove another's target. */
+   takes the anchor, so one element cannot remove another's target. The target's own inline `position` / `isolation`
+   are saved (value and priority) and restored exactly on removal, not cleared. */
 /** Proximity reflection — public API and per-frame paint loop. */
+
+import { restoreInline, setInline } from '../inlineStyle';
 import type { MetalFxInstance } from '../renderer/core';
 import {
   ATTACH_RANGE_PX,
@@ -351,17 +354,11 @@ export function addReflectionTarget(
   wrap.appendChild(canvas);
   wrap.appendChild(strokeCanvas);
 
+  // The target is the host's own element: what we change inline is saved first and put back as it was on removal.
   const cs = getComputedStyle(el);
-  let appliedPositionRelative = false;
-  if (cs.position === 'static') {
-    el.style.position = 'relative';
-    appliedPositionRelative = true;
-  }
-  let appliedIsolation = false;
-  if (cs.isolation !== 'isolate') {
-    el.style.isolation = 'isolate';
-    appliedIsolation = true;
-  }
+  const savedPosition = cs.position === 'static' ? setInline(el, 'position', 'relative') : null;
+  const savedIsolation = cs.isolation !== 'isolate' ? setInline(el, 'isolation', 'isolate') : null;
+  const hadHostAttr = el.hasAttribute('data-metal-fx-reflect-host');
   el.setAttribute('data-metal-fx-reflect-host', '');
   el.insertBefore(wrap, el.firstChild);
 
@@ -379,8 +376,9 @@ export function addReflectionTarget(
     cornerRadius: readCornerRadius(el),
     hairlineWidth: initialSpec.width,
     hairlineOuterCssPx: initialSpec.outerCssPx,
-    appliedPositionRelative,
-    appliedIsolation,
+    savedPosition,
+    savedIsolation,
+    hadHostAttr,
     resizeObserver: null,
     mutationObserver: null,
     scope: null,
@@ -402,9 +400,9 @@ export function removeReflectionTarget(el: HTMLElement, anchor?: MetalFxInstance
       if (target.wrap.parentNode === target.el) {
         target.el.removeChild(target.wrap);
       }
-      target.el.removeAttribute('data-metal-fx-reflect-host');
-      if (target.appliedPositionRelative) target.el.style.position = '';
-      if (target.appliedIsolation) target.el.style.isolation = '';
+      if (!target.hadHostAttr) target.el.removeAttribute('data-metal-fx-reflect-host');
+      restoreInline(target.el, target.savedPosition);
+      restoreInline(target.el, target.savedIsolation);
       targets.delete(target);
       listenForOccluder(target, false);
       return;

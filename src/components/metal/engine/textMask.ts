@@ -30,19 +30,22 @@ export function paintTextRun(
   const tr = range.getBoundingClientRect();
   range.detach();
   ctx.save();
-  ctx.scale(dpr, dpr);
-  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  const m = ctx.measureText(text);
-  const asc = m.fontBoundingBoxAscent ?? Number.parseFloat(cs.fontSize) * 0.9;
-  const desc = m.fontBoundingBoxDescent ?? Number.parseFloat(cs.fontSize) * 0.2;
-  // Rects are visual (after transforms); the canvas is in layout px — undo a transform's scale.
-  const k = root.offsetWidth > 0 && rr.width > 0 ? rr.width / root.offsetWidth : 1;
-  const x = (tr.left - rr.left) / k;
-  const baseline = (tr.top - rr.top + (tr.height - k * (asc + desc)) / 2) / k + asc;
-  ctx.fillText(text, x, baseline);
-  ctx.restore();
+  try {
+    ctx.scale(dpr, dpr);
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const m = ctx.measureText(text);
+    const asc = m.fontBoundingBoxAscent ?? Number.parseFloat(cs.fontSize) * 0.9;
+    const desc = m.fontBoundingBoxDescent ?? Number.parseFloat(cs.fontSize) * 0.2;
+    // Rects are visual (after transforms); the canvas is in layout px — undo a transform's scale.
+    const k = root.offsetWidth > 0 && rr.width > 0 ? rr.width / root.offsetWidth : 1;
+    const x = (tr.left - rr.left) / k;
+    const baseline = (tr.top - rr.top + (tr.height - k * (asc + desc)) / 2) / k + asc;
+    ctx.fillText(text, x, baseline);
+  } finally {
+    ctx.restore();
+  }
 }
 
 /** An element's layout size (transforms left out), or its bounding rect where there is no layout size. */

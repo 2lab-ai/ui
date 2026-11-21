@@ -10,7 +10,7 @@ import { INSTANCES, resetMetalFxSupport, SHARED } from './engine/renderer/core';
 import { sharedLoopRunning } from './engine/renderer/loop';
 import type { MetalData, UiMetal } from './metal';
 import './metal';
-import { IDLE_RELEASE_MS } from './engine/perfConfig';
+import { CONTEXT_RECOVERY_MS, IDLE_RELEASE_MS } from './engine/perfConfig';
 
 // ── Fakes ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -20,6 +20,8 @@ let clock = 0;
 let reduce = false;
 let dark = false;
 let compileOk = true;
+let glOk = true;
+let hidden = false;
 let media: Map<string, Set<() => void>>;
 const calls = { drawArrays: 0, loseContext: 0, readPixels: 0, uploads: 0 };
 
@@ -77,9 +79,9 @@ function fakeGl(): WebGL2RenderingContext {
   });
 }
 
-/** A 2D context that accepts every call; image data is sized from the arguments. */
+/** A 2D context that accepts every call; image data is sized from the arguments; save/restore depth is tracked. */
 function fake2d(): CanvasRenderingContext2D {
-  const store: Record<string, unknown> = {};
+  const store: Record<string, unknown> = { globalCompositeOperation: 'source-over', depth: 0 };
   const image = (w: number, h: number) => ({
     width: w,
     height: h,
@@ -91,6 +93,12 @@ function fake2d(): CanvasRenderingContext2D {
     createLinearGradient: () => ({ addColorStop() {} }),
     createRadialGradient: () => ({ addColorStop() {} }),
     measureText: () => ({ width: 10, fontBoundingBoxAscent: 10, fontBoundingBoxDescent: 3 }),
+    save: () => {
+      store.depth = (store.depth as number) + 1;
+    },
+    restore: () => {
+      store.depth = Math.max(0, (store.depth as number) - 1);
+    },
   };
   return new Proxy({} as CanvasRenderingContext2D, {
     get(_t, k: string) {
@@ -115,7 +123,7 @@ class FakeOffscreen {
     FakeOffscreen.all.push(this);
   }
   getContext(type: string) {
-    return type === 'webgl2' ? fakeGl() : null;
+    return type === 'webgl2' && glOk ? fakeGl() : null;
   }
   addEventListener(type: string, fn: (e: Event) => void) {
     this.listeners[type] ??= [];
@@ -180,6 +188,9 @@ beforeEach(() => {
   reduce = false;
   dark = false;
   compileOk = true;
+  glOk = true;
+  hidden = false;
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
   media = new Map();
   calls.drawArrays = 0;
   calls.loseContext = 0;
@@ -211,11 +222,18 @@ beforeEach(() => {
   vi.stubGlobal('Path2D', FakePath2D);
   vi.stubGlobal('IntersectionObserver', FakeIO);
   vi.stubGlobal('ResizeObserver', FakeRO);
+  const ctxs = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (
     this: HTMLCanvasElement,
     type: string,
   ) {
-    return (type === 'webgl2' ? fakeGl() : fake2d()) as never;
+    if (type === 'webgl2') return fakeGl() as never;
+    let c = ctxs.get(this);
+    if (!c) {
+      c = fake2d();
+      ctxs.set(this, c);
+    }
+    return c as never;
   } as never);
   vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -427,5 +445,106 @@ describe('<ui-metal> with WebGL2 (a fake context)', () => {
     // The shared loop keeps running for the flow; the bend's own loop stops once the spring has settled.
     step(200);
     expect(root(el).hasAttribute('data-mfx-bend')).toBe(false);
+  });
+
+  it('stops in a hidden tab and moves again when the tab comes back — also after the context was released', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await mount();
+    step(1);
+    hidden = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(sharedLoopRunning()).toBe(false);
+    hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(sharedLoopRunning()).toBe(true);
+    const drawn = calls.drawArrays;
+    step(2);
+    expect(calls.drawArrays).toBeGreaterThan(drawn);
+    // Hidden past the idle release: the context goes; back in view a new one is made and the ring moves again.
+    hidden = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+    vi.advanceTimersByTime(IDLE_RELEASE_MS);
+    expect(SHARED).toBeNull();
+    hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(SHARED).not.toBeNull();
+    expect(FakeOffscreen.all).toHaveLength(2);
+    expect(sharedLoopRunning()).toBe(true);
+    const again = calls.drawArrays;
+    step(2);
+    expect(calls.drawArrays).toBeGreaterThan(again);
+  });
+
+  it('re-makes a lost context the browser never restores, retrying while that fails', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const el = await mount();
+    step(1);
+    FakeOffscreen.all[0].fire('webglcontextlost');
+    await Promise.resolve();
+    el.renderNow();
+    expect(el.rendering).toBe('fallback');
+    // The first attempt fails (no context to be had yet): still the fallback, and another try later.
+    glOk = false;
+    vi.advanceTimersByTime(CONTEXT_RECOVERY_MS);
+    await Promise.resolve();
+    el.renderNow();
+    expect(el.rendering).toBe('fallback');
+    glOk = true;
+    vi.advanceTimersByTime(CONTEXT_RECOVERY_MS * 2);
+    await Promise.resolve();
+    el.renderNow();
+    expect(el.rendering).toBe('webgl');
+    expect(root(el).hasAttribute('data-fallback')).toBe(false);
+    expect(sharedLoopRunning()).toBe(true);
+    const drawn = calls.drawArrays;
+    step(2);
+    expect(calls.drawArrays).toBeGreaterThan(drawn);
+  });
+
+  it('a mask that throws leaves no state behind and does not stop the other elements', async () => {
+    const bad = await mount({
+      mask: () => {
+        throw new Error('host mask');
+      },
+    });
+    const good = await mount({ preset: 'gold' });
+    expect(() => step(3)).not.toThrow();
+    const ctx = bad.shadowRoot!.querySelector('canvas')!.getContext('2d') as unknown as {
+      depth: number;
+      globalCompositeOperation: string;
+    };
+    expect(ctx.depth).toBe(0);
+    expect(ctx.globalCompositeOperation).toBe('source-over');
+    expect(root(good).hasAttribute('data-ready')).toBe(true);
+    // Paused, it still counts as painted once: the loop idles instead of retrying every frame.
+    bad.pause();
+    good.pause();
+    bad.renderNow();
+    good.renderNow();
+    step(2);
+    expect(frames.size).toBe(0);
+  });
+
+  it('puts the target’s own inline styles and marks back exactly as they were', async () => {
+    const chip = document.createElement('div');
+    chip.style.setProperty('position', 'static', 'important');
+    chip.style.setProperty('isolation', 'auto');
+    chip.setAttribute('data-metal-fx-text', '');
+    document.body.append(chip);
+    const el = await mount({ theme: 'dark', reflectionTargets: [{ el: chip, glyphs: true }] });
+    expect(chip.style.getPropertyValue('position')).toBe('relative');
+    expect(chip.style.getPropertyValue('isolation')).toBe('isolate');
+    el.remove();
+    expect(chip.style.getPropertyValue('position')).toBe('static');
+    expect(chip.style.getPropertyPriority('position')).toBe('important');
+    expect(chip.style.getPropertyValue('isolation')).toBe('auto');
+    expect(chip.hasAttribute('data-metal-fx-text')).toBe(true);
+    expect(chip.hasAttribute('data-metal-fx-reflect-host')).toBe(false);
+    // A target with nothing inline gets nothing left behind.
+    const bare = document.createElement('div');
+    document.body.append(bare);
+    const again = await mount({ theme: 'dark', reflectionTargets: [bare] });
+    again.remove();
+    expect(bare.getAttribute('style') ?? '').toBe('');
   });
 });

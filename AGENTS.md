@@ -62,6 +62,13 @@ npm run consumer-check  # pack → install → NodeNext and node10 typecheck, ev
     long idle; a lost context or no WebGL 2 falls back to a CSS rendering (or nothing, for a pure flourish) — never an
     exception. happy-dom has no WebGL: tests cover the fallback, the pure helpers (engine maths exported) and the
     element's lifecycle; a real-browser check (Chromium) is the receipt for the picture.
+    One exception, by design: the metal elements (`ui-metal`, `ui-metal-text`, `ui-metal-badge`) share one WebGL2
+    context for the whole page (one offscreen canvas; each element copies its crop onto its own 2D canvas), so a page
+    full of metal costs one context, not one each (browsers cap them near 16). The contract holds per page instead of
+    per element: made by the first element that needs a frame, released with the last one (or after 10 s with nothing
+    to draw) and re-made on the next need; each element still stops its own frames (off screen, paused, reduced) and
+    draws its own preset. A lost context is rebuilt in place when the browser restores it, else released and re-made
+    after 2 s; meanwhile every metal element shows its CSS fallback. One element can never stop or re-theme another.
   - Reduced motion (`prefers-reduced-motion`, plus a `motion` attribute `'system' | 'reduce' | 'full'`): a still
     frame or a crossfade, no travel.
   - Engines ported from React keep their maths nearly verbatim under `src/components/<slug>/engine/`; React state and

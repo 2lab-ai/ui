@@ -52,6 +52,7 @@
  */
 
 import { hsvToRgb, rgbToHsv } from '../color';
+import { restoreInline, type SavedInline, setInline } from '../inlineStyle';
 import type { MetalFxInstance } from '../renderer/core';
 import { tickInstanceGlow } from '../renderer/loop';
 import { sampleShaderLumAt, sampleShaderPeakAt, sampleShaderRGBAt } from '../renderer/sampling';
@@ -551,9 +552,9 @@ let curShown = false;
  *  crosses elements, which is what WebKit shows as flicker), plus one
  *  element-level hide for elements that set their own `cursor: default`. */
 let rootHidden = false;
-let rootPrev = '';
+let rootPrev: SavedInline | null = null;
 let hiddenEl: HTMLElement | null = null;
-let hiddenPrev = '';
+let hiddenPrev: SavedInline | null = null;
 
 const TEXTY = /^(INPUT|TEXTAREA|SELECT)$/;
 /** Per-element verdicts (true = plain arrow, claimable) so a pointermove
@@ -627,22 +628,20 @@ function claimCursor(x: number, y: number, force = false): boolean {
   }
   if (!rootHidden) {
     const root = document.documentElement;
-    rootPrev = root.style.cursor;
-    root.style.cursor = 'none';
+    rootPrev = setInline(root, 'cursor', 'none');
     rootHidden = true;
   }
   // Elements that set `cursor: default` / `auto` themselves don't inherit the
   // root's `none`; hide on them directly (rare — chips, drag handles).
   if (target !== hiddenEl) {
     if (hiddenEl) {
-      hiddenEl.style.cursor = hiddenPrev;
+      restoreInline(hiddenEl, hiddenPrev);
       hiddenEl = null;
-      hiddenPrev = '';
+      hiddenPrev = null;
     }
     if (getComputedStyle(target).cursor !== 'none') {
       hiddenEl = target;
-      hiddenPrev = target.style.cursor;
-      target.style.cursor = 'none';
+      hiddenPrev = setInline(target, 'cursor', 'none');
     }
   }
   return true;
@@ -650,14 +649,14 @@ function claimCursor(x: number, y: number, force = false): boolean {
 
 function releaseCursor(): void {
   if (hiddenEl) {
-    if (hiddenEl.isConnected) hiddenEl.style.cursor = hiddenPrev;
+    if (hiddenEl.isConnected) restoreInline(hiddenEl, hiddenPrev);
     hiddenEl = null;
-    hiddenPrev = '';
+    hiddenPrev = null;
   }
   if (rootHidden) {
-    document.documentElement.style.cursor = rootPrev;
+    restoreInline(document.documentElement, rootPrev);
     rootHidden = false;
-    rootPrev = '';
+    rootPrev = null;
   }
   lastTarget = null;
   verdicts = new WeakMap();
