@@ -94,6 +94,9 @@ import { type TimelineData, timelineItems, timelineProgress, UiTimeline } from '
 import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
 import { tooltipDelay, UiTooltip } from '@2lab.ai/ui/tooltip';
+import { UiVoiceGlow } from '@2lab.ai/ui/voice-glow';
+import { UiVoicePosition } from '@2lab.ai/ui/voice-position';
+import { UiVoiceRing } from '@2lab.ai/ui/voice-ring';
 import { eventLanes, parseHm, UiWeekCalendar, type WeekCalendarData, weekDays } from '@2lab.ai/ui/week-calendar';
 import { normGroups, UiWorkLog, type WorkLogData, workMetaHtml } from '@2lab.ai/ui/work-log';
 import { UiWorking, type WorkingData, workingWords } from '@2lab.ai/ui/working';
@@ -276,6 +279,9 @@ const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
 // 0.44.0: the Libraries.dev effects.
+const voicePositionFx: HTMLElementTagNameMap['ui-voice-position'] = document.createElement('ui-voice-position');
+const voiceRingFx: HTMLElementTagNameMap['ui-voice-ring'] = document.createElement('ui-voice-ring');
+const voiceGlowFx: HTMLElementTagNameMap['ui-voice-glow'] = document.createElement('ui-voice-glow');
 const imageRevealFx: HTMLElementTagNameMap['ui-image-reveal'] = document.createElement('ui-image-reveal');
 const metalBadgeFx: HTMLElementTagNameMap['ui-metal-badge'] = document.createElement('ui-metal-badge');
 const metalTextFx: HTMLElementTagNameMap['ui-metal-text'] = document.createElement('ui-metal-text');
@@ -287,6 +293,9 @@ const thinkingOrbFx: HTMLElementTagNameMap['ui-thinking-orb'] = document.createE
 const borderBeamFx: HTMLElementTagNameMap['ui-border-beam'] = document.createElement('ui-border-beam');
 const distortionWaveFx: HTMLElementTagNameMap['ui-distortion-wave'] = document.createElement('ui-distortion-wave');
 const classes = [
+  UiVoicePosition,
+  UiVoiceRing,
+  UiVoiceGlow,
   UiImageReveal,
   UiMetalBadge,
   UiMetalText,
@@ -519,4 +528,7 @@ console.log(
   metalTextFx.tagName,
   metalBadgeFx.tagName,
   imageRevealFx.tagName,
+  voiceGlowFx.tagName,
+  voiceRingFx.tagName,
+  voicePositionFx.tagName,
 );

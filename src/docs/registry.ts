@@ -72,6 +72,9 @@ export const ORDER = [
   'metal-text',
   'metal-badge',
   'image-reveal',
+  'voice-glow',
+  'voice-ring',
+  'voice-position',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });
