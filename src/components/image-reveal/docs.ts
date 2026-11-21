@@ -373,6 +373,12 @@ export const doc: ComponentDoc = {
       type: 'attribute / data.label: string',
       description: 'The status text while loading, instead of “Generating image”.',
     },
+    {
+      name: 'reveal-ms',
+      type: 'attribute / data.revealMs: number (ms)',
+      description:
+        'How long the loader takes to become the picture, 120 … 10000, instead of the preset’s 3 s dissolve (and the 600 ms cross-fade without WebGL). A short one — 280 — suits a picture that was only downloading: <ui-artifact-viewer> uses it so a fast load is never slowed. The dissolve then draws at up to 60 fps.',
+    },
     { name: 'lang', type: '"en" | "ko"', default: '"en"', description: 'The built-in words in Korean.' },
     {
       name: '--image-reveal-radius / --image-reveal-bg',
@@ -393,10 +399,10 @@ export const doc: ComponentDoc = {
         'Where it is (loading · revealing · done · error), how the effect is drawn (webgl · still · css · none), whether the frame loop is scheduled, and the clamped options.',
     },
     {
-      name: 'parseCssColor · rankPalette · accentRamp · effectiveCellSize · mosaicGrid · revealGrid · computeCoverSourceRect · getMaskValue · ease · specializeEffect · revealTarget · revealAspect · revealStatusText',
-      type: 'helpers',
+      name: 'imageRevealTarget · imageRevealAspect · imageRevealStatusText · imageRevealPaletteColors · imageRevealIsColor · imageRevealRankPalette · imageRevealAccentRamp · imageRevealSamplePalette · imageRevealCellSize · imageRevealMosaicGrid · imageRevealCoverRect · imageRevealTiming · IMAGE_REVEAL_PRESETS',
+      type: 'helpers (package exports)',
       description:
-        'Pure, from the ported engine and the element: colour parsing and palette mapping, the mosaic and dissolve grids, the cover crop, the geometric masks, the easings, the per-effect shader cut, and the state machine’s decision.',
+        'Pure, from the element and the ported engine, each named with the element’s prefix: the state machine’s decision, the ratio, the status words, palette mapping (by name, by brightness rank, an accent ramp, from a picture), the mosaic grid and cell size, the cover crop, the reveal timing, and the presets.',
     },
   ],
   events: [
@@ -413,7 +419,8 @@ export const doc: ComponentDoc = {
     '“No preview” (미리보기 없음) when the picture fails or is missing: spoken by the status, drawn in the frame — never an endless loader.',
     'Every canvas is aria-hidden; the element is not focusable and has no keyboard path — controls (Regenerate) belong to the host.',
     'Reduced motion (or motion="reduce"): one still frame of the mosaic, and the picture cross-fades in; the CSS fallback stands still.',
-    'No idle cost: no frames off screen, in a hidden tab, while paused, or once the picture is in; one WebGL context per element, created when the loader is first drawn, released when the picture lands, on disconnect, and after 15 s off screen. A lost context or no WebGL 2 switches to the CSS mosaic — never an exception.',
+    'No idle cost: no frames off screen, in a hidden tab, while paused, or once the picture is in; one WebGL context per element, made only when its loader first runs on screen (twenty loaders down a page make none until scrolled to) and released when the picture lands, on disconnect, and after 15 s without a frame. No WebGL 2 switches to the CSS mosaic for good; a context the browser evicted, until the loader next comes back on screen — never an exception.',
+    'A picture never waits behind a frozen loader: pausing or scrolling away mid-reveal finishes the reveal at once (the status leaves aria-busy).',
     'Sound: none — it follows data, not a person’s action.',
   ],
   usage: `<ui-image-reveal id="art" alt="A lighthouse on a cliff at dusk" state="loading"></ui-image-reveal>

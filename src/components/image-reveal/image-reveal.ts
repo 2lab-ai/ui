@@ -69,11 +69,19 @@ export interface ImageRevealData {
   paused?: boolean;
   /** The status text while loading, instead of "Generating image". */
   label?: string;
+  /**
+   * How long the loader takes to become the picture, in ms (120 … 10000): the dissolve (and the cross-fade where
+   * there is no WebGL) instead of the preset's 3 s — e.g. 280 for a picture that was only being downloaded.
+   */
+  revealMs?: number;
 }
 
 /** What the element draws with now: `data` first, then the attributes, each validated and clamped. */
 export interface ImageRevealOptions {
+  /** The picture's URL, or '' when there is none — or when `src` was not a URL it may load (see srcInvalid). */
   src: string;
+  /** A `src` was given that is not a picture URL (javascript:, data:text/html …): "No preview". */
+  srcInvalid: boolean;
   alt: string;
   state: ImageRevealState;
   progress: number | null;
@@ -89,6 +97,8 @@ export interface ImageRevealOptions {
   motion: ImageRevealMotion;
   paused: boolean;
   label: string;
+  /** null: the preset's reveal (3 s) and a 600 ms cross-fade. */
+  revealMs: number | null;
 }
 
 export interface ImageRevealPhaseDetail {
@@ -199,23 +209,27 @@ export type RevealTarget = 'loading' | 'picture' | 'error';
  * The state machine's decision. `load` is the state of the picture `src` names; `regenerating` is true while `src`
  * is still the one `regenerate()` was asked for; `phase` is where the element is now (null before the first sync).
  *
- * - `state: error`, an unusable or empty `src` with `state: done`, or a picture that failed → error.
- * - `state: loading`, a regeneration in flight, or a picture not loaded yet → the loader — except `state: done`
- *   with nothing on screen yet, which waits for its picture without a loader (a thumbnail of past work).
+ * - `state: error`, a src that is not a picture URL, an empty `src` with `state: done`, or a picture that failed
+ *   → error.
+ * - `state: loading`, a regeneration in flight (unless `state: done`), or a picture not loaded yet → the loader —
+ *   except `state: done` with nothing on screen yet, which waits for its picture without a loader (past work).
  * - Otherwise → the picture.
  */
 export function revealTarget(input: {
   state: ImageRevealState;
   src: string;
+  /** A src was given that is not a picture URL. */
+  invalid?: boolean;
   load: 'none' | 'pending' | 'ok' | 'fail';
   regenerating: boolean;
   phase: ImageRevealPhase | null;
 }): RevealTarget {
-  const { state, src, load, regenerating, phase } = input;
-  if (state === 'error') return 'error';
+  const { state, src, invalid, load, regenerating, phase } = input;
+  if (state === 'error' || invalid) return 'error';
   if (!src) return state === 'done' ? 'error' : 'loading';
   if (load === 'fail') return 'error';
-  if (regenerating || state === 'loading') return 'loading';
+  // A regeneration holds the loader on the old src — unless the host says that picture is final after all.
+  if (state === 'loading' || (regenerating && state !== 'done')) return 'loading';
   if (load === 'ok') return 'picture';
   if (state === 'done' && phase !== 'loading' && phase !== 'revealing') return 'picture';
   return 'loading';
@@ -240,6 +254,9 @@ function context2d(c: HTMLCanvasElement | null): CanvasRenderingContext2D | null
   }
 }
 
+/** The browser has WebGL 2 at all (no context is made to find out). */
+const hasWebGl2 = (): boolean => typeof WebGL2RenderingContext !== 'undefined';
+
 /** Alpha of a computed colour string (1 when it carries none; 0 for `transparent`). */
 function alphaOf(color: string): number {
   const s = color.trim().toLowerCase();
@@ -259,7 +276,7 @@ function alphaOf(color: string): number {
  * Loading is `role="status"` with `aria-busy` and a label (en / ko); a picture that fails is "No preview", not an
  * endless loader. Without WebGL 2 (or on a lost context) the loader is a CSS mosaic and the picture fades in; under
  * reduced motion the mosaic is one still frame and the picture cross-fades. No frames off screen, in a hidden tab or
- * while paused; one context per element, created when the loader is first drawn.
+ * while paused; one context per element, made only once its loader runs on screen.
  *
  * Ported from Libraries.dev's `img-fx` 0.5.2 (MIT, © 2026 Jakub Antalik — https://libraries.dev/image); three.js and
  * React are gone: the engine runs on a raw WebGL 2 context.
@@ -282,6 +299,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
       'motion',
       'paused',
       'label',
+      'reveal-ms',
       'lang',
       'theme',
     ];
@@ -301,7 +319,14 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
   #shaderCanvas: HTMLCanvasElement | null = null;
   #overlayCanvas: HTMLCanvasElement | null = null;
   #render: ImageRevealRender = 'none';
+  /** No WebGL 2 here (or it failed): the CSS mosaic for good. */
   #glFailed = false;
+  /** The browser evicted the context: the CSS mosaic until the element next starts to run. */
+  #evicted = false;
+  /** What the last still frame showed (#stillKey), so an unchanged one is not drawn again. */
+  #stillDrawn = '';
+  /** Whether the element could run when last asked (on screen, a shown tab, not paused). */
+  #couldRun = false;
   // State.
   #opts: ImageRevealOptions | null = null;
   #phase: ImageRevealPhase | null = null;
@@ -346,7 +371,8 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    this.#visible = true;
+    // Off screen until the IntersectionObserver's first report says otherwise: no context for a loader below the fold.
+    this.#visible = typeof IntersectionObserver !== 'function';
     this.#surfaceStale = true;
     if (typeof IntersectionObserver === 'function') {
       this.#io = new IntersectionObserver((entries) => {
@@ -391,6 +417,8 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     this.#phase = null;
     this.#picture = null;
     this.#glFailed = false;
+    this.#evicted = false;
+    this.#couldRun = false;
     this.#img?.remove();
     this.#img = null;
     super.disconnectedCallback();
@@ -405,12 +433,15 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     const colors = Array.isArray(d.colors) ? d.colors.slice(0, 7).map((c) => (isCssColor(c) ? c.trim() : null)) : null;
     const cardBg = d.cardBg ?? a('card-bg');
     const pausedAttr = a('paused');
+    const revealRaw = d.revealMs ?? a('reveal-ms');
+    const revealMs = revealRaw == null || revealRaw === '' ? Number.NaN : num(revealRaw, 120, 10000, Number.NaN);
     const progress =
       progressRaw == null || (typeof progressRaw === 'string' && !progressRaw.trim())
         ? Number.NaN
         : num(progressRaw, 0, 1, Number.NaN);
     return {
       src: safeSrc(rawSrc) ? rawSrc : '',
+      srcInvalid: rawSrc !== '' && !safeSrc(rawSrc),
       alt: String(d.alt ?? a('alt') ?? '').trim(),
       state: pick(d.state ?? a('state'), ['auto', 'loading', 'done', 'error'] as const, 'auto'),
       progress: Number.isNaN(progress) ? null : progress,
@@ -425,6 +456,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
       motion: pick(a('motion'), ['system', 'reduce', 'full'] as const, 'system'),
       paused: d.paused ?? (pausedAttr !== null && pausedAttr !== 'false'),
       label: String(d.label ?? a('label') ?? '').trim(),
+      revealMs: Number.isNaN(revealMs) ? null : revealMs,
     };
   }
 
@@ -472,7 +504,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
 
   protected render(): string {
     const t = IMAGE_REVEAL_STRINGS[this.#lang];
-    return `<div class="ir" part="frame" data-phase="loading" data-render="none" aria-busy="true"><div class="ir-fallback" part="fallback" aria-hidden="true"></div><div class="ir-fx" aria-hidden="true"></div><div class="ir-empty" part="empty" aria-hidden="true">${icon('image', { size: 22 })}<span class="ir-empty-text">${esc(t.error)}</span></div><div class="ir-slot"><slot></slot></div><span class="sr-only ir-status" role="status"></span></div><span class="ir-probe" aria-hidden="true"></span>`;
+    return `<div class="ir" part="frame" data-phase="loading" data-render="none" aria-busy="true"><div class="ir-fallback" part="fallback" aria-hidden="true"></div><div class="ir-fx" aria-hidden="true"></div><div class="ir-empty" part="empty" aria-hidden="true">${icon('image', { size: 22 })}<span class="ir-empty-text">${esc(t.error)}</span></div><div class="ir-slot"><slot></slot></div></div><span class="sr-only ir-status" role="status"></span><span class="ir-probe" aria-hidden="true"></span>`;
   }
 
   /** The skeleton is drawn once and kept: later renders patch it, never replace it (the canvases live in it). */
@@ -505,6 +537,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     if (this.#surfaceStale) this.#readSurface();
     this.#sync();
     this.#syncParams();
+    this.#onRunnable();
     this.updated();
   }
 
@@ -526,6 +559,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     f.style.setProperty('--ir-scale', String(o.pixelScale));
     f.style.setProperty('--ir-strength', String(clamp(o.strength, 0, 1)));
     f.style.setProperty('--ir-speed', String(o.speed));
+    f.style.setProperty('--ir-fade', `${this.#fadeMs(o)}ms`);
     f.toggleAttribute('data-paused', o.paused);
     f.toggleAttribute('data-reduced', this.#reduced);
     if (this.#w === 0 && this.#h === 0 && !this.#ro) {
@@ -592,13 +626,10 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     inst.strength = o.strength;
     inst.speedMul = o.speed;
     inst.pixelScale = o.pixelScale;
+    inst.revealSeconds = o.revealMs == null ? null : o.revealMs / 1000;
     inst.uniformsDirty = true;
     if (this.#gl) this.#gl.lastInstance = null;
     if (this.#render === 'still') this.#queueStill();
-    else if (this.#render === 'webgl') {
-      if (o.paused && this.#raf) this.#stop();
-      this.#start();
-    }
   }
 
   #resize(w: number, h: number): void {
@@ -665,6 +696,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     const target = revealTarget({
       state: o.state,
       src: o.src,
+      invalid: o.srcInvalid,
       load: this.#loadState,
       regenerating,
       phase: this.#phase,
@@ -723,6 +755,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     }
     this.#clearFade();
     const pic = this.#picture;
+    this.#evicted = false;
     this.#setPhase('loading');
     if ((prev === 'done' || prev === 'revealing') && pic?.img && this.#wantsGl() && this.#canAnimate()) {
       this.#ensureEffect();
@@ -807,7 +840,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     this.#fadeTimer = setTimeout(() => {
       this.#fadeTimer = null;
       this.#settle(src);
-    }, IMAGE_REVEAL_FADE_MS);
+    }, this.#fadeMs());
   }
 
   /** The reveal finished: the `<img>` takes over (once decoded, so nothing flashes) and the effect is released. */
@@ -889,14 +922,20 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
   // ── The effect ─────────────────────────────────────────────────────────────
 
   #wantsGl(): boolean {
-    return !this.#glFailed && !this.#reduced;
+    return !this.#glFailed && !this.#reduced && hasWebGl2();
   }
 
-  /** The loader is drawn: WebGL (a loop, or a still frame under reduced motion), else the CSS mosaic. */
+  /**
+   * The loader is drawn: WebGL (a loop, or a still frame under reduced motion), else the CSS mosaic. The canvases
+   * go in now; the WebGL context only once the element can run (on screen, a shown tab, not paused) — twenty
+   * loaders down a page are twenty canvases, not twenty contexts.
+   */
   #ensureEffect(): void {
-    const want: ImageRevealRender = this.#glFailed ? 'css' : this.#reduced ? 'still' : 'webgl';
+    // A browser without WebGL 2 at all is known at once; one whose GPU refuses it is found on the first frame.
+    if (!hasWebGl2()) this.#glFailed = true;
+    const want: ImageRevealRender = this.#glFailed || this.#evicted ? 'css' : this.#reduced ? 'still' : 'webgl';
     if (want === 'css') {
-      this.#fallback();
+      this.#fallback(!this.#evicted);
       return;
     }
     if (!this.#inst && !this.#createInstance()) {
@@ -904,17 +943,16 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
       return;
     }
     if (want === 'webgl') {
-      if (!this.#gl) this.#gl = createRenderer(this.#onLost);
-      if (!this.#gl) {
-        this.#fallback();
-        return;
+      if (this.#render !== 'webgl') {
+        this.#setRender('webgl');
+        this.#syncParams();
       }
-      this.#setRender('webgl');
-      this.#syncParams();
       this.#paintNow();
       this.#start();
       return;
     }
+    // Reduced motion: drawn once; a change that alters the picture repaints it through #queueStill.
+    if (this.#render === 'still') return;
     this.#stop();
     if (this.#gl) {
       destroyRenderer(this.#gl);
@@ -965,9 +1003,13 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     if (this.#frame) this.#frame.dataset.render = r;
   }
 
-  /** No WebGL 2, a lost context, or a failure in it: the CSS mosaic. A reveal in flight becomes a cross-fade. */
-  #fallback(): void {
-    this.#glFailed = true;
+  /**
+   * The CSS mosaic. `permanent`: no WebGL 2 or a failure in it — for good. Otherwise (the browser evicted the
+   * context for a newer one) only until the element next starts to run. A reveal in flight becomes a cross-fade.
+   */
+  #fallback(permanent = true): void {
+    if (permanent) this.#glFailed = true;
+    else this.#evicted = true;
     const revealing = this.#phase === 'revealing' && this.#picture?.img;
     this.#teardownEffect();
     if (this.#phase === 'loading' || this.#phase === 'revealing') this.#setRender('css');
@@ -977,14 +1019,14 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
       this.#fadeTimer = setTimeout(() => {
         this.#fadeTimer = null;
         this.#settle(src);
-      }, IMAGE_REVEAL_FADE_MS);
+      }, this.#fadeMs());
     }
   }
 
   #onLost = (): void => {
-    // The browser took the context: never throw, draw the CSS mosaic instead.
+    // The browser took the context (often for a newer one elsewhere): never throw, draw the CSS mosaic meanwhile.
     this.#gl = null;
-    this.#fallback();
+    this.#fallback(false);
   };
 
   /** Stop the loop, release the context and drop the canvases. */
@@ -995,6 +1037,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
       clearTimeout(this.#stillTimer);
       this.#stillTimer = null;
     }
+    this.#stillDrawn = '';
     if (this.#gl) {
       destroyRenderer(this.#gl);
       this.#gl = null;
@@ -1014,11 +1057,24 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     this.#setRender('none');
   }
 
+  /** The context, made now if there is none (the first frame, or after a release). False: no WebGL 2 here. */
+  #context(): SharedRenderer | null {
+    if (this.#gl) return this.#gl;
+    this.#gl = createRenderer(this.#onLost);
+    if (!this.#gl) {
+      this.#fallback();
+      return null;
+    }
+    if (this.#inst) this.#inst.uniformsDirty = true;
+    return this.#gl;
+  }
+
   /** Draw one frame now (after a resize or a state change), so nothing shows a blank canvas for a tick. */
   #paintNow(): void {
-    const gl = this.#gl;
     const inst = this.#inst;
-    if (!gl || !inst || this.#render !== 'webgl' || inst.cssWidth < 1 || inst.cssHeight < 1) return;
+    if (!inst || this.#render !== 'webgl' || inst.cssWidth < 1 || inst.cssHeight < 1 || !this.#canRun()) return;
+    const gl = this.#context();
+    if (!gl) return;
     try {
       paintInstance(gl, inst, performance.now());
     } catch {
@@ -1034,10 +1090,31 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     }, 120);
   }
 
-  /** Reduced motion: one frame through a short-lived context, released at once (the 2D canvas keeps it). */
+  /** What a still frame depends on: a progress tick or a label change does not repaint it. */
+  #stillKey(inst: Instance): string {
+    const p = inst.preset;
+    return [
+      inst.cssWidth,
+      inst.cssHeight,
+      inst.dpr,
+      p.effectIndex,
+      p.theme,
+      inst.cardBgOverride,
+      (inst.colorsOverride ?? []).join(','),
+      inst.strength,
+      inst.pixelScale,
+    ].join('|');
+  }
+
+  /**
+   * Reduced motion: one frame through a short-lived context, released at once (the 2D canvas keeps it) — and only
+   * when what it shows changed.
+   */
   #paintStill(): void {
     const inst = this.#inst;
     if (!inst || inst.cssWidth < 1 || inst.cssHeight < 1) return;
+    const key = this.#stillKey(inst);
+    if (key === this.#stillDrawn) return;
     const gl = createRenderer();
     if (!gl) {
       this.#fallback();
@@ -1053,6 +1130,7 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
       return;
     }
     destroyRenderer(gl);
+    this.#stillDrawn = key;
   }
 
   // ── The loop ───────────────────────────────────────────────────────────────
@@ -1070,13 +1148,23 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     return this.#render === 'webgl' && !this.#opts?.paused && this.#canAnimate();
   }
 
+  /**
+   * Run the loop if it can. If it cannot (off screen, a hidden tab, paused): stop, arm the idle release of the
+   * context, and finish a reveal in flight at once — a picture never waits behind a frozen loader.
+   */
   #start(): void {
-    if (this.#raf || !this.#canRun()) return;
-    this.#clearIdle();
-    const now = performance.now();
-    this.#lastTick = now;
-    this.#lastFrame = now;
-    this.#raf = requestAnimationFrame(this.#frameCb);
+    if (this.#canRun()) {
+      this.#clearIdle();
+      if (this.#raf) return;
+      const now = performance.now();
+      this.#lastTick = now;
+      this.#lastFrame = now;
+      this.#raf = requestAnimationFrame(this.#frameCb);
+      return;
+    }
+    this.#stop();
+    this.#armIdle();
+    if (this.#phase === 'revealing' && this.#render === 'webgl' && this.#picture) this.#settle(this.#picture.src);
   }
 
   #stop(): void {
@@ -1084,50 +1172,70 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
     this.#raf = 0;
   }
 
+  /** The context goes after IMAGE_REVEAL_IDLE_MS without a frame (the last frame stays drawn). */
+  #armIdle(): void {
+    if (!this.#gl || this.#idleTimer) return;
+    this.#idleTimer = setTimeout(() => {
+      this.#idleTimer = null;
+      if (this.#raf || !this.#gl) return;
+      destroyRenderer(this.#gl);
+      this.#gl = null;
+    }, IMAGE_REVEAL_IDLE_MS);
+  }
+
+  /** The cross-fade where there is no WebGL dissolve: `revealMs`, else IMAGE_REVEAL_FADE_MS. */
+  #fadeMs(o: ImageRevealOptions | null = this.#opts): number {
+    return o?.revealMs ?? IMAGE_REVEAL_FADE_MS;
+  }
+
+  /**
+   * The frame cap: the library's 10 fps, except during a reveal shortened below the preset's — a 280 ms dissolve at
+   * 10 fps would be three frames — which draws about a dozen frames (60 fps at most).
+   */
+  #interval(): number {
+    const ms = this.#opts?.revealMs;
+    if (ms == null || this.#phase !== 'revealing') return FRAME_INTERVAL_MS;
+    return Math.max(1000 / 60, Math.min(FRAME_INTERVAL_MS, ms / 12));
+  }
+
   #frameCb = (now: number): void => {
     this.#raf = 0;
     if (!this.#canRun()) return;
     this.#raf = requestAnimationFrame(this.#frameCb);
     const elapsed = now - this.#lastFrame;
-    if (elapsed < FRAME_INTERVAL_MS) return;
-    this.#lastFrame = now - (elapsed % FRAME_INTERVAL_MS);
+    const interval = this.#interval();
+    if (elapsed < interval) return;
+    this.#lastFrame = now - (elapsed % interval);
     const delta = Math.min(0.25, Math.max(0, (now - this.#lastTick) / 1000));
     this.#lastTick = now;
     const inst = this.#inst;
     if (!inst) return;
     inst.accumulatedTime += delta * inst.speedMul;
-    if (!this.#gl) {
-      // Released after a long idle: a fresh context picks up where the frame left off.
-      this.#gl = createRenderer(this.#onLost);
-      if (!this.#gl) {
-        this.#fallback();
-        return;
-      }
-      inst.uniformsDirty = true;
-    }
     if (inst.cssWidth < 1 || inst.cssHeight < 1) return;
+    // The context is made here, on the first frame that runs (and again after an idle release).
+    const gl = this.#context();
+    if (!gl) return;
     try {
-      paintInstance(this.#gl, inst, now);
+      paintInstance(gl, inst, now);
     } catch {
       this.#fallback();
     }
   };
 
-  /** Visibility, tab or pause changed: run if it can, else stop — and release the context after a long idle. */
+  /**
+   * Visibility, tab or pause changed. Coming back after an evicted context retries WebGL; then run if it can, else
+   * stop (see #start).
+   */
   #onRunnable(): void {
-    if (this.#canRun()) {
-      this.#start();
+    const can = this.#canAnimate() && !this.#opts?.paused;
+    const back = can && !this.#couldRun;
+    this.#couldRun = can;
+    if (back && this.#evicted && (this.#phase === 'loading' || this.#phase === 'revealing')) {
+      this.#evicted = false;
+      this.#ensureEffect();
       return;
     }
-    this.#stop();
-    if (this.#gl && !this.#idleTimer && this.#render === 'webgl') {
-      this.#idleTimer = setTimeout(() => {
-        this.#idleTimer = null;
-        if (this.#raf || !this.#gl) return;
-        destroyRenderer(this.#gl);
-        this.#gl = null;
-      }, IMAGE_REVEAL_IDLE_MS);
-    }
+    if (this.#render === 'webgl') this.#start();
   }
 
   #clearIdle(): void {

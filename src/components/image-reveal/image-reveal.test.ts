@@ -21,7 +21,7 @@ import {
   mosaicGrid,
   writeInstanceUniforms,
 } from './engine/renderer';
-import { computeCoverSourceRect, flickerHash, getMaskValue, revealGrid } from './engine/reveal';
+import { computeCoverSourceRect, flickerHash, getMaskValue, revealGrid, revealTiming } from './engine/reveal';
 import { FRAG_BODY, fragmentSource, specializeEffect } from './engine/shaders';
 import { EASING_FNS, ease } from './engine/tween';
 import {
@@ -73,11 +73,15 @@ class FakeRO {
 
 class FakeIO {
   static all: FakeIO[] = [];
+  /** Like the real one, the observer reports at once — on screen, unless a test says the page starts scrolled away. */
+  static startVisible = true;
   disconnected = false;
   constructor(readonly cb: IntersectionObserverCallback) {
     FakeIO.all.push(this);
   }
-  observe() {}
+  observe() {
+    this.fire(FakeIO.startVisible);
+  }
   unobserve() {}
   takeRecords() {
     return [];
@@ -223,6 +227,7 @@ beforeEach(() => {
   glContexts = [];
   FakeRO.all = [];
   FakeIO.all = [];
+  FakeIO.startVisible = true;
   FakeMO.all = [];
   FakeImage.all = new Map();
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -402,6 +407,32 @@ describe('presets and colours', () => {
     expect(revealPaletteColors(mode, 'accent', '')?.some((c) => c)).toBe(true);
   });
 
+  it('a tainted read drops the scratch canvas: the next picture samples on a fresh one', () => {
+    const made: HTMLCanvasElement[] = [];
+    let taint = true;
+    const pixels = new Uint8ClampedArray(24 * 24 * 4).fill(200);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
+      made.push(this);
+      const c = fake2d(this);
+      (c as unknown as { getImageData: () => { data: Uint8ClampedArray } }).getImageData = () => {
+        if (taint) throw new DOMException('tainted', 'SecurityError');
+        return { data: pixels };
+      };
+      return c;
+    } as unknown as HTMLCanvasElement['getContext']);
+    const src = document.createElement('canvas');
+    src.width = 8;
+    src.height = 8;
+    expect(samplePaletteFromCanvas(src, ['#000', '#fff'])).toBeNull();
+    const before = made.length;
+    taint = false;
+    expect(samplePaletteFromCanvas(src, ['#000', '#fff'])).not.toBeNull();
+    expect(made.length).toBe(before + 1);
+    // Leave the module's scratch canvas dropped again, for the tests after this one.
+    taint = true;
+    expect(samplePaletteFromCanvas(src, ['#000', '#fff'])).toBeNull();
+  });
+
   it('samples a picture palette by luminance rank (and gives up on a tainted or empty source)', () => {
     const presetColors = ['#000000', '#ffffff', '#808080'];
     const canvas = document.createElement('canvas');
@@ -484,6 +515,16 @@ describe('renderer maths', () => {
     expect(computeCoverSourceRect({ width: 200, height: 100 }, 100, 100)).toEqual({ sx: 50, sy: 0, sw: 100, sh: 100 });
     expect(computeCoverSourceRect({ width: 100, height: 200 }, 100, 100)).toEqual({ sx: 0, sy: 50, sw: 100, sh: 100 });
     expect(computeCoverSourceRect({ width: 160, height: 90 }, 320, 180)).toEqual({ sx: 0, sy: 0, sw: 160, sh: 90 });
+  });
+
+  it('revealTiming: the preset’s 3 s, or a shorter reveal with the pixel dissolve scaled in step', () => {
+    const mode = PRESETS['pixels-organic'].modes.dark;
+    expect(revealTiming(mode)).toEqual({ duration: 3, easingKey: 'easeOutCubic', pixDuration: 2.65 });
+    const quick = revealTiming(mode, 0.3);
+    expect(quick.duration).toBe(0.3);
+    expect(quick.pixDuration).toBeCloseTo(0.265, 6);
+    expect(revealTiming(mode, 0).duration).toBe(3);
+    expect(revealTiming(mode, 0.001).duration).toBe(0.05);
   });
 
   it('the geometric masks, and −1 for the shader-driven ones; the flicker hash is a stable [0, 1)', () => {
@@ -579,6 +620,8 @@ describe('element helpers', () => {
     expect(t({ src: '' })).toBe('loading');
     expect(t({ src: '', state: 'done' })).toBe('error');
     expect(t({ state: 'loading' })).toBe('loading');
+    expect(t({ src: '', invalid: true })).toBe('error');
+    expect(t({ regenerating: true, state: 'done' })).toBe('picture');
     expect(t({ regenerating: true })).toBe('loading');
     // done with nothing on screen waits for its picture without a loader; with the loader up, it keeps it.
     expect(t({ state: 'done', load: 'pending', phase: null })).toBe('picture');
@@ -590,6 +633,14 @@ describe('element helpers', () => {
 // ── The element ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 describe('<ui-image-reveal> without WebGL (happy-dom)', () => {
+  it('the status is not inside the aria-busy frame (a busy subtree holds its announcements back)', () => {
+    const el = mount({}, { progress: 0.4 });
+    const status = el.shadowRoot!.querySelector('[role="status"]')!;
+    expect(status.closest('[aria-busy]')).toBeNull();
+    expect(frameOf(el).getAttribute('aria-busy')).toBe('true');
+    expect(status.textContent).toBe('Generating image, 40%');
+  });
+
   it('renders the loader: a status that is busy, the CSS mosaic, no canvas', () => {
     const el = mount();
     const f = frameOf(el);
@@ -666,7 +717,11 @@ describe('<ui-image-reveal> without WebGL (happy-dom)', () => {
     expect(mount({ state: 'done' }).phase).toBe('error');
     const bad = mount({ src: 'javascript:alert(1)' });
     expect(bad.options.src).toBe('');
-    expect(bad.phase).toBe('loading');
+    expect(bad.options.srcInvalid).toBe(true);
+    // A src that is not a picture URL is "No preview", not an endless loader.
+    expect(bad.phase).toBe('error');
+    expect(statusOf(bad)).toBe('No preview');
+    expect(mount({ src: '  ' }).phase).toBe('loading');
     expect(mount({ state: 'done', src: 'data:text/html,<b>x</b>' }).phase).toBe('error');
     expect(FakeImage.all.size).toBe(1);
   });
@@ -764,6 +819,22 @@ describe('<ui-image-reveal> without WebGL (happy-dom)', () => {
     expect(frameOf(el).style.getPropertyValue('--ir-bg')).toBe('#123456');
   });
 
+  it('reveal-ms shortens the cross-fade (clamped 120 … 10000; unset is the preset’s)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    expect(mount().options.revealMs).toBeNull();
+    expect(mount({ 'reveal-ms': '5' }).options.revealMs).toBe(120);
+    expect(mount({ 'reveal-ms': 'soon' }).options.revealMs).toBeNull();
+    const src = pic();
+    const el = mount({ 'reveal-ms': '250' }, { src, alt: 'x' });
+    expect(frameOf(el).style.getPropertyValue('--ir-fade')).toBe('250ms');
+    FakeImage.all.get(src)!.ok();
+    await flush();
+    expect(el.phase).toBe('revealing');
+    vi.advanceTimersByTime(260);
+    await flush();
+    expect(el.phase).toBe('done');
+  });
+
   it('regenerate() is false with no picture on screen', () => {
     expect(mount().regenerate()).toBe(false);
   });
@@ -772,6 +843,7 @@ describe('<ui-image-reveal> without WebGL (happy-dom)', () => {
 describe('<ui-image-reveal> with WebGL 2 (a fake context)', () => {
   beforeEach(() => {
     glMode = 'ok';
+    vi.stubGlobal('WebGL2RenderingContext', class {});
   });
 
   it('creates one context when the loader is first drawn and runs its frame loop', () => {
@@ -865,6 +937,79 @@ describe('<ui-image-reveal> with WebGL 2 (a fake context)', () => {
     expect(el.running).toBe(true);
   });
 
+  it('no context for a loader that has not run: twenty below the fold make none, the one scrolled to makes one', () => {
+    FakeIO.startVisible = false;
+    const els = Array.from({ length: 20 }, () => sized());
+    advance(500);
+    expect(glContexts).toHaveLength(0);
+    expect(els.every((e) => e.rendering === 'webgl' && !e.running)).toBe(true);
+    expect(canvasesOf(els[0])).toBe(2);
+    FakeIO.all[3].fire(true);
+    expect(els[3].running).toBe(true);
+    advance(220);
+    expect(glContexts).toHaveLength(1);
+    expect(glContexts[0].draws).toBeGreaterThan(0);
+  });
+
+  it('updates while off screen keep the idle release armed', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const el = sized();
+    advance(220);
+    const g = glContexts[0];
+    io().fire(false);
+    for (let i = 1; i <= 5; i++) {
+      el.data = { progress: i / 10 };
+      el.renderNow();
+      vi.advanceTimersByTime(IMAGE_REVEAL_IDLE_MS / 4);
+    }
+    expect(g.lost).toBe(1);
+    expect(glContexts).toHaveLength(1);
+    expect(el.running).toBe(false);
+  });
+
+  it('an evicted context falls back to CSS only until the element runs again; a broken one stays CSS', () => {
+    const el = sized();
+    advance(220);
+    glContexts[0].canvas.dispatchEvent(new Event('webglcontextlost'));
+    expect(el.rendering).toBe('css');
+    // A progress tick does not grab a new context straight back (that would evict another loader's).
+    el.data = { progress: 0.5 };
+    el.renderNow();
+    expect(el.rendering).toBe('css');
+    io().fire(false);
+    io().fire(true);
+    expect(el.rendering).toBe('webgl');
+    advance(220);
+    expect(glContexts).toHaveLength(2);
+    expect(el.running).toBe(true);
+    glMode = 'broken';
+    glContexts[1].canvas.dispatchEvent(new Event('webglcontextlost'));
+    io().fire(false);
+    io().fire(true);
+    advance(220);
+    expect(el.rendering).toBe('css');
+  });
+
+  it('reduced motion: a progress tick does not build a context; a change to the picture repaints once', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    reduce = true;
+    const el = sized();
+    const made = glContexts.length;
+    expect(made).toBe(1);
+    for (let i = 1; i <= 10; i++) {
+      el.data = { progress: i / 10 };
+      el.renderNow();
+      vi.advanceTimersByTime(100);
+    }
+    vi.advanceTimersByTime(500);
+    expect(glContexts).toHaveLength(made);
+    el.data = { progress: 1, palette: 'ember' };
+    el.renderNow();
+    vi.advanceTimersByTime(200);
+    expect(glContexts).toHaveLength(made + 1);
+    expect(glContexts.every((g) => g.lost === 1)).toBe(true);
+  });
+
   it('reduced motion: one still frame through a context released at once, no loop', () => {
     reduce = true;
     const el = sized();
@@ -926,6 +1071,46 @@ describe('<ui-image-reveal> with WebGL 2 (a fake context)', () => {
     expect(statusOf(el)).toBe('Image ready');
   });
 
+  it('after regenerate(), state "done" with the same src brings that picture back', async () => {
+    const src = pic();
+    const el = sized({}, { src, alt: 'one' });
+    FakeImage.all.get(src)!.ok();
+    await flush();
+    advance(3400);
+    await flush();
+    expect(el.regenerate()).toBe(true);
+    el.renderNow();
+    expect(el.phase).toBe('loading');
+    el.data = { ...el.data, state: 'done' };
+    el.renderNow();
+    expect(el.phase).toBe('revealing');
+    advance(2600);
+    await flush();
+    expect(el.phase).toBe('done');
+    expect(imgOf(el)!.getAttribute('src')).toBe(src);
+  });
+
+  it('pausing, or leaving the screen, mid-reveal finishes the reveal: the picture never waits behind a frozen loader', async () => {
+    for (const how of ['pause', 'scroll'] as const) {
+      const src = pic();
+      const el = sized({}, { src, alt: how });
+      FakeImage.all.get(src)!.ok();
+      await flush();
+      advance(330);
+      expect(el.phase).toBe('revealing');
+      if (how === 'pause') {
+        el.setAttribute('paused', '');
+        el.renderNow();
+      } else io().fire(false);
+      await flush();
+      expect(el.phase).toBe('done');
+      expect(frameOf(el).getAttribute('aria-busy')).toBe('false');
+      expect(imgOf(el)!.hasAttribute('data-show')).toBe(true);
+      expect(canvasesOf(el)).toBe(0);
+      el.remove();
+    }
+  });
+
   it('regenerate() churns the picture until a new src dissolves in over it', async () => {
     const first = pic();
     const el = sized({}, { src: first, alt: 'one' });
@@ -957,6 +1142,23 @@ describe('<ui-image-reveal> with WebGL 2 (a fake context)', () => {
     expect(imgOf(el)!.alt).toBe('two');
     expect(imgOf(el)!.getAttribute('src')).toBe(next);
     expect(seen).toEqual(['loading', 'revealing', 'done']);
+  });
+
+  it('a short reveal-ms dissolves in that time, drawing faster than 10 fps', async () => {
+    const src = pic();
+    const el = sized({ 'reveal-ms': '300' }, { src, alt: 'quick' });
+    const g = glContexts[0];
+    FakeImage.all.get(src)!.ok();
+    await flush();
+    expect(el.phase).toBe('revealing');
+    const before = g.draws;
+    advance(150, 16);
+    // ~25 ms frames: several frames in 150 ms (the 10 fps cap would allow one).
+    expect(g.draws - before).toBeGreaterThanOrEqual(8);
+    advance(250, 16);
+    await flush();
+    expect(el.phase).toBe('done');
+    expect(g.lost).toBe(1);
   });
 
   it('a lost context falls back to the CSS mosaic, never an exception', () => {

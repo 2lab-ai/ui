@@ -44,7 +44,7 @@ export const styles = `
 .ir-shader, .ir-overlay { display: block; width: 100%; height: 100%; pointer-events: none; border-radius: inherit; }
 .ir-overlay { z-index: 2; }
 .ir-img { z-index: 3; display: block; object-fit: cover; opacity: 0; border-radius: inherit;
-  transition: opacity 600ms var(--ease-out); -webkit-user-drag: none; }
+  transition: opacity var(--ir-fade, 600ms) var(--ease-out); -webkit-user-drag: none; }
 .ir-img[data-show] { opacity: 1; }
 .ir-img[data-instant] { transition: none; }
 .ir[data-phase="done"] .ir-img { -webkit-user-select: auto; user-select: auto; }

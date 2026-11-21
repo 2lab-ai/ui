@@ -1,47 +1,18 @@
-export type { SampledPalette } from './engine/palette';
-export { samplePaletteFromCanvas } from './engine/palette';
-export type {
-  EasingKey,
-  MaskShape,
-  MosaicConfig,
-  PaletteName,
-  Preset,
-  PresetMode,
-  PresetName,
-  PresetTheme,
-  RevealConfig,
-} from './engine/presets';
+// The package root re-exports every component: every name here carries the element's prefix, so none collides with
+// another effect's engine (presets, palettes, colours, easings).
+export type { SampledPalette as ImageRevealSampledPalette } from './engine/palette';
+export { samplePaletteFromCanvas as imageRevealSamplePalette } from './engine/palette';
+export type { Preset as ImageRevealPresetConfig, PresetMode as ImageRevealPresetMode } from './engine/presets';
 export {
-  accentRamp,
-  colorLuminance,
-  mixRgb,
-  NAMED_PALETTES,
-  PALETTE_NAMES,
-  PIXEL_CHURN_PRESETS,
-  PIXELS_MECHANIC,
-  PIXELS_ORGANIC,
-  PRESET_NAMES,
-  PRESETS,
-  parseCssColor,
-  rankPalette,
-  SWEEP_GRADIENT,
-  toHex,
+  accentRamp as imageRevealAccentRamp,
+  NAMED_PALETTES as IMAGE_REVEAL_NAMED_PALETTES,
+  PALETTE_NAMES as IMAGE_REVEAL_PALETTE_NAMES,
+  PRESET_NAMES as IMAGE_REVEAL_PRESET_NAMES,
+  PRESETS as IMAGE_REVEAL_PRESETS,
+  rankPalette as imageRevealRankPalette,
 } from './engine/presets';
-export {
-  createUniforms,
-  effectiveCardBg,
-  effectiveCellSize,
-  effectivePaletteColor,
-  FRAME_INTERVAL_MS,
-  instancePixelSize,
-  MAX_CANVAS_DPR,
-  MAX_GL_DPR,
-  mosaicGrid,
-  REF_DIM,
-} from './engine/renderer';
-export { computeCoverSourceRect, flickerHash, getMaskValue, MASK_SIZE, revealGrid } from './engine/reveal';
-export { fragmentSource, specializeEffect } from './engine/shaders';
-export { EASING_FNS, ease } from './engine/tween';
+export { effectiveCellSize as imageRevealCellSize, mosaicGrid as imageRevealMosaicGrid } from './engine/renderer';
+export { computeCoverSourceRect as imageRevealCoverRect, revealTiming as imageRevealTiming } from './engine/reveal';
 export type {
   ImageRevealData,
   ImageRevealLang,
@@ -53,17 +24,17 @@ export type {
   ImageRevealPreset,
   ImageRevealRender,
   ImageRevealState,
-  RevealTarget,
+  RevealTarget as ImageRevealTarget,
 } from './image-reveal';
 export {
   IMAGE_REVEAL_FADE_MS,
   IMAGE_REVEAL_HIDE_MS,
   IMAGE_REVEAL_IDLE_MS,
   IMAGE_REVEAL_STRINGS,
-  isCssColor,
-  revealAspect,
-  revealPaletteColors,
-  revealStatusText,
-  revealTarget,
+  isCssColor as imageRevealIsColor,
+  revealAspect as imageRevealAspect,
+  revealPaletteColors as imageRevealPaletteColors,
+  revealStatusText as imageRevealStatusText,
+  revealTarget as imageRevealTarget,
   UiImageReveal,
 } from './image-reveal';

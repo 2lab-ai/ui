@@ -191,6 +191,8 @@ export interface Instance {
   speedMul: number;
   /** Pixel-cell size multiplier (2 = chunkier). */
   pixelScale: number;
+  /** Reveal length override in seconds (null: the preset's). The pixel dissolve scales with it. */
+  revealSeconds: number | null;
   uniformsDirty: boolean;
   reveal: RevealState | null;
   /** Per-instance clock (s), seeded at random so cards do not tick in lockstep. */
@@ -650,6 +652,7 @@ export function createInstance(opts: CreateInstanceOptions): Instance | null {
     strength: Math.max(0, Math.min(2, opts.strength ?? 1)),
     speedMul: opts.speed != null && opts.speed > 0 ? opts.speed : 1,
     pixelScale: opts.pixelScale != null && opts.pixelScale > 0 ? opts.pixelScale : 1,
+    revealSeconds: null,
     uniformsDirty: true,
     reveal: null,
     accumulatedTime: Math.random() * 1000,

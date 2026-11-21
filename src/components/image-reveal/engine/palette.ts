@@ -66,6 +66,8 @@ export function samplePaletteFromCanvas(
     ctx.drawImage(src, 0, 0, GRID, GRID);
     data = ctx.getImageData(0, 0, GRID, GRID).data;
   } catch {
+    // A cross-origin picture without CORS taints the scratch canvas for good: drop it, the next call makes a new one.
+    scratchCtx = null;
     return null;
   }
 

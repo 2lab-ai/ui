@@ -204,8 +204,21 @@ function getCoverBitmap(state: RevealInternals, slot: 'a' | 'b', img: HTMLImageE
   return cb.canvas;
 }
 
-function getActiveRevealTiming(p: PresetMode): { duration: number; easingKey: EasingKey } {
-  return { duration: Math.max(0.05, p.revealConfig.duration), easingKey: p.revealConfig.easing };
+/**
+ * The reveal's length, easing and pixel-dissolve length for an instance: the preset's, or — with `revealSeconds`
+ * set (a short settle, say) — that length, the dissolve scaled by the same factor so the two stay in step.
+ */
+export function revealTiming(
+  p: PresetMode,
+  revealSeconds: number | null = null,
+): { duration: number; easingKey: EasingKey; pixDuration: number } {
+  const base = Math.max(0.05, p.revealConfig.duration);
+  const duration = revealSeconds != null && revealSeconds > 0 ? Math.max(0.05, revealSeconds) : base;
+  return {
+    duration,
+    easingKey: p.revealConfig.easing,
+    pixDuration: Math.max(0.05, p.revealConfig.pixDuration * (duration / base)),
+  };
 }
 
 /** The geometric masks' value at row `r`, column `c` of a `size` grid (−1 for the shader-driven shapes). */
@@ -364,7 +377,7 @@ function paintMaskedFrame(state: RevealInternals, s: SharedRenderer, inst: Insta
   }
   ctx.clearRect(0, 0, targetW, targetH);
 
-  const { duration, easingKey } = getActiveRevealTiming(preset);
+  const { duration, easingKey } = revealTiming(preset, inst.revealSeconds);
   const elapsed = (performance.now() - state.revealStartMs) / 1000;
   const progress = Math.min(elapsed / duration, 1);
   const eased = ease(easingKey, progress);
@@ -580,7 +593,7 @@ function paintPixelMasked(
   const { gridX, gridY } = revealGrid(cellSize, inst.cssWidth, inst.cssHeight);
   const cellCount = gridX * gridY;
 
-  const pixDur = Math.max(0.05, preset.revealConfig.pixDuration);
+  const pixDur = revealTiming(preset, inst.revealSeconds).pixDuration;
   const fadeRaw = Math.max(0, Math.min(1, elapsed / pixDur));
   const fadeT = ease(preset.revealConfig.pixEasing, fadeRaw);
 
@@ -980,7 +993,7 @@ export function createReveal(opts: CreateRevealOptions): RevealState | null {
         ctx.canvas.style.filter = 'none';
         return;
       }
-      const { duration, easingKey } = getActiveRevealTiming(inst.preset);
+      const { duration, easingKey } = revealTiming(inst.preset, inst.revealSeconds);
       if (state.phase === 'reveal' && state.image) {
         const elapsed = (nowMs - state.revealStartMs) / 1000;
         const t = Math.min(elapsed / duration, 1);
