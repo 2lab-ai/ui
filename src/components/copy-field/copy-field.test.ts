@@ -701,9 +701,11 @@ describe('docs', () => {
       press(copyBtn(el));
       pressed++;
       const value = el.data!.value;
-      expect(line.textContent).toContain(el.data!.label!);
-      expect(line.textContent).not.toContain(value.slice(0, 8));
-      expect(line.textContent).not.toContain(String(value.length));
+      // The line opens with the clock (HH:MM:SS), whose digits can match a length: judge what follows it.
+      const said = String(line.textContent).replace(/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*/, '');
+      expect(said).toContain(el.data!.label!);
+      expect(said).not.toContain(value.slice(0, 8));
+      expect(said).not.toContain(String(value.length));
     }
     expect(pressed).toBe(2);
   });
