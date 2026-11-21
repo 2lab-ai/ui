@@ -177,6 +177,10 @@ img.cp-thumb { display: block; }
 .cp-rec-btn.is-done { background: var(--ib-text); color: var(--ib-card); }
 
 /* Drop zone: a calm wash over the card while files are dragged over it. */
+/* The voice glow while a note records: laid over the card (its border included), under the drop wash, never in the
+   way of a click. It wraps no content: its frame fills the box it is given. */
+.cp-glow { position: absolute; inset: -1px; z-index: 1; display: block; border-radius: inherit; pointer-events: none; }
+
 .cp-drop { position: absolute; inset: -1px; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 8px;
   border: 1.5px dashed var(--ib-muted); border-radius: 12px; background: color-mix(in srgb, var(--ib-pill) 88%, transparent);
   color: var(--ib-text); font-size: 13px; font-weight: 600; opacity: 0; visibility: hidden; pointer-events: none;

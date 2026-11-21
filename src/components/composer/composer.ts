@@ -6,6 +6,8 @@ import { morphInto } from '../../core/morph';
 import { placePopover, watchViewport } from '../../core/popover';
 import { icon } from '../../icons/icons';
 import { typedKey } from '../../sound/sound';
+import '../voice-glow/voice-glow';
+import type { UiVoiceGlow } from '../voice-glow/voice-glow';
 import {
   type ComposerData,
   type ComposerFilesDetail,
@@ -109,6 +111,11 @@ const SG_MAX_HEIGHT = 360;
 const sgRowId = (i: number): string => `cp-sg-${i}`;
 const plainKey = (e: KeyboardEvent): boolean => !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey;
 
+/** The card's corner radius (styles.ts `.cp-card`), for the glow laid over it. */
+const CARD_RADIUS = 12;
+/** A glow that never reports its fade-out (an off-screen or hidden tab stops its frames) is dropped after this. */
+const GLOW_LINGER_MS = 1500;
+
 /** Whole seconds, so the m:ss clock counts up instead of rounding ahead. */
 const floorSec = (ms: number): number => Math.floor(Math.max(0, ms) / 1000) * 1000;
 
@@ -166,6 +173,10 @@ export class UiComposer extends UiElement<ComposerData> {
   #modeShown: boolean | null = null;
   #modeFlipped = false;
   #rec: Rec | null = null;
+  /** The voice glow on the card while a note records, and while it fades out after (then removed). */
+  #glow: UiVoiceGlow | null = null;
+  #glowOut = false;
+  #glowTimer = 0;
   #recGen = 0;
   #recPending = false;
   #level = 0;
@@ -265,6 +276,10 @@ export class UiComposer extends UiElement<ComposerData> {
     this.#recPending = false;
     this.#sendAfterRec = false;
     if (this.#rec) this.#stopRecording(false);
+    // The glow goes with the recording, at once: no fade is left to wait for.
+    this.#dropGlow(false);
+    this.#glow?.remove();
+    this.#glow = null;
     this.#audio?.pause();
     this.#playing = -1;
     // Revoked, not dropped: a re-attached composer makes fresh URLs on its next render.
@@ -928,6 +943,8 @@ export class UiComposer extends UiElement<ComposerData> {
     }
     this.#rec = rec;
     this.#level = 0;
+    // A glow still fading from the last note comes back for this one.
+    this.#dropGlow(false);
     const a = this.#activeInside();
     // Focus that moved on to a control slotted into the row (slot "end") while the microphone was asked stays there.
     // Read from the root the composer lives in (a document, or a parent component's shadow root).
@@ -975,6 +992,45 @@ export class UiComposer extends UiElement<ComposerData> {
   }
 
   /**
+   * The voice glow over the card while a note records: `<ui-voice-glow>` (the chat-input type, the glow look) laid
+   * over the card, `listening` while recording, its level the meter's own (`() => this.#level`: no second
+   * microphone, no second AudioContext). Decorative — the recorder's label and timer say the state. After the note it
+   * fades out and is removed once it reports the fade done (or after GLOW_LINGER_MS, if it never runs a frame).
+   */
+  #glowMarkup(s: ComposerSettings): string {
+    if (!s.recordGlow || !(this.#rec || this.#glowOut)) return '';
+    const theme = this.getAttribute('theme');
+    const pinned = theme === 'dark' || theme === 'light' ? ` theme="${theme}"` : '';
+    return `<ui-voice-glow class="cp-glow" data-mk="glow" type="default" look="glow" decorative aria-hidden="true"${
+      this.#rec ? ' listening' : ''
+    }${pinned}></ui-voice-glow>`;
+  }
+
+  /** A glow node new to the tree: hand it the level and listen for its fade. */
+  #wireGlow(): void {
+    const g = this.$<UiVoiceGlow>('.cp-glow');
+    if (g === this.#glow) return;
+    this.#glow = g;
+    if (!g) return;
+    g.data = { type: 'default', look: 'glow', borderRadius: CARD_RADIUS, decorative: true, level: () => this.#level };
+    // Its events are the composer's business, not the page's.
+    g.addEventListener('ui-voice-activate', (e) => e.stopPropagation());
+    g.addEventListener('ui-voice-deactivate', (e) => {
+      e.stopPropagation();
+      if (!this.#rec) this.#dropGlow();
+    });
+  }
+
+  /** The fade is over (or the glow is no longer wanted): take it out of the tree. */
+  #dropGlow(paint = true): void {
+    clearTimeout(this.#glowTimer);
+    this.#glowTimer = 0;
+    if (!this.#glowOut) return;
+    this.#glowOut = false;
+    if (paint) this.#paint();
+  }
+
+  /**
    * Done (`keep`) files the recording as a voice note; Cancel discards it. Tracks stop and the analyser closes.
    * `e`: the user's press — Done taps subtly, Cancel closes subtly; a stop by a timer or by code is silent.
    */
@@ -992,6 +1048,12 @@ export class UiComposer extends UiElement<ComposerData> {
     }
     const inBar = !!this.#activeInside()?.closest('.cp-rec');
     this.#rec = null;
+    // The glow fades out (its `listening` goes with the next render) and is removed when it says it has faded.
+    if (this.#glow) {
+      this.#glowOut = true;
+      clearTimeout(this.#glowTimer);
+      this.#glowTimer = window.setTimeout(() => this.#dropGlow(), GLOW_LINGER_MS);
+    }
     rec.keep = keep;
     rec.stoppedAt = Date.now();
     clearInterval(rec.timer);
@@ -1281,6 +1343,7 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#observe();
       this.#autosize();
     }
+    this.#wireGlow();
     if (this.#scrollEnd) {
       this.#scrollEnd = false;
       const list = this.$('.cp-files');
@@ -1346,7 +1409,7 @@ export class UiComposer extends UiElement<ComposerData> {
       : '';
     return `<div class="cp" data-mk="cp"${s.disabled ? ' data-disabled' : ''}${s.busy ? ' data-busy' : ''}><div class="cp-card" data-mk="card" style="--cp-min:${s.minRows};--cp-max:${s.maxRows}"${
       this.#dragOn ? ' data-drag' : ''
-    }>${field}${files}${error}${progress}${row}${inputs}${drop}</div>${reason}</div>`;
+    }>${field}${files}${error}${progress}${row}${this.#glowMarkup(s)}${inputs}${drop}</div>${reason}</div>`;
   }
 
   #chip(e: Entry, s: ComposerSettings, t: ComposerStrings): string {
