@@ -62,6 +62,19 @@ const COMPONENTS = [
   'dot-grid',
   'timeline',
   'week-calendar',
+  'distortion-wave',
+  'border-beam',
+  'thinking-orb',
+  'bot-avatar',
+  'gooey',
+  'magnetic',
+  'metal',
+  'metal-text',
+  'metal-badge',
+  'image-reveal',
+  'voice-glow',
+  'voice-ring',
+  'voice-position',
 ];
 /**
  * `@2lab.ai/ui/server` is not here: vite.server.config.ts builds it (ESM + CommonJS, self-contained) into the same

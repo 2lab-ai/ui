@@ -62,6 +62,19 @@ export const ORDER = [
   'dot-grid',
   'timeline',
   'week-calendar',
+  'distortion-wave',
+  'border-beam',
+  'thinking-orb',
+  'bot-avatar',
+  'gooey',
+  'magnetic',
+  'metal',
+  'metal-text',
+  'metal-badge',
+  'image-reveal',
+  'voice-glow',
+  'voice-ring',
+  'voice-position',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });
