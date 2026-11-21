@@ -5,6 +5,7 @@ import { morphInto } from '../../core/morph';
 import { positionFixed, watchViewport } from '../../core/popover';
 import { icon } from '../../icons/icons';
 import '../dialog/dialog';
+import '../image-reveal/image-reveal';
 import {
   DIALOG_EXIT_MS,
   type DialogCloseDetail,
@@ -21,6 +22,7 @@ import {
   fileItemKindLabel,
   fileMeta,
 } from '../file-card/render';
+import type { ImageRevealPhaseDetail } from '../image-reveal/image-reveal';
 import {
   type ArtifactLayout,
   actionsHtml,
@@ -29,16 +31,20 @@ import {
   artifactLayout,
   extraActionsHtml,
   FIT_SIZE,
+  mediaSrc,
   PEEK_DELAY_MS,
   PEEK_GRACE_MS,
   PEEK_WARM_MS,
   peekHtml,
   stepIndex,
+  VIEWER_REVEAL_CAP_MS,
+  type ViewerReveal,
   type ViewerStrings,
   viewerActions,
   viewerBodyHtml,
   viewerBodyKind,
   viewerFit,
+  viewerFitBox,
   viewerStrings,
 } from './logic';
 import { styles } from './styles';
@@ -63,6 +69,11 @@ export interface ArtifactViewerData {
   download?: boolean;
   /** Show Open in new tab when the item has a url. Default true. */
   openInTab?: boolean;
+  /**
+   * A full image that has not decoded yet shows `<ui-image-reveal>`'s loader in its box and settles into it when it
+   * loads (≤ 400 ms); a cached one appears at once. Default true; false shows the plain `<img>`.
+   */
+  reveal?: boolean;
 }
 
 /** `ui-open` (cancelable): a tile was activated; the viewer opens at it unless the host prevents it. */
@@ -152,6 +163,10 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
   #pendingClosed = false;
   #unwatch: (() => void) | null = null;
   #ro: ResizeObserver | null = null;
+  /** The image reveal over a full image still on its way (see ViewerReveal), the url already decided, the cap. */
+  #reveal: ViewerReveal | null = null;
+  #revealSeen: string | null = null;
+  #revealCap: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     super();
@@ -177,6 +192,8 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     });
     // Neither bubbles: catch them on the way down. A strip that scrolls moves the tile out from under the peek.
     r.addEventListener('error', (e) => this.#onError(e), true);
+    r.addEventListener('load', (e) => this.#onPicLoad(e), true);
+    r.addEventListener('ui-phase-change', (e) => this.#onRevealPhase(e as CustomEvent<ImageRevealPhaseDetail>));
     r.addEventListener(
       'scroll',
       (e) => {
@@ -337,6 +354,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       this.#zoomed = false;
       this.#live = '';
       this.#pauseMedia();
+      this.#resetReveal();
     }
     this.#index = i;
     this.#shownId = id;
@@ -425,8 +443,9 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       meta ? `<span class="av-vmeta">${esc(meta)}</span>` : ''
     }</span></span>`;
     const live = `<span class="av-live" role="status" aria-live="polite">${esc(this.#live)}</span>`;
+    const reveal = this.#reveal;
     const stage = `<div class="av-stage" data-kind="${kind}" data-body="${body}"><slot name="preview">${
-      preview ? '' : viewerBodyHtml(item, { lang, now, broken: this.#broken, zoomed: this.#zoomed, acts })
+      preview ? '' : viewerBodyHtml(item, { lang, now, broken: this.#broken, zoomed: this.#zoomed, acts, reveal })
     }</slot></div>`;
     const nav =
       n > 1
@@ -480,6 +499,86 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     // A list the person picked from keeps its own selection: set it to the shown file (the attribute does not).
     const jump = this.#dialog.querySelector<HTMLSelectElement>('select.av-jump');
     if (jump && jump.selectedIndex !== i) jump.selectedIndex = i;
+    this.#checkReveal(item, body);
+  }
+
+  // ── image reveal (a full image on its way) ────────────────────────────────
+
+  /**
+   * After the body is drawn: a full image met for the first time that has not decoded (not in the cache) gets the
+   * image reveal's loader in its box — the body is drawn again with it, in the same task, so nothing flashes. A
+   * cached picture (complete, with a size) never gets one.
+   */
+  #checkReveal(item: FileItem, body: string): void {
+    if (body !== 'image' || this.data?.reveal === false) {
+      this.#dropReveal();
+      return;
+    }
+    const src = mediaSrc(item);
+    if (this.#reveal && this.#reveal.src !== src) this.#dropReveal();
+    if (this.#reveal || this.#revealSeen === src) return;
+    this.#revealSeen = src;
+    const pic = this.#dialog.querySelector<HTMLImageElement>('img.av-pic');
+    if (!pic?.getAttribute('src') || (pic.complete && pic.naturalWidth > 0)) return;
+    this.#reveal = { src, box: null };
+    this.#syncViewer();
+  }
+
+  /** The picture loaded: the loader settles into its fitted box, and never takes longer than the cap. */
+  #onPicLoad(e: Event): void {
+    const pic = e.target as HTMLImageElement | null;
+    const rv = this.#reveal;
+    if (!rv || rv.box || !pic?.classList?.contains('av-pic') || this.#index < 0) return;
+    const imgbox = pic.closest<HTMLElement>('.av-imgbox');
+    const box = this.#zoomed
+      ? null
+      : viewerFitBox(pic.naturalWidth, pic.naturalHeight, imgbox?.clientWidth ?? 0, imgbox?.clientHeight ?? 0);
+    // Zoomed, or no box to fit (not laid out): the picture, at once.
+    if (!box) {
+      this.#endReveal();
+      return;
+    }
+    rv.box = box;
+    this.#syncViewer();
+    clearTimeout(this.#revealCap);
+    this.#revealCap = setTimeout(() => this.#endReveal(), VIEWER_REVEAL_CAP_MS);
+  }
+
+  /** The image reveal's own phases stay inside the viewer; its picture in, the viewer's <img> takes over. */
+  #onRevealPhase(e: CustomEvent<ImageRevealPhaseDetail>): void {
+    const from = e.target as Element | null;
+    if (!from?.classList?.contains('av-reveal')) return;
+    e.stopPropagation();
+    const phase = e.detail?.phase;
+    if (phase !== 'done' && phase !== 'error') return;
+    const rv = this.#reveal;
+    const pic = this.#dialog.querySelector<HTMLImageElement>('img.av-pic');
+    // Hand over once the viewer's own <img> is decoded too, so the swap shows no empty frame.
+    const done = () => {
+      if (this.#reveal === rv) this.#endReveal();
+    };
+    if (pic && typeof pic.decode === 'function') pic.decode().then(done, done);
+    else done();
+  }
+
+  /** The loader goes and the picture shows (the body is drawn without it). */
+  #endReveal(): void {
+    clearTimeout(this.#revealCap);
+    if (!this.#reveal) return;
+    this.#reveal = null;
+    if (this.#index >= 0) this.#syncViewer();
+  }
+
+  /** Forget the loader (a page change, a close, a body that is no longer an image): nothing is drawn here. */
+  #dropReveal(): void {
+    clearTimeout(this.#revealCap);
+    this.#reveal = null;
+  }
+
+  /** A new file shown (or the viewer closing): the next picture is judged afresh. */
+  #resetReveal(): void {
+    this.#dropReveal();
+    this.#revealSeen = null;
   }
 
   /** Strip edges fade only on the side that has more to scroll to. */
@@ -512,6 +611,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
       this.#shownId = String(item.id);
       this.#zoomed = false;
       this.#live = '';
+      this.#resetReveal();
       this.notify<ArtifactViewDetail>('ui-before-view', { id: String(item.id), index: i });
     }
     this.#syncDialogAttrs();
@@ -541,6 +641,7 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     this.#zoomed = false;
     this.#live = `${fileDisplayName(item, this.#lang)} — ${i + 1} / ${items.length}`;
     this.#pauseMedia();
+    this.#resetReveal();
     this.notify<ArtifactViewDetail>('ui-before-view', { id: String(item.id), index: i });
     this.#syncViewer();
     const body = this.#dialog.querySelector('.av-body');
@@ -560,6 +661,9 @@ export class UiArtifactViewer extends UiElement<ArtifactViewerData> {
     this.#zoomed = false;
     this.#live = '';
     this.#pauseMedia();
+    // A loader in flight goes now (its context with it); the picture under it is not needed for the exit.
+    this.#resetReveal();
+    for (const r of Array.from(this.#dialog.querySelectorAll('ui-image-reveal'))) r.remove();
     clearTimeout(this.#emptyTimer);
     this.#emptyTimer = setTimeout(() => {
       if (this.#index < 0) this.#dialog.replaceChildren();

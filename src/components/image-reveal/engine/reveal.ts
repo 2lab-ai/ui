@@ -9,7 +9,8 @@
  * for three's `.value`); the dot-mode branches (unreachable — no bundled preset draws dots) are left out; the cover
  * crop takes no edge inset, so the final `<img>` (object-fit: cover) lands on the overlay's last frame pixel for
  * pixel; the image cache is bounded; `startHold` puts a picture straight into the held phase (the element brings
- * the effect back for a picture it already shows); a missing 2D context returns null instead of throwing.
+ * the effect back for a picture it already shows); a missing 2D context returns null instead of throwing; the live
+ * field is sampled at SAMPLE_RES instead of the full canvas size (the same field where the mask reads it).
  */
 import type { EasingKey, MaskShape, PresetMode } from './presets';
 import { parseCssColor } from './presets';
@@ -26,6 +27,18 @@ import { ease } from './tween';
 
 /** Side length of the square buffer the reveal mask is evaluated in (and the live shader field sampled into). */
 export const MASK_SIZE = 64;
+/**
+ * Longest side (px) the live shader field is drawn at for a sample. The library drew it at the full canvas size and
+ * shrank it to MASK_SIZE²; drawing it this small (same aspect, same CSS-px scale) gives the same field at the points
+ * the mask reads, for a few hundredths of the fragment work — the reveal and the boil stay cheap on any GPU.
+ */
+export const SAMPLE_RES = MASK_SIZE * 2;
+
+/** The size the field is sampled at for an `iw × ih` framebuffer: `[w, h, k]`, k the shrink factor (≥ 1). */
+export function sampleSize(iw: number, ih: number): [number, number, number] {
+  const k = Math.max(1, Math.max(iw, ih) / SAMPLE_RES);
+  return [Math.max(1, Math.round(iw / k)), Math.max(1, Math.round(ih / k)), k];
+}
 
 /** Source rect for a cover-fit draw of a `w × h` image into `targetW × targetH` (CSS object-fit: cover). */
 export function computeCoverSourceRect(
@@ -282,15 +295,22 @@ function sampleShaderField(
   scratchCtx: CanvasRenderingContext2D,
   maskSize: number,
 ): Uint8ClampedArray {
-  const origDotMode = s.uniforms.u_dotMode;
-  const origFillOpacity = s.uniforms.u_fillOpacity;
-  s.uniforms.u_dotMode = 0;
-  s.uniforms.u_fillOpacity = 0;
-  drawShader(s);
-
+  const u = s.uniforms;
+  const origDotMode = u.u_dotMode;
+  const origFillOpacity = u.u_fillOpacity;
+  const origRes: [number, number] = [u.u_resolution[0], u.u_resolution[1]];
+  const origDpr = u.u_dpr;
+  u.u_dotMode = 0;
+  u.u_fillOpacity = 0;
+  // The field at SAMPLE_RES: the same aspect, and u_dpr scaled with it so every CSS-px term (the vignette) holds.
   const iw = Math.max(1, Math.floor(inst.cssWidth * inst.dpr));
   const ih = Math.max(1, Math.floor(inst.cssHeight * inst.dpr));
-  const sy = Math.max(0, s.glCanvas.height - ih);
+  const [sw, sh, k] = sampleSize(iw, ih);
+  u.u_resolution[0] = sw;
+  u.u_resolution[1] = sh;
+  u.u_dpr = (origDpr || 1) / k;
+  drawShader(s);
+  const sy = Math.max(0, s.glCanvas.height - sh);
   // Two-stage copy: GL → small GPU-backed canvas, then that maskSize² canvas → the CPU-side scratch, so only the tiny
   // intermediate is read back.
   if (!state.sampleGpuCanvas) {
@@ -304,11 +324,14 @@ function sampleShaderField(
     gpuCanvas.height = maskSize;
   }
   gpuCtx.clearRect(0, 0, maskSize, maskSize);
-  gpuCtx.drawImage(s.glCanvas, 0, sy, iw, ih, 0, 0, maskSize, maskSize);
+  gpuCtx.drawImage(s.glCanvas, 0, sy, sw, sh, 0, 0, maskSize, maskSize);
   scratchCtx.clearRect(0, 0, maskSize, maskSize);
   scratchCtx.drawImage(gpuCanvas, 0, 0);
-  s.uniforms.u_dotMode = origDotMode;
-  s.uniforms.u_fillOpacity = origFillOpacity;
+  u.u_dotMode = origDotMode;
+  u.u_fillOpacity = origFillOpacity;
+  u.u_resolution[0] = origRes[0];
+  u.u_resolution[1] = origRes[1];
+  u.u_dpr = origDpr;
   state.sampleImgData = scratchCtx.getImageData(0, 0, maskSize, maskSize);
   state.sampleDataCache = state.sampleImgData.data;
   return state.sampleDataCache;

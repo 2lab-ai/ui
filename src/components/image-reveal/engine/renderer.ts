@@ -336,6 +336,33 @@ function getProgram(s: SharedRenderer, effect: number, pass: 0 | 1 | 2): Program
   return p;
 }
 
+/**
+ * Build the single-pass program the reveal's mask samples the raw field through, ahead of need — compiled, and drawn
+ * once into a 4 × 4 corner with the sampler's own state, since some drivers (ANGLE back-ends, SwiftShader) generate
+ * the code on a program's first draw. Without it the reveal's first frame pays for both: the worst moment, with the
+ * picture waiting. Called while the loader runs (the next frame redraws that corner); the uniforms are put back. A
+ * failure here is the reveal's to find (it falls back then). Never throws.
+ */
+export function warmRevealProgram(s: SharedRenderer): void {
+  if (s.contextLost) return;
+  const u = s.uniforms;
+  const keep = { dotMode: u.u_dotMode, fill: u.u_fillOpacity, w: u.u_resolution[0], h: u.u_resolution[1] };
+  try {
+    u.u_dotMode = 0;
+    u.u_fillOpacity = 0;
+    u.u_resolution[0] = 4;
+    u.u_resolution[1] = 4;
+    drawShader(s);
+  } catch {
+    // The reveal builds it again and falls back to a cross-fade if it fails.
+  } finally {
+    u.u_dotMode = keep.dotMode;
+    u.u_fillOpacity = keep.fill;
+    u.u_resolution[0] = keep.w;
+    u.u_resolution[1] = keep.h;
+  }
+}
+
 /** Upload the whole uniform block to `p` (every program shares the one block, as three's materials did). */
 function uploadUniforms(s: SharedRenderer, p: Program): void {
   const gl = s.gl;

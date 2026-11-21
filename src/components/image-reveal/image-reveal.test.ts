@@ -21,7 +21,15 @@ import {
   mosaicGrid,
   writeInstanceUniforms,
 } from './engine/renderer';
-import { computeCoverSourceRect, flickerHash, getMaskValue, revealGrid, revealTiming } from './engine/reveal';
+import {
+  computeCoverSourceRect,
+  flickerHash,
+  getMaskValue,
+  revealGrid,
+  revealTiming,
+  SAMPLE_RES,
+  sampleSize,
+} from './engine/reveal';
 import { FRAG_BODY, fragmentSource, specializeEffect } from './engine/shaders';
 import { EASING_FNS, ease } from './engine/tween';
 import {
@@ -517,6 +525,15 @@ describe('renderer maths', () => {
     expect(computeCoverSourceRect({ width: 160, height: 90 }, 320, 180)).toEqual({ sx: 0, sy: 0, sw: 160, sh: 90 });
   });
 
+  it('sampleSize: the field is sampled at ≤ SAMPLE_RES px on its long side, keeping the aspect', () => {
+    expect(sampleSize(100, 50)).toEqual([100, 50, 1]);
+    const [w, h, k] = sampleSize(1084, 722);
+    expect(Math.max(w, h)).toBe(SAMPLE_RES);
+    expect(w / h).toBeCloseTo(1084 / 722, 1);
+    expect(k).toBeCloseTo(1084 / SAMPLE_RES, 6);
+    expect(sampleSize(0, 0)).toEqual([1, 1, 1]);
+  });
+
   it('revealTiming: the preset’s 3 s, or a shorter reveal with the pixel dissolve scaled in step', () => {
     const mode = PRESETS['pixels-organic'].modes.dark;
     expect(revealTiming(mode)).toEqual({ duration: 3, easingKey: 'easeOutCubic', pixDuration: 2.65 });
@@ -860,6 +877,22 @@ describe('<ui-image-reveal> with WebGL 2 (a fake context)', () => {
     advance(550);
     expect(glContexts[0].draws).toBeGreaterThan(before);
     expect(glContexts).toHaveLength(1);
+  });
+
+  it('compiles the reveal’s sampling program while loading, once per context, before any picture arrives', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const el = sized();
+    advance(220);
+    const g = glContexts[0];
+    const before = g.compiles;
+    vi.advanceTimersByTime(100);
+    // Two more shaders (vertex + the single-pass fragment) for the reveal's mask sampling — and one draw with them.
+    expect(g.compiles).toBe(before + 2);
+    expect(g.draws).toBeGreaterThan(0);
+    advance(500);
+    vi.advanceTimersByTime(100);
+    expect(g.compiles).toBe(before + 2);
+    expect(el.phase).toBe('loading');
   });
 
   it('caps the frame rate at 10 fps', () => {

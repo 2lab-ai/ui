@@ -26,6 +26,7 @@ import {
   paintInstance,
   type SharedRenderer,
   updateInstanceSize,
+  warmRevealProgram,
 } from './engine/renderer';
 import { createReveal, loadImage, type RevealState } from './engine/reveal';
 import { styles } from './styles';
@@ -327,6 +328,9 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
   #stillDrawn = '';
   /** Whether the element could run when last asked (on screen, a shown tab, not paused). */
   #couldRun = false;
+  /** The context the reveal's sampling program was compiled on, ahead of the reveal (see #warm). */
+  #warmed: SharedRenderer | null = null;
+  #warmTimer: ReturnType<typeof setTimeout> | null = null;
   // State.
   #opts: ImageRevealOptions | null = null;
   #phase: ImageRevealPhase | null = null;
@@ -1033,6 +1037,9 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
   #teardownEffect(): void {
     this.#stop();
     this.#clearIdle();
+    if (this.#warmTimer) clearTimeout(this.#warmTimer);
+    this.#warmTimer = null;
+    this.#warmed = null;
     if (this.#stillTimer) {
       clearTimeout(this.#stillTimer);
       this.#stillTimer = null;
@@ -1219,8 +1226,24 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
       paintInstance(gl, inst, now);
     } catch {
       this.#fallback();
+      return;
     }
+    this.#warm(gl);
   };
+
+  /**
+   * While the loader runs, compile the program the reveal will sample with — once per context, a moment after the
+   * first frame — so the picture's arrival does not wait on a shader compile.
+   */
+  #warm(gl: SharedRenderer): void {
+    if (this.#warmed === gl || this.#warmTimer || this.#phase !== 'loading') return;
+    this.#warmTimer = setTimeout(() => {
+      this.#warmTimer = null;
+      if (this.#gl !== gl || this.#phase !== 'loading') return;
+      warmRevealProgram(gl);
+      this.#warmed = gl;
+    }, 60);
+  }
 
   /**
    * Visibility, tab or pause changed. Coming back after an evicted context retries WebGL; then run if it can, else
@@ -1251,6 +1274,8 @@ export class UiImageReveal extends UiElement<ImageRevealData> {
   #clearTimers(): void {
     this.#clearIdle();
     this.#clearFade();
+    if (this.#warmTimer) clearTimeout(this.#warmTimer);
+    this.#warmTimer = null;
     if (this.#stillTimer) clearTimeout(this.#stillTimer);
     this.#stillTimer = null;
   }
