@@ -11,6 +11,7 @@ import { styles } from './styles';
 
 export type {
   AuthAccount,
+  AuthBrandMetalPreset,
   AuthCardData,
   AuthConfirm,
   AuthConfirmDetail,
@@ -23,6 +24,7 @@ export type {
   AuthStrings,
 } from './markup';
 export {
+  authBrandMetal,
   authCardCss,
   authCardHtml,
   authCardMarkup,
@@ -36,12 +38,13 @@ export {
  * `<ui-auth-card>` — a centred card for the pages around an app: sign in with providers, the signed-in account
  * with continue / sign out, or confirm switching to another session. Attributes: `lang` (en | ko), `page` (fill the
  * viewport and centre on the page colour), `theme`. Slots: `brand`, `body`, default (under the card's content),
- * `fine-print`, `logo-<provider id>`.
+ * `fine-print`, `logo-<provider id>`. `brand.metal` draws the word as `<ui-metal-text>` — this module does not load
+ * it: the page imports `@2lab.ai/ui/metal-text` where it wants the metal (the card stays light everywhere else).
  */
 export class UiAuthCard extends UiElement<AuthCardData> {
   static override styles = [styles];
   static get observedAttributes(): string[] {
-    return ['lang'];
+    return ['lang', 'theme'];
   }
 
   #busy = false;
@@ -90,7 +93,7 @@ export class UiAuthCard extends UiElement<AuthCardData> {
 
   protected render(): string {
     this.#busy = false;
-    return authCardMarkup(this.data, this.getAttribute('lang'));
+    return authCardMarkup(this.data, this.getAttribute('lang'), this.getAttribute('theme'));
   }
 
   /**

@@ -2,6 +2,8 @@ import type { ComponentDoc } from '../../docs/types';
 import './auth-card';
 import type { AuthCardData, UiAuthCard } from './auth-card';
 import { authCardHtml } from './auth-card';
+// The metal wordmark demo: the page (here the docs) loads <ui-metal-text>; the card itself never imports it.
+import '../metal-text/metal-text';
 
 /** Provider logos stay the provider's own colours, so the host slots them (`slot="logo-<id>"`). */
 const LOGOS: Record<string, string> = {
@@ -70,9 +72,9 @@ export const doc: ComponentDoc = {
   props: [
     {
       name: 'data.brand',
-      type: '{ label: string; mark?: boolean | IconName; href?: string }',
+      type: '{ label: string; mark?: boolean | IconName; href?: string; metal?: boolean | { preset? } }',
       description:
-        'The product above the card: a word, a glyph tile (`true` = the library mark) and a link. Or use slot `brand`.',
+        'The product above the card: a word, a glyph tile (`true` = the library mark) and a link. Or use slot `brand`. `metal` draws the word as liquid metal through <ui-metal-text> (preset "chromatic" by default, or "silver" / "gold"; the card’s own theme attribute is pinned on it). The card does not load the metal: import @2lab.ai/ui/metal-text on that page — until it loads, and with JavaScript off, the word is plain text. Without WebGL2 it is a metallic gradient, under reduced motion a still frame.',
     },
     { name: 'data.title', type: 'string', description: 'The heading (an h1 — the page’s heading).' },
     {
@@ -164,6 +166,7 @@ export const doc: ComponentDoc = {
     'While a sign-in is on its way the pressed button is aria-busy with “Redirecting…”, the others aria-disabled.',
     'The two sessions are a list with “Signed in now” / “New session” before each name — never colour alone.',
     'Works without JavaScript when rendered with authCardHtml (declarative shadow DOM, real links and form). On upgrade the element keeps the server-drawn nodes and patches them (one entrance animation, not two); later renders patch in place too.',
+    'A metal wordmark (brand.metal) keeps the word as text in the page: it is still the brand’s, and the brand link’s, accessible name; the metal over it is aria-hidden.',
     'Korean prose (lang="ko") breaks between words, never inside them — the base sheet sets word-break: keep-all for every element.',
     'Sound (opt-in, @2lab.ai/ui/sound): a provider, the brand, Continue, Sign out and Cancel play navigate — also when the host cancels ui-provider / ui-navigate to take the sign-in or the route over; confirming a session switch plays tap once ui-confirm does. Silent until the page turns sound on.',
   ],
@@ -184,7 +187,11 @@ export const doc: ComponentDoc = {
 // (no DOM needed) and ships a CommonJS build: const { authCardHtml } = require('@2lab.ai/ui/server').
 import { authCardHtml, tokensCss } from '@2lab.ai/ui/server';
 res.send(\`<!doctype html><style>\${tokensCss}</style>\${authCardHtml(data, { page: true })}
-<script type="module" src="/ui/auth-card.js"></script>\`);`,
+<script type="module" src="/ui/auth-card.js"></script>\`);
+
+// A metal wordmark: brand.metal, and the page loads the metal text element (the card does not).
+card.data = { ...card.data, brand: { label: 'Workbench', mark: true, href: '/', metal: { preset: 'silver' } } };
+import '@2lab.ai/ui/metal-text';`,
   demos: [
     {
       id: 'sign-in',
@@ -269,6 +276,26 @@ res.send(\`<!doctype html><style>\${tokensCss}</style>\${authCardHtml(data, { pa
             ['google', 'microsoft'],
           ),
         ),
+    },
+    {
+      id: 'metal',
+      title: 'A metal wordmark',
+      description:
+        'brand.metal — the word above the card in liquid metal (<ui-metal-text>, silver here), server-rendered: the tag is in the markup and inert until the page loads @2lab.ai/ui/metal-text, so the word is plain text first and the brand link’s name throughout.',
+      height: 480,
+      frame: false,
+      create: () => {
+        const box = document.createElement('div');
+        box.innerHTML = authCardHtml({
+          brand: { label: 'soma-work', mark: true, href: '/', metal: { preset: 'silver' } },
+          title: 'Sign in',
+          text: 'Use the work account your team signs in with.',
+          providers: [{ id: 'sso', label: 'Continue with single sign-on', href: '/auth/sso', icon: 'user' }],
+        });
+        const el = box.firstElementChild as HTMLElement;
+        el.addEventListener('click', (e) => e.preventDefault());
+        return stage(el);
+      },
     },
     {
       id: 'server',

@@ -62,9 +62,21 @@ export interface AuthConfirm {
   cancelHref?: string;
 }
 
+/** The presets a metal wordmark may use (`<ui-metal-text>`'s own). */
+export type AuthBrandMetalPreset = 'chromatic' | 'silver' | 'gold';
+
 export interface AuthCardData {
-  /** The product above the card: a word, optionally a glyph tile (`true` = the library's mark) and a link. */
-  brand?: { label: string; mark?: boolean | IconName; href?: string };
+  /**
+   * The product above the card: a word, optionally a glyph tile (`true` = the library's mark) and a link. `metal`
+   * draws the word as liquid metal through `<ui-metal-text>` — the page loads `@2lab.ai/ui/metal-text` for it; until
+   * then (or without the script) the word is plain text.
+   */
+  brand?: {
+    label: string;
+    mark?: boolean | IconName;
+    href?: string;
+    metal?: boolean | { preset?: AuthBrandMetalPreset };
+  };
   /** The card's heading ("Sign in", "Switch accounts?"). */
   title?: string;
   /** One short paragraph under the heading. `code` in backticks is set in mono. */
@@ -148,6 +160,30 @@ export function authInitials(name: unknown): string {
   return letters.join('').toUpperCase() || '?';
 }
 
+/** `brand.metal` resolved: null when off, else the preset — only a known one reaches the markup (default chromatic). */
+export function authBrandMetal(metal: unknown): { preset: AuthBrandMetalPreset } | null {
+  if (!metal) return null;
+  const p = typeof metal === 'object' ? String((metal as { preset?: unknown }).preset ?? '') : '';
+  return { preset: p === 'silver' || p === 'gold' ? p : 'chromatic' };
+}
+
+/** A theme for markup: only `light` / `dark` are written; anything else is none. */
+function knownTheme(theme: unknown): '' | 'light' | 'dark' {
+  return theme === 'dark' || theme === 'light' ? theme : '';
+}
+
+/**
+ * The brand's words: plain, or — with `metal` — inside `<ui-metal-text>` (the card's own theme pinned on it, so a
+ * card pinned dark draws the dark tuning). The tag is inert until the page loads `@2lab.ai/ui/metal-text`: the words
+ * are its text either way, so they stay the brand's (and the link's) accessible name.
+ */
+function brandWords(brand: NonNullable<AuthCardData['brand']>, theme: unknown): string {
+  const metal = authBrandMetal(brand.metal);
+  if (!metal) return `<span>${esc(brand.label)}</span>`;
+  const th = knownTheme(theme);
+  return `<ui-metal-text class="ac-brand-metal" preset="${metal.preset}"${th ? ` theme="${th}"` : ''}>${esc(brand.label)}</ui-metal-text>`;
+}
+
 /** Plain text with `code` spans: everything escaped, backtick pairs become <code>. */
 export function authInline(text: unknown): string {
   return String(text ?? '')
@@ -204,8 +240,11 @@ function confirmHtml(c: AuthConfirm, t: AuthStrings): string {
   return `${sessions}<form class="ac-form" method="${method}" action="${safeLink(c.action)}">${fields}<div class="ac-actions">${cancel}<button type="submit" class="ac-btn is-primary" data-key="confirm"><span class="ac-label">${esc(label)}</span>${spinner(t.switching)}</button></div></form>`;
 }
 
-/** The card's markup (shared by the element and the server-side `authCardHtml`). */
-export function authCardMarkup(data: AuthCardData | undefined, lang: unknown = 'en'): string {
+/**
+ * The card's markup (shared by the element and the server-side `authCardHtml`). `theme` is the card's own `theme`
+ * attribute, if any — a metal wordmark is pinned to it.
+ */
+export function authCardMarkup(data: AuthCardData | undefined, lang: unknown = 'en', theme: unknown = ''): string {
   const d = data ?? {};
   const t = authStrings(lang);
   const brand = d.brand?.label
@@ -213,7 +252,7 @@ export function authCardMarkup(data: AuthCardData | undefined, lang: unknown = '
         const mark = d.brand.mark
           ? `<span class="ac-mark" aria-hidden="true">${icon(d.brand.mark === true ? 'brand' : d.brand.mark, { size: 16 })}</span>`
           : '';
-        const inner = `${mark}<span>${esc(d.brand.label)}</span>`;
+        const inner = `${mark}${brandWords(d.brand, theme)}`;
         return d.brand.href
           ? `<a class="ac-brand" href="${safeLink(d.brand.href)}" data-act="brand" data-key="brand">${inner}</a>`
           : `<span class="ac-brand">${inner}</span>`;
@@ -274,7 +313,7 @@ export function authCardHtml(
 ): string {
   const lang = opts.lang === 'ko' ? 'ko' : 'en';
   // Only the two known themes reach the markup: this string is written into a server-rendered page.
-  const theme = opts.theme === 'dark' || opts.theme === 'light' ? opts.theme : '';
+  const theme = knownTheme(opts.theme);
   const hostAttrs = `lang="${lang}"${opts.page ? ' page' : ''}${theme ? ` theme="${theme}"` : ''}`;
-  return `<ui-auth-card ${hostAttrs}><template shadowrootmode="open"><style>${authCardCss}</style><div part="root" class="ui-root">${authCardMarkup(data, lang)}</div></template><script type="application/json" data-auth-state>${authStateJson(data)}</script></ui-auth-card>`;
+  return `<ui-auth-card ${hostAttrs}><template shadowrootmode="open"><style>${authCardCss}</style><div part="root" class="ui-root">${authCardMarkup(data, lang, theme)}</div></template><script type="application/json" data-auth-state>${authStateJson(data)}</script></ui-auth-card>`;
 }

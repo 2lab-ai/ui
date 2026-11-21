@@ -6,6 +6,7 @@ import {
   type AuthConfirmDetail,
   type AuthNavigateDetail,
   type AuthProviderDetail,
+  authBrandMetal,
   authCardCss,
   authCardHtml,
   authCardMarkup,
@@ -421,6 +422,89 @@ describe('server-side markup', () => {
     el.renderNow();
     expect(el.data).toBeUndefined();
     expect(q(el, '.ac-card')).toBeTruthy();
+  });
+});
+
+describe('a metal wordmark (brand.metal)', () => {
+  const METAL: AuthCardData = { ...SIGN_IN, brand: { label: 'Workbench', mark: true, href: '/', metal: true } };
+
+  it('resolves the option: off, chromatic by default, a known preset only', () => {
+    expect(authBrandMetal(undefined)).toBeNull();
+    expect(authBrandMetal(false)).toBeNull();
+    expect(authBrandMetal(true)).toEqual({ preset: 'chromatic' });
+    expect(authBrandMetal({})).toEqual({ preset: 'chromatic' });
+    expect(authBrandMetal({ preset: 'gold' })).toEqual({ preset: 'gold' });
+    expect(authBrandMetal({ preset: '"><script>' as never })).toEqual({ preset: 'chromatic' });
+  });
+
+  it('without the option the words are a plain span — no metal tag', () => {
+    const html = authCardMarkup(SIGN_IN);
+    expect(html).not.toContain('ui-metal-text');
+    expect(html).toContain('<span>Workbench</span>');
+  });
+
+  it('with it the same words sit in <ui-metal-text> inside the brand link, the link’s name unchanged', () => {
+    expect(authCardMarkup(METAL)).toContain(
+      '<ui-metal-text class="ac-brand-metal" preset="chromatic">Workbench</ui-metal-text>',
+    );
+    expect(authCardMarkup({ ...METAL, brand: { label: 'Workbench', metal: { preset: 'silver' } } })).toContain(
+      '<span class="ac-brand"><ui-metal-text class="ac-brand-metal" preset="silver">Workbench</ui-metal-text></span>',
+    );
+    const el = mount(METAL);
+    const brand = q(el, 'a.ac-brand')!;
+    expect(brand.querySelector('ui-metal-text')?.textContent).toBe('Workbench');
+    // The mark is aria-hidden: the words are the link's whole name.
+    expect(brand.querySelector('.ac-mark')?.getAttribute('aria-hidden')).toBe('true');
+    expect(brand.textContent?.trim()).toBe('Workbench');
+  });
+
+  it('pins the card’s own theme on it — only a known one — on the server and on the element', () => {
+    expect(authCardHtml(METAL, { theme: 'dark' })).toContain('preset="chromatic" theme="dark">Workbench');
+    expect(authCardMarkup(METAL, 'en', '"><b>')).toContain('preset="chromatic">Workbench');
+    const el = mount(METAL, { theme: 'light' });
+    expect(q(el, 'ui-metal-text')?.getAttribute('theme')).toBe('light');
+    el.setAttribute('theme', 'dark');
+    el.renderNow();
+    expect(q(el, 'ui-metal-text')?.getAttribute('theme')).toBe('dark');
+  });
+
+  it('escapes the label inside the metal tag', () => {
+    const evil = '<img src=x onerror=alert(1)>';
+    const el = mount({ brand: { label: evil, metal: { preset: 'gold' } } });
+    expect(el.shadowRoot!.querySelector('img')).toBeNull();
+    expect(q(el, 'ui-metal-text')?.textContent).toBe(evil);
+    expect(authCardHtml({ brand: { label: evil, metal: true } })).toContain(
+      '<ui-metal-text class="ac-brand-metal" preset="chromatic">&lt;img src=x onerror=alert(1)&gt;</ui-metal-text>',
+    );
+  });
+
+  it('the card does not load the metal: the tag stays inert (plain text) until the page defines it', () => {
+    mount(METAL);
+    expect(customElements.get('ui-metal-text')).toBeUndefined();
+  });
+
+  it('hydrates and re-renders in place: the metal text node survives', () => {
+    const el = mount(METAL);
+    const words = q(el, 'ui-metal-text')!;
+    el.data = { ...METAL, error: 'Sign-in was cancelled.' };
+    el.renderNow();
+    expect(q(el, 'ui-metal-text')).toBe(words);
+    el.setAttribute('lang', 'ko');
+    el.renderNow();
+    expect(q(el, 'ui-metal-text')).toBe(words);
+    expect(words.textContent).toBe('Workbench');
+  });
+
+  it('upgrades in place once the page loads the metal text element, and keeps the node across re-renders', async () => {
+    const el = mount(METAL);
+    const words = q(el, 'ui-metal-text')!;
+    await import('../metal-text/metal-text');
+    expect(customElements.get('ui-metal-text')).toBeDefined();
+    expect(words.shadowRoot).not.toBeNull();
+    el.data = { ...METAL, error: 'Try again.' };
+    el.renderNow();
+    expect(q(el, 'ui-metal-text')).toBe(words);
+    expect(words.textContent).toBe('Workbench');
   });
 });
 
