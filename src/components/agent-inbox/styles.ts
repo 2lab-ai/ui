@@ -122,6 +122,10 @@ export const styles = `
 .ib-card[data-status="idle"] .ib-title { color: var(--ib-text-2); font-weight: 500; }
 .ib-card[data-status="idle"] .ib-summary { color: var(--ib-muted); }
 .ib-card.is-flying { z-index: 5; box-shadow: var(--ib-shadow-raised); }
+/* 0.44.0 — a card on its way (card.beam): ui-border-beam laid over the card, filling it, light on the border only. */
+.ib-beam { position: absolute; inset: -1px; z-index: 0; pointer-events: none; border-radius: inherit; display: block; }
+.ib-beam::part(beam) { height: 100%; border-radius: inherit; }
+.ib-beam-box { height: 100%; border-radius: 12px; }
 /* 0.44.0 — the reduced-motion stand-in for a status wave: the border in the status colour for a moment, no movement. */
 .ib-card.is-cue { border-color: var(--st-color); transition: border-color 300ms ease; }
 .ib-card.is-exiting { position: absolute; z-index: 1; pointer-events: none; }
