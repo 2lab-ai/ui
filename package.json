@@ -1,7 +1,7 @@
 {
   "name": "@2lab.ai/ui",
   "version": "0.43.1",
-  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree, Agent Island, Action Node, Working; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Image Compare, Composer, Conversation, Work Log, Choice Form, Goal Card, Task Plan, Task Runs, Status Bar, Deck Nav; page parts Setting Row, Settings Nav, Knowledge Pages, Episode Log, Auth Card; primitives Segmented, Tabs, Menu, Tooltip, Hovercard, Dialog, Drawer, Disclosure, Log Scroller, Elapsed, Meter, Breadcrumbs, Step Track, Slide to Confirm, ASCII Wake, Copy Field, Dial, Sparkline; dashboard surfaces Line Chart, Dot Grid, Timeline, Week Calendar, Dock; an icon set, a light-DOM CSS kit, opt-in interface sounds (Cuelume) and a server entry (ESM + CommonJS) that renders the auth card without a DOM.",
+  "description": "Agent UI components for 2lab — Web Components, zero runtime dependencies. Agent Inbox, Agent Run, Approval Card, AI Answer, Tool Call Card, Context Window, Compact Breakdown, Model Picker, Memory Panel, Agent Queue, Toaster, Agent Steering, Agent Tree, Agent Island, Action Node, Working; surfaces App Bar, Stat Strip, Bar Chart, File Card, Artifact Viewer, Image Compare, Composer, Conversation, Work Log, Choice Form, Goal Card, Task Plan, Task Runs, Status Bar, Deck Nav; page parts Setting Row, Settings Nav, Knowledge Pages, Episode Log, Auth Card; primitives Segmented, Tabs, Menu, Tooltip, Hovercard, Dialog, Drawer, Disclosure, Log Scroller, Elapsed, Meter, Breadcrumbs, Step Track, Slide to Confirm, ASCII Wake, Copy Field, Dial, Sparkline; dashboard surfaces Line Chart, Dot Grid, Timeline, Week Calendar, Dock; effects (Libraries.dev ports) Distortion Wave, Border Beam, Thinking Orb, Gooey, Voice Glow, Voice Ring, Voice Position, Magnetic, Bot Avatar, Metal, Image Reveal; an icon set, a light-DOM CSS kit, opt-in interface sounds (Cuelume) and a server entry (ESM + CommonJS) that renders the auth card without a DOM.",
   "type": "module",
   "license": "UNLICENSED",
   "repository": {
@@ -264,6 +264,42 @@
     "./week-calendar": {
       "types": "./dist/components/week-calendar/index.d.ts",
       "import": "./dist/week-calendar.js"
+    },
+    "./distortion-wave": {
+      "types": "./dist/components/distortion-wave/index.d.ts",
+      "import": "./dist/distortion-wave.js"
+    },
+    "./border-beam": {
+      "types": "./dist/components/border-beam/index.d.ts",
+      "import": "./dist/border-beam.js"
+    },
+    "./thinking-orb": {
+      "types": "./dist/components/thinking-orb/index.d.ts",
+      "import": "./dist/thinking-orb.js"
+    },
+    "./bot-avatar": {
+      "types": "./dist/components/bot-avatar/index.d.ts",
+      "import": "./dist/bot-avatar.js"
+    },
+    "./gooey": {
+      "types": "./dist/components/gooey/index.d.ts",
+      "import": "./dist/gooey.js"
+    },
+    "./magnetic": {
+      "types": "./dist/components/magnetic/index.d.ts",
+      "import": "./dist/magnetic.js"
+    },
+    "./metal": {
+      "types": "./dist/components/metal/index.d.ts",
+      "import": "./dist/metal.js"
+    },
+    "./metal-text": {
+      "types": "./dist/components/metal-text/index.d.ts",
+      "import": "./dist/metal-text.js"
+    },
+    "./metal-badge": {
+      "types": "./dist/components/metal-badge/index.d.ts",
+      "import": "./dist/metal-badge.js"
     },
     "./icons": {
       "types": "./dist/icons/index.d.ts",

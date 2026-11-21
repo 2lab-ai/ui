@@ -20,6 +20,8 @@ import {
 import { type AsciiWakeData, asciiRamp, UiAsciiWake } from '@2lab.ai/ui/ascii-wake';
 import { type AuthCardData, authCardHtml, UiAuthCard } from '@2lab.ai/ui/auth-card';
 import { type BarChartData, niceScale, UiBarChart } from '@2lab.ai/ui/bar-chart';
+import { UiBorderBeam } from '@2lab.ai/ui/border-beam';
+import { UiBotAvatar } from '@2lab.ai/ui/bot-avatar';
 import {
   type BreadcrumbsData,
   type BreadcrumbsSelect,
@@ -42,6 +44,7 @@ import {
   UiDialog,
 } from '@2lab.ai/ui/dialog';
 import { type DisclosureToggle, UiDisclosure } from '@2lab.ai/ui/disclosure';
+import { UiDistortionWave } from '@2lab.ai/ui/distortion-wave';
 import { type DockData, dockSplit, UiDock } from '@2lab.ai/ui/dock';
 import { type DotGridData, dotCounts, dotSummary, UiDotGrid } from '@2lab.ai/ui/dot-grid';
 import { clampDrawerWidth, DRAWER_MORPH_MS, type DrawerMode, type DrawerViewport, UiDrawer } from '@2lab.ai/ui/drawer';
@@ -49,6 +52,7 @@ import { type ElapsedData, type ElapsedPrecision, elapsedText, fmtSpanCoarse, Ui
 import { EPISODE_ARM_MS, type EpisodeLogData, episodeDays, UiEpisodeLog } from '@2lab.ai/ui/episode-log';
 import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
 import { GOAL_ARM_MS, type GoalCardData, goalMetaHtml, UiGoalCard } from '@2lab.ai/ui/goal-card';
+import { UiGooey, UiGooeyItem } from '@2lab.ai/ui/gooey';
 import { type HovercardDetail, hovercardDelay, UiHovercard } from '@2lab.ai/ui/hovercard';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { compareText, type ImageCompareData, UiImageCompare } from '@2lab.ai/ui/image-compare';
@@ -56,9 +60,13 @@ import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { filterPages, type KnowledgePagesData, UiKnowledgePages } from '@2lab.ai/ui/knowledge-pages';
 import { type LineChartData, niceTicks, UiLineChart } from '@2lab.ai/ui/line-chart';
 import { type LogScrollerData, logJumpText, UiLogScroller } from '@2lab.ai/ui/log-scroller';
+import { UiMagnetic } from '@2lab.ai/ui/magnetic';
 import { type MediaGridData, type MediaOpenDetail, mediaLabel, UiMediaGrid } from '@2lab.ai/ui/media-grid';
 import { UiMemoryPanel } from '@2lab.ai/ui/memory-panel';
 import { applyMenuSelect, type MenuData, UiMenu } from '@2lab.ai/ui/menu';
+import { UiMetal } from '@2lab.ai/ui/metal';
+import { UiMetalBadge } from '@2lab.ai/ui/metal-badge';
+import { UiMetalText } from '@2lab.ai/ui/metal-text';
 import { type MeterData, type MeterTone, meterPercent, meterTone, UiMeter } from '@2lab.ai/ui/meter';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
@@ -80,6 +88,7 @@ import { type StepTrackData, stepCaption, UiStepTrack } from '@2lab.ai/ui/step-t
 import { type TabsData, tabItems, UiTabs } from '@2lab.ai/ui/tabs';
 import { type TaskPlanData, type TaskPlanMore, taskFateCounts, taskWindow, UiTaskPlan } from '@2lab.ai/ui/task-plan';
 import { type TaskRunsData, taskRunTotals, UiTaskRuns } from '@2lab.ai/ui/task-runs';
+import { UiThinkingOrb } from '@2lab.ai/ui/thinking-orb';
 import { type TimelineData, timelineItems, timelineProgress, UiTimeline } from '@2lab.ai/ui/timeline';
 import { type ToasterData, toast, UiToaster } from '@2lab.ai/ui/toaster';
 import { type ToolCallData, UiToolCallCard, UiToolCallGroup } from '@2lab.ai/ui/tool-call-card';
@@ -265,7 +274,27 @@ const player: SoundPlayer = cuelumeSound;
 const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
+// 0.44.0: the Libraries.dev effects.
+const metalBadgeFx: HTMLElementTagNameMap['ui-metal-badge'] = document.createElement('ui-metal-badge');
+const metalTextFx: HTMLElementTagNameMap['ui-metal-text'] = document.createElement('ui-metal-text');
+const metalFx: HTMLElementTagNameMap['ui-metal'] = document.createElement('ui-metal');
+const magneticFx: HTMLElementTagNameMap['ui-magnetic'] = document.createElement('ui-magnetic');
+const gooeyFx: HTMLElementTagNameMap['ui-gooey'] = document.createElement('ui-gooey');
+const botAvatarFx: HTMLElementTagNameMap['ui-bot-avatar'] = document.createElement('ui-bot-avatar');
+const thinkingOrbFx: HTMLElementTagNameMap['ui-thinking-orb'] = document.createElement('ui-thinking-orb');
+const borderBeamFx: HTMLElementTagNameMap['ui-border-beam'] = document.createElement('ui-border-beam');
+const distortionWaveFx: HTMLElementTagNameMap['ui-distortion-wave'] = document.createElement('ui-distortion-wave');
 const classes = [
+  UiMetalBadge,
+  UiMetalText,
+  UiMetal,
+  UiMagnetic,
+  UiGooeyItem,
+  UiGooey,
+  UiBotAvatar,
+  UiThinkingOrb,
+  UiBorderBeam,
+  UiDistortionWave,
   UiDial,
   UiDock,
   UiDotGrid,
@@ -477,4 +506,13 @@ console.log(
   sparkEl.tagName,
   timelineEl.tagName,
   weekEl.tagName,
+  distortionWaveFx.tagName,
+  borderBeamFx.tagName,
+  thinkingOrbFx.tagName,
+  botAvatarFx.tagName,
+  gooeyFx.tagName,
+  magneticFx.tagName,
+  metalFx.tagName,
+  metalTextFx.tagName,
+  metalBadgeFx.tagName,
 );

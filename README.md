@@ -82,6 +82,25 @@ Primitives — the building blocks the dashboard shares, in the same tone and mo
 | Sparkline | `<ui-sparkline>` | The shape of a series in a row — a 72 × 24 smooth line in a tone or the row’s own colour (so it reads in an inverted row), its low, high and last read out (0.41.0) |
 | Copy Field | `<ui-copy-field>` | A value you will paste elsewhere — a link (the middle folds, the end stays) or a command block, copied in one press with proof (a check, “Copied”), masked with Show / Hide for a secret; `ui-copy` (cancelable) lets the host copy something it builds, then `confirm()` |
 
+Effects — the [Libraries.dev](https://libraries.dev) set, ported without React, three.js or a runtime dependency (0.44.0).
+Each one decorates the host's own markup: no frame runs while it is idle, off screen or in a hidden tab, a WebGL
+context exists only while it is needed and is released after, and reduced motion gets a still (or no) version. See
+`AGENTS.md` › Effects for the contract.
+
+| Effect | Tag | What it tells you |
+|---|---|---|
+| Distortion Wave | `<ui-distortion-wave>` | Something here just changed — a lens and dot wave that runs out from a point over the real content, loud (lens, gather, particles) or quiet (colour only); `playStatusWave()` is the agent board's status-change wave |
+| Border Beam | `<ui-border-beam>` | This one is on its way — a soft beam of light that rides the border of the element it wraps (sizes, colour variants, a still glow under reduced motion) |
+| Thinking Orb | `<ui-thinking-orb>` | The agent is thinking, and how — an orb whose motion follows its activity (searching, composing, working, weaving, connecting …) |
+| Gooey | `<ui-gooey>`, `<ui-gooey-item>` | These pieces belong together — buttons and cards that split off and merge like liquid (morph, move, bend, melt) while their text stays crisp |
+| Voice Glow | `<ui-voice-glow>` | It hears you — a glow that rises with the voice from the bottom of a chat input |
+| Voice Ring | `<ui-voice-ring>` | Who has the line — light that bends with the voice: listening, speaking, thinking, from a level, an analyser or a stream |
+| Voice Position | `<ui-voice-position>` | Where the voice is — the ring leans to the side it comes from, a readout says how sure |
+| Magnetic | `<ui-magnetic>` | Where the pointer pulls — the interface leans toward a magnet (or the pointer) and springs back |
+| Bot Avatar | `<ui-bot-avatar>` | Which agent, and what it is doing — a living face per agent (working, sleeping, default) |
+| Metal | `<ui-metal>`, `<ui-metal-text>`, `<ui-metal-badge>` | The one thing to look at — liquid metal around a button, through a word, on a badge |
+| Image Reveal | `<ui-image-reveal>` | The picture is coming — a pixel-mosaic loader that becomes the image |
+
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
 `@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab` — round, or
 `.is-extended` with a word that `.is-folded` folds away —, `.ui-chip` (`.is-sm`; `.is-toned` with an inline `--ui-tone` for a per-thing colour such as an environment tag — a tag, not a toggle: pressed and hover states stay the plain chip's), `.ui-select-chip` (a native `<select>` read as a label-sized chip,
@@ -178,6 +197,11 @@ Interface sounds: [Cuelume](https://github.com/danielwh2/cuelume) (MIT, Daniel B
 Six elements are ported from [bencho.dev](https://bencho.dev)'s free blocks (MIT, Lorenzo Cabra —
 https://bencho.dev/licence): Slide to Confirm, Agent Island (Dynamic island), Step Track (Step player), Action Node,
 Image Compare and ASCII Wake. Bencho Pro blocks may not be passed on inside a component library, so none is included.
+
+The effects of 0.44.0 are ported from [Libraries.dev](https://libraries.dev) (MIT, Jakub Antalik): Distortion Wave,
+Border Beam, Thinking Orb, Gooey, Voice Glow, Voice Ring, Voice Position, Magnetic, Bot Avatar, Liquid Metal and Image
+Reveal (Image generation). Liquid Metal inlines shaders from [Paper Shaders](https://shaders.paper.design) (Apache-2.0,
+Paper; its licence and NOTICE are in `licenses/`).
 
 Their notices ship in `dist/THIRD_PARTY_NOTICES.md`.
 
