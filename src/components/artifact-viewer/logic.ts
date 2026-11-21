@@ -270,6 +270,48 @@ export interface ViewerBodyOptions {
   broken: ReadonlySet<string>;
   zoomed: boolean;
   acts: Array<'open' | 'download'>;
+  /** The image reveal over a full image still on its way (null: none — a cached picture, or `reveal: false`). */
+  reveal?: ViewerReveal | null;
+}
+
+/**
+ * A full image that had not decoded when the viewer showed it: `<ui-image-reveal>`'s loader stands in its box while
+ * it loads, then — `box` known (the picture's fitted size, CSS px) — settles into it in VIEWER_REVEAL_MS.
+ */
+export interface ViewerReveal {
+  /** The picture (its url as the item gives it). */
+  src: string;
+  /** The picture has loaded: the size it is drawn at in the stage. */
+  box: { w: number; h: number } | null;
+}
+
+/** How long the loader takes to settle into a picture that has loaded (the image reveal's `reveal-ms`). */
+export const VIEWER_REVEAL_MS = 280;
+/** A settle never holds the picture back longer than this after it loaded: the loader goes, the picture shows. */
+export const VIEWER_REVEAL_CAP_MS = 400;
+
+/** The picture's size in the stage (CSS px): its natural size, scaled down to fit the box, never up. */
+export function viewerFitBox(nw: number, nh: number, bw: number, bh: number): { w: number; h: number } | null {
+  if (!(nw > 0 && nh > 0 && bw > 0 && bh > 0)) return null;
+  const s = Math.min(1, bw / nw, bh / nh);
+  const r = (v: number) => Math.round(v * 100) / 100;
+  return { w: r(nw * s), h: r(nh * s) };
+}
+
+/** The image reveal over a pending picture: the loader (no box yet), or the picture settling into its box. */
+function revealHtml(r: ViewerReveal, src: string, name: string, lang: string): string {
+  const box = r.box;
+  return `<ui-image-reveal${attrs({
+    class: 'av-reveal',
+    'aria-hidden': 'true',
+    aspect: 'fill',
+    lang,
+    state: box ? undefined : 'loading',
+    src: box ? src : undefined,
+    alt: box ? name : undefined,
+    'reveal-ms': box ? VIEWER_REVEAL_MS : undefined,
+    style: box ? `width:${box.w}px;height:${box.h}px` : undefined,
+  })}></ui-image-reveal>`;
 }
 
 /** What the body shows for an item: a preview kind, or `fallback` (the calm card with the actions). */
@@ -316,10 +358,15 @@ export function viewerBodyHtml(item: FileItem, o: ViewerBodyOptions): string {
   const body = viewerBodyKind(item, o.broken);
   const src = mediaSrc(item);
   switch (body) {
-    case 'image':
+    case 'image': {
+      // A picture on its way: hidden under the image reveal's loader (still loading, still the accessible content).
+      const pending = o.reveal && o.reveal.src === src ? o.reveal : null;
       return `<div class="${cls('av-body av-img', o.zoomed && 'is-zoomed')}"><div class="av-imgbox"><img class="av-pic" src="${safeSrc(
         src,
-      )}" alt="${escAttr(name)}" decoding="async" draggable="false"></div></div>`;
+      )}" alt="${escAttr(name)}" decoding="async" draggable="false"${pending ? ' data-pending' : ''}>${
+        pending ? revealHtml(pending, src, name, o.lang) : ''
+      }</div></div>`;
+    }
     case 'markdown':
       return `<div class="av-body av-doc"><div class="md-doc">${markdownBody(String(item.text))}</div></div>`;
     case 'text':

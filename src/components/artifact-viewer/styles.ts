@@ -151,6 +151,14 @@ ui-dialog::part(footer) { justify-content: flex-start; padding: 10px 12px; }
   position: static; display: grid; place-items: center; width: max-content; min-width: 100%; min-height: 100%; padding: 16px;
 }
 .av-img.is-zoomed .av-pic { max-width: none; max-height: none; cursor: zoom-out; }
+/* a picture on its way: the image reveal's loader in its box (the picture under it, still loading, still the
+   accessible content), then — the picture's size known — the loader at that size, settling into it */
+.av-pic[data-pending] { opacity: 0; }
+.av-reveal {
+  position: absolute; inset: 0; margin: auto; width: 100%; height: 100%; --image-reveal-radius: 6px;
+  cursor: progress;
+}
+.av-reveal[style] { border-radius: 6px; box-shadow: var(--ib-shadow); }
 /* documents */
 .av-doc, .av-text { overflow: auto; overscroll-behavior: contain; }
 .av-doc { padding: 24px 32px 40px; }

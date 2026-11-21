@@ -26,10 +26,13 @@ import {
   peekHtml,
   stepIndex,
   textHead,
+  VIEWER_REVEAL_CAP_MS,
+  VIEWER_REVEAL_MS,
   viewerActions,
   viewerBodyHtml,
   viewerBodyKind,
   viewerFit,
+  viewerFitBox,
   viewerStrings,
 } from './logic';
 import { peekCss, peekPageCss, styles } from './styles';
@@ -859,6 +862,182 @@ describe('viewer', () => {
     expect(el.index).toBe(-1);
     expect(dialog(el).open).toBe(false);
     expect(native(el).open).toBe(false);
+  });
+});
+
+describe('image reveal (a full image on its way)', () => {
+  const reveal = (el: UiArtifactViewer) => q(el, '.av-imgbox ui-image-reveal.av-reveal');
+  const pic = (el: UiArtifactViewer) => q<HTMLImageElement>(el, '.av-imgbox img.av-pic')!;
+  /** Two pictures around a document: page through image → doc → image. */
+  const shots = (): FileItem[] => [
+    { id: 'a', name: 'first "shot".png', url: '/files/a.png' },
+    { id: 'doc', name: 'notes.md', text: '# n' },
+    { id: 'b', name: 'second.png', url: '/files/b.png' },
+  ];
+  /** Lay the stage out (happy-dom has no layout) and give the picture a size, then let it load. */
+  function load(el: UiArtifactViewer, w = 1200, h = 800, box: [number, number] = [600, 600]) {
+    const imgbox = q(el, '.av-imgbox')!;
+    Object.defineProperty(imgbox, 'clientWidth', { configurable: true, value: box[0] });
+    Object.defineProperty(imgbox, 'clientHeight', { configurable: true, value: box[1] });
+    const img = pic(el);
+    Object.defineProperty(img, 'naturalWidth', { configurable: true, value: w });
+    Object.defineProperty(img, 'naturalHeight', { configurable: true, value: h });
+    img.dispatchEvent(new Event('load'));
+  }
+
+  it('viewerFitBox: the natural size scaled down to fit, never up', () => {
+    expect(viewerFitBox(1200, 800, 600, 600)).toEqual({ w: 600, h: 400 });
+    expect(viewerFitBox(300, 200, 600, 600)).toEqual({ w: 300, h: 200 });
+    expect(viewerFitBox(1000, 3000, 900, 600)).toEqual({ w: 200, h: 600 });
+    expect(viewerFitBox(0, 100, 600, 600)).toBeNull();
+    expect(viewerFitBox(100, 100, 0, 600)).toBeNull();
+    expect(VIEWER_REVEAL_MS).toBeLessThanOrEqual(VIEWER_REVEAL_CAP_MS);
+    expect(VIEWER_REVEAL_CAP_MS).toBeLessThanOrEqual(400);
+  });
+
+  it('viewerBodyHtml draws the loader over a pending picture, then the settle at the picture’s box', () => {
+    const item: FileItem = { id: 'x', name: 'a "quoted" shot.png', url: '/files/x.png?a=1&b=2' };
+    const base = { lang: 'en', now: NOW, broken: new Set<string>(), zoomed: false, acts: [] };
+    const plain = viewerBodyHtml(item, base);
+    expect(plain).not.toContain('ui-image-reveal');
+    expect(plain).not.toContain('data-pending');
+    const tpl = document.createElement('template');
+    tpl.innerHTML = viewerBodyHtml(item, { ...base, reveal: { src: '/files/x.png?a=1&b=2', box: null } });
+    const loader = tpl.content.querySelector('ui-image-reveal')!;
+    expect(tpl.content.querySelector('img.av-pic')!.hasAttribute('data-pending')).toBe(true);
+    expect(loader.getAttribute('aria-hidden')).toBe('true');
+    expect(loader.getAttribute('state')).toBe('loading');
+    expect(loader.getAttribute('aspect')).toBe('fill');
+    expect(loader.hasAttribute('src')).toBe(false);
+    tpl.innerHTML = viewerBodyHtml(item, { ...base, reveal: { src: '/files/x.png?a=1&b=2', box: { w: 600, h: 400 } } });
+    const settle = tpl.content.querySelector('ui-image-reveal')!;
+    expect(settle.hasAttribute('state')).toBe(false);
+    expect(settle.getAttribute('src')).toBe('/files/x.png?a=1&b=2');
+    expect(settle.getAttribute('alt')).toBe('a "quoted" shot.png');
+    expect(settle.getAttribute('reveal-ms')).toBe(String(VIEWER_REVEAL_MS));
+    expect(settle.getAttribute('style')).toBe('width:600px;height:400px');
+    // A reveal for another picture draws nothing here.
+    expect(viewerBodyHtml(item, { ...base, reveal: { src: '/files/other.png', box: null } })).not.toContain(
+      'ui-image-reveal',
+    );
+  });
+
+  it('a cached picture (complete, with a size) appears at once: no reveal element', () => {
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(640);
+    const el = mount({ items: shots() });
+    el.open(0);
+    expect(pic(el).hasAttribute('data-pending')).toBe(false);
+    expect(reveal(el)).toBeNull();
+    expect(qa(el, 'ui-image-reveal')).toHaveLength(0);
+  });
+
+  it('an uncached picture shows the loader in its box, then the <img> when it loads', async () => {
+    const el = mount({ items: shots() });
+    el.open(0);
+    const loader = reveal(el)!;
+    expect(loader).not.toBeNull();
+    expect(loader.getAttribute('aria-hidden')).toBe('true');
+    expect(loader.getAttribute('state')).toBe('loading');
+    // The <img> is there all along: it loads, and its alt is what assistive tech reads.
+    expect(pic(el).hasAttribute('data-pending')).toBe(true);
+    expect(pic(el).getAttribute('alt')).toBe('first "shot".png');
+    // A re-render (new data) keeps the same loader node.
+    el.data = { ...el.data!, title: 'Files' };
+    el.renderNow();
+    expect(reveal(el)).toBe(loader);
+    load(el);
+    // The loader settles at the picture's box: 1200 × 800 fitted to 600 × 600.
+    expect(reveal(el)).toBe(loader);
+    expect(loader.hasAttribute('state')).toBe(false);
+    expect(loader.getAttribute('src')).toBe('/files/a.png');
+    expect(loader.getAttribute('style')).toBe('width:600px;height:400px');
+    vi.advanceTimersByTime(VIEWER_REVEAL_CAP_MS);
+    await Promise.resolve();
+    expect(reveal(el)).toBeNull();
+    expect(pic(el).hasAttribute('data-pending')).toBe(false);
+    expect(pic(el).getAttribute('src')).toBe('/files/a.png');
+  });
+
+  it('the loader’s own "done" hands over at once, and its events stay inside the viewer', async () => {
+    const el = mount({ items: shots() });
+    const leaked = record<{ phase: string }>(document, 'ui-phase-change');
+    el.open(0);
+    load(el);
+    const loader = reveal(el)!;
+    loader.dispatchEvent(
+      new CustomEvent('ui-phase-change', {
+        detail: { phase: 'done', src: '/files/a.png' },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+    for (let k = 0; k < 4; k++) await Promise.resolve();
+    expect(reveal(el)).toBeNull();
+    expect(pic(el).hasAttribute('data-pending')).toBe(false);
+    expect(leaked).toEqual([]);
+  });
+
+  it('a picture that loads with no box to fit (zoomed, or not laid out) shows at once', () => {
+    const el = mount({ items: shots() });
+    el.open(0);
+    pic(el).dispatchEvent(new Event('load'));
+    expect(reveal(el)).toBeNull();
+    expect(pic(el).hasAttribute('data-pending')).toBe(false);
+    el.next();
+    el.next();
+    q<HTMLButtonElement>(el, '.av-tg')!.click();
+    expect(reveal(el)).not.toBeNull();
+    load(el);
+    expect(reveal(el)).toBeNull();
+  });
+
+  it('a page change or a close cancels the loader (and releases it at once)', () => {
+    const el = mount({ items: shots() });
+    el.open(0);
+    const first = reveal(el)!;
+    el.next();
+    expect(first.isConnected).toBe(false);
+    expect(q(el, 'ui-image-reveal')).toBeNull();
+    el.next();
+    const second = reveal(el)!;
+    expect(second).not.toBeNull();
+    expect(pic(el).getAttribute('src')).toBe('/files/b.png');
+    // Back to the first picture: judged afresh (still not cached here), a fresh loader.
+    el.prev();
+    el.prev();
+    expect(reveal(el)).not.toBeNull();
+    load(el);
+    el.close();
+    expect(q(el, 'ui-image-reveal')).toBeNull();
+    // The cap that was running does nothing after the close.
+    vi.advanceTimersByTime(VIEWER_REVEAL_CAP_MS + 10);
+    expect(el.index).toBe(-1);
+  });
+
+  it('a failing picture keeps the viewer’s "No preview" card, with no loader', async () => {
+    const el = mount({ items: shots() });
+    el.open(0);
+    expect(reveal(el)).not.toBeNull();
+    pic(el).dispatchEvent(new Event('error'));
+    await Promise.resolve();
+    el.renderNow();
+    expect(q(el, '.av-stage')?.dataset.body).toBe('fallback');
+    expect(q(el, '.av-card .av-fnote')?.textContent).toBe('No preview');
+    expect(q(el, 'ui-image-reveal')).toBeNull();
+    expect(q(el, '.av-pic')).toBeNull();
+  });
+
+  it('reveal: false shows the plain <img>; a host preview gets no loader', () => {
+    const off = mount({ items: shots(), reveal: false });
+    off.open(0);
+    expect(q(off, 'ui-image-reveal')).toBeNull();
+    expect(pic(off).hasAttribute('data-pending')).toBe(false);
+    const host = mount({ items: shots() });
+    const own = document.createElement('div');
+    own.slot = 'preview';
+    host.append(own);
+    host.open(0);
+    expect(q(host, 'ui-image-reveal')).toBeNull();
   });
 });
 

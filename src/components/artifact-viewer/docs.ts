@@ -410,6 +410,13 @@ export const doc: ComponentDoc = {
       description: 'Show Open in new tab when the file has a safe url.',
     },
     {
+      name: 'data.reveal',
+      type: 'boolean',
+      default: 'true',
+      description:
+        'A full image that has not decoded yet shows <ui-image-reveal>’s loader in its box, and when it loads the loader settles into the picture at its size (280 ms, never more than 400 ms after the load — a fast load is not slowed). A cached picture appears at once, with no loader. A page change or a close drops the loader and its WebGL context. false: the plain <img>.',
+    },
+    {
       name: 'slot="preview"',
       type: 'slot',
       description:
@@ -498,6 +505,7 @@ export const doc: ComponentDoc = {
     'The position is a native <select> named “Go to file” (0.20.0): one option per file (“3. retry.ts”), the shown one selected — the browser draws the listbox and its keys follow the platform (the viewer’s own ← / → never act on it), a phone gets its own picker; its text is 16px so iOS does not zoom the page on focus.',
     'The dialog fits the file (0.20.0): a page, a picture, a video and a PDF fill the screen (size full, edge to edge on a phone); a markdown or text document takes the full height at a reading width; audio and a calm card are a small dialog. `data-fit` on the inner <ui-dialog> says which.',
     'Zoom is a toggle (aria-pressed); the full image carries the file name as alt. Tile thumbnails are decorative — the button already names the file.',
+    'A picture still loading (data.reveal): the image reveal’s mosaic covers its box but is aria-hidden — the <img> with its alt stays in place (only transparent) and stays the accessible content; a picture that fails is the same “No preview” card. Reduced motion draws the mosaic as one still frame and the picture cross-fades; without WebGL the mosaic is CSS.',
     'The peek is pointer-only and aria-hidden (mouse and pen): the same content is one press away for everyone else. It waits 350ms, survives the trip onto it (200ms grace) and Esc dismisses it (WCAG 1.4.13).',
     'An HTML page renders from srcdoc in a sandbox="" frame (no scripts, no forms, its own origin, no referrer). Markdown is escaped before it is marked up; every name, meta line and title is escaped; media and links pass safeSrc / safeLink.',
     'Kind is never colour alone: the badge carries a glyph and the kind word. Focus ring 2px; 44px targets on coarse pointers; press scales to .97; hover changes colour only.',
