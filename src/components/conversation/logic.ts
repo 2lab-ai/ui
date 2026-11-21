@@ -1,5 +1,6 @@
 import type { RawView, SkillBadge } from '../../core/activity';
 import type { AiAnswerData } from '../ai-answer/ai-answer';
+import type { ThinkingOrbState } from '../thinking-orb/thinking-orb';
 
 export type ConversationLang = 'en' | 'ko';
 export type TurnRole = 'user' | 'assistant' | 'system' | 'pending';
@@ -32,7 +33,7 @@ export interface TurnProgress {
  * - assistant: `name`, `at`, `markdown`, `source`, `summary`, `responseMs`, `streaming`, `loading`, `deferred`,
  *   `error`, `canRetry`, `attachments`, `linkTitles`
  * - system: `name`, `at`, `kind`, `label`, `text`, `facts`, `raw`, `media`, `progress`
- * - pending: `name` — the "writing the answer" row; always shown last.
+ * - pending: `name`, `activity` — the "writing the answer" row; always shown last.
  */
 export interface ConversationTurn {
   id: string;
@@ -93,6 +94,17 @@ export interface ConversationTurn {
   raw?: string;
   /** system: a long operation — bar, elapsed time ticking in place, percent. */
   progress?: TurnProgress;
+  /**
+   * pending: what the agent is doing while it writes — a `<ui-thinking-orb>` state, drawn as the writing row's orb
+   * (`orbStateForTool(lastTool)` maps an agent's last tool). Default: breathing (“Thinking…”).
+   */
+  activity?: ThinkingOrbState;
+}
+
+/** `data.pending` as an object: the writing row, with what the agent is doing. */
+export interface ConversationPending {
+  /** The orb state the writing row shows (see `ConversationTurn.activity`). */
+  activity?: ThinkingOrbState;
 }
 
 export interface ConversationData {
@@ -106,8 +118,11 @@ export interface ConversationData {
   error?: string;
   /** Offer Try again with `error`. Default true. */
   canRetry?: boolean;
-  /** The answer is being written: a writing row under the assistant's avatar, always last. */
-  pending?: boolean;
+  /**
+   * The answer is being written: a writing row under the assistant's avatar, always last. `true` as before, or
+   * `{ activity }` to say what the agent is doing (the row's orb: searching, composing, working …).
+   */
+  pending?: boolean | ConversationPending;
   /** Name over the assistant's turns. Default "Assistant" / "어시스턴트". */
   assistantName?: string;
   /** Lines a long instruction shows before "Show more". Default 12. */
@@ -224,12 +239,12 @@ const ROLES = new Set<TurnRole>(['user', 'assistant', 'system', 'pending']);
 
 /**
  * The turns as the list shows them: entries without an id dropped, ids as strings, duplicates after the first
- * dropped, unknown roles read as system. The writing row (a `{ role: 'pending' }` turn, else `pending` → a row keyed
- * `PENDING_KEY`) is split off — it always goes last.
+ * dropped, unknown roles read as system. The writing row (a `{ role: 'pending' }` turn, else `pending` — true, or
+ * `{ activity }` — → a row keyed `PENDING_KEY`, carrying the activity) is split off — it always goes last.
  */
 export function normalizeTurns(
   turns: unknown,
-  pending?: boolean,
+  pending?: boolean | ConversationPending | null,
 ): { regular: ConversationTurn[]; pending: ConversationTurn | null } {
   const list = Array.isArray(turns) ? turns : [];
   const seen = new Set<string>();
@@ -250,7 +265,11 @@ export function normalizeTurns(
     }
     regular.push(turn);
   }
-  if (!row && pending) row = { id: PENDING_KEY, role: 'pending' };
+  if (!row && pending) {
+    row = { id: PENDING_KEY, role: 'pending' };
+    const activity = typeof pending === 'object' ? pending.activity : undefined;
+    if (activity !== undefined && activity !== null) row.activity = activity;
+  }
   return { regular, pending: row };
 }
 

@@ -1,6 +1,8 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { esc, escAttr, safeHref } from '../../core/html';
 import { type LinkRenderer, markdownHtml, unescHtml } from '../../core/markdown';
+// Registers <ui-thinking-orb>: the writing row's mark.
+import { ORB_THINKING_STATE, orbCanDraw, orbStateOf, type ThinkingOrbState } from '../thinking-orb/thinking-orb';
 import { styles } from './styles';
 
 /**
@@ -14,6 +16,12 @@ export interface AiAnswerData {
   responseMs?: number;
   /** More text is coming: shows the writing row, hides Copy, marks the card `aria-busy`. */
   streaming?: boolean;
+  /**
+   * What the agent is doing while it writes — a `<ui-thinking-orb>` state (searching, composing, working …; map an
+   * agent's last tool with `orbStateForTool`). The writing row draws that orb (20px, decorative) beside the words.
+   * Default and unknown names: breathing (“Thinking…”). Where an orb cannot draw, the row keeps its pulsing dot.
+   */
+  activity?: ThinkingOrbState;
   /** The host is fetching a recorded answer (no text yet). */
   loading?: boolean;
   /**
@@ -349,6 +357,8 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
   #timer = 0;
   #shownMd = '';
   #glide: { left: number; until: number } | null = null;
+  /** Whether a thinking orb can draw here (asked once, the first time the writing row shows). */
+  #orbOk: boolean | undefined;
 
   constructor() {
     super();
@@ -391,9 +401,18 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
   protected override update(): void {
     // A streaming re-render must not throw the link row back to its start.
     const left = this.$('.ans-srcs')?.scrollLeft ?? 0;
+    // Nor restart the writing row's orb: the one on screen is kept (a new state is set on it), so each streamed
+    // chunk does not draw a fresh orb from its first frame.
+    const orb = this.$('ui-thinking-orb.ans-orb');
     super.update();
     const row = this.$('.ans-srcs');
     if (row && left) row.scrollLeft = left;
+    const fresh = this.$('ui-thinking-orb.ans-orb');
+    if (orb && fresh && orb !== fresh) {
+      const state = fresh.getAttribute('state');
+      if (state && orb.getAttribute('state') !== state) orb.setAttribute('state', state);
+      fresh.replaceWith(orb);
+    }
   }
 
   protected render(): string {
@@ -437,7 +456,7 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
     // Streaming with no text yet: only the writing row — no label, no empty body, no footer rule.
     if (!has) {
       this.#links = [];
-      return `<section class="ans-card is-pending" aria-label="${escAttr(t.label(0))}" aria-busy="true">${title}${this.#writing(t)}</section>`;
+      return `<section class="ans-card is-pending" aria-label="${escAttr(t.label(0))}" aria-busy="true">${title}${this.#writing(t, d.activity)}</section>`;
     }
 
     const a = renderAnswer(md, { lang, titles: d.linkTitles });
@@ -458,7 +477,7 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
     const body = `<div class="ans-body md-doc">${a.html}</div>`;
     let foot: string;
     if (streaming) {
-      foot = `<div class="ans-foot is-writing">${this.#writing(t)}</div>`;
+      foot = `<div class="ans-foot is-writing">${this.#writing(t, d.activity)}</div>`;
     } else {
       const took = answerTookLabel(Number(d.responseMs), lang);
       const right = error ? `${failed}${retry}` : took ? `<span class="ans-took">${esc(took)}</span>` : '';
@@ -473,8 +492,13 @@ export class UiAiAnswer extends UiElement<AiAnswerData> {
     )}</div>${body}${foot}</section>`;
   }
 
-  #writing(t: Strings): string {
-    return `<span class="ans-writing"><span class="ans-shimmer">${esc(t.writing)}</span><i class="ans-dot" aria-hidden="true"></i></span>`;
+  /** The words with the agent's orb (decorative: the words and aria-busy say it) — or, where no orb can draw, the dot. */
+  #writing(t: Strings, activity: unknown): string {
+    this.#orbOk ??= orbCanDraw();
+    const words = `<span class="ans-shimmer">${esc(t.writing)}</span>`;
+    if (!this.#orbOk) return `<span class="ans-writing">${words}<i class="ans-dot" aria-hidden="true"></i></span>`;
+    const state = orbStateOf(activity, ORB_THINKING_STATE);
+    return `<span class="ans-writing"><ui-thinking-orb class="ans-orb" part="orb" size="20" state="${state}" decorative></ui-thinking-orb>${words}</span>`;
   }
 
   #copyLabel(t: Strings): string {

@@ -498,7 +498,9 @@ export class UiConversation extends UiElement<ConversationData> {
     a.setAttribute('flat', '');
     a.setAttribute('lang', this.#ctx.lang);
     a.data =
-      turn.role === 'pending' ? { markdown: '', streaming: true, animate: false } : turnAnswerData(turn, !!st.live);
+      turn.role === 'pending'
+        ? { markdown: '', streaming: true, animate: false, ...(turn.activity ? { activity: turn.activity } : {}) }
+        : turnAnswerData(turn, !!st.live);
     box.append(a);
   }
 

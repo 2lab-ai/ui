@@ -1,4 +1,5 @@
 import type { ComponentDoc } from '../../docs/types';
+import { orbStateForTool } from '../thinking-orb/thinking-orb';
 import '../app-bar/app-bar';
 import '../dialog/dialog';
 import '../elapsed/elapsed';
@@ -187,7 +188,11 @@ function liveDemo(): UiConversation {
       ...turns,
       { id: 'u-23', role: 'user', name: 'Mina Park', at: askAt, text: 'Write the "Before you update" note.' },
     ];
-    set({ pending: true });
+    // The writing row says what the agent does: it reads the notes (Read), then drafts the paragraph (Write).
+    set({ pending: { activity: orbStateForTool('Read') } });
+    setTimeout(() => {
+      if (el.isConnected) set({ pending: { activity: orbStateForTool('Write') } });
+    }, 800);
     setTimeout(() => {
       let n = 0;
       const tick = () => {
@@ -780,10 +785,10 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.pending',
-      type: 'boolean',
+      type: 'boolean | { activity?: ThinkingOrbState }',
       default: 'false',
       description:
-        'The answer is being written: a writing row under the assistant’s avatar, always last. (A { role: "pending" } turn does the same with its own id.)',
+        'The answer is being written: a writing row under the assistant’s avatar, always last. `true` as before; `{ activity }` says what the agent is doing — the row’s thinking orb (searching, composing, working …; `orbStateForTool(lastTool)` maps an agent’s last tool, see Thinking Orb). (A { role: "pending", activity } turn does the same with its own id.)',
     },
     {
       name: 'data.hasMore · loading',
@@ -933,7 +938,7 @@ export const doc: ComponentDoc = {
   chat.addEventListener('ui-retry', (e) => (e.detail.id ? refetchAnswer(e.detail.id) : reload()));
   socket.onmessage = (m) => {                // live: only the turn that changed is rebuilt
     turns = upsertById(turns, m.turn);
-    chat.data = { turns, pending: m.working };
+    chat.data = { turns, pending: m.working && { activity: orbStateForTool(m.lastTool) } };
   };
 </script>`,
   demos: [
