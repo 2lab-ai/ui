@@ -71,6 +71,7 @@ export const ORDER = [
   'metal',
   'metal-text',
   'metal-badge',
+  'image-reveal',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });

@@ -1,4 +1,4 @@
-// Runtime smoke test against the installed package: each of the 69 element subpaths registers its element(s); the icon
+// Runtime smoke test against the installed package: each of the 70 element subpaths registers its element(s); the icon
 // set and the kit load and return their strings; the server entry loads (as ESM here — smoke.cjs requires it) and
 // defines no element.
 import { Window } from 'happy-dom';
@@ -82,6 +82,7 @@ const slugs = [
   'metal',
   'metal-text',
   'metal-badge',
+  'image-reveal',
 ];
 // Subpaths that register more than their own tag.
 const extra = {

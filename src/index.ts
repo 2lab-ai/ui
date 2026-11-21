@@ -44,6 +44,7 @@ export * from './components/goal-card';
 export * from './components/gooey';
 export * from './components/hovercard';
 export * from './components/image-compare';
+export * from './components/image-reveal';
 export * from './components/knowledge-pages';
 export * from './components/line-chart';
 export * from './components/log-scroller';

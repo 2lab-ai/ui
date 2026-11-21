@@ -301,6 +301,10 @@
       "types": "./dist/components/metal-badge/index.d.ts",
       "import": "./dist/metal-badge.js"
     },
+    "./image-reveal": {
+      "types": "./dist/components/image-reveal/index.d.ts",
+      "import": "./dist/image-reveal.js"
+    },
     "./icons": {
       "types": "./dist/icons/index.d.ts",
       "import": "./dist/icons.js"

@@ -56,6 +56,7 @@ import { UiGooey, UiGooeyItem } from '@2lab.ai/ui/gooey';
 import { type HovercardDetail, hovercardDelay, UiHovercard } from '@2lab.ai/ui/hovercard';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
 import { compareText, type ImageCompareData, UiImageCompare } from '@2lab.ai/ui/image-compare';
+import { UiImageReveal } from '@2lab.ai/ui/image-reveal';
 import { KIT_CLASSES, kitCss } from '@2lab.ai/ui/kit';
 import { filterPages, type KnowledgePagesData, UiKnowledgePages } from '@2lab.ai/ui/knowledge-pages';
 import { type LineChartData, niceTicks, UiLineChart } from '@2lab.ai/ui/line-chart';
@@ -275,6 +276,7 @@ const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
 // 0.44.0: the Libraries.dev effects.
+const imageRevealFx: HTMLElementTagNameMap['ui-image-reveal'] = document.createElement('ui-image-reveal');
 const metalBadgeFx: HTMLElementTagNameMap['ui-metal-badge'] = document.createElement('ui-metal-badge');
 const metalTextFx: HTMLElementTagNameMap['ui-metal-text'] = document.createElement('ui-metal-text');
 const metalFx: HTMLElementTagNameMap['ui-metal'] = document.createElement('ui-metal');
@@ -285,6 +287,7 @@ const thinkingOrbFx: HTMLElementTagNameMap['ui-thinking-orb'] = document.createE
 const borderBeamFx: HTMLElementTagNameMap['ui-border-beam'] = document.createElement('ui-border-beam');
 const distortionWaveFx: HTMLElementTagNameMap['ui-distortion-wave'] = document.createElement('ui-distortion-wave');
 const classes = [
+  UiImageReveal,
   UiMetalBadge,
   UiMetalText,
   UiMetal,
@@ -515,4 +518,5 @@ console.log(
   metalFx.tagName,
   metalTextFx.tagName,
   metalBadgeFx.tagName,
+  imageRevealFx.tagName,
 );
