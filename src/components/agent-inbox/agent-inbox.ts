@@ -134,6 +134,36 @@ export interface InboxTldr {
   dismissible?: boolean;
 }
 
+/** 0.45.0 — the node a card's work runs on (`card.node`). */
+export interface InboxNode {
+  /** Short node name. */
+  text: string;
+  title?: string;
+  /** The node's CPU in use, 0–100. */
+  cpu?: number;
+  /** The node's memory in use, 0–100. */
+  mem?: number;
+  /** The card's own CPU, percent of one core (may exceed 100). */
+  load?: number;
+}
+
+/** Stripes in a node gauge. */
+export const NODE_GAUGE_STEPS = 10;
+
+/** Stripes a 0–100 value fills: none for nothing (or no value), at least one for anything above 0, all ten at 100. */
+export function nodeGaugeFill(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number.NaN;
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(NODE_GAUGE_STEPS, Math.max(1, Math.ceil(n / (100 / NODE_GAUGE_STEPS))));
+}
+
+/** How a card's own CPU reads: quiet under 10% of a core, busy from 10%, hot from 100% (more than one core). */
+export function nodeLoadLevel(load: unknown): '' | 'busy' | 'hot' {
+  const n = typeof load === 'number' ? load : Number.NaN;
+  if (!Number.isFinite(n) || n < 10) return '';
+  return n >= 100 ? 'hot' : 'busy';
+}
+
 /** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
 export interface InboxMetric {
   /** The words. `''` draws an icon-only metric (0.22.0): its mark and/or effort gauge, named by `label` / `title`. */
@@ -277,6 +307,14 @@ export interface InboxCard {
    * "(you)" read after the name.
    */
   badge?: { text: string; hue?: number; title?: string; self?: boolean };
+  /**
+   * 0.45.0 — where the card's work runs and how hard: a pill in the head, before the owner badge, on the one-line and
+   * open faces alike. `text` names the node (keep it short — `m5max`). `cpu` and `mem` (0–100, the node's CPU and memory
+   * in use) each draw a ten-stripe gauge like a rank insignia, filled from the bottom: one stripe green, all ten red.
+   * `load` is the card's own CPU (100 = one core): from 10 it reads busy, from 100 hot (red, bold). `title` is the
+   * tooltip; the accessible name says every number in words.
+   */
+  node?: InboxNode;
   /**
    * 0.32.0 — the card waits on the viewer (their own card in NEEDS YOU). Only `true` counts. While the card is
    * collapsed it carries a mark (a rail on its reading edge, a stronger border, the status tag in ink) and, once
@@ -455,6 +493,8 @@ const STRINGS = {
     childrenShow: 'Show all children',
     childrenHide: 'Hide',
     badgeSelf: '(you)',
+    nodeName: (node: string, cpu: string, mem: string, load: string) =>
+      `Node ${node}${cpu ? `, CPU ${cpu}` : ''}${mem ? `, memory ${mem}` : ''}${load ? `, this card ${load} CPU` : ''}`,
     winMin: 'One line',
     winDetail: 'Open detail card',
     winExpand: 'Expand',
@@ -501,6 +541,8 @@ const STRINGS = {
     childrenShow: '자식 모두 보기',
     childrenHide: '접기',
     badgeSelf: '(나)',
+    nodeName: (node: string, cpu: string, mem: string, load: string) =>
+      `노드 ${node}${cpu ? `, CPU ${cpu}` : ''}${mem ? `, 메모리 ${mem}` : ''}${load ? `, 이 작업 CPU ${load}` : ''}`,
     winMin: '한 줄로',
     winDetail: '상세 카드 열기',
     winExpand: '펼치기',
@@ -1080,6 +1122,43 @@ function renderStar(c: InboxCard, t: Strings): string {
   }</span></button>`;
 }
 
+/** A percentage for the node pill: whole numbers, one decimal under 10. */
+function pctText(v: unknown): string {
+  const n = typeof v === 'number' ? v : Number.NaN;
+  if (!Number.isFinite(n) || n < 0) return '';
+  return `${n > 0 && n < 10 ? n.toFixed(1) : String(Math.round(n))}%`;
+}
+
+/** One ten-stripe gauge (a rank insignia): stripes from the bottom, the filled ones in the colour of how many. */
+function renderNodeGauge(kind: 'cpu' | 'mem', v: unknown): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '';
+  const fill = nodeGaugeFill(v);
+  let bars = '';
+  for (let i = 0; i < NODE_GAUGE_STEPS; i++) {
+    // y from the top: stripe 0 is the bottom one.
+    const y = (NODE_GAUGE_STEPS - 1 - i) * 1.4;
+    bars += `<rect x="0" y="${y.toFixed(1)}" width="7" height="0.9" rx="0.3"${i < fill ? ' class="on"' : ''}/>`;
+  }
+  return `<svg class="ib-node-g" data-g="${kind}" data-fill="${fill}" viewBox="0 0 7 13.5" aria-hidden="true">${bars}</svg>`;
+}
+
+/** The node pill (0.45.0): the card's own CPU, the node's name, its CPU and memory gauges. */
+function renderNode(c: InboxCard, t: Strings): string {
+  const n = c.node && typeof c.node === 'object' ? c.node : null;
+  const text = n ? str(n.text).trim() : '';
+  if (!n || !text) return '';
+  const level = nodeLoadLevel(n.load);
+  const load = pctText(n.load);
+  const name = t.nodeName(text, pctText(n.cpu), pctText(n.mem), load);
+  const title = str(n.title).trim() || name;
+  return `<span class="ib-node"${level ? ` data-level="${level}"` : ''} title="${escAttr(title)}">${
+    load ? `<span class="ib-node-load" aria-hidden="true">${esc(load)}</span>` : ''
+  }<span class="ib-node-name" aria-hidden="true">${esc(text)}</span>${renderNodeGauge('cpu', n.cpu)}${renderNodeGauge(
+    'mem',
+    n.mem,
+  )}<span class="sr-only">${esc(name)}</span></span>`;
+}
+
 function renderBadge(c: InboxCard, t: Strings): string {
   const b = c.badge && typeof c.badge === 'object' ? c.badge : null;
   const text = b ? str(b.text) : '';
@@ -1323,7 +1402,7 @@ function renderFace(
         statusWord(c, t),
       )}</span></span>`
     : '';
-  const head = `<div class="ib-head">${win ? renderWinMin(c, t) : ''}${minStatus}${renderLead(c)}${title}${renderBadge(c, t)}${renderStar(
+  const head = `<div class="ib-head">${win ? renderWinMin(c, t) : ''}${minStatus}${renderLead(c)}${title}${renderNode(c, t)}${renderBadge(c, t)}${renderStar(
     c,
     t,
   )}${win ? renderWinCaret(c, t, win.body) : ''}</div>`;

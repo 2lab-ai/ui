@@ -332,6 +332,8 @@ function dashboardColumns(now: number): InboxColumn[] {
     status: 'running',
     since: now - 21 * MIN - 57_000,
     badge: { text: 'elon', hue: 5 },
+    // 0.45.0 — where it runs: this card at 113% CPU (hot), the node at 72% CPU and 41% memory.
+    node: { text: 'm5max', cpu: 72, mem: 41, load: 113 },
     task: { id: 'T61', label: 'Writing review comments on the retry path', startedAt: now - 6 * MIN - 17_000 },
     agents: {
       total: 7,
@@ -967,6 +969,12 @@ export const doc: ComponentDoc = {
       name: 'data.columns[].cards[].model',
       type: 'string',
       description: 'Model name at the left of the open card’s button row.',
+    },
+    {
+      name: 'data.columns[].cards[].node',
+      type: '{ text: string; title?: string; cpu?: number; mem?: number; load?: number }',
+      description:
+        '0.45.0 — where the card’s work runs: a pill in the head before the owner badge, on the one-line and open faces alike. text is a short node name; cpu and mem (0–100, the node’s CPU and memory in use) each draw a ten-stripe gauge like a rank insignia, filled from the bottom — one stripe green, ten red (nodeGaugeFill). load is the card’s own CPU (100 = one core): quiet under 10, busy (yellow) from 10, hot from 100 (red, heavier, a red ring — not colour alone; nodeLoadLevel). The accessible name says every number in words; title replaces the tooltip.',
     },
     {
       name: 'data.columns[].cards[].beam',
