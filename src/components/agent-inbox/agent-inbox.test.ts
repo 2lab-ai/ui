@@ -12,6 +12,8 @@ import {
   holdLanes,
   type InboxCard,
   type InboxStringOverrides,
+  nodeGaugeFill,
+  nodeLoadLevel,
   placeHolds,
   statusTone,
   type UiAgentInbox,
@@ -3147,5 +3149,88 @@ describe('border beam (0.44.0)', () => {
     const css = monoStyles.replace(/\s+/g, ' ');
     expect(css).toContain('.ib-beam { position: absolute; inset: -1px; z-index: 0; pointer-events: none;');
     expect(css).toContain('.ib-beam::part(beam) { height: 100%;');
+  });
+});
+
+describe('card.node (0.45.0) — the node pill in the head', () => {
+  const NODE_CARD: InboxCard = {
+    ...RUN,
+    badge: { text: 'zhuge', hue: 2 },
+    node: { text: 'm5max', cpu: 37, mem: 59, load: 42 },
+  };
+
+  it('sits before the owner badge in the head: the card’s CPU, the name, a CPU and a memory gauge', () => {
+    const el = mount(board(NODE_CARD), { lang: 'ko' });
+    const head = card(el, 'notes').querySelector('.ib-head')!;
+    const node = head.querySelector<HTMLElement>('.ib-node')!;
+    expect(node.nextElementSibling?.classList.contains('ib-badge')).toBe(true);
+    expect(node.querySelector('.ib-node-load')!.textContent).toBe('42%');
+    expect(node.querySelector('.ib-node-name')!.textContent).toBe('m5max');
+    const gauges = Array.from(node.querySelectorAll('.ib-node-g'));
+    expect(gauges.map((g) => [g.getAttribute('data-g'), g.getAttribute('data-fill')])).toEqual([
+      ['cpu', '4'],
+      ['mem', '6'],
+    ]);
+    // Ten stripes each; the filled ones are the bottom ones.
+    const cpuBars = Array.from(gauges[0].querySelectorAll('rect'));
+    expect(cpuBars).toHaveLength(10);
+    expect(cpuBars.filter((r) => r.classList.contains('on')).map((r) => Number(r.getAttribute('y')))).toEqual([
+      12.6, 11.2, 9.8, 8.4,
+    ]);
+    // Every number in words for a screen reader and the tooltip; the drawn parts are hidden from it.
+    expect(node.querySelector('.sr-only')!.textContent).toBe('노드 m5max, CPU 37%, 메모리 59%, 이 작업 CPU 42%');
+    expect(node.getAttribute('title')).toBe('노드 m5max, CPU 37%, 메모리 59%, 이 작업 CPU 42%');
+    expect(node.getAttribute('data-level')).toBe('busy');
+  });
+
+  it('reads quiet under 10% of a core, busy from 10%, hot from 100%', () => {
+    const level = (load: number) => {
+      const el = mount(board({ ...NODE_CARD, node: { text: 'n', load } }));
+      return card(el, 'notes').querySelector('.ib-node')!.getAttribute('data-level');
+    };
+    expect(level(9.9)).toBeNull();
+    expect(level(10)).toBe('busy');
+    expect(level(99)).toBe('busy');
+    expect(level(113)).toBe('hot');
+  });
+
+  it('fills one stripe for anything above zero, all ten at 100, none without a value', () => {
+    expect([0, 0.1, 10, 10.1, 55, 99, 100, 140, Number.NaN].map((v) => nodeGaugeFill(v))).toEqual([
+      0, 1, 1, 2, 6, 10, 10, 10, 0,
+    ]);
+    expect(nodeLoadLevel(undefined)).toBe('');
+    const el = mount(board({ ...NODE_CARD, node: { text: 'n' } }));
+    const node = card(el, 'notes').querySelector('.ib-node')!;
+    expect(node.querySelectorAll('.ib-node-g')).toHaveLength(0);
+    expect(node.querySelector('.ib-node-load')).toBeNull();
+  });
+
+  it('stays in the head of a one-line card', () => {
+    const el = mount({ columns: columnsByStatus([NODE_CARD]), controls: 'window' });
+    el.setMinimized('notes', true);
+    el.renderNow();
+    const c = card(el, 'notes');
+    expect(c.classList.contains('is-min')).toBe(true);
+    expect(c.querySelector('.ib-head .ib-node .ib-node-name')!.textContent).toBe('m5max');
+  });
+
+  it('escapes the host’s strings and draws nothing without a name', () => {
+    const el = mount(board({ ...NODE_CARD, node: { text: '<b>x</b>', title: '"><img src=x>' } }));
+    const node = card(el, 'notes').querySelector('.ib-node')!;
+    expect(node.querySelector('b')).toBeNull();
+    expect(node.querySelector('.ib-node-name')!.textContent).toBe('<b>x</b>');
+    expect(node.getAttribute('title')).toBe('"><img src=x>');
+    const none = mount(board({ ...NODE_CARD, node: { text: '  ' } }));
+    expect(card(none, 'notes').querySelector('.ib-node')).toBeNull();
+  });
+
+  it('colours stripes from green (one) to red (ten), with a forced-colours fallback', () => {
+    expect(monoStyles).toContain(
+      '.ib-node-g[data-fill="1"] { --ib-node-c: color-mix(in oklch, var(--red) 0%, var(--green)); }',
+    );
+    expect(monoStyles).toContain(
+      '.ib-node-g[data-fill="10"] { --ib-node-c: color-mix(in oklch, var(--red) 100%, var(--green)); }',
+    );
+    expect(monoStyles).toMatch(/@media \(forced-colors: active\) \{[^}]*\.ib-node \{/);
   });
 });
