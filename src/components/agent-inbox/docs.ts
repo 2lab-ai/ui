@@ -972,9 +972,9 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.columns[].cards[].node',
-      type: '{ text: string; title?: string; cpu?: number; mem?: number; load?: number }',
+      type: "{ text: string; title?: string; cpu?: number; mem?: number; load?: number; level?: '' | 'busy' | 'hot'; label?: string }",
       description:
-        '0.45.0 — where the card’s work runs: a pill in the head before the owner badge, on the one-line and open faces alike. text is a short node name; cpu and mem (0–100, the node’s CPU and memory in use) each draw a ten-stripe gauge like a rank insignia, filled from the bottom — one stripe green, ten red (nodeGaugeFill). load is the card’s own CPU (100 = one core): quiet under 10, busy (yellow) from 10, hot from 100 (red, heavier, a red ring — not colour alone; nodeLoadLevel). The accessible name says every number in words; title replaces the tooltip.',
+        '0.45.0 — where the card’s work runs: a pill in the head before the owner badge, on the one-line and open faces alike. text is a short node name; cpu and mem (0–100) each draw a ten-stripe gauge like a rank insignia, filled from the bottom — one stripe green, ten red (nodeGaugeFill): the node’s CPU and memory in use, or (0.46.0) whatever the host scales them to, such as the card’s own usage. load is the card’s own CPU (100 = one core), drawn first: quiet under 10, busy (yellow) from 10, hot from 100 (red, heavier, a red ring — not colour alone; nodeLoadLevel). 0.46.0: level sets busy / hot without a number (it wins over load’s); label replaces the accessible name (by default every number in words); title replaces the tooltip.',
     },
     {
       name: 'data.columns[].cards[].beam',

@@ -139,12 +139,19 @@ export interface InboxNode {
   /** Short node name. */
   text: string;
   title?: string;
-  /** The node's CPU in use, 0–100. */
+  /** The CPU gauge, 0–100 (0.45.0: the node's CPU in use; the host picks what full means). */
   cpu?: number;
-  /** The node's memory in use, 0–100. */
+  /** The memory gauge, 0–100 (0.45.0: the node's memory in use; the host picks what full means). */
   mem?: number;
-  /** The card's own CPU, percent of one core (may exceed 100). */
+  /** The card's own CPU, percent of one core (may exceed 100): drawn before the name, and sets the level. */
   load?: number;
+  /**
+   * 0.46.0 — the pill's level without a number drawn: `busy` (yellow), `hot` (a red ring, heavier). Wins over the
+   * level `load` sets; `''` is quiet.
+   */
+  level?: '' | 'busy' | 'hot';
+  /** 0.46.0 — the accessible name, when the gauges are not the node's (it replaces the node-load wording). */
+  label?: string;
 }
 
 /** Stripes in a node gauge. */
@@ -309,10 +316,11 @@ export interface InboxCard {
   badge?: { text: string; hue?: number; title?: string; self?: boolean };
   /**
    * 0.45.0 — where the card's work runs and how hard: a pill in the head, before the owner badge, on the one-line and
-   * open faces alike. `text` names the node (keep it short — `m5max`). `cpu` and `mem` (0–100, the node's CPU and memory
-   * in use) each draw a ten-stripe gauge like a rank insignia, filled from the bottom: one stripe green, all ten red.
-   * `load` is the card's own CPU (100 = one core): from 10 it reads busy, from 100 hot (red, bold). `title` is the
-   * tooltip; the accessible name says every number in words.
+   * open faces alike. `text` names the node (keep it short — `m5max`). `cpu` and `mem` (0–100) each draw a ten-stripe
+   * gauge like a rank insignia, filled from the bottom: one stripe green, all ten red — the node's CPU and memory in use,
+   * or (0.46.0) whatever the host scales them to, such as the card's own usage. `load` is the card's own CPU (100 = one
+   * core), drawn first: from 10 it reads busy, from 100 hot (red, bold). `level` (0.46.0) sets that without the number.
+   * `title` is the tooltip; the accessible name says every number in words, or is `label` (0.46.0).
    */
   node?: InboxNode;
   /**
@@ -1147,9 +1155,9 @@ function renderNode(c: InboxCard, t: Strings): string {
   const n = c.node && typeof c.node === 'object' ? c.node : null;
   const text = n ? str(n.text).trim() : '';
   if (!n || !text) return '';
-  const level = nodeLoadLevel(n.load);
+  const level = n.level === '' || n.level === 'busy' || n.level === 'hot' ? n.level : nodeLoadLevel(n.load);
   const load = pctText(n.load);
-  const name = t.nodeName(text, pctText(n.cpu), pctText(n.mem), load);
+  const name = str(n.label).trim() || t.nodeName(text, pctText(n.cpu), pctText(n.mem), load);
   const title = str(n.title).trim() || name;
   return `<span class="ib-node"${level ? ` data-level="${level}"` : ''} title="${escAttr(title)}">${
     load ? `<span class="ib-node-load" aria-hidden="true">${esc(load)}</span>` : ''
