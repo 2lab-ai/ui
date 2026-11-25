@@ -3205,6 +3205,34 @@ describe('card.node (0.45.0) — the node pill in the head', () => {
     expect(node.querySelector('.ib-node-load')).toBeNull();
   });
 
+  it('0.46.0 — level sets the tone without a number; label is the accessible name', () => {
+    const el = mount(
+      board({
+        ...NODE_CARD,
+        node: { text: 'm5max', cpu: 100, mem: 30, level: 'hot', label: '노드 m5max, 이 작업 CPU 247%, 메모리 3.3GB' },
+      }),
+      { lang: 'ko' },
+    );
+    const node = card(el, 'notes').querySelector('.ib-node')!;
+    expect(node.querySelector('.ib-node-load')).toBeNull();
+    expect(node.getAttribute('data-level')).toBe('hot');
+    expect(node.querySelector('.sr-only')!.textContent).toBe('노드 m5max, 이 작업 CPU 247%, 메모리 3.3GB');
+    expect(node.getAttribute('title')).toBe('노드 m5max, 이 작업 CPU 247%, 메모리 3.3GB');
+    expect(Array.from(node.querySelectorAll('.ib-node-g')).map((g) => g.getAttribute('data-fill'))).toEqual([
+      '10',
+      '3',
+    ]);
+    // level wins over the one load sets; '' is quiet; anything else falls back to load's.
+    const levelOf = (n: Record<string, unknown>) =>
+      card(mount(board({ ...NODE_CARD, node: { text: 'n', ...n } as never })), 'notes')
+        .querySelector('.ib-node')!
+        .getAttribute('data-level');
+    expect(levelOf({ load: 140, level: 'busy' })).toBe('busy');
+    expect(levelOf({ load: 140, level: '' })).toBeNull();
+    expect(levelOf({ load: 140, level: 'loud' })).toBe('hot');
+    expect(levelOf({ level: 'busy' })).toBe('busy');
+  });
+
   it('stays in the head of a one-line card', () => {
     const el = mount({ columns: columnsByStatus([NODE_CARD]), controls: 'window' });
     el.setMinimized('notes', true);

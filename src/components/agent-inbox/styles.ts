@@ -164,8 +164,9 @@ export const styles = `
    (.is-self: a ring with an orbiting arc, 0.28.0) — is core/owner-badge.ts, shared with the kit's .ui-owner-badge. */
 .ib-badge { flex: 0 0 auto; margin-left: auto; max-inline-size: min(45%, 168px); }
 /* The node pill (0.45.0): where the card's work runs, before the owner badge, as tall as it. The card's own CPU leads —
-   quiet under 10% of a core, busy (yellow) from 10%, hot from 100% (red, heavier, a red ring: not colour alone). Then the
-   node's short name and two ten-stripe gauges (a rank insignia) for its CPU and memory: one stripe green, ten red. */
+   quiet under 10% of a core, busy (yellow) from 10%, hot from 100% (red, heavier, a red ring: not colour alone; 0.46.0
+   level sets it with no number). Then the node's short name and two ten-stripe gauges (a rank insignia) for CPU and
+   memory: one stripe green, ten red. */
 .ib-node {
   flex: 0 0 auto; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
   border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.35; white-space: nowrap;
