@@ -36,12 +36,13 @@ export const styles = `
 .sb-dot { color: var(--ib-muted); }
 .sb-tick, .sb-dur { color: var(--ib-text); }
 
-/* ── Actions at the end of the row (they wrap to the end of a new line in a narrow container) ── */
+/* ── Actions at the end of the row (they wrap to the end of a new line in a narrow container). A button is the kit
+   button (.ui-btn: 32 px · 13 px), so a page that sets the bar beside its own buttons has one button height. ── */
 .sb-actions { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; margin-left: auto; }
 .sb-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 3px 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 12px;
   border: 1px solid var(--ib-card-border); border-radius: 8px; background: var(--ib-card); color: var(--ib-text);
-  font-size: 12.5px; font-weight: 500; line-height: 1.2; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+  font-size: 13px; font-weight: 500; line-height: 1.2; white-space: nowrap; -webkit-tap-highlight-color: transparent;
   transition: background-color ${COLOR_T}, border-color ${COLOR_T}, color ${COLOR_T}, opacity ${COLOR_T}, transform var(--dur-press) var(--ease-out);
 }
 .sb-bi { display: inline-grid; flex: none; place-items: center; }
@@ -61,7 +62,7 @@ export const styles = `
 .sb-btn[aria-busy="true"] { cursor: progress; }
 .sb-btn:active:not(:disabled):not(:focus-visible) { transform: scale(0.97); }
 .sb-link {
-  display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 6px; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 6px; border-radius: 8px;
   color: var(--accent); font-weight: 500; text-decoration: none; white-space: nowrap;
 }
 .sb-link svg { flex: none; width: 12px; height: 12px; }
