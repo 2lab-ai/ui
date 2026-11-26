@@ -171,6 +171,21 @@ export function nodeLoadLevel(load: unknown): '' | 'busy' | 'hot' {
   return n >= 100 ? 'hot' : 'busy';
 }
 
+/** 0.47.0 — the core counts past which a card's edge stripes step up: one core, then two, four and eight. */
+export const CARD_LOAD_CORES = [1, 2, 4, 8] as const;
+
+/**
+ * 0.47.0 — the step of a card's edge stripes for its own CPU (`InboxCard.load`, percent of one core): 0 up to one
+ * core (and for no value), then 1 past one core, 2 past two, 3 past four, 4 past eight.
+ */
+export function cardLoadStep(load: unknown): 0 | 1 | 2 | 3 | 4 {
+  const n = typeof load === 'number' ? load : Number.NaN;
+  if (!Number.isFinite(n)) return 0;
+  let step = 0;
+  for (const cores of CARD_LOAD_CORES) if (n > cores * 100) step++;
+  return step as 0 | 1 | 2 | 3 | 4;
+}
+
 /** A host metric in the card foot, after tasks and context (a PR badge, a media count…). Text only. */
 export interface InboxMetric {
   /** The words. `''` draws an icon-only metric (0.22.0): its mark and/or effort gauge, named by `label` / `title`. */
@@ -323,6 +338,13 @@ export interface InboxCard {
    * `title` is the tooltip; the accessible name says every number in words, or is `label` (0.46.0).
    */
   node?: InboxNode;
+  /**
+   * 0.47.0 — the card's own CPU, percent of one core (may exceed 100). Past one core the card's top and bottom edges
+   * carry red hazard stripes (hollow diagonals), one step heavier past two, four and eight cores (`cardLoadStep`):
+   * thicker bands, moving from four cores, faster and with a red glow past eight. Reduced motion keeps them still
+   * (thickness and glow still tell the steps apart). Decorative: say the number in the node pill's `label`.
+   */
+  load?: number;
   /**
    * 0.32.0 — the card waits on the viewer (their own card in NEEDS YOU). Only `true` counts. While the card is
    * collapsed it carries a mark (a rail on its reading edge, a stronger border, the status tag in ink) and, once
@@ -2821,6 +2843,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     const attention = card.attention === true;
     if (sh.el.classList.contains('is-attention') !== attention) sh.el.classList.toggle('is-attention', attention);
     this.#beam(sh, card.beam === true);
+    this.#strain(sh, cardLoadStep(card.load));
     // 0.37.0 — its epic: a card is never its own.
     const parent = str(card.parent) === id ? '' : str(card.parent);
     if (sh.parent !== parent) {
@@ -2973,6 +2996,30 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
     box.className = 'ib-beam-box';
     beam.append(box);
     sh.el.prepend(beam);
+  }
+
+  /**
+   * 0.47.0 — the card's edge stripes (InboxCard.load past one core): one `.ib-strain` laid over the card, only its top
+   * and bottom bands painted, `data-step` 1–4. The card carries the same step as `data-load-step` (its glow at 4).
+   * Taken off at or under one core.
+   */
+  #strain(sh: Shell, step: number): void {
+    const have = sh.el.querySelector<HTMLElement>(':scope > .ib-strain');
+    if (!step) {
+      if (!have) return;
+      have.remove();
+      sh.el.removeAttribute('data-load-step');
+      return;
+    }
+    const want = String(step);
+    const band = have ?? document.createElement('i');
+    if (!have) {
+      band.className = 'ib-strain';
+      band.setAttribute('aria-hidden', 'true');
+      sh.el.append(band);
+    }
+    if (band.getAttribute('data-step') !== want) band.setAttribute('data-step', want);
+    if (sh.el.getAttribute('data-load-step') !== want) sh.el.setAttribute('data-load-step', want);
   }
 
   /** Ends a card's running wave (it left the board, or the board left the page). */

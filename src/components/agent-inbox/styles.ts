@@ -454,6 +454,34 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-metric.is-host[data-tone="warn"] svg { color: var(--st-wait); }
 .ib-metric.is-host[data-tone="danger"] { color: var(--st-fail-text); font-weight: 600; }
 
+/* ── LOAD (0.47.0) — a card past one core of CPU (InboxCard.load) ──
+   Red hazard stripes, hollow diagonals, along the card's top and bottom edges inside its border: one .ib-strain over
+   the card, padded by the band height and masked to that padding (the gradient-border mask), so only the two bands
+   paint and they follow the corners. A step per doubling past one core — 1: a thin band; 2: thicker and full red;
+   3 (past four cores): thicker and the stripes march; 4 (past eight): the thickest, marching fast, and a red glow
+   around the card. The tile is Bootstrap's striped-bar tile, moved by one tile per loop so the march never jumps. */
+.ib-strain {
+  --ib-strain-c: color-mix(in srgb, var(--red) calc(100% * var(--chroma)), var(--ib-text));
+  --ib-strain-h: 2px;
+  position: absolute; inset: 0; z-index: 1; display: block; pointer-events: none; border-radius: 11px;
+  padding-block: var(--ib-strain-h); box-sizing: border-box;
+  background-image: linear-gradient(135deg, var(--ib-strain-c) 25%, transparent 25% 50%, var(--ib-strain-c) 50% 75%, transparent 75%);
+  background-size: 8px 8px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.ib-strain[data-step="1"] { --ib-strain-h: 2px; opacity: 0.8; }
+.ib-strain[data-step="2"] { --ib-strain-h: 3px; }
+.ib-strain[data-step="3"] { --ib-strain-h: 4px; animation: ib-strain-march 1600ms linear infinite; }
+.ib-strain[data-step="4"] { --ib-strain-h: 6px; animation: ib-strain-march 600ms linear infinite; }
+.ib-card[data-load-step="4"] {
+  box-shadow: var(--ib-shadow), 0 0 0 1px color-mix(in srgb, var(--red) calc(70% * var(--chroma)), var(--ib-text)),
+    0 0 16px color-mix(in srgb, var(--red) calc(45% * var(--chroma)), transparent);
+}
+@keyframes ib-strain-march { from { background-position-x: 0; } to { background-position-x: 8px; } }
+
 /* ── ATTENTION (0.32.0) — a collapsed card that waits on the viewer ──
    Still: a 3px rail over the reading edge, the border drawn toward the mark, the status tag in ink (the one solid
    pill on the card — the board's way to say "your move"). Moving: once every 10 s a ping — a ring that leaves the
@@ -709,10 +737,12 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   .ib-sk, .ib-board[aria-busy="true"] .ib-count:empty { animation: none; }
   .ib-group-head .ib-chev, .ib-kids-line .ib-chev { transition: none; }
   .ib-card.is-attention:not(.is-open)::after { animation: none; display: none; }
+  .ib-strain { animation: none; }
 }
-/* Forced colours: the rail in the system's highlight (backgrounds are forced there); no ring. */
+/* Forced colours: the rail in the system's highlight (backgrounds are forced there); no ring. The load stripes in ink. */
 @media (forced-colors: active) {
   .ib-card.is-attention:not(.is-open)::before { forced-color-adjust: none; background: Highlight; }
   .ib-card.is-attention:not(.is-open)::after { display: none; }
+  .ib-strain { forced-color-adjust: none; --ib-strain-c: CanvasText; opacity: 1; }
 }
 `;
