@@ -71,6 +71,8 @@ import { UiMetalText } from '@2lab.ai/ui/metal-text';
 import { type MeterData, type MeterTone, meterPercent, meterTone, UiMeter } from '@2lab.ai/ui/meter';
 import type { ModelPickerData } from '@2lab.ai/ui/model-picker';
 import { UiModelPicker } from '@2lab.ai/ui/model-picker';
+import { createMoodReader, type MoodReading, moodShakeOf, UiMood } from '@2lab.ai/ui/mood';
+import { moodHudTargetText, UiMoodHud } from '@2lab.ai/ui/mood-hud';
 import { type SegmentedData, segmentedOptions, UiSegmented } from '@2lab.ai/ui/segmented';
 import {
   authCardCss,
@@ -278,6 +280,18 @@ const player: SoundPlayer = cuelumeSound;
 const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
+// 0.49.0: mood recognition (a heuristic reader, no model) and its HUD.
+const moodFx: HTMLElementTagNameMap['ui-mood'] = document.createElement('ui-mood');
+const moodHudFx: HTMLElementTagNameMap['ui-mood-hud'] = document.createElement('ui-mood-hud');
+const moodReader = createMoodReader({ scope: moodFx, baselineKey: null, onReading: (r: MoodReading) => r.reaction });
+const moodShake: number = moodShakeOf([], 0, { speed: 700, pressGap: 900, n: 0 });
+const moodHudName: string | null = moodHudTargetText({
+  tag: 'button',
+  id: 'pay',
+  role: '',
+  disabled: true,
+  invalid: false,
+});
 // 0.44.0: the Libraries.dev effects.
 const voicePositionFx: HTMLElementTagNameMap['ui-voice-position'] = document.createElement('ui-voice-position');
 const voiceRingFx: HTMLElementTagNameMap['ui-voice-ring'] = document.createElement('ui-voice-ring');
@@ -293,6 +307,8 @@ const thinkingOrbFx: HTMLElementTagNameMap['ui-thinking-orb'] = document.createE
 const borderBeamFx: HTMLElementTagNameMap['ui-border-beam'] = document.createElement('ui-border-beam');
 const distortionWaveFx: HTMLElementTagNameMap['ui-distortion-wave'] = document.createElement('ui-distortion-wave');
 const classes = [
+  UiMood,
+  UiMoodHud,
   UiVoicePosition,
   UiVoiceRing,
   UiVoiceGlow,
@@ -531,4 +547,9 @@ console.log(
   voiceGlowFx.tagName,
   voiceRingFx.tagName,
   voicePositionFx.tagName,
+  moodFx.tagName,
+  moodHudFx.tagName,
+  moodReader.running,
+  moodShake,
+  moodHudName,
 );

@@ -55,6 +55,8 @@ const WIDE = new Set([
   'artifact-viewer',
   'settings-nav',
   'knowledge-pages',
+  'mood',
+  'mood-hud',
 ]);
 
 function themeNow(): 'light' | 'dark' {

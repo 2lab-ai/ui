@@ -75,6 +75,8 @@ export const ORDER = [
   'voice-glow',
   'voice-ring',
   'voice-position',
+  'mood',
+  'mood-hud',
 ];
 
 const modules = import.meta.glob<{ doc: ComponentDoc }>('../components/*/docs.ts', { eager: true });

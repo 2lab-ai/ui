@@ -1,0 +1,115 @@
+/**
+ * `<ui-mood-hud>`: the host's markup in a slot, the HUD over it. The HUD's rules are Libraries.dev's mood-hud.css (MIT,
+ * © 2026 Jakub Antalik) with the lab's dark-only colours swapped for the dashboard tokens, so it reads on light and dark.
+ */
+export const styles = `
+:host { display: block; position: relative; }
+/* the host's own type, colour and color-scheme pass through to the wrapped markup (the base sheet sets them) */
+:host, :host(:not([theme="light"])), :host([theme="dark"]) { color: inherit; font: inherit; letter-spacing: inherit; color-scheme: inherit; }
+.ui-root { display: contents; }
+.hud-layer { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+
+.mood-hud {
+  --hud-ink: var(--text);
+  --hud-accent: var(--hud-ink);
+  --hud-halo: color-mix(in srgb, var(--surface) 90%, transparent);
+  --hud-glow: var(--surface);
+  --hud-paper: var(--surface);
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--hud-ink);
+  font: 500 9px/11px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: opacity 150ms ease-out;
+}
+.mood-hud[data-lead="frustrated"] { --hud-accent: var(--st-fail); }
+.mood-hud[data-lead="confused"] { --hud-accent: var(--st-wait); }
+.mood-hud[data-lead="lost"] { --hud-accent: color-mix(in oklab, var(--accent) 55%, var(--st-fail)); }
+.mood-hud[data-lead="away"] { --hud-accent: var(--text-tertiary); }
+.mood-hud.is-away { opacity: 0; }
+
+.mood-hud .hud-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mood-hud .hud-halo { fill: none; stroke: var(--hud-halo); stroke-width: 2.5; stroke-linejoin: round; }
+.mood-hud .hud-ink {
+  fill: none;
+  stroke: var(--hud-ink);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  transition: stroke 200ms var(--ease-out);
+}
+/* the cursor's corner brackets: half strength, always ink, whatever the mood */
+.mood-hud .hud-reticle { opacity: 0.5; }
+.mood-hud .hud-scan .hud-ink,
+.mood-hud .hud-dust .hud-ink { stroke-width: 0.75; }
+/* each dust box's tie back to the brackets: a hairline over a thin halo */
+.mood-hud .hud-dust .hud-tie .hud-ink { stroke-width: 0.5; }
+.mood-hud .hud-dust .hud-tie .hud-halo { stroke-width: 1.5; }
+.mood-hud .hud-scan-dots { fill: var(--hud-ink); }
+.mood-hud .hud-scan,
+.mood-hud .hud-scan-dots { opacity: 0.78; }
+.mood-hud .hud-trail { opacity: 0.6; }
+.mood-hud .hud-red-dots { fill: var(--st-fail); }
+/* click wave: tiny filled ink squares over a thin halo */
+.mood-hud .hud-wave .hud-halo { stroke-width: 1.5; }
+.mood-hud .hud-wave .hud-ink { fill: var(--hud-ink); stroke: none; }
+
+.mood-hud .hud-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  gap: 1px;
+  white-space: nowrap;
+  text-shadow: 0 0 2px var(--hud-glow), 0 0 3px var(--hud-glow);
+  will-change: transform;
+}
+/* the mood on an ink chip, 25% larger than the rest of the readout */
+.mood-hud .hud-l1 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  margin-left: -3.75px;
+  padding: 1.25px 5px;
+  font-size: 11.25px;
+  line-height: 13.75px;
+  background: var(--hud-ink);
+  color: var(--hud-paper);
+  text-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+.mood-hud .hud-mark {
+  width: 6.25px;
+  height: 6.25px;
+  border: 1px solid currentColor;
+  transition: background-color 200ms var(--ease-out), border-color 200ms var(--ease-out);
+}
+.mood-hud .hud-label.is-mood .hud-mark { border-color: var(--hud-accent); background: var(--hud-accent); }
+.mood-hud .hud-l2 { opacity: 0.55; font-variant-numeric: tabular-nums; }
+/* L C A F from the reading and the away rule, I the fast signals; 0.30 and up go full ink */
+.mood-hud .hud-vals { display: flex; gap: 6px; margin-top: 1px; font-variant-numeric: tabular-nums; }
+.mood-hud .hud-vals span { display: inline-flex; gap: 2px; }
+.mood-hud .hud-vals b { font-weight: 500; opacity: 0.45; }
+.mood-hud .hud-vals em { font-style: normal; opacity: 0.6; }
+.mood-hud .hud-vals em.is-hot { opacity: 1; }
+/* what is being fought with, once over the alert line */
+.mood-hud .hud-at { margin-top: 1px; opacity: 1; color: var(--hud-accent); }
+.mood-hud .hud-at[hidden] { display: none; }
+/* over the alert line the readout glitches once */
+.mood-hud .hud-label.is-glitch .hud-l1 { animation: mood-hud-glitch 320ms steps(1) both; }
+@keyframes mood-hud-glitch {
+  0% { clip-path: inset(0 0 55% 0); transform: translateX(-3px); }
+  20% { clip-path: inset(45% 0 10% 0); transform: translateX(2px); }
+  40% { clip-path: inset(70% 0 0 0); transform: translateX(-1px); }
+  60% { clip-path: inset(10% 0 50% 0); transform: translateX(3px); }
+  80% { clip-path: inset(0); transform: translateX(-1px); }
+  100% { clip-path: inset(0); transform: none; }
+}
+:host([lang="ko"]) .mood-hud { letter-spacing: 0.02em; }
+@media (prefers-reduced-motion: reduce) {
+  .mood-hud .hud-label .hud-l1 { animation: none !important; }
+}
+`;

@@ -100,6 +100,8 @@ context exists only while it is needed and is released after, and reduced motion
 | Bot Avatar | `<ui-bot-avatar>` | Which agent, and what it is doing — a living face per agent (working, sleeping, default) |
 | Metal | `<ui-metal>`, `<ui-metal-text>`, `<ui-metal-badge>` | The one thing to look at — liquid metal around a button, through a word, on a badge |
 | Image Reveal | `<ui-image-reveal>` | The picture is coming — a pixel-mosaic loader that becomes the image |
+| Mood | `<ui-mood>` | Is the person stuck — reads frustrated, confused or lost from the pointer, presses, scrolling and typing inside it; sets `mood` and `--mood` (0 … 1) so the screen can bring forward what helps. A heuristic of this library's own: the Libraries.dev model and kit are not included (0.49.0) |
+| Mood HUD | `<ui-mood-hud>` | What the mood reader sees — the Libraries.dev cursor HUD on the pointer, for tuning a screen (0.49.0) |
 
 Foundations: `@2lab.ai/ui/icons` (a 16-grid, 1.5-stroke `currentColor` SVG set — `icon('gear')` returns an SVG string) and
 `@2lab.ai/ui/ui-kit.css` (light-DOM classes on the same tokens: `.ui-btn` with one ink primary, `.ui-icon-btn`, `.ui-fab` — round, or
@@ -200,7 +202,10 @@ Image Compare and ASCII Wake. Bencho Pro blocks may not be passed on inside a co
 
 The effects of 0.44.0 are ported from [Libraries.dev](https://libraries.dev) (MIT, Jakub Antalik): Distortion Wave,
 Border Beam, Thinking Orb, Gooey, Voice Glow, Voice Ring, Voice Position, Magnetic, Bot Avatar, Liquid Metal and Image
-Reveal (Image generation). Liquid Metal inlines shaders from [Paper Shaders](https://shaders.paper.design) (Apache-2.0,
+Reveal (Image generation). Mood and Mood HUD (0.49.0) follow its Mood recognition page: the HUD and the replayed showcase
+route are ported from the page's MIT source; the reader is this library's own heuristic, written from the page's
+description — the model (`MoodRecognition.json`), the React kit and the page's loader are under the Libraries.dev Model
+License and none of them is included. Liquid Metal inlines shaders from [Paper Shaders](https://shaders.paper.design) (Apache-2.0,
 Paper; its licence and NOTICE are in `licenses/`).
 
 Their notices ship in `dist/THIRD_PARTY_NOTICES.md`.
