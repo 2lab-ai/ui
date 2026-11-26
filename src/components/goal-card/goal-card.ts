@@ -55,8 +55,8 @@ export interface GoalPast {
   note?: string;
 }
 
-/** The goal write in flight (one at a time). `pause` covers resume too. */
-export type GoalBusy = 'complete' | 'pause' | 'delete' | 'add';
+/** The goal write in flight (one at a time). `pause` covers resume too; `move` and `edit` are a queued goal's. */
+export type GoalBusy = 'complete' | 'pause' | 'delete' | 'add' | 'move' | 'edit';
 
 export interface GoalCardData {
   /** The goal being worked on. Without it the card shows “No goal yet” (and the add box when editable). */
@@ -68,15 +68,15 @@ export interface GoalCardData {
   /** Default `true`. `false` = read-only: no actions, no add box. */
   canEdit?: boolean;
   /**
-   * The goal actions the host answers (`ui-complete`, `ui-pause` / `ui-resume`, `ui-delete`). The card draws, of what
-   * the status allows, only these — a host whose goal route takes add and delete passes `['delete']`. `[]` draws no
-   * goal action; without `delete` the queued goals lose their remove too. Default: every action the status allows.
-   * The add box stays with `canEdit`.
+   * The goal actions the host answers (`ui-complete`, `ui-pause` / `ui-resume`, `ui-delete`, `ui-move`, `ui-edit`).
+   * The card draws, of what the status allows, only these — a host whose goal route takes add and delete passes
+   * `['delete']`. `[]` draws no goal action; without `delete` the queued goals lose their remove, without `move` their
+   * drag handle, without `edit` their Edit. Default: every action. The add box stays with `canEdit`.
    */
   actions?: GoalAction[];
   /** A goal write in flight: its button spins, every goal action waits. */
   busy?: GoalBusy | null;
-  /** The goal `busy` is about (a queued goal's id for its remove button). Default: the current goal. */
+  /** The goal `busy` is about (a queued goal's id for its remove, move or edit). Default: the current goal. */
   busyId?: string;
   /** The last refused goal action, shown as an alert until the host clears it. */
   error?: string;
@@ -97,9 +97,24 @@ export interface GoalDeleteDetail {
 export interface GoalAddDetail {
   objective: string;
 }
+/** `ui-move`: a queued goal dragged (or moved with ↑ ↓) from one place in the queue to another (0-based). */
+export interface GoalMoveDetail {
+  id: string;
+  from: number;
+  to: number;
+  /** The queue's ids in the new order. */
+  order: string[];
+}
+/** `ui-edit`: a queued goal's objective saved from its editor (trimmed, changed). */
+export interface GoalEditDetail {
+  id: string;
+  objective: string;
+}
 
 export type GoalTone = 'run' | 'wait' | 'done' | 'fail' | 'idle';
-export type GoalAction = 'complete' | 'pause' | 'resume' | 'delete';
+export type GoalAction = 'complete' | 'pause' | 'resume' | 'delete' | 'move' | 'edit';
+/** The actions on the current goal (`move` and `edit` are a queued goal's). */
+export type GoalCurrentAction = Exclude<GoalAction, 'move' | 'edit'>;
 type StatusKey = 'active' | 'paused' | 'complete' | 'failed' | 'cancelled';
 type Lang = 'en' | 'ko';
 type WhenKind = 'started' | 'updated' | 'added' | 'ended';
@@ -142,9 +157,19 @@ const STRINGS = {
       delete: 'Deleting…',
       remove: 'Removing…',
       add: 'Adding…',
+      move: 'Moving…',
+      edit: 'Saving…',
     },
     queue: 'Up next',
     remove: (n: number) => `Remove queued goal ${n}`,
+    move: (n: number) => `Move queued goal ${n}`,
+    moveHint: 'Drag, or press ↑ ↓ to move it',
+    moved: (n: number, of: number) => `Moved to ${n} of ${of}`,
+    edit: (n: number) => `Edit queued goal ${n}`,
+    editLabel: (n: number) => `Queued goal ${n}`,
+    editHint: 'Enter to save · Shift+Enter for a new line · Esc to cancel',
+    save: 'Save',
+    cancel: 'Cancel',
     addLabel: 'Add a goal',
     placeNext: 'Add a goal — starts after the current one',
     placeNow: 'Add a goal — starts now',
@@ -182,9 +207,19 @@ const STRINGS = {
       delete: '삭제 중…',
       remove: '삭제 중…',
       add: '추가 중…',
+      move: '옮기는 중…',
+      edit: '저장 중…',
     },
     queue: '다음 목표',
     remove: (n: number) => `${n}번째 대기 목표 삭제`,
+    move: (n: number) => `${n}번째 대기 목표 옮기기`,
+    moveHint: '끌어서 옮기거나 ↑ ↓ 키로 옮깁니다',
+    moved: (n: number, of: number) => `${of}개 중 ${n}번째로 옮겼습니다`,
+    edit: (n: number) => `${n}번째 대기 목표 편집`,
+    editLabel: (n: number) => `${n}번째 대기 목표`,
+    editHint: 'Enter 저장 · Shift+Enter 줄바꿈 · Esc 취소',
+    save: '저장',
+    cancel: '취소',
     addLabel: '목표 추가',
     placeNext: '목표 추가 — 지금 목표 다음에 시작',
     placeNow: '목표 추가 — 바로 시작',
@@ -224,13 +259,17 @@ const STATUS_ICON: Record<StatusKey | 'other', string> = {
   cancelled: 'minus',
   other: 'clock',
 };
-const ACT_ICON: Record<GoalAction | 'remove', string> = {
+const ACT_ICON: Record<Exclude<GoalAction, 'move'> | 'remove', string> = {
   complete: 'check',
   pause: 'pause',
   resume: 'play',
   delete: 'trash',
   remove: 'trash',
+  edit: 'edit',
 };
+
+/** The drag handle: two columns of three dots on the icon set's 16-grid (the set has no grip glyph). */
+const GRIP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" focusable="false" data-icon="grip" aria-hidden="true"><circle cx="6" cy="4" r="1.1"/><circle cx="10" cy="4" r="1.1"/><circle cx="6" cy="8" r="1.1"/><circle cx="10" cy="8" r="1.1"/><circle cx="6" cy="12" r="1.1"/><circle cx="10" cy="12" r="1.1"/></svg>`;
 
 /** The icon set has no pause glyph: two bars drawn on the same 16-grid, stroke and caps as `icon()`. */
 function glyph(name: string, size: number): string {
@@ -266,15 +305,41 @@ export function goalStatus(status: unknown, lang: Lang = 'en'): GoalStatusInfo {
  * The actions the current goal offers: active → complete, pause, delete; paused → complete, resume, delete; ended →
  * delete. `allowed` (the host's `actions`) keeps only the ones the host answers, in the card's order.
  */
-export function goalActions(status: unknown, allowed?: readonly GoalAction[] | null): GoalAction[] {
+export function goalActions(status: unknown, allowed?: readonly GoalAction[] | null): GoalCurrentAction[] {
   const s = goalStatus(status);
-  let all: GoalAction[];
+  let all: GoalCurrentAction[];
   if (s.terminal) all = ['delete'];
   else if (s.key === 'active') all = ['complete', 'pause', 'delete'];
   else if (s.key === 'paused') all = ['complete', 'resume', 'delete'];
   else all = ['complete', 'delete'];
   if (!Array.isArray(allowed)) return all;
   return all.filter((a) => allowed.includes(a));
+}
+
+/**
+ * The queue after moving the goal at `from` to `to` (both 0-based, clamped): a new array, the input untouched.
+ * Pure — the drag and the arrow keys both land here.
+ */
+export function goalQueueMove<T>(queue: readonly T[], from: number, to: number): T[] {
+  const out = queue.slice();
+  const n = out.length;
+  if (!n) return out;
+  const f = clamp(Math.trunc(Number(from) || 0), 0, n - 1);
+  const t = clamp(Math.trunc(Number(to) || 0), 0, n - 1);
+  const [item] = out.splice(f, 1);
+  out.splice(t, 0, item);
+  return out;
+}
+
+/**
+ * Where a dragged row lands: `mids` are the rows' vertical centres at the start of the drag, `from` the dragged row,
+ * `center` its centre now. It passes a row once its centre crosses that row's centre. Pure.
+ */
+export function goalDropIndex(mids: readonly number[], from: number, center: number): number {
+  let to = from;
+  for (let i = from - 1; i >= 0; i--) if (center < mids[i]) to = i;
+  for (let i = from + 1; i < mids.length; i++) if (center > mids[i]) to = i;
+  return to;
 }
 
 /** `meta` items → the quiet `label value` spans (strings as they are), for one · separated line. */
@@ -374,6 +439,30 @@ const SPIN = '<span class="gc-spin" aria-hidden="true"></span>';
 
 type Armed = { act: 'complete' | 'delete' | 'remove'; id: string };
 
+/** A queued goal's editor: its text now, and (after a save the host took over) the text sent. */
+type Editing = { id: string; draft: string; sent: string | null };
+
+/** A pointer drag on a queued goal's handle (it starts once the pointer has moved 4px). */
+type Drag = {
+  id: string;
+  from: number;
+  to: number;
+  pointerId: number;
+  startY: number;
+  /** How far the pointer has travelled (px, down is positive). */
+  dy: number;
+  on: boolean;
+  grip: HTMLElement;
+  /** The queue's ids at pointerdown: the drag ends if the queue changes under it. */
+  ids: string[];
+  mids: number[];
+  /** How far the other rows step aside: the dragged row's height plus the list's gap. */
+  step: number;
+};
+
+/** The pointer has to travel this far before a press on the handle becomes a drag. */
+const DRAG_SLOP = 4;
+
 /**
  * `<ui-goal-card>` — the goal an agent works toward: status (icon + word), progress, the objective folded to three
  * lines, and the goals queued after it; Complete, Pause / Resume, Delete and Add hand the decision to the host
@@ -397,6 +486,22 @@ export class UiGoalCard extends UiElement<GoalCardData> {
   #ro: ResizeObserver | undefined;
   #observed: Element | null = null;
   #tick = 0;
+  /** The queue's order after a move, shown until the host's next data (its order is the truth). */
+  #order: string[] | null = null;
+  /** A queued goal's new text after an accepted edit, shown until the host's next data. */
+  #edited: { id: string; objective: string } | null = null;
+  #editing: Editing | null = null;
+  #drag: Drag | null = null;
+  /**
+   * After the next render, focus the control with this `data-key` (a moved row's handle, an Edit after its editor
+   * closed) — when focus was in the card; `force`: whatever had it (the editor just opened).
+   */
+  #focusKey: string | null = null;
+  #focusForce = false;
+  /** The polite announcement after a move (the armed press speaks first); one-shot — cleared by the next press or data. */
+  #announce = '';
+  /** Alternates a trailing zero-width space, so the same words twice in a row are announced twice. */
+  #announceOdd = false;
 
   constructor() {
     super();
@@ -405,6 +510,24 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     this.root.addEventListener('input', (e) => this.#onInput(e));
     // Focus leaving the armed button disarms it (Tab away, a click elsewhere): a later Enter must not confirm.
     this.root.addEventListener('focusout', (e) => this.#onFocusOut(e as FocusEvent));
+    // The queue's drag handles: pointer events, so a mouse, a pen and a finger drag the same way.
+    this.root.addEventListener('pointerdown', (e) => this.#onPointerDown(e as PointerEvent));
+    this.root.addEventListener('pointermove', (e) => this.#onPointerMove(e as PointerEvent));
+    this.root.addEventListener('pointerup', (e) => this.#onPointerUp(e as PointerEvent, true));
+    this.root.addEventListener('pointercancel', (e) => this.#onPointerUp(e as PointerEvent, false));
+    this.root.addEventListener('lostpointercapture', (e) => this.#onLostCapture(e as PointerEvent));
+  }
+
+  override get data(): GoalCardData | undefined {
+    return super.data;
+  }
+
+  /** New data is the truth: a move or an edit shown ahead of it gives way. */
+  override set data(v: GoalCardData | undefined) {
+    this.#order = null;
+    this.#edited = null;
+    this.#announce = '';
+    super.data = v;
   }
 
   attributeChangedCallback(): void {
@@ -413,6 +536,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
 
   override disconnectedCallback(): void {
     this.#disarm(false);
+    this.#endDrag();
     this.#ro?.disconnect();
     this.#observed = null;
     clearInterval(this.#tick);
@@ -459,15 +583,36 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     return c && typeof c === 'object' ? c : null;
   }
 
+  /** The queue as drawn: the host's, in the order of a move shown ahead of its next data. */
   #queue(): GoalQueued[] {
-    const q = this.data?.queue;
-    return Array.isArray(q) ? q.filter((g) => g && typeof g === 'object') : [];
+    const raw = this.data?.queue;
+    const q = Array.isArray(raw) ? raw.filter((g) => g && typeof g === 'object') : [];
+    const order = this.#order;
+    if (!order || order.length !== q.length) return q;
+    const byId = new Map(q.map((g) => [String(g.id), g]));
+    if (byId.size !== q.length || !order.every((id) => byId.has(id))) return q;
+    return order.map((id) => byId.get(id) as GoalQueued);
+  }
+
+  /** `move` and `edit` are opt-in (0.50.0): a host that passes no `actions` keeps the actions it had. */
+  #allows(act: GoalAction): boolean {
+    const a = this.data?.actions;
+    if (!Array.isArray(a)) return act !== 'move' && act !== 'edit';
+    return a.includes(act);
   }
 
   /** A queued goal's remove is a delete: it needs the host to answer `ui-delete`. */
   #canRemove(): boolean {
-    const a = this.data?.actions;
-    return !Array.isArray(a) || a.includes('delete');
+    return this.#allows('delete');
+  }
+
+  /** Reordering needs the host to answer `ui-move`, and two goals to order. */
+  #canMove(): boolean {
+    return this.#edit() && this.#allows('move') && this.#queue().length > 1;
+  }
+
+  #canEditQueued(): boolean {
+    return this.#edit() && this.#allows('edit');
   }
 
   // ── Render ──
@@ -483,6 +628,17 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     this.#reconcile();
     morphInto(this.content, this.render());
     this.updated();
+    const key = this.#focusKey;
+    const force = this.#focusForce;
+    this.#focusKey = null;
+    this.#focusForce = false;
+    if (key && (force || had || this.#focusInside())) {
+      const el = this.$$<HTMLElement>('[data-key]').find((n) => n.dataset.key === key);
+      if (el) {
+        el.focus({ preventScroll: true });
+        return;
+      }
+    }
     if (had && !this.#focusInside()) this.$<HTMLElement>('.gc')?.focus({ preventScroll: true });
   }
 
@@ -499,6 +655,23 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       this.#foldId = id;
       this.#open = false;
       this.#overflows = false;
+    }
+    const dr = this.#drag;
+    if (dr) {
+      const ids = this.#queue().map((g) => String(g.id));
+      // The queue moved under the drag (a goal started, one was deleted) or a write is out: drop it — a stale index
+      // must never move another goal.
+      if (this.data?.busy || !this.#canMove() || ids.join('\u0000') !== dr.ids.join('\u0000')) this.#endDrag();
+    }
+    const ed = this.#editing;
+    if (ed) {
+      const q = this.#queue().find((g) => String(g.id) === ed.id);
+      if (!q || !this.#canEditQueued()) this.#editing = null;
+      else if (ed.sent !== null && String(q.objective).trim() === ed.sent) {
+        // The host took the save and its data now carries the new text: the editor closes on its Edit button.
+        this.#editing = null;
+        if (this.#focusInside()) this.#focusKey = `edit|${ed.id}`;
+      }
     }
     const a = this.#armed;
     if (!a) return;
@@ -530,7 +703,9 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     const body =
       cur && st ? this.#currentHtml(cur, st, queue.length, now, edit, t, lang) : this.#emptyHtml(queue, hist, t);
     const queueHtml = queue.length ? this.#queueHtml(queue, now, edit, t, lang) : '';
-    const add = edit ? this.#addHtml(cur, st, t) : '';
+    // The host's own add box (slot "add", e.g. a <ui-composer>) takes the built-in one's place; without one the
+    // built-in box is the slot's fallback.
+    const add = edit ? `<slot name="add" data-mk="add-slot">${this.#addHtml(cur, st, t)}</slot>` : '';
     const histHtml = hist.length ? this.#historyHtml(hist, now, t, lang) : '';
     return `<section class="gc" role="group" aria-labelledby="gc-title" tabindex="-1">${head}${error}${body}${queueHtml}${add}${histHtml}<span class="gc-live sr-only" aria-live="polite">${esc(
       this.#liveText(queue, t),
@@ -601,7 +776,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     )}</time>`;
   }
 
-  #actBtn(act: GoalAction, id: string, queued: number, t: Strings): string {
+  #actBtn(act: GoalCurrentAction, id: string, queued: number, t: Strings): string {
     const d = this.data!;
     const busyKey: GoalBusy = act === 'resume' ? 'pause' : act;
     const spinning = d.busy === busyKey && (d.busyId === undefined || d.busyId === null || String(d.busyId) === id);
@@ -625,32 +800,77 @@ export class UiGoalCard extends UiElement<GoalCardData> {
 
   #queueHtml(queue: GoalQueued[], now: number, edit: boolean, t: Strings, lang: Lang): string {
     const d = this.data!;
+    const move = edit && this.#canMove();
+    const editable = edit && this.#canEditQueued();
+    const off = d.busy ? ' aria-disabled="true"' : '';
+    const busyOn = (kind: GoalBusy, id: string) =>
+      d.busy === kind && d.busyId !== undefined && d.busyId !== null && String(d.busyId) === id;
     const rows = queue
       .map((q, i) => {
         const id = String(q.id);
         const n = i + 1;
         const added = toMs(q.addedAt);
+        const ed = editable && this.#editing?.id === id ? this.#editing : null;
+        // An open editor keeps the handle's room, so the row's number stays in line with the others.
+        let grip = move && ed ? '<span class="gc-grip-sp" aria-hidden="true"></span>' : '';
+        if (move && !ed) {
+          grip = `<button type="button" class="gc-grip" data-act="grip" data-id="${escAttr(id)}" data-key="${escAttr(
+            `grip|${id}`,
+          )}" aria-label="${escAttr(t.move(n))}" aria-describedby="gc-move-hint"${off}${
+            busyOn('move', id) ? ' aria-busy="true"' : ''
+          }>${busyOn('move', id) ? SPIN : GRIP}</button>`;
+        }
         let rm = '';
-        if (edit && this.#canRemove()) {
+        if (edit && this.#canRemove() && !ed) {
           const a = this.#armed;
           const armed = !!a && a.act === 'remove' && a.id === id;
-          const spinning =
-            d.busy === 'delete' && d.busyId !== undefined && d.busyId !== null && String(d.busyId) === id;
+          const spinning = busyOn('delete', id);
           const label = spinning ? t.busy.remove : armed ? t.armedSr.remove(n) : t.remove(n);
           rm = `<button type="button" class="gc-rm" data-act="remove" data-id="${escAttr(id)}" data-key="${escAttr(
             `remove|${id}`,
-          )}" aria-label="${escAttr(label)}"${armed ? ' data-armed' : ''}${d.busy ? ' aria-disabled="true"' : ''}${
+          )}" aria-label="${escAttr(label)}"${armed ? ' data-armed' : ''}${off}${
             spinning ? ' aria-busy="true"' : ''
           }>${spinning ? SPIN : glyph(ACT_ICON.remove, 14)}${armed ? `<span class="gc-btn-t" aria-hidden="true">${esc(t.armed.remove)}</span>` : ''}</button>`;
         }
-        return `<li class="gc-q-row" data-mk="${escAttr(`q:${id}`)}"><span class="gc-q-n" aria-hidden="true">${n}</span><div class="gc-q-main"><span class="gc-q-text">${esc(
-          q.objective,
-        )}</span>${added ? this.#when(added, 'added', now, t, lang) : ''}</div>${rm}</li>`;
+        let editBtn = '';
+        if (editable && !ed) {
+          editBtn = `<button type="button" class="gc-ic" data-act="edit" data-id="${escAttr(id)}" data-key="${escAttr(
+            `edit|${id}`,
+          )}" aria-label="${escAttr(t.edit(n))}" title="${escAttr(t.edit(n))}"${off}>${glyph(ACT_ICON.edit, 14)}</button>`;
+        }
+        const text = this.#edited && this.#edited.id === id ? this.#edited.objective : String(q.objective);
+        const main = ed
+          ? this.#editorHtml(ed, id, n, t, busyOn('edit', id))
+          : `<div class="gc-q-main"><span class="gc-q-text">${esc(text)}</span>${
+              added ? this.#when(added, 'added', now, t, lang) : ''
+            }</div>`;
+        const dragging = this.#drag?.on && this.#drag.id === id;
+        return `<li class="gc-q-row${ed ? ' is-editing' : ''}" data-mk="${escAttr(`q:${id}`)}"${
+          dragging ? ' data-dragging' : ''
+        }>${grip}<span class="gc-q-n" aria-hidden="true">${n}</span>${main}${editBtn}${rm}</li>`;
       })
       .join('');
+    const hint = move ? `<span class="sr-only" id="gc-move-hint">${esc(t.moveHint)}</span>` : '';
     return `<div class="gc-q"><div class="gc-sub" id="gc-q-title"><span>${esc(t.queue)}</span><span class="gc-n">${
       queue.length
-    }</span></div><ol class="gc-q-list" aria-labelledby="gc-q-title">${rows}</ol></div>`;
+    }</span></div><ol class="gc-q-list" aria-labelledby="gc-q-title"${this.#drag?.on ? ' data-sorting' : ''}>${rows}</ol>${hint}</div>`;
+  }
+
+  /** A queued goal open for editing: its text (set, never rendered — the node keeps it), Cancel and Save. */
+  #editorHtml(ed: Editing, id: string, n: number, t: Strings, saving: boolean): string {
+    const max = this.#max();
+    const off = this.data?.busy || !ed.draft.trim() ? ' aria-disabled="true"' : '';
+    return `<div class="gc-q-main"><textarea class="gc-q-edit" data-key="${escAttr(`editbox|${id}`)}" rows="2" aria-label="${escAttr(
+      t.editLabel(n),
+    )}" aria-describedby="gc-edit-hint"${max ? ` maxlength="${max}"` : ''}></textarea><div class="gc-q-foot"><span class="gc-hint-t" id="gc-edit-hint">${esc(
+      t.editHint,
+    )}</span><span class="gc-q-foot-acts"><button type="button" class="gc-btn" data-act="edit-cancel" data-id="${escAttr(
+      id,
+    )}" data-key="${escAttr(`edit-cancel|${id}`)}">${esc(t.cancel)}</button><button type="button" class="gc-btn is-primary" data-act="edit-save" data-id="${escAttr(
+      id,
+    )}" data-key="${escAttr(`edit-save|${id}`)}"${off}${saving ? ' aria-busy="true"' : ''}>${
+      saving ? SPIN : glyph('check', 14)
+    }<span class="gc-btn-t">${esc(saving ? t.busy.edit : t.save)}</span></button></span></div></div>`;
   }
 
   #addHtml(cur: GoalCurrent | null, st: GoalStatusInfo | null, t: Strings): string {
@@ -693,7 +913,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
 
   #liveText(queue: GoalQueued[], t: Strings): string {
     const a = this.#armed;
-    if (!a) return '';
+    if (!a) return this.#announce;
     if (a.act === 'complete') return t.armedSr.complete;
     if (a.act === 'delete') return t.armedSr.delete(queue.length > 0);
     return t.armedSr.remove(queue.findIndex((q) => String(q.id) === a.id) + 1);
@@ -705,6 +925,13 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       // The draft is set, never rendered: the node is kept across renders, and a fresh one gets the text back.
       if (ta.value !== this.#draft) ta.value = this.#draft;
       this.#grow(ta);
+    }
+    // A render in the middle of a drag (a host update) keeps the lifted row where the pointer is.
+    if (this.#drag?.on) this.#paintDrag();
+    const box = this.$<HTMLTextAreaElement>('.gc-q-edit');
+    if (box && this.#editing) {
+      if (box.value !== this.#editing.draft) box.value = this.#editing.draft;
+      this.#grow(box);
     }
     this.#measure();
     this.#observe();
@@ -815,6 +1042,16 @@ export class UiGoalCard extends UiElement<GoalCardData> {
 
   #onInput(e: Event): void {
     const ta = e.target as HTMLTextAreaElement | null;
+    if (ta?.classList?.contains('gc-q-edit') && this.#editing) {
+      this.#editing.draft = ta.value;
+      this.#grow(ta);
+      const save = this.$('[data-act="edit-save"]');
+      if (save && !save.hasAttribute('aria-busy')) {
+        if (this.data?.busy || !ta.value.trim()) save.setAttribute('aria-disabled', 'true');
+        else save.removeAttribute('aria-disabled');
+      }
+      return;
+    }
     if (!ta?.classList?.contains('gc-input')) return;
     this.#draft = ta.value;
     this.#paintDraft();
@@ -834,8 +1071,13 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       this.requestRender();
       return;
     }
+    if (act === 'edit-cancel') {
+      this.#closeEditor(true, e);
+      return;
+    }
     if (b.getAttribute('aria-disabled') === 'true') {
       if (act === 'add' && !this.data?.busy) this.#input()?.focus();
+      if (act === 'edit-save' && !this.data?.busy) this.$<HTMLElement>('.gc-q-edit')?.focus();
       return;
     }
     if (!this.#edit()) return;
@@ -843,6 +1085,12 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     switch (act) {
       case 'add':
         this.#add(e);
+        break;
+      case 'edit':
+        this.#openEditor(id, e);
+        break;
+      case 'edit-save':
+        this.#saveEditor(e);
         break;
       case 'complete':
       case 'delete':
@@ -865,6 +1113,42 @@ export class UiGoalCard extends UiElement<GoalCardData> {
   #onKey(e: KeyboardEvent): void {
     const el = e.target as HTMLElement | null;
     if (!el) return;
+    if (el.classList?.contains('gc-q-edit')) {
+      if (e.key === 'Escape') {
+        // The editor's own: the panel or dialog around the card stays open.
+        e.preventDefault();
+        e.stopPropagation();
+        this.#closeEditor(true, e);
+        return;
+      }
+      // Never while an IME is composing: Korean input commits its syllable with Enter.
+      if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) {
+        const key = typedKey(e, el);
+        if (key) this.sound('type', { key }, e);
+        return;
+      }
+      e.preventDefault();
+      this.#saveEditor(e);
+      return;
+    }
+    if (el.classList?.contains('gc-grip')) {
+      if (e.key === 'Escape' && this.#drag) {
+        e.stopPropagation();
+        this.#endDrag();
+        return;
+      }
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        if (this.data?.busy || el.getAttribute('aria-disabled') === 'true') return;
+        const id = el.dataset.id ?? '';
+        const from = this.#queue().findIndex((q) => String(q.id) === id);
+        if (from < 0) return;
+        const to = from + (e.key === 'ArrowUp' ? -1 : 1);
+        if (to < 0 || to >= this.#queue().length) return;
+        this.#move(id, from, to, e);
+        return;
+      }
+    }
     if (el.classList?.contains('gc-input')) {
       // Never while an IME is composing: Korean input commits its syllable with Enter.
       if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) {
@@ -896,6 +1180,183 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     this.#disarm();
   }
 
+  // ── Reorder ──
+
+  /** Move a queued goal (`ui-move`); unless the host cancels, the new order shows until its next data. */
+  #move(id: string, from: number, to: number, e: Event): void {
+    if (from === to || !this.#canMove() || this.data?.busy) return;
+    const ids = this.#queue().map((q) => String(q.id));
+    // Indices are checked against the goal they name: a stale one never moves another goal.
+    if (ids[from] !== id || to < 0 || to >= ids.length) return;
+    const order = goalQueueMove(ids, from, to);
+    const was = !!this.#armed;
+    this.#disarm(false);
+    const detail: GoalMoveDetail = { id, from, to, order };
+    if (!this.emit('ui-move', detail)) {
+      if (was) this.requestRender();
+      return;
+    }
+    this.#order = order;
+    this.#announceOdd = !this.#announceOdd;
+    this.#announce = this.#t.moved(to + 1, order.length) + (this.#announceOdd ? '\u200b' : '');
+    this.#focusKey = `grip|${id}`;
+    this.sound('select', undefined, e);
+    this.requestRender();
+  }
+
+  #onPointerDown(e: PointerEvent): void {
+    if (e.button !== 0 || this.#drag) return;
+    const grip = (e.target as Element | null)?.closest?.<HTMLElement>('.gc-grip');
+    if (!grip || !this.content.contains(grip) || grip.getAttribute('aria-disabled') === 'true') return;
+    if (!this.#canMove() || this.data?.busy) return;
+    const id = grip.dataset.id ?? '';
+    const rows = this.$$<HTMLElement>('.gc-q-row');
+    const from = rows.findIndex((r) => r.dataset.mk === `q:${id}`);
+    if (from < 0) return;
+    // A press on the handle never selects the text around it (and keeps a touch from scrolling — CSS touch-action).
+    e.preventDefault();
+    const boxes = rows.map((r) => r.getBoundingClientRect());
+    // The list's gap, as laid out: between this row and a neighbour.
+    const next = boxes[from + 1];
+    const prev = boxes[from - 1];
+    const gap = Math.max(0, next ? next.top - boxes[from].bottom : prev ? boxes[from].top - prev.bottom : 0);
+    this.#drag = {
+      id,
+      from,
+      to: from,
+      pointerId: e.pointerId,
+      startY: e.clientY,
+      dy: 0,
+      on: false,
+      grip,
+      ids: this.#queue().map((q) => String(q.id)),
+      mids: boxes.map((b) => b.top + b.height / 2),
+      step: boxes[from].height + gap,
+    };
+    try {
+      grip.setPointerCapture?.(e.pointerId);
+    } catch {}
+    grip.focus({ preventScroll: true });
+  }
+
+  #onPointerMove(e: PointerEvent): void {
+    const dr = this.#drag;
+    if (!dr || e.pointerId !== dr.pointerId) return;
+    dr.dy = e.clientY - dr.startY;
+    if (!dr.on) {
+      if (Math.abs(dr.dy) < DRAG_SLOP) return;
+      dr.on = true;
+      this.#disarm(false);
+    }
+    e.preventDefault();
+    dr.to = goalDropIndex(dr.mids, dr.from, dr.mids[dr.from] + dr.dy);
+    this.#paintDrag();
+  }
+
+  /** The lifted row at the pointer, the rows it passed one step aside — on the rows drawn now (found by key). */
+  #paintDrag(): void {
+    const dr = this.#drag;
+    if (!dr) return;
+    this.$('.gc-q-list')?.setAttribute('data-sorting', '');
+    for (const row of this.$$<HTMLElement>('.gc-q-row')) {
+      const i = dr.ids.indexOf((row.dataset.mk ?? '').slice(2));
+      let y = 0;
+      if (i === dr.from) y = dr.dy;
+      else if (dr.to < dr.from && i >= dr.to && i < dr.from) y = dr.step;
+      else if (dr.to > dr.from && i <= dr.to && i > dr.from) y = -dr.step;
+      row.style.transform = y ? `translateY(${y}px)` : '';
+      row.toggleAttribute('data-dragging', i === dr.from);
+    }
+  }
+
+  #onPointerUp(e: PointerEvent, drop: boolean): void {
+    const dr = this.#drag;
+    if (!dr || e.pointerId !== dr.pointerId) return;
+    this.#endDrag();
+    if (drop && dr.on && dr.to !== dr.from) this.#move(dr.id, dr.from, dr.to, e);
+  }
+
+  /** The handle lost the pointer (it was re-drawn, removed, or the browser took the gesture): the drag is over. */
+  #onLostCapture(e: PointerEvent): void {
+    const dr = this.#drag;
+    if (dr && e.pointerId === dr.pointerId) this.#endDrag();
+  }
+
+  /** Put every row back where it was drawn (a drop re-renders in the new order after). */
+  #endDrag(): void {
+    const dr = this.#drag;
+    if (!dr) return;
+    this.#drag = null;
+    for (const row of this.$$<HTMLElement>('.gc-q-row')) {
+      row.style.transform = '';
+      row.removeAttribute('data-dragging');
+    }
+    this.$('.gc-q-list')?.removeAttribute('data-sorting');
+    try {
+      if (dr.grip.hasPointerCapture?.(dr.pointerId)) dr.grip.releasePointerCapture(dr.pointerId);
+    } catch {}
+  }
+
+  // ── Edit a queued goal ──
+
+  #openEditor(id: string, e: Event): void {
+    if (!this.#canEditQueued() || this.data?.busy) return;
+    const q = this.#queue().find((g) => String(g.id) === id);
+    if (!q) return;
+    this.#disarm(false);
+    const text = this.#edited && this.#edited.id === id ? this.#edited.objective : String(q.objective);
+    this.#editing = { id, draft: text, sent: null };
+    this.#focusKey = `editbox|${id}`;
+    // A click does not focus a button everywhere (Safari): the box takes focus whatever had it.
+    this.#focusForce = true;
+    this.sound('tap', { emphasis: 'subtle' }, e);
+    this.requestRender();
+  }
+
+  /** Cancel (or Esc): the editor closes, the text is as it was, focus is back on the row's Edit. */
+  #closeEditor(user: boolean, e?: Event): void {
+    const ed = this.#editing;
+    if (!ed) return;
+    this.#editing = null;
+    if (user) {
+      this.#focusKey = `edit|${ed.id}`;
+      if (e) this.sound('close', { emphasis: 'subtle' }, e);
+    }
+    this.requestRender();
+  }
+
+  /**
+   * Save: an unchanged text just closes; a changed one asks with `ui-edit`. Not cancelled, the editor closes and the
+   * row shows the new text until the host's next data; cancelled, the host has taken the write: the editor stays (its
+   * Save spins while `busy` is `edit`) and closes once the data carries the new text — a refusal leaves it to fix.
+   */
+  #saveEditor(e: Event): void {
+    const ed = this.#editing;
+    if (!ed || this.data?.busy || !this.#canEditQueued()) return;
+    const box = this.$<HTMLTextAreaElement>('.gc-q-edit');
+    const text = (box ? box.value : ed.draft).trim();
+    if (!text) {
+      box?.focus();
+      return;
+    }
+    const q = this.#queue().find((g) => String(g.id) === ed.id);
+    if (!q) return;
+    if (text === String(q.objective).trim()) {
+      this.#closeEditor(true, e);
+      return;
+    }
+    const detail: GoalEditDetail = { id: ed.id, objective: text };
+    if (!this.emit('ui-edit', detail)) {
+      ed.sent = text;
+      return;
+    }
+    this.sound('tap', undefined, e);
+    this.#editing = null;
+    this.#edited = { id: ed.id, objective: text };
+    this.#focusKey = `edit|${ed.id}`;
+    this.requestRender();
+  }
+
   // ── Two-press ──
 
   /**
@@ -922,6 +1383,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       }
     }
     this.#armed = { act, id };
+    this.#announce = '';
     this.#armedAt = now;
     clearTimeout(this.#armTimer);
     this.#armTimer = window.setTimeout(() => this.#disarm(), GOAL_ARM_MS);
@@ -932,6 +1394,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
   #disarm(render = true): void {
     const was = !!this.#armed;
     this.#armed = null;
+    if (was) this.#announce = '';
     this.#armedAt = 0;
     clearTimeout(this.#armTimer);
     this.#armTimer = 0;

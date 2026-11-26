@@ -1,11 +1,15 @@
 import type { ComponentDoc } from '../../docs/types';
 import './goal-card';
+import '../composer/composer';
+import type { ComposerSubmitDetail } from '../composer/logic';
 import type {
   GoalAddDetail,
   GoalCardData,
   GoalCurrent,
   GoalDeleteDetail,
+  GoalEditDetail,
   GoalIdDetail,
+  GoalMoveDetail,
   GoalPast,
   UiGoalCard,
 } from './goal-card';
@@ -71,6 +75,25 @@ function wire(el: UiGoalCard): UiGoalCard {
       else set({ busy: null, busyId: undefined, ...nextUp() });
     });
   });
+  // Move: the host shows the new order in its own data at once, then writes it.
+  el.addEventListener('ui-move', (e) => {
+    const { order } = (e as CustomEvent<GoalMoveDetail>).detail;
+    const byId = new Map((data().queue ?? []).map((q) => [q.id, q]));
+    set({ queue: order.map((id) => byId.get(id)).filter((q) => !!q), error: undefined });
+  });
+  // Edit: the host takes the save (the editor stays, Save spins) and answers with the new text.
+  el.addEventListener('ui-edit', (e) => {
+    e.preventDefault();
+    const { id, objective } = (e as CustomEvent<GoalEditDetail>).detail;
+    set({ busy: 'edit', busyId: id, error: undefined });
+    later(() =>
+      set({
+        busy: null,
+        busyId: undefined,
+        queue: (data().queue ?? []).map((q) => (q.id === id ? { ...q, objective } : q)),
+      }),
+    );
+  });
   el.addEventListener('ui-add', (e) => {
     const { objective } = (e as CustomEvent<GoalAddDetail>).detail;
     set({ busy: 'add', error: undefined });
@@ -82,6 +105,37 @@ function wire(el: UiGoalCard): UiGoalCard {
       else set({ busy: null, queue: [...(data().queue ?? []), { id, objective, addedAt: Date.now() }] });
     });
   });
+  return el;
+}
+
+/**
+ * The host's own add box: a `<ui-composer collapse>` in slot "add" — one line until it gets focus, then the whole
+ * composer (files, images, voice). Its send becomes the card's add (the stand-in host keeps the files' names).
+ */
+function withComposer(el: UiGoalCard, ko = false): UiGoalCard {
+  const c = document.createElement('ui-composer');
+  c.slot = 'add';
+  c.setAttribute('collapse', '');
+  if (ko) c.setAttribute('lang', 'ko');
+  c.data = {
+    label: ko ? '목표 추가' : 'Add a goal',
+    placeholder: ko ? '목표 추가 — 지금 목표 다음에 시작' : 'Add a goal — starts after the current one',
+    submitLabel: ko ? '추가' : 'Add',
+    hint: true,
+    minRows: 2,
+    maxRows: 8,
+    maxLength: 4000,
+  };
+  c.addEventListener('ui-submit', (e) => {
+    const { text, files } = (e as CustomEvent<ComposerSubmitDetail>).detail;
+    if (!text) {
+      e.preventDefault();
+      return;
+    }
+    const objective = files.length ? `${text}\n(${files.map((f) => f.name).join(', ')})` : text;
+    el.dispatchEvent(new CustomEvent('ui-add', { detail: { objective }, cancelable: true }));
+  });
+  el.append(c);
   return el;
 }
 
@@ -199,7 +253,7 @@ export const doc: ComponentDoc = {
       name: 'data.queue',
       type: 'Array<{ id, objective, addedAt? }>',
       description:
-        'Goals waiting their turn, numbered in order, each with a two-press remove (`ui-delete`, `queued: true`).',
+        'Goals waiting their turn, numbered in order, each with a two-press remove (`ui-delete`, `queued: true`); with `move` / `edit` in `actions`, a drag handle (two or more goals; `ui-move`) and an Edit that opens the text in place (`ui-edit`). A move shows the new order at once, until the next data — so put the new order in your next data (the card’s order gives way to it).',
     },
     {
       name: 'data.history',
@@ -215,22 +269,22 @@ export const doc: ComponentDoc = {
     },
     {
       name: 'data.actions',
-      type: "Array<'complete' | 'pause' | 'resume' | 'delete'>",
-      default: 'every action the status allows',
+      type: "Array<'complete' | 'pause' | 'resume' | 'delete' | 'move' | 'edit'>",
+      default: 'complete, pause, resume, delete (move and edit are opt-in)',
       description:
-        'The goal actions the host answers. Of what the status allows, only these are drawn — a host whose route takes add and delete passes `["delete"]`; `[]` draws no goal action. Without `delete` the queued goals lose their remove too (it is a delete). The add box stays with `canEdit`. `goalActions(status, actions)` is the same rule as a function.',
+        'The goal actions the host answers. Of what the status allows, only these are drawn — a host whose route takes add and delete passes `["delete"]`; `[]` draws no goal action. Without `delete` the queued goals lose their remove (it is a delete). `move` (the drag handle) and `edit` (Edit) are drawn only when listed — a host that passes no `actions` keeps the card it had. The add box stays with `canEdit`. `goalActions(status, actions)` is the current goal’s rule as a function.',
     },
     {
       name: 'data.busy',
-      type: "'complete' | 'pause' | 'delete' | 'add' | null",
+      type: "'complete' | 'pause' | 'delete' | 'add' | 'move' | 'edit' | null",
       description:
-        'A goal write in flight: that button spins with “Deleting…” etc. and every goal action waits (aria-disabled — a focused button keeps its focus). The add box stays editable. `pause` covers Resume too.',
+        'A goal write in flight: that button spins with “Deleting…” etc. and every goal action waits (aria-disabled — a focused button keeps its focus), the drag handles and Edit too. The add box stays editable. `pause` covers Resume too.',
     },
     {
       name: 'data.busyId',
       type: 'string',
       description:
-        'The goal `busy` is about — a queued goal’s id makes its remove button spin. Default: the current goal.',
+        'The goal `busy` is about — a queued goal’s id makes its remove, its handle (`move`) or its editor’s Save (`edit`) spin. Default: the current goal.',
     },
     {
       name: 'data.error',
@@ -253,6 +307,12 @@ export const doc: ComponentDoc = {
       name: 'draft',
       type: 'string (property)',
       description: 'The add box’s text. Set it to clear the box after a prevented `ui-add` went through.',
+    },
+    {
+      name: 'slot "add"',
+      type: 'element',
+      description:
+        'A host element with `slot="add"` takes the add box’s place (the built-in box is the fallback) — e.g. a `<ui-composer collapse>`: one line until it gets focus, then the whole composer with files, images, voice and the host’s tools. The host turns its send into its own add; `draft`, `busy: "add"` and `ui-add` are the built-in box’s.',
     },
     { name: 'lang', type: "'en' | 'ko'", default: "'en'", description: 'UI language (attribute).' },
     {
@@ -286,6 +346,18 @@ export const doc: ComponentDoc = {
         'Second press of Delete (current goal, `queued: false`) or of a queued goal’s remove (`queued: true`) within 4 s.',
     },
     {
+      name: 'ui-move',
+      detail: '{ id: string; from: number; to: number; order: string[] }',
+      description:
+        'A queued goal dropped in a new place (drag its handle) or moved one step (↑ ↓ on the handle). `from` / `to` are 0-based; `order` is the queue’s ids in the new order. Unless prevented, the card shows that order until the next data.',
+    },
+    {
+      name: 'ui-edit',
+      detail: '{ id: string; objective: string }',
+      description:
+        'A queued goal’s editor saved with a changed, non-empty (trimmed) text. Not prevented: the editor closes and the row shows the text until the next data. Prevented: the editor stays (Save spins while `busy` is `edit`) and closes once the data carries the new text — a refusal leaves the text to fix.',
+    },
+    {
       name: 'ui-add',
       detail: '{ objective: string }',
       description:
@@ -300,6 +372,10 @@ export const doc: ComponentDoc = {
     ['Enter in the add box', 'Add the goal (never while an IME is composing)'],
     ['Shift+Enter in the add box', 'New line'],
     ['Enter / Space on Past goals', 'Show or hide the goals that ended'],
+    ['↑ / ↓ on a queued goal’s handle', 'Move it one place up or down (focus stays on its handle)'],
+    ['Enter / Space on Edit', 'Open the queued goal’s text in place, focused'],
+    ['Enter in the editor', 'Save (never while an IME is composing); Shift+Enter is a new line'],
+    ['Esc in the editor', 'Cancel — the text is as it was, focus is back on Edit'],
   ],
   a11y: [
     'role="group" labelled by the title. Status is icon + word, never colour alone.',
@@ -308,6 +384,7 @@ export const doc: ComponentDoc = {
     'Arming announces the consequence once through a polite live region (“Press again to delete the goal — the next one starts”); a held Enter never confirms (key repeat is ignored) and a double click counts as one press.',
     'Busy actions use aria-disabled + aria-busy instead of disabled, so the focused button keeps focus. When the focused control’s goal leaves (deleted, finished), focus moves to the card, not to another goal’s button.',
     'Errors use role="alert". Past goals is a disclosure (aria-expanded) whose region is inert while closed.',
+    'Each queued goal’s handle is a button named “Move queued goal 2”, described by “Drag, or press ↑ ↓ to move it”; a move is announced (“Moved to 1 of 3”) and focus stays on the moved goal’s handle. A drag works with a mouse, a pen or a finger (pointer events, touch-action: none on the handle). Edit opens a labelled text box in place; Esc stays in the card.',
     'Reduced motion: the chevrons and progress fill jump, the history region only fades, the spinner holds still.',
     'Sound (opt-in, @2lab.ai/ui/sound): Add taps; Pause and Resume play toggle (back, forward); the first press of Complete, Delete or Remove plays a subtle tap, the confirming press a tap for Complete and a strong close for a delete — each once its event is not prevented; keystrokes in the add box play type while typing sounds are on. Silent until the page turns sound on.',
   ],
@@ -335,6 +412,23 @@ export const doc: ComponentDoc = {
         'A long objective folds to three lines (More / Less). Try Pause, Complete (press twice), remove a queued goal, add one with Enter, open Past goals. The stand-in host answers after 700 ms.',
       height: 560,
       create: () => make(activeData()),
+    },
+    {
+      id: 'composer-queue',
+      title: 'A composer as the add box; reorder and edit the queue',
+      description:
+        'slot="add" holds a <ui-composer collapse>: one line until you click it, then the whole composer (attach, image, voice). Drag a queued goal by its handle (or focus it and press ↑ ↓), and press Edit to change its text in place — Enter saves, Esc cancels.',
+      height: 620,
+      create: () => {
+        const d = activeData();
+        d.actions = ['complete', 'pause', 'resume', 'delete', 'move', 'edit'];
+        d.queue = [
+          { id: 'g-docs', objective: 'Write the v2 migration guide — one example per endpoint.' },
+          { id: 'g-contrast', objective: 'Audit colour contrast in the settings screens (light and dark).' },
+          { id: 'g-notes', objective: 'Draft the release notes for support.' },
+        ];
+        return withComposer(make(d));
+      },
     },
     {
       id: 'paused-error',

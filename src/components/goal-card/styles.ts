@@ -106,6 +106,33 @@ ${TONES.map(([k, , text]) => `.gc-chip.is-quiet[data-tone="${k}"] { background: 
 /* Centred on the first line of its objective (row padding 4 + half a 20px line = half of 28px). */
 .gc-rm { min-width: 28px; margin-top: -4px; padding: 0 7px; border-color: transparent; background: transparent; color: var(--ib-muted); }
 .gc-rm[data-armed] { padding: 0 9px 0 7px; }
+/* Edit and the drag handle: quiet icon buttons on the same line; the handle grabs, and a touch on it never scrolls. */
+.gc-ic, .gc-grip { display: inline-flex; flex: none; align-items: center; justify-content: center; box-sizing: border-box;
+  min-width: 28px; min-height: 28px; margin-top: -4px; padding: 0; border-radius: 8px; color: var(--ib-muted); cursor: pointer;
+  transition: background-color var(--dur-press) ease, color var(--dur-press) ease, opacity var(--dur-press) ease, transform var(--dur-press) var(--ease-out); }
+.gc-grip { min-width: 20px; margin-left: -6px; margin-right: -4px; cursor: grab; touch-action: none; }
+.gc-grip-sp { flex: none; width: 10px; }
+:is(.gc-ic, .gc-grip)[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.gc-grip[aria-busy="true"] { opacity: 1; cursor: progress; }
+/* Sorting: the lifted row follows the pointer on a raised card, the others step aside. */
+/* Rows bleed 8px each side (padding back in), so a lifted row's card has room around its handle and buttons. */
+.gc-q-row { position: relative; margin: 0 -8px; padding-inline: 8px; border-radius: 8px; background: transparent; }
+.gc-q-list[data-sorting] .gc-q-row { transition: transform var(--dur-move) var(--ease-out); }
+.gc-q-list[data-sorting] .gc-q-row[data-dragging] { z-index: 1; transition: none; background: var(--ib-card);
+  box-shadow: 0 0 0 1px var(--ib-card-border), var(--ib-shadow); cursor: grabbing; }
+.gc-q-list[data-sorting] .gc-q-row[data-dragging] .gc-grip { cursor: grabbing; }
+.gc-q-list[data-sorting] { user-select: none; }
+/* A queued goal open for editing: the box grows with its text; Cancel · Save under it. */
+.gc-q-edit { display: block; box-sizing: border-box; width: 100%; min-height: 52px; max-height: 140px; padding: 6px 10px;
+  border: 1px solid var(--ib-muted); border-radius: 8px; background: var(--ib-card); color: var(--ib-text);
+  font: inherit; font-size: 13px; line-height: 20px; resize: none; overflow-y: auto; outline: none; }
+.gc-q-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; }
+.gc-q-foot .gc-hint-t { flex: 1 1 auto; min-width: 0; font-size: 11.5px; line-height: 16px; color: var(--ib-muted); }
+.gc-q-foot-acts { display: inline-flex; gap: 6px; margin-left: auto; }
+.gc-btn.is-primary { border-color: var(--ib-text); background: var(--ib-text); color: var(--ib-card); }
+.gc-btn.is-primary > svg { color: inherit; }
+/* The host's add box (slot "add", e.g. a <ui-composer collapse>) sits where the built-in one would. */
+::slotted([slot="add"]) { display: block; margin-top: 12px; }
 
 /* Add: a growing box and the one ink button */
 .gc-add { margin-top: 12px; }
@@ -140,11 +167,13 @@ ${TONES.map(([k, , text]) => `.gc-chip.is-quiet[data-tone="${k}"] { background: 
   font-size: 12px; line-height: 17px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Press: scale .97 (never with a keyboard ring); hover: colour and border only, fine pointers only */
-:is(.gc-btn, .gc-rm, .gc-add-btn, .gc-more):active:not([aria-disabled="true"]):not(:focus-visible) { transform: scale(0.97); }
+:is(.gc-btn, .gc-rm, .gc-add-btn, .gc-more, .gc-ic):active:not([aria-disabled="true"]):not(:focus-visible) { transform: scale(0.97); }
 @media (hover: hover) and (pointer: fine) {
   .gc-btn:hover:not([aria-disabled="true"]) { border-color: var(--ib-muted); }
   .gc-btn.is-danger:hover:not([aria-disabled="true"]):not([data-armed]) { border-color: var(--st-fail); background: ${tint('fail')}; }
   .gc-rm:hover:not([aria-disabled="true"]):not([data-armed]) { background: var(--ib-pill); color: ${ink('--st-fail-text')}; }
+  :is(.gc-ic, .gc-grip):hover:not([aria-disabled="true"]) { background: var(--ib-pill); color: var(--ib-text); }
+  .gc-btn.is-primary:hover:not([aria-disabled="true"]) { border-color: var(--ib-text); opacity: 0.88; }
   .gc-add-btn:hover:not([aria-disabled="true"]) { opacity: 0.88; }
   .gc-more:hover { background: var(--ib-pill); color: var(--ib-text); }
   .gc-hist-head:hover { background: var(--ib-pill); }
@@ -153,7 +182,10 @@ ${TONES.map(([k, , text]) => `.gc-chip.is-quiet[data-tone="${k}"] { background: 
 /* 44px targets on touch and narrow screens; 16px text in the box so iOS does not zoom */
 @media (pointer: coarse), (max-width: 639px) {
   .gc-btn, .gc-add-btn, .gc-more, .gc-hist-head { min-height: 44px; }
-  .gc-rm { min-width: 44px; min-height: 44px; margin-top: -8px; }
+  .gc-rm, .gc-ic { min-width: 44px; min-height: 44px; margin-top: -8px; }
+  .gc-grip { min-width: 32px; min-height: 44px; margin-top: -8px; }
+  .gc-grip-sp { width: 22px; }
+  .gc-q-edit { font-size: 16px; }
   .gc-input { min-height: 44px; padding: 11px 12px; font-size: 16px; line-height: 20px; }
   .gc-hint-t { display: none; }
 }
@@ -163,7 +195,7 @@ ${TONES.map(([k, , text]) => `.gc-chip.is-quiet[data-tone="${k}"] { background: 
 }
 /* Reduced motion: nothing turns or scales; the region fades only */
 @media (prefers-reduced-motion: reduce) {
-  .gc-more-i, .gc-chev, .gc-hist-region, .gc-fill { transition: none !important; }
+  .gc-more-i, .gc-chev, .gc-hist-region, .gc-fill, .gc-q-row { transition: none !important; }
   :is(.gc-btn, .gc-rm, .gc-add-btn, .gc-more):active:not([aria-disabled="true"]):not(:focus-visible) { transform: none; }
   .gc-hist-inner { transition: opacity 120ms ease, visibility 0s linear 120ms !important; }
   .gc-hist[data-open] .gc-hist-inner { transition: opacity 120ms ease, visibility 0s !important; }

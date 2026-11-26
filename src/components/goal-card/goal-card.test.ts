@@ -1102,3 +1102,474 @@ describe('sound', () => {
     expect(spy.calls).toEqual([]);
   });
 });
+
+// ── 0.50.0: the host's add box, reordering and editing the queue ──
+
+const QUEUE3: GoalCardData = {
+  ...BASE,
+  actions: ['complete', 'pause', 'resume', 'delete', 'move', 'edit'],
+  queue: [
+    { id: 'q1', objective: 'Audit contrast' },
+    { id: 'q2', objective: 'Write release notes' },
+    { id: 'q3', objective: 'Tag the release' },
+  ],
+};
+const rowIds = (el: UiGoalCard) => qa(el, '.gc-q-row').map((r) => r.dataset.mk);
+const texts = (el: UiGoalCard) => qa(el, '.gc-q-text').map((r) => r.textContent);
+const active = (el: UiGoalCard) => el.shadowRoot!.activeElement as HTMLElement | null;
+/** happy-dom lays nothing out: give each row a 30px box, 2px apart. */
+function layoutRows(el: UiGoalCard): void {
+  qa(el, '.gc-q-row').forEach((r, i) => {
+    r.getBoundingClientRect = () =>
+      ({
+        top: 100 + i * 32,
+        height: 30,
+        bottom: 130 + i * 32,
+        left: 0,
+        right: 300,
+        width: 300,
+        x: 0,
+        y: 100 + i * 32,
+      }) as DOMRect;
+  });
+}
+function pointer(target: Element, kind: string, y: number, init: PointerEventInit = {}): PointerEvent {
+  const e = new PointerEvent(kind, {
+    bubbles: true,
+    composed: true,
+    cancelable: true,
+    pointerId: 7,
+    button: 0,
+    clientY: y,
+    ...init,
+  });
+  target.dispatchEvent(e);
+  return e;
+}
+
+describe('helpers (0.50.0)', () => {
+  it('goalQueueMove moves one item, clamps, and leaves the input alone', async () => {
+    const { goalQueueMove } = await import('./goal-card');
+    const src = ['a', 'b', 'c', 'd'];
+    expect(goalQueueMove(src, 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+    expect(goalQueueMove(src, 3, 0)).toEqual(['d', 'a', 'b', 'c']);
+    expect(goalQueueMove(src, 1, 99)).toEqual(['a', 'c', 'd', 'b']);
+    expect(goalQueueMove(src, -5, 1)).toEqual(['b', 'a', 'c', 'd']);
+    expect(goalQueueMove([], 0, 1)).toEqual([]);
+    expect(src).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('goalDropIndex: a row is passed once the dragged centre crosses its centre', async () => {
+    const { goalDropIndex } = await import('./goal-card');
+    const mids = [115, 147, 179];
+    expect(goalDropIndex(mids, 0, 115)).toBe(0);
+    expect(goalDropIndex(mids, 0, 146)).toBe(0);
+    expect(goalDropIndex(mids, 0, 148)).toBe(1);
+    expect(goalDropIndex(mids, 0, 400)).toBe(2);
+    expect(goalDropIndex(mids, 2, 178)).toBe(2);
+    expect(goalDropIndex(mids, 2, 146)).toBe(1);
+    expect(goalDropIndex(mids, 2, -50)).toBe(0);
+  });
+
+  it('goalActions never offers move or edit on the current goal', () => {
+    expect(goalActions('active', ['delete', 'move', 'edit'])).toEqual(['delete']);
+  });
+});
+
+describe('<ui-goal-card> slot="add"', () => {
+  it('a host child with slot="add" takes the add box’s place; without one the built-in box is the fallback', () => {
+    const el = mount(BASE);
+    const slot = q(el, 'slot[name="add"]') as HTMLSlotElement;
+    expect(slot).toBeTruthy();
+    expect(slot.querySelector('.gc-input')).toBeTruthy();
+    const mine = document.createElement('div');
+    mine.slot = 'add';
+    mine.textContent = 'host composer';
+    el.append(mine);
+    el.renderNow();
+    expect((q(el, 'slot[name="add"]') as HTMLSlotElement).assignedElements()).toEqual([mine]);
+    expect(styles).toMatch(/::slotted\(\[slot="add"\]\)\s*\{[^}]*margin-top:\s*12px/);
+  });
+
+  it('no slot (and nothing slotted shows) when the card is read-only', () => {
+    const el = mount({ ...BASE, canEdit: false });
+    expect(q(el, 'slot[name="add"]')).toBeNull();
+  });
+});
+
+describe('<ui-goal-card> reorder the queue', () => {
+  it('each queued goal gets a labelled drag handle when there are two or more; one goal has none', () => {
+    const el = mount(QUEUE3);
+    const grips = qa(el, '.gc-grip');
+    expect(grips.map((g) => g.getAttribute('aria-label'))).toEqual([
+      'Move queued goal 1',
+      'Move queued goal 2',
+      'Move queued goal 3',
+    ]);
+    expect(grips[0].getAttribute('aria-describedby')).toBe('gc-move-hint');
+    expect(q(el, '#gc-move-hint')!.textContent).toContain('↑ ↓');
+    expect(styles).toMatch(/\.gc-grip \{[^}]*touch-action:\s*none/);
+    const one = mount({ ...BASE, queue: [{ id: 'q1', objective: 'Only one' }] });
+    expect(qa(one, '.gc-grip')).toHaveLength(0);
+  });
+
+  it('move and edit are opt-in: a host that passes no actions keeps its old card (no handle, no Edit)', () => {
+    const el = mount({ ...QUEUE3, actions: undefined });
+    expect(qa(el, '.gc-grip')).toHaveLength(0);
+    expect(qa(el, '[data-act="edit"]')).toHaveLength(0);
+    expect(qa(el, '.gc-rm')).toHaveLength(3);
+  });
+
+  it('no handle without move in actions, or read-only', () => {
+    expect(qa(mount({ ...QUEUE3, actions: ['delete'] }), '.gc-grip')).toHaveLength(0);
+    expect(qa(mount({ ...QUEUE3, canEdit: false }), '.gc-grip')).toHaveLength(0);
+    expect(qa(mount({ ...QUEUE3, actions: ['delete', 'move'] }), '.gc-grip')).toHaveLength(3);
+  });
+
+  it('↓ on a handle moves it one place (ui-move), shows the order at once and keeps focus on that handle', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    const grip = qa(el, '.gc-grip')[0];
+    grip.focus();
+    const e = key(grip, 'ArrowDown');
+    el.renderNow();
+    expect(e.defaultPrevented).toBe(true);
+    expect(detail(fn)).toEqual({ id: 'q1', from: 0, to: 1, order: ['q2', 'q1', 'q3'] });
+    expect(texts(el)).toEqual(['Write release notes', 'Audit contrast', 'Tag the release']);
+    expect(qa(el, '.gc-q-n').map((n) => n.textContent)).toEqual(['1', '2', '3']);
+    expect(active(el)?.dataset.key).toBe('grip|q1');
+    const said = () => (q(el, '.gc-live')!.textContent ?? '').replace(/\u200b/g, '');
+    expect(said()).toBe('Moved to 2 of 3');
+    key(active(el)!, 'ArrowUp');
+    el.renderNow();
+    expect(detail(fn, 1)).toEqual({ id: 'q1', from: 1, to: 0, order: ['q1', 'q2', 'q3'] });
+  });
+
+  it('↑ on the first and ↓ on the last do nothing; a modifier is not a move', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    key(qa(el, '.gc-grip')[0], 'ArrowUp');
+    key(qa(el, '.gc-grip')[2], 'ArrowDown');
+    key(qa(el, '.gc-grip')[1], 'ArrowDown', { metaKey: true });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('a prevented ui-move keeps the order; the next data is the truth either way', () => {
+    const el = mount(QUEUE3);
+    listen(el, 'ui-move', true);
+    key(qa(el, '.gc-grip')[0], 'ArrowDown');
+    el.renderNow();
+    expect(rowIds(el)).toEqual(['q:q1', 'q:q2', 'q:q3']);
+    const el2 = mount(QUEUE3);
+    key(qa(el2, '.gc-grip')[0], 'ArrowDown');
+    el2.renderNow();
+    expect(rowIds(el2)).toEqual(['q:q2', 'q:q1', 'q:q3']);
+    el2.data = { ...QUEUE3 };
+    el2.renderNow();
+    expect(rowIds(el2)).toEqual(['q:q1', 'q:q2', 'q:q3']);
+  });
+
+  it('a pointer drag past the next row’s centre moves the goal; the rows step aside meanwhile', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    layoutRows(el);
+    const grip = qa(el, '.gc-grip')[0];
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 117);
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(false);
+    pointer(grip, 'pointermove', 170);
+    const rows = qa(el, '.gc-q-row');
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(true);
+    expect(rows[0].hasAttribute('data-dragging')).toBe(true);
+    expect(rows[0].style.transform).toBe('translateY(55px)');
+    expect(rows[1].style.transform).toBe('translateY(-32px)');
+    expect(rows[2].style.transform).toBe('');
+    pointer(grip, 'pointerup', 170);
+    el.renderNow();
+    expect(detail(fn)).toEqual({ id: 'q1', from: 0, to: 1, order: ['q2', 'q1', 'q3'] });
+    expect(rowIds(el)).toEqual(['q:q2', 'q:q1', 'q:q3']);
+    expect(qa(el, '.gc-q-row').every((r) => !r.style.transform && !r.hasAttribute('data-dragging'))).toBe(true);
+  });
+
+  it('a press without moving, a drop in place and a cancelled pointer move nothing', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    layoutRows(el);
+    const grip = qa(el, '.gc-grip')[1];
+    pointer(grip, 'pointerdown', 147);
+    pointer(grip, 'pointerup', 148);
+    pointer(grip, 'pointerdown', 147);
+    pointer(grip, 'pointermove', 160);
+    pointer(grip, 'pointerup', 160);
+    pointer(grip, 'pointerdown', 147);
+    pointer(grip, 'pointermove', 100);
+    pointer(grip, 'pointercancel', 100);
+    expect(fn).not.toHaveBeenCalled();
+    expect(qa(el, '.gc-q-row').every((r) => !r.style.transform)).toBe(true);
+  });
+
+  it('a drag upward from the last row to the top', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    layoutRows(el);
+    const grip = qa(el, '.gc-grip')[2];
+    pointer(grip, 'pointerdown', 179);
+    pointer(grip, 'pointermove', 100);
+    const rows = qa(el, '.gc-q-row');
+    expect(rows[0].style.transform).toBe('translateY(32px)');
+    expect(rows[1].style.transform).toBe('translateY(32px)');
+    pointer(grip, 'pointerup', 100);
+    expect(detail(fn)).toEqual({ id: 'q3', from: 2, to: 0, order: ['q3', 'q1', 'q2'] });
+  });
+
+  it('the same move twice is announced twice; arming a remove (and its timeout) never brings an old move back', () => {
+    vi.useFakeTimers();
+    const el = mount(QUEUE3);
+    const live = () => q(el, '.gc-live')!.textContent ?? '';
+    key(qa(el, '.gc-grip')[0], 'ArrowDown');
+    el.renderNow();
+    const first = live();
+    key(qa(el, '.gc-grip')[2], 'ArrowUp');
+    el.renderNow();
+    // The same words right after each other, but not the same text: a screen reader speaks the second one too.
+    expect(first.replace(/\u200b/g, '')).toBe('Moved to 2 of 3');
+    expect(live().replace(/\u200b/g, '')).toBe('Moved to 2 of 3');
+    expect(live()).not.toBe(first);
+    press(el, '.gc-rm');
+    expect(live()).toContain('Press again to remove');
+    vi.advanceTimersByTime(GOAL_ARM_MS + 10);
+    el.renderNow();
+    expect(live()).toBe('');
+  });
+
+  it('a queue that changes under a drag ends it: nothing moves, no transform is left', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    layoutRows(el);
+    const grip = qa(el, '.gc-grip')[1];
+    pointer(grip, 'pointerdown', 147);
+    pointer(grip, 'pointermove', 200);
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(true);
+    // The first queued goal started meanwhile: the drag's indices no longer name the same goals.
+    el.data = { ...QUEUE3, queue: QUEUE3.queue!.slice(1) };
+    el.renderNow();
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(false);
+    expect(qa(el, '.gc-q-row').every((r) => !r.style.transform && !r.hasAttribute('data-dragging'))).toBe(true);
+    pointer(grip, 'pointerup', 200);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('a render mid-drag (same queue) keeps the lifted row where the pointer is', () => {
+    const el = mount(QUEUE3);
+    layoutRows(el);
+    const grip = qa(el, '.gc-grip')[0];
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 170);
+    el.data = { ...QUEUE3, current: { ...QUEUE3.current!, note: 'progress update' } };
+    el.renderNow();
+    const rows = qa(el, '.gc-q-row');
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(true);
+    expect(rows[0].style.transform).toBe('translateY(55px)');
+    expect(rows[0].hasAttribute('data-dragging')).toBe(true);
+    expect(rows[1].style.transform).toBe('translateY(-32px)');
+  });
+
+  it('a write starting mid-drag, or the handle losing the pointer, ends the drag', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    layoutRows(el);
+    let grip = qa(el, '.gc-grip')[0];
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 200);
+    el.data = { ...QUEUE3, busy: 'delete', busyId: 'q3' };
+    el.renderNow();
+    pointer(grip, 'pointerup', 200);
+    expect(fn).not.toHaveBeenCalled();
+    el.data = { ...QUEUE3 };
+    el.renderNow();
+    layoutRows(el);
+    grip = qa(el, '.gc-grip')[0];
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 200);
+    pointer(grip, 'lostpointercapture', 200);
+    expect(qa(el, '.gc-q-row').every((r) => !r.style.transform)).toBe(true);
+    // The next press starts a fresh drag (nothing stuck).
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 200);
+    pointer(grip, 'pointerup', 200);
+    expect(detail(fn)).toEqual({ id: 'q1', from: 0, to: 2, order: ['q2', 'q3', 'q1'] });
+  });
+
+  it('a write in flight holds the handles (and the busy one spins)', () => {
+    const el = mount({ ...QUEUE3, busy: 'move', busyId: 'q2' });
+    const fn = listen(el, 'ui-move');
+    const grips = qa(el, '.gc-grip');
+    expect(grips.every((g) => g.getAttribute('aria-disabled') === 'true')).toBe(true);
+    expect(grips[1].getAttribute('aria-busy')).toBe('true');
+    key(grips[0], 'ArrowDown');
+    layoutRows(el);
+    pointer(grips[0], 'pointerdown', 115);
+    pointer(grips[0], 'pointermove', 200);
+    pointer(grips[0], 'pointerup', 200);
+    expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+describe('<ui-goal-card> edit a queued goal', () => {
+  const openEditor = (el: UiGoalCard, i = 0) => {
+    qa(el, '.gc-ic[data-act="edit"]')[i].click();
+    el.renderNow();
+    return q(el, '.gc-q-edit') as HTMLTextAreaElement;
+  };
+  const typeEdit = (el: UiGoalCard, text: string) => {
+    const box = q(el, '.gc-q-edit') as HTMLTextAreaElement;
+    box.value = text;
+    box.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    return box;
+  };
+
+  it('each queued goal has a labelled Edit; none without edit in actions or read-only', () => {
+    const el = mount(QUEUE3);
+    expect(qa(el, '.gc-ic[data-act="edit"]').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Edit queued goal 1',
+      'Edit queued goal 2',
+      'Edit queued goal 3',
+    ]);
+    expect(qa(mount({ ...QUEUE3, actions: ['delete', 'move'] }), '[data-act="edit"]')).toHaveLength(0);
+    expect(qa(mount({ ...QUEUE3, actions: ['delete', 'edit'] }), '[data-act="edit"]')).toHaveLength(3);
+    expect(qa(mount({ ...QUEUE3, canEdit: false }), '[data-act="edit"]')).toHaveLength(0);
+  });
+
+  it('Edit opens the row’s editor with its text, focused; the row’s handle, Edit and remove step away', () => {
+    const el = mount(QUEUE3);
+    const box = openEditor(el, 1);
+    expect(box.value).toBe('Write release notes');
+    expect(active(el)).toBe(box);
+    expect(box.getAttribute('aria-label')).toBe('Queued goal 2');
+    const row = qa(el, '.gc-q-row')[1];
+    expect(row.classList.contains('is-editing')).toBe(true);
+    expect(row.querySelector('.gc-grip, [data-act="edit"], .gc-rm')).toBeNull();
+    expect(row.querySelector('[data-act="edit-save"]')!.textContent).toBe('Save');
+    expect(row.querySelector('[data-act="edit-cancel"]')!.textContent).toBe('Cancel');
+  });
+
+  it('Enter saves the trimmed text (ui-edit); the row shows it until the next data, focus back on Edit', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-edit');
+    openEditor(el, 0);
+    const box = typeEdit(el, '  Audit contrast on every page  ');
+    key(box, 'Enter');
+    el.renderNow();
+    expect(detail(fn)).toEqual({ id: 'q1', objective: 'Audit contrast on every page' });
+    expect(q(el, '.gc-q-edit')).toBeNull();
+    expect(texts(el)[0]).toBe('Audit contrast on every page');
+    expect(active(el)?.dataset.key).toBe('edit|q1');
+  });
+
+  it('Shift+Enter and an IME Enter stay in the box; the Save button saves too', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-edit');
+    openEditor(el, 0);
+    const box = typeEdit(el, 'Audit contrast\nand focus rings');
+    expect(key(box, 'Enter', { shiftKey: true }).defaultPrevented).toBe(false);
+    expect(key(box, 'Enter', { isComposing: true }).defaultPrevented).toBe(false);
+    expect(fn).not.toHaveBeenCalled();
+    press(el, '[data-act="edit-save"]');
+    expect(detail(fn)).toEqual({ id: 'q1', objective: 'Audit contrast\nand focus rings' });
+  });
+
+  it('Esc and Cancel close without saving; Esc stays in the card', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-edit');
+    const outside = vi.fn();
+    document.addEventListener('keydown', outside);
+    openEditor(el, 0);
+    const box = typeEdit(el, 'Something else');
+    key(box, 'Escape');
+    el.renderNow();
+    expect(q(el, '.gc-q-edit')).toBeNull();
+    expect(active(el)?.dataset.key).toBe('edit|q1');
+    expect(outside).not.toHaveBeenCalled();
+    document.removeEventListener('keydown', outside);
+    openEditor(el, 0);
+    expect((q(el, '.gc-q-edit') as HTMLTextAreaElement).value).toBe('Audit contrast');
+    press(el, '[data-act="edit-cancel"]');
+    expect(q(el, '.gc-q-edit')).toBeNull();
+    expect(fn).not.toHaveBeenCalled();
+    expect(texts(el)[0]).toBe('Audit contrast');
+  });
+
+  it('an empty text cannot be saved; an unchanged one just closes', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-edit');
+    openEditor(el, 0);
+    typeEdit(el, '   ');
+    expect(q(el, '[data-act="edit-save"]')!.getAttribute('aria-disabled')).toBe('true');
+    key(q(el, '.gc-q-edit')!, 'Enter');
+    el.renderNow();
+    expect(q(el, '.gc-q-edit')).toBeTruthy();
+    typeEdit(el, 'Audit contrast ');
+    key(q(el, '.gc-q-edit')!, 'Enter');
+    el.renderNow();
+    expect(q(el, '.gc-q-edit')).toBeNull();
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('a prevented ui-edit keeps the editor (Save spins while busy) until the data carries the new text', () => {
+    const el = mount(QUEUE3);
+    listen(el, 'ui-edit', true);
+    openEditor(el, 1);
+    key(typeEdit(el, 'Write the release notes'), 'Enter');
+    el.renderNow();
+    expect(q(el, '.gc-q-edit')).toBeTruthy();
+    el.data = { ...QUEUE3, busy: 'edit', busyId: 'q2' };
+    el.renderNow();
+    const save = q(el, '[data-act="edit-save"]')!;
+    expect(save.getAttribute('aria-busy')).toBe('true');
+    expect(save.textContent).toBe('Saving…');
+    expect((q(el, '.gc-q-edit') as HTMLTextAreaElement).value).toBe('Write the release notes');
+    // Refused: the editor and its text stay, to fix.
+    el.data = { ...QUEUE3, error: 'The goal moved' };
+    el.renderNow();
+    expect((q(el, '.gc-q-edit') as HTMLTextAreaElement).value).toBe('Write the release notes');
+    key(q(el, '.gc-q-edit')!, 'Enter');
+    const queue = QUEUE3.queue!.map((g) => (g.id === 'q2' ? { ...g, objective: 'Write the release notes' } : g));
+    el.data = { ...QUEUE3, queue };
+    el.renderNow();
+    expect(q(el, '.gc-q-edit')).toBeNull();
+    expect(texts(el)[1]).toBe('Write the release notes');
+  });
+
+  it('the editor closes when its goal leaves the queue', () => {
+    const el = mount(QUEUE3);
+    openEditor(el, 2);
+    el.data = { ...QUEUE3, queue: QUEUE3.queue!.slice(0, 2) };
+    el.renderNow();
+    expect(q(el, '.gc-q-edit')).toBeNull();
+  });
+
+  it('the editor keeps its text when another row moves', () => {
+    const el = mount(QUEUE3);
+    openEditor(el, 2);
+    typeEdit(el, 'Tag v2');
+    key(qa(el, '.gc-grip')[0], 'ArrowDown');
+    el.renderNow();
+    expect((q(el, '.gc-q-edit') as HTMLTextAreaElement).value).toBe('Tag v2');
+  });
+
+  it('escapes the text it puts in the box (a value, never markup)', () => {
+    const el = mount({ ...BASE, actions: ['edit'], queue: [{ id: 'x', objective: '<img src=x onerror=alert(1)>' }] });
+    const box = openEditor(el, 0);
+    expect(box.value).toBe('<img src=x onerror=alert(1)>');
+    expect(el.shadowRoot!.querySelector('img')).toBeNull();
+  });
+
+  it('speaks Korean', () => {
+    const el = mount(QUEUE3, { lang: 'ko' });
+    expect(qa(el, '.gc-grip')[0].getAttribute('aria-label')).toBe('1번째 대기 목표 옮기기');
+    expect(qa(el, '[data-act="edit"]')[0].getAttribute('aria-label')).toBe('1번째 대기 목표 편집');
+    openEditor(el, 0);
+    expect(q(el, '[data-act="edit-save"]')!.textContent).toBe('저장');
+    expect(q(el, '#gc-edit-hint')!.textContent).toBe('Enter 저장 · Shift+Enter 줄바꿈 · Esc 취소');
+  });
+});
