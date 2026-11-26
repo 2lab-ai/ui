@@ -339,10 +339,11 @@ export interface InboxCard {
    */
   node?: InboxNode;
   /**
-   * 0.47.0 — the card's own CPU, percent of one core (may exceed 100). Past one core the card's top and bottom edges
-   * carry red hazard stripes (hollow diagonals), one step heavier past two, four and eight cores (`cardLoadStep`):
-   * thicker bands, moving from four cores, faster and with a red glow past eight. Reduced motion keeps them still
-   * (thickness and glow still tell the steps apart). Decorative: say the number in the node pill's `label`.
+   * 0.47.0 — the card's own CPU, percent of one core (may exceed 100). Past one core the card wears the dashboard's
+   * CPU badge (0.48.0): a red tint and a red ring, a thin hatched underline along its bottom edge, a step stronger
+   * past two, four and eight cores (`cardLoadStep`): deeper tint and ring, a thicker underline, its hatch drifting from
+   * four cores. Reduced motion keeps the hatch still (tint and ring still tell the steps apart). Decorative: say the
+   * number in the node pill's `label`.
    */
   load?: number;
   /**
@@ -2999,9 +3000,9 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   }
 
   /**
-   * 0.47.0 — the card's edge stripes (InboxCard.load past one core): one `.ib-strain` laid over the card, only its top
-   * and bottom bands painted, `data-step` 1–4. The card carries the same step as `data-load-step` (its glow at 4).
-   * Taken off at or under one core.
+   * 0.47.0 — the card's hatched underline (InboxCard.load past one core): one `.ib-strain` laid over the card, only its
+   * bottom edge painted (0.48.0), `data-step` 1–4. The card carries the same step as `data-load-step` (its tint and
+   * ring). Taken off at or under one core.
    */
   #strain(sh: Shell, step: number): void {
     const have = sh.el.querySelector<HTMLElement>(':scope > .ib-strain');

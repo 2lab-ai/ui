@@ -334,7 +334,7 @@ function dashboardColumns(now: number): InboxColumn[] {
     badge: { text: 'elon', hue: 5 },
     // 0.45.0 — where it runs: this card at 113% CPU (hot), the node at 72% CPU and 41% memory.
     node: { text: 'm5max', cpu: 72, mem: 41, load: 113 },
-    // 0.47.0 — past one core: red hazard stripes on the top and bottom edges (step 3 here: past four cores, marching).
+    // 0.47.0 — past one core the card wears the CPU badge: red tint and ring, a hatched underline (step 3: past four cores).
     load: 470,
     task: { id: 'T61', label: 'Writing review comments on the retry path', startedAt: now - 6 * MIN - 17_000 },
     agents: {
@@ -976,13 +976,13 @@ export const doc: ComponentDoc = {
       name: 'data.columns[].cards[].node',
       type: "{ text: string; title?: string; cpu?: number; mem?: number; load?: number; level?: '' | 'busy' | 'hot'; label?: string }",
       description:
-        '0.45.0 — where the card’s work runs: a pill in the head before the owner badge, on the one-line and open faces alike. text is a short node name; cpu and mem (0–100) each draw a ten-stripe gauge like a rank insignia, filled from the bottom — one stripe green, ten red (nodeGaugeFill): the node’s CPU and memory in use, or (0.46.0) whatever the host scales them to, such as the card’s own usage. load is the card’s own CPU (100 = one core), drawn first: quiet under 10, busy (yellow) from 10, hot from 100 (red, heavier, a red ring — not colour alone; nodeLoadLevel). 0.46.0: level sets busy / hot without a number (it wins over load’s); label replaces the accessible name (by default every number in words); title replaces the tooltip.',
+        '0.45.0 — where the card’s work runs: a pill in the head before the owner badge, on the one-line and open faces alike. text is a short node name; cpu and mem (0–100) each draw a ten-stripe gauge like a rank insignia, filled from the bottom — one stripe green, ten red (nodeGaugeFill): the node’s CPU and memory in use, or (0.46.0) whatever the host scales them to, such as the card’s own usage. load is the card’s own CPU (100 = one core), drawn first: quiet under 10, busy (yellow) from 10, hot from 100 (0.48.0: a solid red pill, the CPU badge’s segment, with card-coloured text and insignia — not colour alone; nodeLoadLevel). 0.46.0: level sets busy / hot without a number (it wins over load’s); label replaces the accessible name (by default every number in words); title replaces the tooltip.',
     },
     {
       name: 'data.columns[].cards[].load',
       type: 'number',
       description:
-        '0.47.0 — the card’s own CPU, percent of one core (may exceed 100). Past one core the card’s top and bottom edges carry red hazard stripes (hollow diagonals, inside the border, following the corners), one step heavier past two, four and eight cores (cardLoadStep; CARD_LOAD_CORES): 2px, 3px, then 5px and marching, then 7px, marching fast, with a red glow around the card. Decorative (aria-hidden, no pointer): say the number in the node pill’s label. Reduced motion keeps the stripes still — thickness and glow still tell the steps apart; forced colours draw them in ink.',
+        '0.47.0 — the card’s own CPU, percent of one core (may exceed 100). Past one core the card wears the dashboard’s CPU badge (0.48.0): a red tint and a red ring, and a thin hatched underline along its bottom edge (the badge’s own hatch, inside the border, following the corners), a step stronger past two, four and eight cores (cardLoadStep; CARD_LOAD_CORES): tint 4 → 7 → 10 → 14%, ring 30 → 80%, the underline 2px then 3px, drifting from four cores (quicker past eight). Nothing glows. The hot node pill becomes the badge’s solid red segment. Decorative (aria-hidden, no pointer): say the number in the node pill’s label. Reduced motion keeps the hatch still; forced colours draw it in ink.',
     },
     {
       name: 'data.columns[].cards[].beam',
