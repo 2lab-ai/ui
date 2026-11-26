@@ -246,6 +246,12 @@ export const doc: ComponentDoc = {
         'The card takes the composer’s height — give the host one (flex: 1 in a phone sheet): the field grows into it and the toolbar sits at the bottom; maxRows no longer caps the field.',
     },
     {
+      name: 'collapse',
+      type: 'boolean attribute',
+      description:
+        'One line while idle (0.50.0): with no focus inside, no text, no files, no recording and nothing sending, the field is one row and the toolbar is hidden (its nodes stay). Focus — a click, Tab, a slotted control — opens the whole composer (the field takes minRows, the toolbar fades in); it folds again when focus leaves an empty one. A window blur does not fold it. `el.collapsed` says which it is now. For a secondary composer that should not take room until used (a goal card’s add box).',
+    },
+    {
       name: 'slot="end"',
       type: 'content',
       description:
@@ -405,6 +411,7 @@ export const doc: ComponentDoc = {
   ],
   a11y: [
     'The textarea has an accessible name (data.label, default “Message”) and is described by the counter, hint, disabled reason and error line.',
+    'collapse: the folded toolbar is display: none, so its buttons are out of the tab order until focus enters the field; Tab from the field then reaches them.',
     'Icon-only buttons carry aria-label and a tooltip; remove buttons say “Remove {name}”; a voice note’s play button says Play / Stop {name}.',
     'The error line is role="alert"; attaching and removing files is announced in a polite status region that the patched markup never re-creates.',
     'Send uses aria-disabled (it stays in the tab order) and aria-busy while busy; host toggles use aria-pressed.',
@@ -440,6 +447,22 @@ export const doc: ComponentDoc = {
   });
 </script>`,
   demos: [
+    {
+      id: 'collapse',
+      title: 'One line until used (collapse)',
+      description:
+        'A secondary composer: one line while idle. Click it (or Tab into it) and it opens to the whole composer; leave it empty and it folds again.',
+      height: 240,
+      create: () => {
+        const el = make(
+          { placeholder: 'Add a goal — starts after the current one', submitLabel: 'Add', hint: true, maxLength: 4000 },
+          { collapse: '' },
+        );
+        const line = statusLine();
+        echoSubmit(el, line);
+        return frame(el, line);
+      },
+    },
     {
       id: 'new-task',
       title: 'New task',

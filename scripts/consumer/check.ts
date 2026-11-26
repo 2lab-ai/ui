@@ -51,7 +51,16 @@ import { clampDrawerWidth, DRAWER_MORPH_MS, type DrawerMode, type DrawerViewport
 import { type ElapsedData, type ElapsedPrecision, elapsedText, fmtSpanCoarse, UiElapsed } from '@2lab.ai/ui/elapsed';
 import { EPISODE_ARM_MS, type EpisodeLogData, episodeDays, UiEpisodeLog } from '@2lab.ai/ui/episode-log';
 import { type FileItem, fileMeta, UiFileCard } from '@2lab.ai/ui/file-card';
-import { GOAL_ARM_MS, type GoalCardData, goalMetaHtml, UiGoalCard } from '@2lab.ai/ui/goal-card';
+import {
+  GOAL_ARM_MS,
+  type GoalCardData,
+  type GoalEditDetail,
+  type GoalMoveDetail,
+  goalDropIndex,
+  goalMetaHtml,
+  goalQueueMove,
+  UiGoalCard,
+} from '@2lab.ai/ui/goal-card';
 import { UiGooey, UiGooeyItem } from '@2lab.ai/ui/gooey';
 import { type HovercardDetail, hovercardDelay, UiHovercard } from '@2lab.ai/ui/hovercard';
 import { type IconName, icon } from '@2lab.ai/ui/icons';
@@ -280,6 +289,11 @@ const player: SoundPlayer = cuelumeSound;
 const cue: SoundCue = 'tap';
 const theme: SoundTheme = 'mech';
 setSound({ player, enabled: false });
+// 0.50.0: reorder and edit a queued goal; a composer that stays one line until it gets focus.
+const goalMove: GoalMoveDetail = { id: 'q1', from: 0, to: 1, order: goalQueueMove(['q1', 'q2'], 0, 1) };
+const goalEdit: GoalEditDetail = { id: 'q1', objective: 'Audit contrast' };
+const goalDrop: number = goalDropIndex([10, 40], 0, 50);
+const composerFolded: boolean = composerEl.collapsed;
 // 0.49.0: mood recognition (a heuristic reader, no model) and its HUD.
 const moodFx: HTMLElementTagNameMap['ui-mood'] = document.createElement('ui-mood');
 const moodHudFx: HTMLElementTagNameMap['ui-mood-hud'] = document.createElement('ui-mood-hud');
@@ -452,6 +466,10 @@ console.log(
   form.questions.length,
   goal,
   GOAL_ARM_MS,
+  goalMove.order,
+  goalEdit.objective,
+  goalDrop,
+  composerFolded,
   plan.steps.length,
   taskFateCounts(plan.steps),
   runs.runs.length,

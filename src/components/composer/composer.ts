@@ -144,7 +144,7 @@ const END_SLOT = '<slot name="end" data-mk="end"></slot>';
 export class UiComposer extends UiElement<ComposerData> {
   static override styles = [styles];
   static get observedAttributes() {
-    return ['lang', 'enter', 'fill'];
+    return ['lang', 'enter', 'fill', 'collapse'];
   }
 
   readonly #live: HTMLElement;
@@ -194,6 +194,10 @@ export class UiComposer extends UiElement<ComposerData> {
   /** The token Esc closed the menu on: it stays closed until the token or its text changes. */
   #sgDismissed = '';
   #sgUnwatch: (() => void) | null = null;
+  /** Focus is inside (the field, a tool, a control the host slotted in) — `collapse` keeps it open while it is. */
+  #focused = false;
+  /** Drawn as one line at the last render (`collapse`); null before the first render. */
+  #foldShown: boolean | null = null;
 
   constructor() {
     super();
@@ -240,6 +244,9 @@ export class UiComposer extends UiElement<ComposerData> {
     this.addEventListener('dragover', (e) => this.#onDragOver(e as DragEvent));
     this.addEventListener('dragleave', () => this.#onDragLeave());
     this.addEventListener('drop', (e) => this.#onDrop(e as DragEvent));
+    // On the host too: focus moving into the shadow tree or into a slotted control (composed focusin / focusout).
+    this.addEventListener('focusin', () => this.#onFocusIn());
+    this.addEventListener('focusout', (e) => this.#onFocusOut(e as FocusEvent));
   }
 
   attributeChangedCallback(): void {
@@ -335,6 +342,14 @@ export class UiComposer extends UiElement<ComposerData> {
     if (hadFiles) this.notify<ComposerFilesDetail>('ui-files', { files: [] });
   }
 
+  /**
+   * With the `collapse` attribute: is the composer drawn as one line right now (no focus inside, no text, no files,
+   * no recording, nothing sending)? Without the attribute always `false`.
+   */
+  get collapsed(): boolean {
+    return this.#isCollapsed(this.#s);
+  }
+
   /** What a plain Enter does: the `enter` attribute, else `data.enter` (`send` by default). */
   get enter(): 'send' | 'newline' {
     return composerEnterMode(this.getAttribute('enter') ?? this.data?.enter);
@@ -393,6 +408,54 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#autosize();
     } else this.#draft = text;
     this.#paint();
+  }
+
+  /**
+   * `collapse`: one line while idle — nothing in it, nothing going on and no focus inside. Focus (a click, Tab), a
+   * draft the host sets, a file, a recording or a send in flight open it; it folds again when focus leaves an empty one.
+   */
+  #isCollapsed(s: ComposerSettings): boolean {
+    return (
+      this.hasAttribute('collapse') &&
+      !this.#focused &&
+      !this.value &&
+      !this.#entries.length &&
+      !this.#rec &&
+      !this.#recPending &&
+      !s.busy &&
+      !this.#error &&
+      !this.#sg &&
+      !this.#dragOn
+    );
+  }
+
+  /** Is focus in the field, a tool or a slotted control? (On a window blur the focused node stays the same.) */
+  #hasFocus(): boolean {
+    if (this.#activeInside()) return true;
+    const scope = this.getRootNode() as Document | ShadowRoot;
+    const a = scope && 'activeElement' in scope ? scope.activeElement : null;
+    return !!a && (a === this || this.contains(a));
+  }
+
+  #onFocusIn(): void {
+    if (this.#focused) return;
+    this.#focused = true;
+    // Opening from one line: the toolbar fades in under the field.
+    if (this.#foldShown) {
+      this.#barEnter = true;
+      this.#paint();
+    }
+  }
+
+  #onFocusOut(e: FocusEvent): void {
+    const to = e.relatedTarget as Node | null;
+    if (to && (to === this || this.contains(to) || this.root.contains(to))) return;
+    // Where focus went is known only after the event (a click on the page has no related target).
+    setTimeout(() => {
+      if (!this.#focused || this.#hasFocus()) return;
+      this.#focused = false;
+      if (this.hasAttribute('collapse') && this.isConnected) this.#paint();
+    }, 0);
   }
 
   #sendable(s: ComposerSettings): boolean {
@@ -1343,6 +1406,9 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#observe();
       this.#autosize();
     }
+    const folded = this.#isCollapsed(this.#s);
+    if (this.#foldShown !== null && this.#foldShown !== folded) this.#autosize();
+    this.#foldShown = folded;
     this.#wireGlow();
     if (this.#scrollEnd) {
       this.#scrollEnd = false;
@@ -1367,6 +1433,8 @@ export class UiComposer extends UiElement<ComposerData> {
       this.#modeOn = null;
     }
     const touch = isTouch();
+    const folded = this.#isCollapsed(s);
+    const rows = folded ? 1 : s.minRows;
     const showHint = !!d.hint && !this.#rec;
     const describedBy = [
       s.maxLength && !this.#rec ? 'cp-count' : '',
@@ -1378,7 +1446,7 @@ export class UiComposer extends UiElement<ComposerData> {
       .join(' ');
     const label = str(d.label) || t.label;
     const placeholder = d.placeholder === undefined ? t.placeholder : str(d.placeholder);
-    const field = `<textarea class="cp-field" id="cp-field" data-mk="field" data-key="field" rows="${s.minRows}" dir="auto" autocomplete="off" aria-label="${escAttr(
+    const field = `<textarea class="cp-field" id="cp-field" data-mk="field" data-key="field" rows="${rows}" dir="auto" autocomplete="off" aria-label="${escAttr(
       label,
     )}"${this.#sgAria(d)}${placeholder ? ` placeholder="${escAttr(placeholder)}"` : ''}${describedBy ? ` aria-describedby="${describedBy}"` : ''}${
       s.disabled ? ' readonly' : ''
@@ -1391,7 +1459,7 @@ export class UiComposer extends UiElement<ComposerData> {
     const error = `<p class="cp-error" id="cp-error" data-mk="error" role="alert"${this.#error ? '' : ' hidden'}>${
       this.#error ? `${icon('alert', { size: 14 })}<span>${esc(this.#error)}</span>` : ''
     }</p>`;
-    const row = this.#rec ? this.#recorderBar(this.#rec, t) : this.#toolbar(d, s, t, showHint);
+    const row = this.#rec ? this.#recorderBar(this.#rec, t) : this.#toolbar(d, s, t, showHint, folded);
     const accept = s.accept ? ` accept="${escAttr(s.accept)}"` : '';
     const camera = s.camera
       ? `<input type="file" class="cp-in cp-in-camera" data-mk="in-camera" hidden tabindex="-1" accept="image/*" capture="${s.camera}">`
@@ -1407,7 +1475,9 @@ export class UiComposer extends UiElement<ComposerData> {
     const reason = s.reason
       ? `<p class="cp-reason" id="cp-reason">${icon('info', { size: 14 })}<span>${esc(s.reason)}</span></p>`
       : '';
-    return `<div class="cp" data-mk="cp"${s.disabled ? ' data-disabled' : ''}${s.busy ? ' data-busy' : ''}><div class="cp-card" data-mk="card" style="--cp-min:${s.minRows};--cp-max:${s.maxRows}"${
+    return `<div class="cp" data-mk="cp"${s.disabled ? ' data-disabled' : ''}${s.busy ? ' data-busy' : ''}${
+      folded ? ' data-collapsed' : ''
+    }><div class="cp-card" data-mk="card" style="--cp-min:${rows};--cp-max:${s.maxRows}"${
       this.#dragOn ? ' data-drag' : ''
     }>${field}${files}${error}${progress}${row}${this.#glowMarkup(s)}${inputs}${drop}</div>${reason}</div>`;
   }
@@ -1434,7 +1504,7 @@ export class UiComposer extends UiElement<ComposerData> {
     )}"${s.disabled ? ' disabled' : ''}>${icon('close', { size: 12 })}</button></li>`;
   }
 
-  #toolbar(d: ComposerData, s: ComposerSettings, t: ComposerStrings, showHint: boolean): string {
+  #toolbar(d: ComposerData, s: ComposerSettings, t: ComposerStrings, showHint: boolean, folded = false): string {
     const off = s.disabled;
     const builtIn = (act: string, glyph: string, label: string, extra = '') =>
       `<button type="button" class="cp-tool is-icon" data-mk="${act}" data-act="${act}" data-key="${act}" aria-label="${escAttr(
@@ -1481,7 +1551,8 @@ export class UiComposer extends UiElement<ComposerData> {
       s.busy ? ' aria-busy="true"' : ''
     }>${inner}</button>`;
     const modeSwitch = mode ? this.#modeSwitch(mode, on, off) : '';
-    return `<div class="cp-bar"${this.#barEnter ? ' data-enter' : ''}><div class="cp-tools">${tools}</div><div class="cp-end">${END_SLOT}${hint}${count}${modeSwitch}${send}</div></div>`;
+    // Folded (`collapse`): the row is hidden, not dropped — its nodes (and a slotted control) stay where they are.
+    return `<div class="cp-bar"${this.#barEnter ? ' data-enter' : ''}${folded ? ' hidden' : ''}><div class="cp-tools">${tools}</div><div class="cp-end">${END_SLOT}${hint}${count}${modeSwitch}${send}</div></div>`;
   }
 
   /** Day / night: a track whose thumb carries the sun (off) or the moon (on); two stars come out at night. */

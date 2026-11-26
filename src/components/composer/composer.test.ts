@@ -2267,3 +2267,118 @@ describe('<ui-composer> end slot', () => {
     expect(styles).toMatch(/::slotted\(\[slot="end"\]\)\s*\{[^}]*min-width:\s*0/);
   });
 });
+
+describe('<ui-composer collapse> (0.50.0)', () => {
+  const bar = (el: UiComposer) => q(el, '.cp-bar')!;
+  const focusIn = (el: UiComposer, target: Element = field(el)) =>
+    target.dispatchEvent(new FocusEvent('focusin', { bubbles: true, composed: true }));
+  const focusOut = (el: UiComposer, target: Element = field(el), to: Element | null = null) =>
+    target.dispatchEvent(new FocusEvent('focusout', { bubbles: true, composed: true, relatedTarget: to }));
+
+  afterEach(() => {
+    for (const el of Array.from(document.querySelectorAll('ui-composer'))) el.remove();
+    (document.activeElement as HTMLElement | null)?.blur?.();
+  });
+
+  it('idle and empty: one line — one row, the toolbar hidden (its nodes kept), collapsed = true', () => {
+    const el = mount({ minRows: 3, hint: true }, { collapse: '' });
+    expect(el.collapsed).toBe(true);
+    expect(field(el).getAttribute('rows')).toBe('1');
+    expect(q(el, '.cp-card')!.getAttribute('style')).toContain('--cp-min:1');
+    expect(bar(el).hidden).toBe(true);
+    expect(act(el, 'attach')).toBeTruthy();
+    expect(q(el, '.cp')!.hasAttribute('data-collapsed')).toBe(true);
+  });
+
+  it('without the attribute nothing changes: minRows rows, toolbar shown, collapsed = false', () => {
+    const el = mount({ minRows: 3 });
+    expect(el.collapsed).toBe(false);
+    expect(field(el).getAttribute('rows')).toBe('3');
+    expect(bar(el).hidden).toBe(false);
+  });
+
+  it('focus opens it (the toolbar fades in, the field takes minRows); focus leaving an empty one folds it', async () => {
+    const el = mount({ minRows: 2 }, { collapse: '' });
+    const f = field(el);
+    f.focus();
+    focusIn(el);
+    expect(el.collapsed).toBe(false);
+    expect(field(el)).toBe(f);
+    expect(f.getAttribute('rows')).toBe('2');
+    expect(bar(el).hidden).toBe(false);
+    expect(bar(el).hasAttribute('data-enter')).toBe(true);
+    f.blur();
+    focusOut(el);
+    await tick();
+    expect(el.collapsed).toBe(true);
+    expect(bar(el).hidden).toBe(true);
+  });
+
+  it('focus moving to a tool or to a slotted control keeps it open', async () => {
+    const el = mount({}, { collapse: '' });
+    const own = document.createElement('button');
+    own.slot = 'end';
+    el.append(own);
+    field(el).focus();
+    focusIn(el);
+    focusOut(el, field(el), act(el, 'attach'));
+    await tick();
+    expect(el.collapsed).toBe(false);
+    own.focus();
+    focusOut(el, field(el), own);
+    await tick();
+    expect(el.collapsed).toBe(false);
+  });
+
+  it('a window blur (focus still on the field) does not fold it', async () => {
+    const el = mount({}, { collapse: '' });
+    field(el).focus();
+    focusIn(el);
+    focusOut(el);
+    await tick();
+    expect(el.collapsed).toBe(false);
+  });
+
+  it('text, a file, a send in flight or an error keep it open after focus leaves', async () => {
+    const el = mount({}, { collapse: '' });
+    el.value = 'Draft from the host';
+    expect(el.collapsed).toBe(false);
+    el.value = '';
+    expect(el.collapsed).toBe(true);
+    el.addFiles([png()]);
+    expect(el.collapsed).toBe(false);
+    el.removeFile(0);
+    expect(el.collapsed).toBe(true);
+    set(el, { busy: true });
+    expect(el.collapsed).toBe(false);
+    set(el, { busy: false, accept: '.pdf' });
+    expect(el.collapsed).toBe(true);
+    el.addFiles([png()]);
+    expect(el.files).toEqual([]);
+    expect(errorText(el)).not.toBe('');
+    expect(el.collapsed).toBe(false);
+  });
+
+  it('a send from the open composer clears it; it folds once focus leaves', async () => {
+    const el = mount({}, { collapse: '' });
+    const sent = events<ComposerSubmitDetail>(el, 'ui-submit');
+    field(el).focus();
+    focusIn(el);
+    type(el, 'Ship the release notes');
+    key(field(el), 'Enter');
+    expect(sent.map((s) => s.text)).toEqual(['Ship the release notes']);
+    expect(el.collapsed).toBe(false);
+    field(el).blur();
+    focusOut(el);
+    await tick();
+    expect(el.collapsed).toBe(true);
+  });
+
+  it('the attribute removed: it opens for good', () => {
+    const el = mount({}, { collapse: '' });
+    el.removeAttribute('collapse');
+    el.renderNow();
+    expect(el.collapsed).toBe(false);
+    expect(bar(el).hidden).toBe(false);
+  });
+});

@@ -16,7 +16,7 @@ Agent UI components from the 2lab soma-work dashboard, as **Web Components** wit
 | Conversation | `<ui-conversation>` | Who said what and when — instructions, answers with their response time, system events and the files they carried; older turns load as you scroll up; Retry on a summary, answers loaded on demand, select turns, or lay it out as the page |
 | Work Log | `<ui-work-log>` | What the agent did, task by task — instructions, narration, tool calls, raw output, child agents; a meta line per task, entries between tasks, slotted tool cards on the same keyboard path |
 | Choice Form | `<ui-choice-form>` | What the agent needs you to decide — numbered questions, the recommended choice, your own answer, submit all at once; or locked with the reason you cannot answer |
-| Goal Card | `<ui-goal-card>` | What the agent is working toward, how far it is, and what is queued — only the actions the host answers, meta and a note on the current and past goals; complete, pause, delete with a second press |
+| Goal Card | `<ui-goal-card>` | What the agent is working toward, how far it is, and what is queued — only the actions the host answers, meta and a note on the current and past goals; complete, pause, delete with a second press; drag (or ↑ ↓) to reorder the queue and edit a queued goal in place, a host add box in `slot="add"` (0.50.0) |
 | Task Plan | `<ui-task-plan>` | The plan step by step — done, running, dropped or moved — and the plans before it; `setOpen()` / `isOpen()` for the folds; or a window of `max` rows for a card, with one “+N” button (`ui-more`) to the whole plan |
 | Task Runs | `<ui-task-runs>` | Each run of a task — status, time, tokens, tools and revisions, approximate runs with a note, a totals row the host can give (“n of m shown”) |
 | Action Node | `<ui-action-node>` | A scheduled job (cron) — what it runs, when next, which channels and models it touches, its status; Run now / Pause / Edit / Delete fanned out of the corner on hover or the corner button, Delete with a second press |
@@ -47,7 +47,7 @@ Surfaces — the page-level pieces around the agent (0.6.0):
 | Timeline | `<ui-timeline>` | Today as a checklist — a time column, a rail with a marker per item, a card with its status pill, actions and a box to tick (`ui-check`, `ui-action`); the overdue row outlined; `compact` for a plain list (0.41.0) |
 | Week Calendar | `<ui-week-calendar>` | What runs when this week — day columns with hour rows, blocks by kind, the now line, drag (or Alt+arrows) to move a block (`ui-move`), a list grouped by day on phones (0.41.0) |
 | Dock | `<ui-dock>` | Where you can go, one press away — the phone’s bottom tab bar (a glyph on a capsule, counts, the action raised in the middle, More for the rest) or a floating rail on a wide screen (0.41.0) |
-| Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, `/` and `$` menus (commands, skills), Enter to send |
+| Composer | `<ui-composer>` | What you send next — a growing field, drop / paste attachments, a voice note, tools, `/` and `$` menus (commands, skills), Enter to send; `collapse` keeps it one line until it gets focus (0.50.0) |
 
 Page parts — the pages around the app: settings, memory, sign-in (0.9.0):
 
