@@ -57,6 +57,8 @@ export * from './components/metal-badge';
 export * from './components/metal-text';
 export * from './components/meter';
 export * from './components/model-picker';
+export * from './components/mood';
+export * from './components/mood-hud';
 export * from './components/segmented';
 export * from './components/setting-row';
 export * from './components/settings-nav';

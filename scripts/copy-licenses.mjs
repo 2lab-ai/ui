@@ -41,7 +41,10 @@ The effects (\`group: 'Effects'\`) are ported from its MIT-licensed React librar
 distortion wave (\`distortion-waves\`), the border beam (\`border-beam\`), the thinking orb (\`thinking-orbs\`), gooey
 (\`liquid-gooey\`), the voice glow (\`voice-glow\`), the voice ring (\`voice-ring\`), magnetic UI (\`magnetkit\`'s field
 and bridge client — no model file), liquid metal (\`metal-fx\`), the image reveal (\`img-fx\`, redrawn without three.js)
-and bot avatars (\`bot-avatars\`). No Pro preset, Studio export or model file (Libraries.dev Model License) is included.
+and bot avatars (\`bot-avatars\`); the mood HUD and the replayed showcase route come from the Mood recognition page's
+source (\`sites/home/src/mood-hud.ts\`, \`mood-recognition.tsx\`). No Pro preset, Studio export, model file or model kit
+(Libraries.dev Model License — the Mood recognition model, its React kit and its loader included) is included; the mood
+reader is this library's own heuristic.
 
 \`\`\`
 ${read('librariesdev.LICENSE')}
