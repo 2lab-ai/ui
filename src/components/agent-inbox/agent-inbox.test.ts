@@ -8,6 +8,8 @@ import {
   artifactKind,
   BOARD_HOLD_MS,
   boardCounts,
+  CARD_LOAD_CORES,
+  cardLoadStep,
   columnsByStatus,
   holdLanes,
   type InboxCard,
@@ -3260,5 +3262,93 @@ describe('card.node (0.45.0) — the node pill in the head', () => {
       '.ib-node-g[data-fill="10"] { --ib-node-c: color-mix(in oklch, var(--red) 100%, var(--green)); }',
     );
     expect(monoStyles).toMatch(/@media \(forced-colors: active\) \{[^}]*\.ib-node \{/);
+  });
+});
+
+describe('card.load (0.47.0) — hazard stripes on the edges past one core', () => {
+  const LOAD_CARD: InboxCard = { ...RUN, node: { text: 'm5max', level: 'hot' } };
+  const strain = (el: UiAgentInbox) => card(el, 'notes').querySelector<HTMLElement>(':scope > .ib-strain');
+
+  it('steps past one, two, four and eight cores; nothing at or under one core or without a number', () => {
+    expect(CARD_LOAD_CORES).toEqual([1, 2, 4, 8]);
+    expect(
+      [undefined, Number.NaN, 0, 99, 100, 100.1, 200, 201, 400, 401, 800, 801, 3200].map((v) => cardLoadStep(v)),
+    ).toEqual([0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+    expect(cardLoadStep('500')).toBe(0);
+    expect(cardLoadStep(Number.POSITIVE_INFINITY)).toBe(0);
+  });
+
+  it('lays one decorative band over the card with its step, and the card carries the step', () => {
+    for (const [load, step] of [
+      [150, '1'],
+      [250, '2'],
+      [470, '3'],
+      [900, '4'],
+    ] as const) {
+      const el = mount(board({ ...LOAD_CARD, load }));
+      const band = strain(el);
+      expect(band, String(load)).not.toBeNull();
+      expect(band!.getAttribute('data-step')).toBe(step);
+      expect(band!.getAttribute('aria-hidden')).toBe('true');
+      expect(card(el, 'notes').getAttribute('data-load-step')).toBe(step);
+      expect(card(el, 'notes').querySelectorAll(':scope > .ib-strain')).toHaveLength(1);
+    }
+    for (const load of [undefined, 40, 100]) {
+      const el = mount(board({ ...LOAD_CARD, load }));
+      expect(strain(el), String(load)).toBeNull();
+      expect(card(el, 'notes').hasAttribute('data-load-step')).toBe(false);
+    }
+  });
+
+  it('follows the load in place: a step up or down keeps the band, one core or less takes it off', () => {
+    const el = mount(board({ ...LOAD_CARD, load: 150 }));
+    const first = strain(el);
+    el.data = board({ ...LOAD_CARD, load: 900 });
+    el.renderNow();
+    expect(strain(el)).toBe(first);
+    expect(strain(el)!.getAttribute('data-step')).toBe('4');
+    el.data = board({ ...LOAD_CARD, load: 230 });
+    el.renderNow();
+    expect(strain(el)!.getAttribute('data-step')).toBe('2');
+    expect(card(el, 'notes').getAttribute('data-load-step')).toBe('2');
+    el.data = board({ ...LOAD_CARD, load: 90 });
+    el.renderNow();
+    expect(strain(el)).toBeNull();
+    expect(card(el, 'notes').hasAttribute('data-load-step')).toBe(false);
+  });
+
+  it('stays on a one-line card', () => {
+    const el = mount({ columns: columnsByStatus([{ ...LOAD_CARD, load: 470 }]), controls: 'window' });
+    el.setMinimized('notes', true);
+    el.renderNow();
+    expect(card(el, 'notes').classList.contains('is-min')).toBe(true);
+    expect(strain(el)!.getAttribute('data-step')).toBe('3');
+  });
+
+  it('paints only the two bands, marches from step 3, stays still under reduced motion, ink in forced colours', () => {
+    expect(monoStyles).toMatch(/\.ib-strain \{[^}]*padding-block: var\(--ib-strain-h\);/);
+    expect(monoStyles).toMatch(
+      /\.ib-strain \{[^}]*mask: linear-gradient\(#000 0 0\) content-box, linear-gradient\(#000 0 0\);/,
+    );
+    expect(monoStyles).toMatch(/\.ib-strain \{[^}]*mask-composite: exclude;/);
+    expect(monoStyles).toMatch(/\.ib-strain \{[^}]*pointer-events: none;/);
+    const step = (n: number) =>
+      monoStyles.match(new RegExp(`\\.ib-strain\\[data-step="${n}"\\] \\{([^}]*)\\}`))?.[1] ?? '';
+    expect(step(1)).toContain('--ib-strain-h: 2px;');
+    expect(step(2)).toContain('--ib-strain-h: 3px;');
+    expect(step(3)).toContain('--ib-strain-h: 5px;');
+    expect(step(4)).toContain('--ib-strain-h: 7px;');
+    expect(step(1)).not.toContain('animation');
+    expect(step(2)).not.toContain('animation');
+    expect(step(3)).toContain('animation: ib-strain-march 1600ms linear infinite;');
+    expect(step(4)).toContain('animation: ib-strain-march 600ms linear infinite;');
+    expect(monoStyles).toMatch(
+      /@keyframes ib-strain-march \{ from \{ background-position-x: 0; \} to \{ background-position-x: 8px; \} \}/,
+    );
+    expect(monoStyles).toMatch(/\.ib-card\[data-load-step="4"\] \{[^}]*box-shadow:/);
+    expect(monoStyles).toMatch(/prefers-reduced-motion: reduce\) \{[^@]*\.ib-strain \{ animation: none; \}/);
+    expect(monoStyles).toMatch(
+      /forced-colors: active\) \{[^@]*\.ib-strain \{ forced-color-adjust: none; --ib-strain-c: CanvasText;/,
+    );
   });
 });
