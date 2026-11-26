@@ -1,6 +1,6 @@
 import { define, prefersReducedMotion, UiElement } from '../../core/element';
 import { fmtAgo, fmtDuration, fmtDurationIn, fmtInt, fmtUsd } from '../../core/format';
-import { esc, escAttr } from '../../core/html';
+import { esc, escAttr, safeSrc } from '../../core/html';
 import { asModelVendor, MODEL_MAKER_COLOR, modelMarkSvg } from '../../core/model-mark';
 import { OWNER_BADGE_HUES, syncOwnerBadgeOrbit } from '../../core/owner-badge';
 import '../border-beam/border-beam';
@@ -341,9 +341,10 @@ export interface InboxCard {
   /**
    * 0.47.0 — the card's own CPU, percent of one core (may exceed 100). Past one core the card wears the dashboard's
    * CPU badge (0.48.0): a red tint and a red ring, a thin hatched underline along its bottom edge, a step stronger
-   * past two, four and eight cores (`cardLoadStep`): deeper tint and ring, a thicker underline, its hatch drifting from
-   * four cores. Reduced motion keeps the hatch still (tint and ring still tell the steps apart). Decorative: say the
-   * number in the node pill's `label`.
+   * past two, four and eight cores (`cardLoadStep`): deeper tint and ring, a thicker underline. The hatch runs to the
+   * right at every step (0.51.0), quicker each step: one stripe every 1.2 s, 0.8 s, 0.5 s, 0.3 s. Its head shows an
+   * alert before the node pill (0.51.0, `data.alertIcon`, else 🚨). Reduced motion keeps the hatch still (tint and
+   * ring still tell the steps apart). Decorative: say the number in the node pill's `label`.
    */
   load?: number;
   /**
@@ -447,6 +448,14 @@ export interface AgentInboxData {
   minimized?: string[];
   /** 0.43.0 — the card whose detail is shown (window controls): an accent ring and `aria-current` on its title. */
   current?: string;
+  /**
+   * 0.51.0 — the alert a card past one core shows in its head, just before the node pill: an image URL (http(s), a
+   * relative URL, `blob:` or a base64 raster `data:image/…`), drawn 18px square — an animated siren such as Slack's
+   * `:alert:` reads best. Without it (or with a URL of another kind) the card shows 🚨. Decorative (`alt=""`): the
+   * node pill's `label` says the number. An animated image keeps playing under reduced motion; give a still one if
+   * that matters.
+   */
+  alertIcon?: string;
 }
 
 /** Where cards and heads are drawn (viewport px), from `measure()`; keys are opaque. */
@@ -1173,6 +1182,18 @@ function renderNodeGauge(kind: 'cpu' | 'mem', v: unknown): string {
   return `<svg class="ib-node-g" data-g="${kind}" data-fill="${fill}" viewBox="0 0 7 13.5" aria-hidden="true">${bars}</svg>`;
 }
 
+/**
+ * 0.51.0 — a card past one core (`cardLoadStep`) shows an alert in its head, before the node pill: the host's image
+ * (`data.alertIcon`, already passed through `safeSrc`), else 🚨. Decorative: the pill's label says the number.
+ */
+function renderAlert(c: InboxCard, src: string): string {
+  const step = cardLoadStep(c.load);
+  if (!step) return '';
+  return src
+    ? `<img class="ib-alert" data-step="${step}" src="${src}" alt="" aria-hidden="true" draggable="false" decoding="async">`
+    : `<span class="ib-alert" data-step="${step}" aria-hidden="true">🚨</span>`;
+}
+
 /** The node pill (0.45.0): the card's own CPU, the node's name, its CPU and memory gauges. */
 function renderNode(c: InboxCard, t: Strings): string {
   const n = c.node && typeof c.node === 'object' ? c.node : null;
@@ -1425,6 +1446,7 @@ function renderFace(
   kidsOpen = false,
   kidsId = '',
   win: { body: boolean } | null = null,
+  alertSrc = '',
 ): string {
   const title = win ? renderWinTitle(c, t) : `<span class="ib-title">${esc(c.title)}</span>`;
   // One line keeps the status (0.43.0): a dot in the status colour, its word for a screen reader (the tag folds away).
@@ -1433,7 +1455,7 @@ function renderFace(
         statusWord(c, t),
       )}</span></span>`
     : '';
-  const head = `<div class="ib-head">${win ? renderWinMin(c, t) : ''}${minStatus}${renderLead(c)}${title}${renderNode(c, t)}${renderBadge(c, t)}${renderStar(
+  const head = `<div class="ib-head">${win ? renderWinMin(c, t) : ''}${minStatus}${renderLead(c)}${title}${renderAlert(c, alertSrc)}${renderNode(c, t)}${renderBadge(c, t)}${renderStar(
     c,
     t,
   )}${win ? renderWinCaret(c, t, win.body) : ''}</div>`;
@@ -1594,6 +1616,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
   #open = new Set<string>();
   /** 0.43.0 — window controls are on (`data.controls === 'window'`). */
   #win = false;
+  /** 0.51.0 — the hot card's alert image (`data.alertIcon` through `safeSrc`; '' draws 🚨). */
+  #alertSrc = '';
   /** 0.43.0 — cards folded to one line (window controls). A card's `#open` is kept under the fold. */
   #min = new Set<string>();
   /** 0.43.0 — folded by their title (`ui-detail`) or `setMinimized(…, { untilRestore })`: `restore()` unfolds them. */
@@ -2465,6 +2489,8 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       for (const sh of this.#cards.values()) sh.faceHtml = null;
     }
     this.#wrap?.toggleAttribute('data-window', win);
+    // 0.51.0 — a new alert image redraws the hot faces by itself (the face's HTML holds the URL).
+    this.#alertSrc = typeof d?.alertIcon === 'string' ? safeSrc(d.alertIcon) : '';
     const startMin = new Set((Array.isArray(d?.minimized) ? d.minimized : []).map(String));
     this.#current = win ? str(d?.current) : '';
     const load: InboxLoad = d?.load === 'loading' || d?.load === 'failed' ? d.load : 'ready';
@@ -2867,6 +2893,7 @@ export class UiAgentInbox extends UiElement<AgentInboxData> {
       this.#kidsOpen.has(id),
       sh.kids,
       this.#win ? { body: !!body } : null,
+      this.#alertSrc,
     );
     if (sh.faceHtml !== face) {
       sh.face.innerHTML = face;

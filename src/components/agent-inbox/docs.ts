@@ -334,7 +334,8 @@ function dashboardColumns(now: number): InboxColumn[] {
     badge: { text: 'elon', hue: 5 },
     // 0.45.0 — where it runs: this card at 113% CPU (hot), the node at 72% CPU and 41% memory.
     node: { text: 'm5max', cpu: 72, mem: 41, load: 113 },
-    // 0.47.0 — past one core the card wears the CPU badge: red tint and ring, a hatched underline (step 3: past four cores).
+    // 0.47.0 — past one core the card wears the CPU badge: red tint and ring, a hatched underline running right, and
+    // (0.51.0) an alert before the node pill (step 3: past four cores).
     load: 470,
     task: { id: 'T61', label: 'Writing review comments on the retry path', startedAt: now - 6 * MIN - 17_000 },
     agents: {
@@ -982,7 +983,7 @@ export const doc: ComponentDoc = {
       name: 'data.columns[].cards[].load',
       type: 'number',
       description:
-        '0.47.0 — the card’s own CPU, percent of one core (may exceed 100). Past one core the card wears the dashboard’s CPU badge (0.48.0): a red tint and a red ring, and a thin hatched underline along its bottom edge (the badge’s own hatch, inside the border, following the corners), a step stronger past two, four and eight cores (cardLoadStep; CARD_LOAD_CORES): tint 4 → 7 → 10 → 14%, ring 30 → 80%, the underline 2px then 3px, drifting from four cores (quicker past eight). Nothing glows. The hot node pill becomes the badge’s solid red segment. Decorative (aria-hidden, no pointer): say the number in the node pill’s label. Reduced motion keeps the hatch still; forced colours draw it in ink.',
+        '0.47.0 — the card’s own CPU, percent of one core (may exceed 100). Past one core the card wears the dashboard’s CPU badge (0.48.0): a red tint and a red ring, and a thin hatched underline along its bottom edge (the badge’s own hatch, inside the border, following the corners), a step stronger past two, four and eight cores (cardLoadStep; CARD_LOAD_CORES): tint 4 → 7 → 10 → 14%, ring 30 → 80%, the underline 2px then 3px. 0.51.0: the hatch runs to the right at every step, quicker each step (one stripe every 1.2 s, 0.8 s, 0.5 s, 0.3 s) — a transform, so the card is not repainted — and the head shows an alert just before the node pill (data.alertIcon, else 🚨). Nothing glows. The hot node pill becomes the badge’s solid red segment. Decorative (aria-hidden, no pointer): say the number in the node pill’s label. Reduced motion keeps the hatch still; forced colours draw it in ink.',
     },
     {
       name: 'data.columns[].cards[].beam',
@@ -1051,6 +1052,12 @@ export const doc: ComponentDoc = {
       type: 'string',
       description:
         '0.43.0 — the card whose detail is shown beside the board (window controls): an accent ring and `aria-current="true"` on its title, and its side-panel glyph stays.',
+    },
+    {
+      name: 'data.alertIcon',
+      type: 'string',
+      description:
+        '0.51.0 — the alert a card past one core (card.load) shows in its head, just before the node pill: an image URL (http(s), a relative URL, blob: or a base64 raster data:image/…), drawn 18px square — an animated siren such as Slack’s :alert: reads best. Without it, or with a URL of another kind, the card shows 🚨. Decorative (alt="", aria-hidden): the node pill’s label says the number. An animated image keeps playing under reduced motion; give a still one if that matters.',
     },
     {
       name: 'setMinimized(cardId, minimized, { untilRestore? }) / restore(cardId) / isMinimized(cardId)',
