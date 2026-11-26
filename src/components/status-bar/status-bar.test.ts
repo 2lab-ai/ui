@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import tokens from '../../core/tokens.json';
+import { kitCss } from '../../kit/kit';
 import { type SoundSpy, soundSpy } from '../../sound/fixtures';
 import { resetSoundQueue } from '../../sound/sound';
 import {
@@ -519,6 +520,21 @@ describe('styles', () => {
     const known = new Set([...Object.keys(tokens.light), ...Object.keys(tokens.shared)]);
     for (const m of css.matchAll(/var\(--([a-z0-9-]+)/g))
       if (!m[1].startsWith('sb-')) expect(known.has(m[1]), m[1]).toBe(true);
+  });
+
+  it('draw its action buttons at the kit button size (.ui-btn): one button height on a page, not a third one', () => {
+    // A host page puts the bar next to the kit's own buttons (a detail panel's 복사, a settings form's 저장). Measured
+    // on soma-work 2026-11-26: the bar's 중지 / 되돌리기 모드 were 30 px · 12.5 px beside 32 px · 13 px kit buttons.
+    const block = (css: string, sel: string) => {
+      const at = css.indexOf(`\n${sel} {`);
+      return css.slice(at, css.indexOf('}', at));
+    };
+    const decl = (css: string, prop: string) => css.match(new RegExp(`[;{\\s]${prop}: ([^;]+);`))?.[1];
+    const kit = block(kitCss, '.ui-btn');
+    const sb = block(styles, '.sb-btn');
+    for (const prop of ['min-height', 'padding', 'font-size', 'font-weight', 'border-radius'])
+      expect(decl(sb, prop), prop).toBe(decl(kit, prop));
+    expect(decl(block(styles, '.sb-link'), 'min-height')).toBe(decl(kit, 'min-height'));
   });
 
   it('gate hover to fine pointers without movement, give 44px coarse targets, and stop motion when reduced', () => {
