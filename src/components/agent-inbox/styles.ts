@@ -474,8 +474,8 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 }
 .ib-strain[data-step="1"] { --ib-strain-h: 2px; opacity: 0.8; }
 .ib-strain[data-step="2"] { --ib-strain-h: 3px; }
-.ib-strain[data-step="3"] { --ib-strain-h: 4px; animation: ib-strain-march 1600ms linear infinite; }
-.ib-strain[data-step="4"] { --ib-strain-h: 6px; animation: ib-strain-march 600ms linear infinite; }
+.ib-strain[data-step="3"] { --ib-strain-h: 5px; animation: ib-strain-march 1600ms linear infinite; }
+.ib-strain[data-step="4"] { --ib-strain-h: 7px; animation: ib-strain-march 600ms linear infinite; }
 .ib-card[data-load-step="4"] {
   box-shadow: var(--ib-shadow), 0 0 0 1px color-mix(in srgb, var(--red) calc(70% * var(--chroma)), var(--ib-text)),
     0 0 16px color-mix(in srgb, var(--red) calc(45% * var(--chroma)), transparent);

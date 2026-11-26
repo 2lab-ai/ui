@@ -982,7 +982,7 @@ export const doc: ComponentDoc = {
       name: 'data.columns[].cards[].load',
       type: 'number',
       description:
-        '0.47.0 — the card’s own CPU, percent of one core (may exceed 100). Past one core the card’s top and bottom edges carry red hazard stripes (hollow diagonals, inside the border, following the corners), one step heavier past two, four and eight cores (cardLoadStep; CARD_LOAD_CORES): 2px, 3px, then 4px and marching, then 6px, marching fast, with a red glow around the card. Decorative (aria-hidden, no pointer): say the number in the node pill’s label. Reduced motion keeps the stripes still — thickness and glow still tell the steps apart; forced colours draw them in ink.',
+        '0.47.0 — the card’s own CPU, percent of one core (may exceed 100). Past one core the card’s top and bottom edges carry red hazard stripes (hollow diagonals, inside the border, following the corners), one step heavier past two, four and eight cores (cardLoadStep; CARD_LOAD_CORES): 2px, 3px, then 5px and marching, then 7px, marching fast, with a red glow around the card. Decorative (aria-hidden, no pointer): say the number in the node pill’s label. Reduced motion keeps the stripes still — thickness and glow still tell the steps apart; forced colours draw them in ink.',
     },
     {
       name: 'data.columns[].cards[].beam',

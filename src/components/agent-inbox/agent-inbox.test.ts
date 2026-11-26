@@ -3336,8 +3336,8 @@ describe('card.load (0.47.0) — hazard stripes on the edges past one core', () 
       monoStyles.match(new RegExp(`\\.ib-strain\\[data-step="${n}"\\] \\{([^}]*)\\}`))?.[1] ?? '';
     expect(step(1)).toContain('--ib-strain-h: 2px;');
     expect(step(2)).toContain('--ib-strain-h: 3px;');
-    expect(step(3)).toContain('--ib-strain-h: 4px;');
-    expect(step(4)).toContain('--ib-strain-h: 6px;');
+    expect(step(3)).toContain('--ib-strain-h: 5px;');
+    expect(step(4)).toContain('--ib-strain-h: 7px;');
     expect(step(1)).not.toContain('animation');
     expect(step(2)).not.toContain('animation');
     expect(step(3)).toContain('animation: ib-strain-march 1600ms linear infinite;');
