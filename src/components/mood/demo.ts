@@ -249,7 +249,8 @@ export function payReplay(lang: 'en' | 'ko' = 'en'): HTMLElement {
         pressed++;
       }
     }
-    kick();
+    // no frames while paused or off screen: Play and the observer start them again
+    if (playing && visible) kick();
   };
   const kick = () => {
     if (!raf) raf = requestAnimationFrame(step);
@@ -258,6 +259,7 @@ export function payReplay(lang: 'en' | 'ko' = 'en'): HTMLElement {
   if (typeof IntersectionObserver === 'function') {
     new IntersectionObserver(([e]) => {
       visible = e.isIntersecting;
+      if (visible) kick();
     }).observe(wrap);
   }
   wrap.append(scaleToFit(s.mood), button);

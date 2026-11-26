@@ -293,6 +293,40 @@ describe('MoodCore', () => {
     expect(c.step(90 + 60_000).mood).toBe('away');
   });
 
+  it('clears away on any input in the scope, not only a pointer move (someone typing with the mouse parked)', () => {
+    const c = new MoodCore({ now: 0 });
+    c.windowOut(true, 10);
+    expect(c.step(20).mood).toBe('away');
+    c.key(true, 30);
+    expect(c.step(40)).toMatchObject({ away: false, mood: null });
+    c.windowOut(true, 50);
+    c.sent(60, false);
+    expect(c.step(70).away).toBe(false);
+  });
+
+  it('does not go idle while a score under the line is still draining', () => {
+    const c = new MoodCore({ now: 0 });
+    const section = (k: string): MoodFacts => ({ ...NO_FACTS, control: k, section: true });
+    c.press(10, 10, 100, section('a'));
+    c.press(10, 10, 600, section('b'));
+    c.press(10, 10, 1100, section('c'));
+    const r = c.step(8000);
+    expect(r.mood).toBeNull();
+    expect(r.score).toBeGreaterThan(0.005);
+    expect(c.idle(8000)).toBe(false);
+    expect(c.step(40_000).score).toBe(0);
+    expect(c.idle(40_000)).toBe(true);
+  });
+
+  it('names the disabled control for a disabled reading, even after another press', () => {
+    const c = new MoodCore({ now: 0 });
+    c.press(10, 10, 100, DISABLED);
+    c.press(300, 300, 400, CONTROL);
+    const r = c.step(500);
+    expect(r.fastKind).toBe('disabled');
+    expect(r.target?.id).toBe('pay');
+  });
+
   it('reacts only to the moods in reactTo, but still reports the others', () => {
     const c = new MoodCore({ now: 0, reactTo: ['lost'] });
     c.press(100, 100, 10, DISABLED);
@@ -466,6 +500,34 @@ describe('createMoodReader', () => {
     vi.advanceTimersByTime(60_000);
     expect(r.reading.mood).toBe('away');
     r.stop();
+  });
+
+  it('says away a minute after start even with no input at all, and only once in a hidden tab', () => {
+    const readings: MoodReading[] = [];
+    const r = createMoodReader({ baselineKey: null, now: () => clock, onReading: (x) => readings.push(x) });
+    r.start();
+    for (let i = 0; i < 60; i++) {
+      clock += 66;
+      vi.advanceTimersByTime(66);
+    }
+    clock += 60_000;
+    vi.advanceTimersByTime(60_000);
+    expect(r.reading.mood).toBe('away');
+    r.stop();
+
+    const hidden: MoodReading[] = [];
+    const h = createMoodReader({ baselineKey: null, now: () => clock, onReading: (x) => hidden.push(x) });
+    h.start();
+    vi.advanceTimersByTime(10);
+    const vis = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    const n = hidden.length;
+    expect(hidden.at(-1)?.mood).toBe('away');
+    clock += 120_000;
+    vi.advanceTimersByTime(120_000);
+    expect(hidden.length).toBe(n);
+    vis.mockRestore();
+    h.stop();
   });
 
   it('counts a failed send from the browser’s own check', () => {

@@ -1,8 +1,9 @@
 /**
  * `createMoodReader()` — the mood reader on a page, without a framework: it listens to the pointer, presses, scrolling,
  * typing (only whether a key deleted) and sent forms inside its scope, feeds them to a {@link MoodCore}, and hands
- * back a reading every 66 ms while there is something to read. Calm and still for 3 s, it stops its timer; the next
- * input wakes it. A hidden tab gives one `away` reading and no more until it is shown again. Nothing leaves the page:
+ * back a reading every 66 ms while there is something to read. Once the score has drained and nothing has come in for
+ * 3 s, it stops its timer; the next input wakes it, and so does a minute without input (to say away). A hidden tab
+ * gives one `away` reading and no more until it is shown again. Nothing leaves the page:
  * the only thing it stores is the person's pace (two numbers), in localStorage under `baselineKey`.
  *
  * The name and options follow Libraries.dev's Mood recognition kit (`createMoodReader({ model, scope, onReading })`)
@@ -199,8 +200,14 @@ export function createMoodReader(o: MoodReaderOptions = {}): MoodReader {
       clearTimeout(timer);
       timer = null;
     }
-    if (doc?.visibilityState === 'hidden') emit(core.step(now()));
-    else wake();
+    if (doc?.visibilityState === 'hidden') {
+      // one away reading, then nothing until the tab is shown again
+      if (awayTimer) {
+        clearTimeout(awayTimer);
+        awayTimer = null;
+      }
+      emit(core.step(now()));
+    } else wake();
   };
 
   const scoped: Array<[string, (e: Event) => void]> = [
@@ -225,6 +232,8 @@ export function createMoodReader(o: MoodReaderOptions = {}): MoodReader {
       doc?.addEventListener('visibilitychange', onVisibility);
       core.hidden(doc?.visibilityState === 'hidden', now());
       emit(core.step(now()));
+      // one more step: with no input at all it goes idle there and arms the away wake
+      wake();
     },
     stop() {
       if (!running || !scope) return;

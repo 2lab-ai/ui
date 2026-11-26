@@ -27,6 +27,8 @@ const STRINGS = {
 const PRESS_MS = 8000;
 /** The pointer resting this long over a calm reading stops the frames. */
 const REST_MS = 4000;
+/** A reading older than this no longer keeps the frames going (the reader went quiet). */
+const FRESH_MS = 500;
 
 /** The HUD's reading from a mood reading: the name in the HUD's language, L C A F and the fast signals. */
 export function hudReadingOf(r: MoodReading, lang: MoodHudLang = 'en'): HudReading {
@@ -157,6 +159,8 @@ export class UiMoodHud extends UiElement<undefined> {
     this.#raf = 0;
     this.#hud?.destroy();
     this.#hud = null;
+    // the shadow layer survives a move in the DOM: forget it, so the next render builds the HUD on it again
+    this.#layer = null;
     super.disconnectedCallback();
   }
 
@@ -183,12 +187,18 @@ export class UiMoodHud extends UiElement<undefined> {
   }
 
   protected override updated(): void {
+    this.#ensureHud();
+  }
+
+  /** The HUD on the current shadow layer: built on the first render, and again after a move in the DOM. */
+  #ensureHud(): Hud | null {
     const layer = this.$<HTMLElement>('.hud-layer');
-    if (layer && layer !== this.#layer) {
+    if (layer && (layer !== this.#layer || !this.#hud)) {
       this.#hud?.destroy();
       this.#layer = layer;
       this.#hud = createHud(layer, () => ({ w: this.clientWidth, h: this.clientHeight }));
     }
+    return this.#hud;
   }
 
   #findMood(): UiMood | null {
@@ -214,7 +224,8 @@ export class UiMoodHud extends UiElement<undefined> {
     this.#mood?.removeEventListener('ui-mood-reading', this.#onReading);
     this.#mood = next;
     next?.addEventListener('ui-mood-reading', this.#onReading);
-    if (next) this.#reading = next.reading;
+    // a <ui-mood> that is not upgraded yet has no reading: start calm
+    this.#reading = next?.reading ?? emptyReading();
   }
 
   #point(p: PointerEvent): void {
@@ -227,15 +238,17 @@ export class UiMoodHud extends UiElement<undefined> {
   }
 
   /**
-   * Whether there is anything to draw: the pointer is moving over it (or rested there under 4 s), the reading is not
-   * calm, or dust and waves are still dying out after it left. Off screen, in a hidden tab or with nothing to draw,
-   * the frames stop; the next move or reading starts them again.
+   * Whether there is anything to draw: the pointer is moving over it (or rested there under 4 s), a fresh reading
+   * (under 0.5 s old) is not calm, or dust and waves are still dying out after it left. Off screen, in a hidden tab
+   * or with nothing to draw, the frames stop; the next move or reading starts them again.
    */
   #wants(t: number): boolean {
     if (!this.isConnected || !this.#visible || document.visibilityState === 'hidden') return false;
     const since = t - this.#lastActivity;
     if (!this.#inside) return since < HUD_SETTLE_MS;
-    return since < REST_MS || this.#reading.score > 0.05 || this.#reading.reaction > 0;
+    const r = this.#reading;
+    const fresh = t - r.at < FRESH_MS;
+    return since < REST_MS || (fresh && (r.score > 0.05 || r.reaction > 0));
   }
 
   #kick(): void {
@@ -246,10 +259,11 @@ export class UiMoodHud extends UiElement<undefined> {
   readonly #frame = () => {
     this.#raf = 0;
     const now = performance.now();
-    if (!this.#hud) return;
+    const hud = this.#ensureHud();
+    if (!hud) return;
     const lang = this.#lang;
     const r = this.#reading;
-    this.#hud.frame({
+    hud.frame({
       t: now,
       x: this.#x,
       y: this.#y,

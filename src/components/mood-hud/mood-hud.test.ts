@@ -226,6 +226,45 @@ describe('<ui-mood-hud>', () => {
     expect(hud.shadowRoot?.querySelector('.hud-name')?.textContent).toBe('평온-0.00');
   });
 
+  it('draws again after it is moved in the DOM', () => {
+    const { hud, mood } = mount();
+    const other = document.createElement('div');
+    document.body.append(other);
+    other.append(mood);
+    move(hud);
+    expect(hud.running).toBe(true);
+    flush();
+    expect(hud.shadowRoot?.querySelectorAll('.mood-hud')).toHaveLength(1);
+    expect(hud.shadowRoot?.querySelector('.hud-name')?.textContent).toBe('NEUTRAL-0.00');
+  });
+
+  it('starts calm under a <ui-mood> that is not upgraded yet', () => {
+    document.body.innerHTML = '<ui-mood-later><ui-mood-hud><p>x</p></ui-mood-hud></ui-mood-later>';
+    document.body.innerHTML = '<div id="w"></div>';
+    const w = document.getElementById('w') as HTMLElement;
+    const fake = document.createElement('ui-mood');
+    Object.defineProperty(fake, 'reading', { value: undefined });
+    const hud = document.createElement('ui-mood-hud');
+    fake.append(hud);
+    w.append(fake);
+    expect(() => {
+      move(hud);
+      flush();
+    }).not.toThrow();
+  });
+
+  it('a stale reading does not keep the frames going while the pointer rests', () => {
+    const { hud, mood } = mount();
+    move(hud);
+    mood.dispatchEvent(
+      new CustomEvent('ui-mood-reading', {
+        detail: { ...emptyReading(clock), score: 0.2, scores: { frustrated: 0, confused: 0.2, lost: 0 } },
+      }),
+    );
+    for (let i = 0; i < 300; i++) flush();
+    expect(hud.running).toBe(false);
+  });
+
   it('lets go of everything on disconnect', () => {
     const { hud, mood } = mount();
     move(hud);

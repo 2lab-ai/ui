@@ -86,7 +86,7 @@ export const doc: ComponentDoc = {
       name: 'ui-mood-reading',
       detail: 'MoodReading',
       description:
-        'Every reading, every 66 ms while there is something to read (calm and still for 3 s, it stops until the next input). Fired on the element only: it does not bubble.',
+        'Every reading, every 66 ms while there is something to read (once the score has drained to calm and nothing has come in for 3 s, it stops until the next input). Fired on the element only: it does not bubble.',
     },
   ],
   keyboard: [
@@ -99,7 +99,7 @@ export const doc: ComponentDoc = {
     'Adds nothing to the accessibility tree and announces nothing: telling someone they look frustrated helps no one. What the screen brings forward must be reachable without it — the Pay’s terms are a real checkbox with a label, the hint is in the DOM all along.',
     'Keep every reaction small and reversible: dim what is locked, lift what unlocks it, show a hint or a way out. Never block, punish or move things from under the pointer, and do not react to away.',
     'Reads positions, timings and element facts only — never text, field values or the screen; nothing is sent anywhere. The person’s pace is two numbers in localStorage (`baseline-key=""` keeps it in memory).',
-    'No timers while calm and still: the reader steps every 66 ms only while there is input or a reading to ease back, and gives one away reading in a hidden tab.',
+    'No timers while calm and still: the reader steps every 66 ms only while there is input or a score or reaction to ease back, wakes once a minute after the last input to say away, and gives one away reading in a hidden tab.',
     'Keyboard and touch users produce no pointer path: only presses, scrolling, typing and sent forms count for them, so the pointer-path moods (confused from circling, lost from revisits) do not rise.',
   ],
   usage: `<ui-mood>

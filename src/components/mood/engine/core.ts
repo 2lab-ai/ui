@@ -263,10 +263,15 @@ export class MoodCore {
     return this.#hidden || this.#outOfWindow || t - this.#lastInput >= AWAY_IDLE_MS;
   }
 
-  /** When the reader may stop stepping: calm, settled, and no input for 3 s. It wakes again on the next input. */
+  /**
+   * When the reader may stop stepping: calm (no score left to drain, no reaction, no mood), settled, and no input for
+   * 3 s. It wakes again on the next input. A score under the line still drains first, so no reading is left stale.
+   */
   idle(t: number): boolean {
     const r = this.#reading;
-    return t - this.#lastInput >= 3000 && r.reaction === 0 && r.fast < 0.005 && this.#pick.mood === null;
+    return (
+      t - this.#lastInput >= 3000 && r.reaction === 0 && r.fast < 0.005 && r.score < 0.005 && this.#pick.mood === null
+    );
   }
 
   /** When nothing came in last (ms on the reader's clock). */
@@ -316,15 +321,20 @@ export class MoodCore {
     return this.#reading;
   }
 
+  /** Any input inside the scope: the person is here, so the pointer is no longer out of the window. */
   #input(t: number): void {
     this.#lastInput = Math.max(this.#lastInput, t);
+    this.#outOfWindow = false;
   }
 
   /** The control a reading is about: the one pressed in a run of presses, else the one hovered, else the last pressed. */
   #target(t: number, kind: string | null): MoodTarget | null {
     const h = this.#h;
     const press = h.presses[h.presses.length - 1];
-    if ((kind === 'disabled' || kind === 'rage') && press) return press.facts.target;
+    if (kind === 'disabled') {
+      for (let i = h.presses.length - 1; i >= 0; i--) if (h.presses[i].facts.disabled) return h.presses[i].facts.target;
+    }
+    if (kind === 'rage' && press) return press.facts.target;
     if (h.hover.control && t - h.hover.last <= 1500 && h.hover.ms >= 1000) return h.hover.target;
     return press && t - press.t < 3000 ? press.facts.target : null;
   }
