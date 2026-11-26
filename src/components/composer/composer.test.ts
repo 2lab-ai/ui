@@ -2374,6 +2374,23 @@ describe('<ui-composer collapse> (0.50.0)', () => {
     expect(el.collapsed).toBe(true);
   });
 
+  it('a press on a tool that does not take focus (Safari, Firefox on macOS) does not fold it before the click', async () => {
+    const el = mount({}, { collapse: '' });
+    field(el).focus();
+    focusIn(el);
+    const attach = act(el, 'attach')!;
+    attach.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+    field(el).blur();
+    focusOut(el);
+    await tick();
+    expect(el.collapsed).toBe(false);
+    expect(bar(el).hidden).toBe(false);
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, composed: true }));
+    await tick();
+    // Released with focus outside and nothing in it: it folds now.
+    expect(el.collapsed).toBe(true);
+  });
+
   it('the attribute removed: it opens for good', () => {
     const el = mount({}, { collapse: '' });
     el.removeAttribute('collapse');

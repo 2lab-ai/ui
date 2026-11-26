@@ -253,7 +253,7 @@ export const doc: ComponentDoc = {
       name: 'data.queue',
       type: 'Array<{ id, objective, addedAt? }>',
       description:
-        'Goals waiting their turn, numbered in order. Each has a drag handle (two or more goals; `ui-move`), an Edit that opens the text in place (`ui-edit`) and a two-press remove (`ui-delete`, `queued: true`). A move shows the new order at once, until the next data — so put the new order in your next data (the card’s order gives way to it).',
+        'Goals waiting their turn, numbered in order, each with a two-press remove (`ui-delete`, `queued: true`); with `move` / `edit` in `actions`, a drag handle (two or more goals; `ui-move`) and an Edit that opens the text in place (`ui-edit`). A move shows the new order at once, until the next data — so put the new order in your next data (the card’s order gives way to it).',
     },
     {
       name: 'data.history',
@@ -270,9 +270,9 @@ export const doc: ComponentDoc = {
     {
       name: 'data.actions',
       type: "Array<'complete' | 'pause' | 'resume' | 'delete' | 'move' | 'edit'>",
-      default: 'every action',
+      default: 'complete, pause, resume, delete (move and edit are opt-in)',
       description:
-        'The goal actions the host answers. Of what the status allows, only these are drawn — a host whose route takes add and delete passes `["delete"]`; `[]` draws no goal action. Without `delete` the queued goals lose their remove (it is a delete), without `move` their drag handle, without `edit` their Edit. The add box stays with `canEdit`. `goalActions(status, actions)` is the current goal’s rule as a function.',
+        'The goal actions the host answers. Of what the status allows, only these are drawn — a host whose route takes add and delete passes `["delete"]`; `[]` draws no goal action. Without `delete` the queued goals lose their remove (it is a delete). `move` (the drag handle) and `edit` (Edit) are drawn only when listed — a host that passes no `actions` keeps the card it had. The add box stays with `canEdit`. `goalActions(status, actions)` is the current goal’s rule as a function.',
     },
     {
       name: 'data.busy',
@@ -421,6 +421,7 @@ export const doc: ComponentDoc = {
       height: 620,
       create: () => {
         const d = activeData();
+        d.actions = ['complete', 'pause', 'resume', 'delete', 'move', 'edit'];
         d.queue = [
           { id: 'g-docs', objective: 'Write the v2 migration guide — one example per endpoint.' },
           { id: 'g-contrast', objective: 'Audit colour contrast in the settings screens (light and dark).' },

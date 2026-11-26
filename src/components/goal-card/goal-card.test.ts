@@ -1107,6 +1107,7 @@ describe('sound', () => {
 
 const QUEUE3: GoalCardData = {
   ...BASE,
+  actions: ['complete', 'pause', 'resume', 'delete', 'move', 'edit'],
   queue: [
     { id: 'q1', objective: 'Audit contrast' },
     { id: 'q2', objective: 'Write release notes' },
@@ -1212,6 +1213,13 @@ describe('<ui-goal-card> reorder the queue', () => {
     expect(qa(one, '.gc-grip')).toHaveLength(0);
   });
 
+  it('move and edit are opt-in: a host that passes no actions keeps its old card (no handle, no Edit)', () => {
+    const el = mount({ ...QUEUE3, actions: undefined });
+    expect(qa(el, '.gc-grip')).toHaveLength(0);
+    expect(qa(el, '[data-act="edit"]')).toHaveLength(0);
+    expect(qa(el, '.gc-rm')).toHaveLength(3);
+  });
+
   it('no handle without move in actions, or read-only', () => {
     expect(qa(mount({ ...QUEUE3, actions: ['delete'] }), '.gc-grip')).toHaveLength(0);
     expect(qa(mount({ ...QUEUE3, canEdit: false }), '.gc-grip')).toHaveLength(0);
@@ -1230,7 +1238,8 @@ describe('<ui-goal-card> reorder the queue', () => {
     expect(texts(el)).toEqual(['Write release notes', 'Audit contrast', 'Tag the release']);
     expect(qa(el, '.gc-q-n').map((n) => n.textContent)).toEqual(['1', '2', '3']);
     expect(active(el)?.dataset.key).toBe('grip|q1');
-    expect(q(el, '.gc-live')!.textContent).toBe('Moved to 2 of 3');
+    const said = () => (q(el, '.gc-live')!.textContent ?? '').replace(/\u200b/g, '');
+    expect(said()).toBe('Moved to 2 of 3');
     key(active(el)!, 'ArrowUp');
     el.renderNow();
     expect(detail(fn, 1)).toEqual({ id: 'q1', from: 1, to: 0, order: ['q1', 'q2', 'q3'] });
@@ -1313,6 +1322,84 @@ describe('<ui-goal-card> reorder the queue', () => {
     expect(detail(fn)).toEqual({ id: 'q3', from: 2, to: 0, order: ['q3', 'q1', 'q2'] });
   });
 
+  it('the same move twice is announced twice; arming a remove (and its timeout) never brings an old move back', () => {
+    vi.useFakeTimers();
+    const el = mount(QUEUE3);
+    const live = () => q(el, '.gc-live')!.textContent ?? '';
+    key(qa(el, '.gc-grip')[0], 'ArrowDown');
+    el.renderNow();
+    const first = live();
+    key(qa(el, '.gc-grip')[2], 'ArrowUp');
+    el.renderNow();
+    // The same words right after each other, but not the same text: a screen reader speaks the second one too.
+    expect(first.replace(/\u200b/g, '')).toBe('Moved to 2 of 3');
+    expect(live().replace(/\u200b/g, '')).toBe('Moved to 2 of 3');
+    expect(live()).not.toBe(first);
+    press(el, '.gc-rm');
+    expect(live()).toContain('Press again to remove');
+    vi.advanceTimersByTime(GOAL_ARM_MS + 10);
+    el.renderNow();
+    expect(live()).toBe('');
+  });
+
+  it('a queue that changes under a drag ends it: nothing moves, no transform is left', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    layoutRows(el);
+    const grip = qa(el, '.gc-grip')[1];
+    pointer(grip, 'pointerdown', 147);
+    pointer(grip, 'pointermove', 200);
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(true);
+    // The first queued goal started meanwhile: the drag's indices no longer name the same goals.
+    el.data = { ...QUEUE3, queue: QUEUE3.queue!.slice(1) };
+    el.renderNow();
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(false);
+    expect(qa(el, '.gc-q-row').every((r) => !r.style.transform && !r.hasAttribute('data-dragging'))).toBe(true);
+    pointer(grip, 'pointerup', 200);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('a render mid-drag (same queue) keeps the lifted row where the pointer is', () => {
+    const el = mount(QUEUE3);
+    layoutRows(el);
+    const grip = qa(el, '.gc-grip')[0];
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 170);
+    el.data = { ...QUEUE3, current: { ...QUEUE3.current!, note: 'progress update' } };
+    el.renderNow();
+    const rows = qa(el, '.gc-q-row');
+    expect(q(el, '.gc-q-list')!.hasAttribute('data-sorting')).toBe(true);
+    expect(rows[0].style.transform).toBe('translateY(55px)');
+    expect(rows[0].hasAttribute('data-dragging')).toBe(true);
+    expect(rows[1].style.transform).toBe('translateY(-32px)');
+  });
+
+  it('a write starting mid-drag, or the handle losing the pointer, ends the drag', () => {
+    const el = mount(QUEUE3);
+    const fn = listen(el, 'ui-move');
+    layoutRows(el);
+    let grip = qa(el, '.gc-grip')[0];
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 200);
+    el.data = { ...QUEUE3, busy: 'delete', busyId: 'q3' };
+    el.renderNow();
+    pointer(grip, 'pointerup', 200);
+    expect(fn).not.toHaveBeenCalled();
+    el.data = { ...QUEUE3 };
+    el.renderNow();
+    layoutRows(el);
+    grip = qa(el, '.gc-grip')[0];
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 200);
+    pointer(grip, 'lostpointercapture', 200);
+    expect(qa(el, '.gc-q-row').every((r) => !r.style.transform)).toBe(true);
+    // The next press starts a fresh drag (nothing stuck).
+    pointer(grip, 'pointerdown', 115);
+    pointer(grip, 'pointermove', 200);
+    pointer(grip, 'pointerup', 200);
+    expect(detail(fn)).toEqual({ id: 'q1', from: 0, to: 2, order: ['q2', 'q3', 'q1'] });
+  });
+
   it('a write in flight holds the handles (and the busy one spins)', () => {
     const el = mount({ ...QUEUE3, busy: 'move', busyId: 'q2' });
     const fn = listen(el, 'ui-move');
@@ -1349,6 +1436,7 @@ describe('<ui-goal-card> edit a queued goal', () => {
       'Edit queued goal 3',
     ]);
     expect(qa(mount({ ...QUEUE3, actions: ['delete', 'move'] }), '[data-act="edit"]')).toHaveLength(0);
+    expect(qa(mount({ ...QUEUE3, actions: ['delete', 'edit'] }), '[data-act="edit"]')).toHaveLength(3);
     expect(qa(mount({ ...QUEUE3, canEdit: false }), '[data-act="edit"]')).toHaveLength(0);
   });
 
@@ -1470,7 +1558,7 @@ describe('<ui-goal-card> edit a queued goal', () => {
   });
 
   it('escapes the text it puts in the box (a value, never markup)', () => {
-    const el = mount({ ...BASE, queue: [{ id: 'x', objective: '<img src=x onerror=alert(1)>' }] });
+    const el = mount({ ...BASE, actions: ['edit'], queue: [{ id: 'x', objective: '<img src=x onerror=alert(1)>' }] });
     const box = openEditor(el, 0);
     expect(box.value).toBe('<img src=x onerror=alert(1)>');
     expect(el.shadowRoot!.querySelector('img')).toBeNull();

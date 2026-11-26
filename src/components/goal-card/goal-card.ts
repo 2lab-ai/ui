@@ -449,9 +449,12 @@ type Drag = {
   to: number;
   pointerId: number;
   startY: number;
+  /** How far the pointer has travelled (px, down is positive). */
+  dy: number;
   on: boolean;
   grip: HTMLElement;
-  rows: HTMLElement[];
+  /** The queue's ids at pointerdown: the drag ends if the queue changes under it. */
+  ids: string[];
   mids: number[];
   /** How far the other rows step aside: the dragged row's height plus the list's gap. */
   step: number;
@@ -495,8 +498,10 @@ export class UiGoalCard extends UiElement<GoalCardData> {
    */
   #focusKey: string | null = null;
   #focusForce = false;
-  /** The polite announcement after a move (the armed press speaks first). */
+  /** The polite announcement after a move (the armed press speaks first); one-shot — cleared by the next press or data. */
   #announce = '';
+  /** Alternates a trailing zero-width space, so the same words twice in a row are announced twice. */
+  #announceOdd = false;
 
   constructor() {
     super();
@@ -510,6 +515,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     this.root.addEventListener('pointermove', (e) => this.#onPointerMove(e as PointerEvent));
     this.root.addEventListener('pointerup', (e) => this.#onPointerUp(e as PointerEvent, true));
     this.root.addEventListener('pointercancel', (e) => this.#onPointerUp(e as PointerEvent, false));
+    this.root.addEventListener('lostpointercapture', (e) => this.#onLostCapture(e as PointerEvent));
   }
 
   override get data(): GoalCardData | undefined {
@@ -520,6 +526,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
   override set data(v: GoalCardData | undefined) {
     this.#order = null;
     this.#edited = null;
+    this.#announce = '';
     super.data = v;
   }
 
@@ -587,9 +594,11 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     return order.map((id) => byId.get(id) as GoalQueued);
   }
 
+  /** `move` and `edit` are opt-in (0.50.0): a host that passes no `actions` keeps the actions it had. */
   #allows(act: GoalAction): boolean {
     const a = this.data?.actions;
-    return !Array.isArray(a) || a.includes(act);
+    if (!Array.isArray(a)) return act !== 'move' && act !== 'edit';
+    return a.includes(act);
   }
 
   /** A queued goal's remove is a delete: it needs the host to answer `ui-delete`. */
@@ -646,6 +655,13 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       this.#foldId = id;
       this.#open = false;
       this.#overflows = false;
+    }
+    const dr = this.#drag;
+    if (dr) {
+      const ids = this.#queue().map((g) => String(g.id));
+      // The queue moved under the drag (a goal started, one was deleted) or a write is out: drop it — a stale index
+      // must never move another goal.
+      if (this.data?.busy || !this.#canMove() || ids.join('\u0000') !== dr.ids.join('\u0000')) this.#endDrag();
     }
     const ed = this.#editing;
     if (ed) {
@@ -837,7 +853,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     const hint = move ? `<span class="sr-only" id="gc-move-hint">${esc(t.moveHint)}</span>` : '';
     return `<div class="gc-q"><div class="gc-sub" id="gc-q-title"><span>${esc(t.queue)}</span><span class="gc-n">${
       queue.length
-    }</span></div><ol class="gc-q-list" aria-labelledby="gc-q-title">${rows}</ol>${hint}</div>`;
+    }</span></div><ol class="gc-q-list" aria-labelledby="gc-q-title"${this.#drag?.on ? ' data-sorting' : ''}>${rows}</ol>${hint}</div>`;
   }
 
   /** A queued goal open for editing: its text (set, never rendered — the node keeps it), Cancel and Save. */
@@ -910,6 +926,8 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       if (ta.value !== this.#draft) ta.value = this.#draft;
       this.#grow(ta);
     }
+    // A render in the middle of a drag (a host update) keeps the lifted row where the pointer is.
+    if (this.#drag?.on) this.#paintDrag();
     const box = this.$<HTMLTextAreaElement>('.gc-q-edit');
     if (box && this.#editing) {
       if (box.value !== this.#editing.draft) box.value = this.#editing.draft;
@@ -1166,12 +1184,11 @@ export class UiGoalCard extends UiElement<GoalCardData> {
 
   /** Move a queued goal (`ui-move`); unless the host cancels, the new order shows until its next data. */
   #move(id: string, from: number, to: number, e: Event): void {
-    if (from === to || !this.#canMove()) return;
-    const order = goalQueueMove(
-      this.#queue().map((q) => String(q.id)),
-      from,
-      to,
-    );
+    if (from === to || !this.#canMove() || this.data?.busy) return;
+    const ids = this.#queue().map((q) => String(q.id));
+    // Indices are checked against the goal they name: a stale one never moves another goal.
+    if (ids[from] !== id || to < 0 || to >= ids.length) return;
+    const order = goalQueueMove(ids, from, to);
     const was = !!this.#armed;
     this.#disarm(false);
     const detail: GoalMoveDetail = { id, from, to, order };
@@ -1180,7 +1197,8 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       return;
     }
     this.#order = order;
-    this.#announce = this.#t.moved(to + 1, order.length);
+    this.#announceOdd = !this.#announceOdd;
+    this.#announce = this.#t.moved(to + 1, order.length) + (this.#announceOdd ? '\u200b' : '');
     this.#focusKey = `grip|${id}`;
     this.sound('select', undefined, e);
     this.requestRender();
@@ -1208,9 +1226,10 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       to: from,
       pointerId: e.pointerId,
       startY: e.clientY,
+      dy: 0,
       on: false,
       grip,
-      rows,
+      ids: this.#queue().map((q) => String(q.id)),
       mids: boxes.map((b) => b.top + b.height / 2),
       step: boxes[from].height + gap,
     };
@@ -1223,23 +1242,31 @@ export class UiGoalCard extends UiElement<GoalCardData> {
   #onPointerMove(e: PointerEvent): void {
     const dr = this.#drag;
     if (!dr || e.pointerId !== dr.pointerId) return;
-    const dy = e.clientY - dr.startY;
+    dr.dy = e.clientY - dr.startY;
     if (!dr.on) {
-      if (Math.abs(dy) < DRAG_SLOP) return;
+      if (Math.abs(dr.dy) < DRAG_SLOP) return;
       dr.on = true;
-      this.#disarm();
-      dr.rows[dr.from]?.setAttribute('data-dragging', '');
-      this.$('.gc-q-list')?.setAttribute('data-sorting', '');
+      this.#disarm(false);
     }
     e.preventDefault();
-    dr.to = goalDropIndex(dr.mids, dr.from, dr.mids[dr.from] + dy);
-    dr.rows.forEach((row, i) => {
+    dr.to = goalDropIndex(dr.mids, dr.from, dr.mids[dr.from] + dr.dy);
+    this.#paintDrag();
+  }
+
+  /** The lifted row at the pointer, the rows it passed one step aside — on the rows drawn now (found by key). */
+  #paintDrag(): void {
+    const dr = this.#drag;
+    if (!dr) return;
+    this.$('.gc-q-list')?.setAttribute('data-sorting', '');
+    for (const row of this.$$<HTMLElement>('.gc-q-row')) {
+      const i = dr.ids.indexOf((row.dataset.mk ?? '').slice(2));
       let y = 0;
-      if (i === dr.from) y = dy;
+      if (i === dr.from) y = dr.dy;
       else if (dr.to < dr.from && i >= dr.to && i < dr.from) y = dr.step;
       else if (dr.to > dr.from && i <= dr.to && i > dr.from) y = -dr.step;
       row.style.transform = y ? `translateY(${y}px)` : '';
-    });
+      row.toggleAttribute('data-dragging', i === dr.from);
+    }
   }
 
   #onPointerUp(e: PointerEvent, drop: boolean): void {
@@ -1249,12 +1276,18 @@ export class UiGoalCard extends UiElement<GoalCardData> {
     if (drop && dr.on && dr.to !== dr.from) this.#move(dr.id, dr.from, dr.to, e);
   }
 
+  /** The handle lost the pointer (it was re-drawn, removed, or the browser took the gesture): the drag is over. */
+  #onLostCapture(e: PointerEvent): void {
+    const dr = this.#drag;
+    if (dr && e.pointerId === dr.pointerId) this.#endDrag();
+  }
+
   /** Put every row back where it was drawn (a drop re-renders in the new order after). */
   #endDrag(): void {
     const dr = this.#drag;
     if (!dr) return;
     this.#drag = null;
-    for (const row of dr.rows) {
+    for (const row of this.$$<HTMLElement>('.gc-q-row')) {
       row.style.transform = '';
       row.removeAttribute('data-dragging');
     }
@@ -1350,6 +1383,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
       }
     }
     this.#armed = { act, id };
+    this.#announce = '';
     this.#armedAt = now;
     clearTimeout(this.#armTimer);
     this.#armTimer = window.setTimeout(() => this.#disarm(), GOAL_ARM_MS);
@@ -1360,6 +1394,7 @@ export class UiGoalCard extends UiElement<GoalCardData> {
   #disarm(render = true): void {
     const was = !!this.#armed;
     this.#armed = null;
+    if (was) this.#announce = '';
     this.#armedAt = 0;
     clearTimeout(this.#armTimer);
     this.#armTimer = 0;

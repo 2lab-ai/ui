@@ -198,6 +198,11 @@ export class UiComposer extends UiElement<ComposerData> {
   #focused = false;
   /** Drawn as one line at the last render (`collapse`); null before the first render. */
   #foldShown: boolean | null = null;
+  /**
+   * A press (pointer down, not yet up) inside the composer. Safari and Firefox on macOS do not focus a pressed
+   * button: the field blurs on pointerdown, and folding then would hide the toolbar before the press becomes a click.
+   */
+  #pressing = false;
 
   constructor() {
     super();
@@ -247,6 +252,7 @@ export class UiComposer extends UiElement<ComposerData> {
     // On the host too: focus moving into the shadow tree or into a slotted control (composed focusin / focusout).
     this.addEventListener('focusin', () => this.#onFocusIn());
     this.addEventListener('focusout', (e) => this.#onFocusOut(e as FocusEvent));
+    this.addEventListener('pointerdown', () => this.#onPress(), true);
   }
 
   attributeChangedCallback(): void {
@@ -451,11 +457,27 @@ export class UiComposer extends UiElement<ComposerData> {
     const to = e.relatedTarget as Node | null;
     if (to && (to === this || this.contains(to) || this.root.contains(to))) return;
     // Where focus went is known only after the event (a click on the page has no related target).
-    setTimeout(() => {
-      if (!this.#focused || this.#hasFocus()) return;
-      this.#focused = false;
-      if (this.hasAttribute('collapse') && this.isConnected) this.#paint();
-    }, 0);
+    setTimeout(() => this.#maybeFold(), 0);
+  }
+
+  /** A press inside: no fold until it is released (then the click has happened — a picker opened, a recording began). */
+  #onPress(): void {
+    if (!this.hasAttribute('collapse') || this.#pressing) return;
+    this.#pressing = true;
+    const release = () => {
+      document.removeEventListener('pointerup', release, true);
+      document.removeEventListener('pointercancel', release, true);
+      this.#pressing = false;
+      setTimeout(() => this.#maybeFold(), 0);
+    };
+    document.addEventListener('pointerup', release, true);
+    document.addEventListener('pointercancel', release, true);
+  }
+
+  #maybeFold(): void {
+    if (!this.#focused || this.#pressing || this.#hasFocus()) return;
+    this.#focused = false;
+    if (this.hasAttribute('collapse') && this.isConnected) this.#paint();
   }
 
   #sendable(s: ComposerSettings): boolean {
