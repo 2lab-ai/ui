@@ -164,8 +164,8 @@ export const styles = `
    (.is-self: a ring with an orbiting arc, 0.28.0) — is core/owner-badge.ts, shared with the kit's .ui-owner-badge. */
 .ib-badge { flex: 0 0 auto; margin-left: auto; max-inline-size: min(45%, 168px); }
 /* The node pill (0.45.0): where the card's work runs, before the owner badge, as tall as it. The card's own CPU leads —
-   quiet under 10% of a core, busy (yellow) from 10%, hot from 100% (red, heavier, a red ring: not colour alone; 0.46.0
-   level sets it with no number). Then the node's short name and two ten-stripe gauges (a rank insignia) for CPU and
+   quiet under 10% of a core, busy (yellow) from 10%, hot from 100% (0.48.0: a solid red pill, the CPU badge's segment —
+   not colour alone, the card also changes; 0.46.0 level sets it with no number). Then the node's short name and two ten-stripe gauges (a rank insignia) for CPU and
    memory: one stripe green, ten red. */
 .ib-node {
   flex: 0 0 auto; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;
@@ -177,11 +177,16 @@ export const styles = `
 .ib-node + .ib-badge { margin-left: 0; }
 .ib-node-load { color: var(--ib-text); }
 .ib-node[data-level="busy"] .ib-node-load { color: color-mix(in srgb, var(--yellow) calc(100% * var(--chroma)), var(--ib-text)); }
+/* 0.48.0 — hot is the dashboard CPU badge's solid segment: red (a touch toward ink, so card-coloured text reads on it in
+   either theme), card-coloured ink and insignia. */
 .ib-node[data-level="hot"] {
-  background: color-mix(in srgb, var(--red) calc(14% * var(--chroma)), var(--ib-card));
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red) calc(75% * var(--chroma)), var(--ib-text));
+  background: color-mix(in srgb, var(--red) calc(88% * var(--chroma)), var(--ib-text));
+  color: var(--ib-card);
+  box-shadow: none;
 }
-.ib-node[data-level="hot"] .ib-node-load { color: color-mix(in srgb, var(--red) calc(100% * var(--chroma)), var(--ib-text)); font-weight: 760; }
+.ib-node[data-level="hot"] .ib-node-load { color: inherit; font-weight: 760; }
+.ib-node[data-level="hot"] .ib-node-g rect { fill: color-mix(in srgb, var(--ib-card) 35%, transparent); }
+.ib-node[data-level="hot"] .ib-node-g rect.on { fill: var(--ib-card); }
 .ib-node-name { max-inline-size: 7em; overflow: hidden; text-overflow: ellipsis; }
 .ib-node-g { flex: 0 0 auto; inline-size: 7px; block-size: 13.5px; }
 .ib-node-g rect { fill: color-mix(in srgb, var(--ib-text) 16%, transparent); }
@@ -200,6 +205,9 @@ export const styles = `
   .ib-node { forced-color-adjust: none; background: Canvas; color: CanvasText; box-shadow: inset 0 0 0 1px CanvasText; }
   .ib-node-g rect { fill: GrayText; }
   .ib-node-g rect.on { fill: CanvasText; }
+  .ib-node[data-level="hot"] { background: CanvasText; color: Canvas; }
+  .ib-node[data-level="hot"] .ib-node-g rect { fill: GrayText; }
+  .ib-node[data-level="hot"] .ib-node-g rect.on { fill: Canvas; }
 }
 ${ownerBadgeCss('.ib-badge', (name) => `var(--${name})`, 'ib-badge')}
 .ib-title { flex: 1 1 auto; font-size: 15px; font-weight: 600; line-height: 1.3; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -454,33 +462,38 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-metric.is-host[data-tone="warn"] svg { color: var(--st-wait); }
 .ib-metric.is-host[data-tone="danger"] { color: var(--st-fail-text); font-weight: 600; }
 
-/* ── LOAD (0.47.0) — a card past one core of CPU (InboxCard.load) ──
-   Red hazard stripes, hollow diagonals, along the card's top and bottom edges inside its border: one .ib-strain over
-   the card, padded by the band height and masked to that padding (the gradient-border mask), so only the two bands
-   paint and they follow the corners. A step per doubling past one core — 1: a thin band; 2: thicker and full red;
-   3 (past four cores): thicker and the stripes march; 4 (past eight): the thickest, marching fast, and a red glow
-   around the card. The tile is Bootstrap's striped-bar tile, moved by one tile per loop so the march never jumps. */
+/* ── LOAD (0.47.0; 0.48.0 the badge's look) — a card past one core of CPU (InboxCard.load) ──
+   The card wears the dashboard's CPU badge, card-sized: the heat map's red tint for a fill, a red ring for a border,
+   the badge's thin hatched underline along its bottom edge (one .ib-strain over the card, padded at the bottom and
+   masked to that padding, so only the underline paints and it follows the corners), and the node pill turned into the
+   badge's solid red segment (below). A step per doubling past one core — the tint and the ring deepen (1 → 4), the
+   underline is 2px then 3px, and from four cores the hatch drifts (slow, then quicker past eight). Nothing glows. */
+.ib-card[data-load-step] {
+  --ib-heat: color-mix(in srgb, var(--red) calc(100% * var(--chroma)), var(--ib-text));
+  background: color-mix(in srgb, var(--ib-heat) var(--ib-heat-tint, 5%), var(--ib-card));
+  border-color: color-mix(in srgb, var(--ib-heat) var(--ib-heat-ring, 35%), var(--ib-card-border));
+}
+.ib-card[data-load-step="1"] { --ib-heat-tint: 4%; --ib-heat-ring: 30%; }
+.ib-card[data-load-step="2"] { --ib-heat-tint: 7%; --ib-heat-ring: 45%; }
+.ib-card[data-load-step="3"] { --ib-heat-tint: 10%; --ib-heat-ring: 60%; }
+.ib-card[data-load-step="4"] { --ib-heat-tint: 14%; --ib-heat-ring: 80%; }
 .ib-strain {
-  --ib-strain-c: color-mix(in srgb, var(--red) calc(100% * var(--chroma)), var(--ib-text));
+  --ib-strain-c: var(--ib-heat, color-mix(in srgb, var(--red) calc(100% * var(--chroma)), var(--ib-text)));
   --ib-strain-h: 2px;
   position: absolute; inset: 0; z-index: 1; display: block; pointer-events: none; border-radius: 11px;
-  padding-block: var(--ib-strain-h); box-sizing: border-box;
-  background-image: linear-gradient(135deg, var(--ib-strain-c) 25%, transparent 25% 50%, var(--ib-strain-c) 50% 75%, transparent 75%);
-  background-size: 8px 8px;
+  padding-block: 0 var(--ib-strain-h); box-sizing: border-box;
+  background-image: repeating-linear-gradient(135deg, var(--ib-strain-c) 0 3px, transparent 3px 6px);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
 }
-.ib-strain[data-step="1"] { --ib-strain-h: 2px; opacity: 0.8; }
-.ib-strain[data-step="2"] { --ib-strain-h: 3px; }
-.ib-strain[data-step="3"] { --ib-strain-h: 5px; animation: ib-strain-march 1600ms linear infinite; }
-.ib-strain[data-step="4"] { --ib-strain-h: 7px; animation: ib-strain-march 600ms linear infinite; }
-.ib-card[data-load-step="4"] {
-  box-shadow: var(--ib-shadow), 0 0 0 1px color-mix(in srgb, var(--red) calc(70% * var(--chroma)), var(--ib-text)),
-    0 0 16px color-mix(in srgb, var(--red) calc(45% * var(--chroma)), transparent);
-}
-@keyframes ib-strain-march { from { background-position-x: 0; } to { background-position-x: 8px; } }
+.ib-strain[data-step="1"] { --ib-strain-h: 2px; opacity: 0.6; }
+.ib-strain[data-step="2"] { --ib-strain-h: 2px; opacity: 0.9; }
+.ib-strain[data-step="3"] { --ib-strain-h: 3px; animation: ib-strain-march 2400ms linear infinite; }
+.ib-strain[data-step="4"] { --ib-strain-h: 3px; animation: ib-strain-march 1200ms linear infinite; }
+/* One period of the 135° hatch along the edge (6px across the stripes = 6px × √2 along it): the drift never jumps. */
+@keyframes ib-strain-march { from { background-position-x: 0; } to { background-position-x: 8.4853px; } }
 
 /* ── ATTENTION (0.32.0) — a collapsed card that waits on the viewer ──
    Still: a 3px rail over the reading edge, the border drawn toward the mark, the status tag in ink (the one solid

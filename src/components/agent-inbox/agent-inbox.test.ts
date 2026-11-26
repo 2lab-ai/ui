@@ -3325,30 +3325,55 @@ describe('card.load (0.47.0) — hazard stripes on the edges past one core', () 
     expect(strain(el)!.getAttribute('data-step')).toBe('3');
   });
 
-  it('paints only the two bands, marches from step 3, stays still under reduced motion, ink in forced colours', () => {
-    expect(monoStyles).toMatch(/\.ib-strain \{[^}]*padding-block: var\(--ib-strain-h\);/);
-    expect(monoStyles).toMatch(
-      /\.ib-strain \{[^}]*mask: linear-gradient\(#000 0 0\) content-box, linear-gradient\(#000 0 0\);/,
+  it('0.48.0 — the card wears the CPU badge: a red tint and ring deepening per step, a hatched underline, no glow', () => {
+    const rule = (sel: string) => {
+      const at = monoStyles.indexOf(`\n${sel} {`);
+      expect(at, sel).toBeGreaterThan(-1);
+      return monoStyles.slice(at, monoStyles.indexOf('}', at) + 1);
+    };
+    // The badge's fill and ring, card-sized.
+    const hot = rule('.ib-card[data-load-step]');
+    expect(hot).toContain('background: color-mix(in srgb, var(--ib-heat) var(--ib-heat-tint, 5%), var(--ib-card));');
+    expect(hot).toContain(
+      'border-color: color-mix(in srgb, var(--ib-heat) var(--ib-heat-ring, 35%), var(--ib-card-border));',
     );
-    expect(monoStyles).toMatch(/\.ib-strain \{[^}]*mask-composite: exclude;/);
-    expect(monoStyles).toMatch(/\.ib-strain \{[^}]*pointer-events: none;/);
-    const step = (n: number) =>
-      monoStyles.match(new RegExp(`\\.ib-strain\\[data-step="${n}"\\] \\{([^}]*)\\}`))?.[1] ?? '';
-    expect(step(1)).toContain('--ib-strain-h: 2px;');
-    expect(step(2)).toContain('--ib-strain-h: 3px;');
-    expect(step(3)).toContain('--ib-strain-h: 5px;');
-    expect(step(4)).toContain('--ib-strain-h: 7px;');
+    const tints = [1, 2, 3, 4].map((n) => rule(`.ib-card[data-load-step="${n}"]`));
+    expect(tints.map((r) => r.match(/--ib-heat-tint: (\d+)%/)?.[1])).toEqual(['4', '7', '10', '14']);
+    expect(tints.map((r) => r.match(/--ib-heat-ring: (\d+)%/)?.[1])).toEqual(['30', '45', '60', '80']);
+    // Nothing glows any more.
+    for (const r of tints) expect(r).not.toContain('box-shadow');
+    // The badge's hatch, under the card only (the badge has it under itself), masked from the strain's padding.
+    const band = rule('.ib-strain');
+    expect(band).toContain('padding-block: 0 var(--ib-strain-h);');
+    expect(band).toContain('repeating-linear-gradient(135deg, var(--ib-strain-c) 0 3px, transparent 3px 6px)');
+    expect(band).toContain('mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);');
+    expect(band).toContain('mask-composite: exclude;');
+    expect(band).toContain('pointer-events: none;');
+    const step = (n: number) => rule(`.ib-strain[data-step="${n}"]`);
+    expect([1, 2, 3, 4].map((n) => step(n).match(/--ib-strain-h: (\d+)px/)?.[1])).toEqual(['2', '2', '3', '3']);
     expect(step(1)).not.toContain('animation');
     expect(step(2)).not.toContain('animation');
-    expect(step(3)).toContain('animation: ib-strain-march 1600ms linear infinite;');
-    expect(step(4)).toContain('animation: ib-strain-march 600ms linear infinite;');
-    expect(monoStyles).toMatch(
-      /@keyframes ib-strain-march \{ from \{ background-position-x: 0; \} to \{ background-position-x: 8px; \} \}/,
+    expect(step(3)).toContain('animation: ib-strain-march 2400ms linear infinite;');
+    expect(step(4)).toContain('animation: ib-strain-march 1200ms linear infinite;');
+    expect(monoStyles).toContain(
+      '@keyframes ib-strain-march { from { background-position-x: 0; } to { background-position-x: 8.4853px; } }',
     );
-    expect(monoStyles).toMatch(/\.ib-card\[data-load-step="4"\] \{[^}]*box-shadow:/);
     expect(monoStyles).toMatch(/prefers-reduced-motion: reduce\) \{[^@]*\.ib-strain \{ animation: none; \}/);
     expect(monoStyles).toMatch(
       /forced-colors: active\) \{[^@]*\.ib-strain \{ forced-color-adjust: none; --ib-strain-c: CanvasText;/,
+    );
+  });
+
+  it('0.48.0 — a hot node pill is the badge’s solid segment: red, card-coloured ink and insignia, ink in forced colours', () => {
+    const at = monoStyles.indexOf('\n.ib-node[data-level="hot"] {');
+    expect(at).toBeGreaterThan(-1);
+    const pill = monoStyles.slice(at, monoStyles.indexOf('}', at) + 1);
+    expect(pill).toContain('background: color-mix(in srgb, var(--red) calc(88% * var(--chroma)), var(--ib-text));');
+    expect(pill).toContain('color: var(--ib-card);');
+    expect(pill).toContain('box-shadow: none;');
+    expect(monoStyles).toContain('.ib-node[data-level="hot"] .ib-node-g rect.on { fill: var(--ib-card); }');
+    expect(monoStyles).toMatch(
+      /forced-colors: active\) \{[^}]*\}[^@]*\.ib-node\[data-level="hot"\] \{ background: CanvasText; color: Canvas; \}/,
     );
   });
 });
