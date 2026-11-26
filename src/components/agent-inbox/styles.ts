@@ -467,7 +467,10 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
    the badge's thin hatched underline along its bottom edge (one .ib-strain over the card, padded at the bottom and
    masked to that padding, so only the underline paints and it follows the corners), and the node pill turned into the
    badge's solid red segment (below). A step per doubling past one core — the tint and the ring deepen (1 → 4), the
-   underline is 2px then 3px, and from four cores the hatch drifts (slow, then quicker past eight). Nothing glows. */
+   underline is 2px then 3px. Nothing glows. 0.51.0: the hatch runs to the right at every step, quicker each step
+   (one stripe every 1.2 s, 0.8 s, 0.5 s, 0.3 s): a wider copy of it (.ib-strain::before, one stripe longer on the left)
+   slides one stripe and starts over, a transform the compositor moves without repainting the card. The head shows an
+   alert before the node pill (.ib-alert: the host's image, else 🚨). */
 .ib-card[data-load-step] {
   --ib-heat: color-mix(in srgb, var(--red) calc(100% * var(--chroma)), var(--ib-text));
   background: color-mix(in srgb, var(--ib-heat) var(--ib-heat-tint, 5%), var(--ib-card));
@@ -480,20 +483,34 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
 .ib-strain {
   --ib-strain-c: var(--ib-heat, color-mix(in srgb, var(--red) calc(100% * var(--chroma)), var(--ib-text)));
   --ib-strain-h: 2px;
-  position: absolute; inset: 0; z-index: 1; display: block; pointer-events: none; border-radius: 11px;
+  --ib-strain-t: 1200ms;
+  position: absolute; inset: 0; z-index: 1; display: block; pointer-events: none; border-radius: 11px; overflow: hidden;
   padding-block: 0 var(--ib-strain-h); box-sizing: border-box;
-  background-image: repeating-linear-gradient(135deg, var(--ib-strain-c) 0 3px, transparent 3px 6px);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
 }
-.ib-strain[data-step="1"] { --ib-strain-h: 2px; opacity: 0.6; }
-.ib-strain[data-step="2"] { --ib-strain-h: 2px; opacity: 0.9; }
-.ib-strain[data-step="3"] { --ib-strain-h: 3px; animation: ib-strain-march 2400ms linear infinite; }
-.ib-strain[data-step="4"] { --ib-strain-h: 3px; animation: ib-strain-march 1200ms linear infinite; }
-/* One period of the 135° hatch along the edge (6px across the stripes = 6px × √2 along it): the drift never jumps. */
-@keyframes ib-strain-march { from { background-position-x: 0; } to { background-position-x: 8.4853px; } }
+/* One period of the 135° hatch along the edge is 6px × √2 (6px across the stripes): the copy starts that far to the
+   left and slides that far right, where the hatch looks as it did at the start — the run never jumps. */
+.ib-strain::before {
+  content: ''; position: absolute; inset-block: 0; left: -8.4853px; right: 0;
+  background-image: repeating-linear-gradient(135deg, var(--ib-strain-c) 0 3px, transparent 3px 6px);
+  animation: ib-strain-run var(--ib-strain-t) linear infinite; will-change: transform;
+}
+.ib-strain[data-step="1"] { --ib-strain-h: 2px; --ib-strain-t: 1200ms; opacity: 0.6; }
+.ib-strain[data-step="2"] { --ib-strain-h: 2px; --ib-strain-t: 800ms; opacity: 0.9; }
+.ib-strain[data-step="3"] { --ib-strain-h: 3px; --ib-strain-t: 500ms; }
+.ib-strain[data-step="4"] { --ib-strain-h: 3px; --ib-strain-t: 300ms; }
+@keyframes ib-strain-run { from { transform: translateX(0); } to { transform: translateX(8.4853px); } }
+/* The alert (0.51.0): 18px, right before the node pill; it takes the pill's push to the end of the head. */
+.ib-alert {
+  flex: 0 0 auto; margin-left: auto; display: inline-block; inline-size: 18px; block-size: 18px; object-fit: contain;
+  user-select: none; -webkit-user-drag: none;
+}
+span.ib-alert { font-size: 15px; line-height: 18px; text-align: center; }
+.ib-alert + :is(.ib-node, .ib-badge, .ib-star) { margin-left: 0; }
+.ib-alert + .ib-node { margin-inline-start: -3px; }
 
 /* ── ATTENTION (0.32.0) — a collapsed card that waits on the viewer ──
    Still: a 3px rail over the reading edge, the border drawn toward the mark, the status tag in ink (the one solid
@@ -750,7 +767,7 @@ button.ib-chip:active:not(:focus-visible) { transform: scale(0.97); }
   .ib-sk, .ib-board[aria-busy="true"] .ib-count:empty { animation: none; }
   .ib-group-head .ib-chev, .ib-kids-line .ib-chev { transition: none; }
   .ib-card.is-attention:not(.is-open)::after { animation: none; display: none; }
-  .ib-strain { animation: none; }
+  .ib-strain::before { animation: none; }
 }
 /* Forced colours: the rail in the system's highlight (backgrounds are forced there); no ring. The load stripes in ink. */
 @media (forced-colors: active) {

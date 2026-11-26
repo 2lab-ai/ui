@@ -3265,7 +3265,7 @@ describe('card.node (0.45.0) — the node pill in the head', () => {
   });
 });
 
-describe('card.load (0.47.0) — hazard stripes on the edges past one core', () => {
+describe('card.load (0.47.0; 0.51.0 a running hatch and an alert) — a card past one core', () => {
   const LOAD_CARD: InboxCard = { ...RUN, node: { text: 'm5max', level: 'hot' } };
   const strain = (el: UiAgentInbox) => card(el, 'notes').querySelector<HTMLElement>(':scope > .ib-strain');
 
@@ -3345,23 +3345,115 @@ describe('card.load (0.47.0) — hazard stripes on the edges past one core', () 
     // The badge's hatch, under the card only (the badge has it under itself), masked from the strain's padding.
     const band = rule('.ib-strain');
     expect(band).toContain('padding-block: 0 var(--ib-strain-h);');
-    expect(band).toContain('repeating-linear-gradient(135deg, var(--ib-strain-c) 0 3px, transparent 3px 6px)');
     expect(band).toContain('mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);');
     expect(band).toContain('mask-composite: exclude;');
     expect(band).toContain('pointer-events: none;');
+    expect(rule('.ib-strain::before')).toContain(
+      'repeating-linear-gradient(135deg, var(--ib-strain-c) 0 3px, transparent 3px 6px)',
+    );
     const step = (n: number) => rule(`.ib-strain[data-step="${n}"]`);
     expect([1, 2, 3, 4].map((n) => step(n).match(/--ib-strain-h: (\d+)px/)?.[1])).toEqual(['2', '2', '3', '3']);
-    expect(step(1)).not.toContain('animation');
-    expect(step(2)).not.toContain('animation');
-    expect(step(3)).toContain('animation: ib-strain-march 2400ms linear infinite;');
-    expect(step(4)).toContain('animation: ib-strain-march 1200ms linear infinite;');
-    expect(monoStyles).toContain(
-      '@keyframes ib-strain-march { from { background-position-x: 0; } to { background-position-x: 8.4853px; } }',
-    );
-    expect(monoStyles).toMatch(/prefers-reduced-motion: reduce\) \{[^@]*\.ib-strain \{ animation: none; \}/);
     expect(monoStyles).toMatch(
       /forced-colors: active\) \{[^@]*\.ib-strain \{ forced-color-adjust: none; --ib-strain-c: CanvasText;/,
     );
+  });
+
+  it('0.51.0 — the hatch runs to the right at every step, quicker each step, as a seamless transform', () => {
+    const rule = (sel: string) => {
+      const at = monoStyles.indexOf(`\n${sel} {`);
+      expect(at, sel).toBeGreaterThan(-1);
+      return monoStyles.slice(at, monoStyles.indexOf('}', at) + 1);
+    };
+    // The moving copy: one period (6px × √2 = 8.4853px) longer on the left, sliding one period right, forever.
+    const copy = rule('.ib-strain::before');
+    expect(copy).toContain('left: -8.4853px; right: 0;');
+    expect(copy).toContain('animation: ib-strain-run var(--ib-strain-t) linear infinite;');
+    expect(copy).toContain('will-change: transform;');
+    expect(monoStyles).toContain(
+      '@keyframes ib-strain-run { from { transform: translateX(0); } to { transform: translateX(8.4853px); } }',
+    );
+    // Every step moves (0.48.0 had steps 1–2 still), each one quicker.
+    const ms = [1, 2, 3, 4].map((n) =>
+      Number(rule(`.ib-strain[data-step="${n}"]`).match(/--ib-strain-t: (\d+)ms/)?.[1]),
+    );
+    expect(ms).toEqual([1200, 800, 500, 300]);
+    // The band itself no longer animates its background (that repainted the whole card every frame).
+    expect(rule('.ib-strain')).not.toContain('animation');
+    expect(monoStyles).not.toContain('ib-strain-march');
+    expect(monoStyles).toMatch(/prefers-reduced-motion: reduce\) \{[^@]*\.ib-strain::before \{ animation: none; \}/);
+    expect(monoStyles).toContain('.ib-strain::before { animation: none; }');
+  });
+
+  it('0.51.0 — a card past one core shows 🚨 in its head, right before the node pill; none at or under one core', () => {
+    for (const [load, step] of [
+      [150, '1'],
+      [900, '4'],
+    ] as const) {
+      const el = mount(board({ ...LOAD_CARD, load }));
+      const alert = card(el, 'notes').querySelector<HTMLElement>('.ib-head > .ib-alert');
+      expect(alert, String(load)).not.toBeNull();
+      expect(alert!.tagName).toBe('SPAN');
+      expect(alert!.textContent).toBe('🚨');
+      expect(alert!.getAttribute('aria-hidden')).toBe('true');
+      expect(alert!.getAttribute('data-step')).toBe(step);
+      expect(alert!.nextElementSibling?.classList.contains('ib-node')).toBe(true);
+    }
+    for (const load of [undefined, 40, 100]) {
+      const el = mount(board({ ...LOAD_CARD, load }));
+      expect(card(el, 'notes').querySelector('.ib-alert'), String(load)).toBeNull();
+    }
+  });
+
+  it('0.51.0 — data.alertIcon draws the host’s image instead (decorative); a URL that could run script draws 🚨', () => {
+    const icon = '/dashboard/alert.gif';
+    const el = mount({ ...board({ ...LOAD_CARD, load: 470 }), alertIcon: icon });
+    const img = card(el, 'notes').querySelector<HTMLImageElement>('.ib-head > img.ib-alert');
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe(icon);
+    expect(img!.getAttribute('alt')).toBe('');
+    expect(img!.getAttribute('aria-hidden')).toBe('true');
+    expect(img!.getAttribute('data-step')).toBe('3');
+    for (const bad of ['javascript:alert(1)', '//evil.example/x.gif', 'data:text/html,<b>x</b>', 42]) {
+      const b = mount({ ...board({ ...LOAD_CARD, load: 470 }), alertIcon: bad as string });
+      const a = card(b, 'notes').querySelector<HTMLElement>('.ib-alert');
+      expect(a?.tagName, String(bad)).toBe('SPAN');
+      expect(a!.textContent).toBe('🚨');
+    }
+  });
+
+  it('0.51.0 — the alert follows the load and the icon in place, and stays on a one-line card', () => {
+    const el = mount(board({ ...LOAD_CARD, load: 150 }));
+    const alert = () => card(el, 'notes').querySelector<HTMLElement>('.ib-alert');
+    expect(alert()!.getAttribute('data-step')).toBe('1');
+    el.data = { ...board({ ...LOAD_CARD, load: 900 }), alertIcon: 'https://cdn.example/alert.gif' };
+    el.renderNow();
+    expect(alert()!.tagName).toBe('IMG');
+    expect(alert()!.getAttribute('data-step')).toBe('4');
+    el.data = board({ ...LOAD_CARD, load: 230 });
+    el.renderNow();
+    expect(alert()!.tagName).toBe('SPAN');
+    el.data = board({ ...LOAD_CARD, load: 90 });
+    el.renderNow();
+    expect(alert()).toBeNull();
+    const w = mount({
+      columns: columnsByStatus([{ ...LOAD_CARD, load: 470 }]),
+      controls: 'window',
+      alertIcon: 'a.gif',
+    });
+    w.setMinimized('notes', true);
+    w.renderNow();
+    expect(card(w, 'notes').classList.contains('is-min')).toBe(true);
+    expect(card(w, 'notes').querySelector('.ib-head > img.ib-alert')).not.toBeNull();
+  });
+
+  it('0.51.0 — the alert is 18px, takes the head’s push to the end, and sits 5px from the pill', () => {
+    const at = monoStyles.indexOf('\n.ib-alert {');
+    expect(at).toBeGreaterThan(-1);
+    const r = monoStyles.slice(at, monoStyles.indexOf('}', at) + 1);
+    expect(r).toContain('margin-left: auto;');
+    expect(r).toContain('inline-size: 18px; block-size: 18px;');
+    expect(monoStyles).toContain('.ib-alert + :is(.ib-node, .ib-badge, .ib-star) { margin-left: 0; }');
+    expect(monoStyles).toContain('.ib-alert + .ib-node { margin-inline-start: -3px; }');
   });
 
   it('0.48.0 — a hot node pill is the badge’s solid segment: red, card-coloured ink and insignia, ink in forced colours', () => {
